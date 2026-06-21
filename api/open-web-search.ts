@@ -51,7 +51,7 @@ async function braveSearch(query: string): Promise<{ content: string; sources: O
     const params = new URLSearchParams({
       q: `${query} -site:apontador.com.br -site:listamais.com.br`,
       count: '6',
-      search_lang: 'pt',
+      search_lang: 'pt-br',
     });
     const res = await fetch(`${BRAVE_API}?${params}`, {
       headers: { Accept: 'application/json', 'Accept-Encoding': 'gzip', 'X-Subscription-Token': apiKey },

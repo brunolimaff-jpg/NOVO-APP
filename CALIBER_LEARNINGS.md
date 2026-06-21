@@ -634,6 +634,20 @@ _Atualizado automaticamente pelo Caliber apos sessoes de agente._
 - **Ordem de diagnostico para experimento LiteLLM: gate -> allowlist -> catalogo -> smoke** [litellm, debug, diagnostico, gate, experiment, pr386]
   A investigacao do bloqueio Kimi no preview mostrou que a ordem correta de diagnostico e: (1) gate server-side passou? olhar logs `[ModularDossier] LiteLLM experiment gate fechado`; (2) allowlist inclui operador?; (3) modelo esta no catalogo e na env `LLM_EXPERIMENT_MODELS`?; (4) smoke autenticado funciona? Pular o passo 1 leva a diagnosticar env vars como causa quando o problema real e auth server-side. O erro `400 Model not allowed for experiment` no smoke era consequencia do gate fechado, nao causa. Afeta: fluxo de debug de PR #386.
 
+### Sessao 2026-06-21 — PR #386 3 modelos, foundation cache gap, Brave Search
+
+- **Foundation cache gap e o real diferencial Gemini, nao o modelo** [litellm, gemini, foundation-cache, grounding, descoberta, pr386]
+  Por 3 sessoes consecutivas, a premissa do experimento LiteLLM era "substituir o Gemini por outro modelo melhor/mais barato". A validacao real com 3 modelos (DeepSeek V4 Flash, Grok 4.20, DeepSeek V4 Pro) revelou que **o modelo nao e o diferencial** — o Gemini produz dossies excelentes porque recebe foundation cache de ~43k caracteres (contexto completo do CNPJ) + Google Search grounding nativo. Modelos via LiteLLM recebem apenas ~15k chars sem web search. O resultado: dossies genericos independentemente do modelo. **Licao:** para qualquer experimento que troque provider de IA, verificar primeiro o que o provider atual oferece de infraestrutura (cache, grounding, tools) antes de comparar modelos. O modelo e apenas uma peca. Afeta: PR #386, roadmap de IA, qualquer futura troca de provider.
+
+- **Grok 4.20 Reasoning rapido mas dossie generico sem web search** [litellm, grok, web-search, qualidade, pr386]
+  Grok 4.20 completou 6/6 modulos em 12-22s cada (0 erros), melhor desempenho entre os 3 modelos testados. Mas o dossie foi generico — "Nao encontrado" em quase todos os campos, apenas 1 CNPJ descoberto. Comparacao: Gemini com foundation cache + Google Search descobriu Colombia, R$2.8Bi, 220k ha, 28 CNPJs, TOTVS Protheus+AdvPL para o mesmo CNPJ Scheffer. Velocidade sem qualidade nao serve para dossie comercial. Afeta: criterio de selecao de modelos, PR #386.
+
+- **Web Search externo como requisito obrigatorio para modelos sem grounding nativo** [litellm, web-search, brave, grounding, arquitetura, pr386]
+  Para que modelos via LiteLLM produzam dossies comparaveis ao Gemini, e necessario injetar grounding context externo. A implementacao segue: `api/open-web-search.ts` (Brave Search primario + DuckDuckGo fallback), `utils/llm/webSearchService.ts` (5 queries paralelas + curadoria), injecao via `sharedDossierModuleOptions.groundingContextBlock` no `waterfall-orchestrator.ts`. Ainda pendente de validacao — se mesmo com web search o dossie continuar generico, o experimento LiteLLM pode ser encerrado. Afeta: `api/open-web-search.ts`, `utils/llm/webSearchService.ts`, `utils/llm/modelCatalog.ts`, PR #386.
+
+- **Modelos thinking (raciocinio) sao inviaveis para waterfall comercial** [litellm, deepseek, performance, timeout, modelo, pr386]
+  DeepSeek V4 Flash e V4 Pro sao modelos de raciocinio (thinking mode) que priorizam qualidade sobre velocidade. No waterfall de 6 modulos, ambos tiveram performance inaceitavel: V4 Flash 2/6 modulos com 62-119s cada (4 timeouts), V4 Pro 1/6 modulos a 44s. Para um dossie comercial que precisa entregar 6 modulos em <3min, modelos thinking sao inviaveis. Preferir modelos de geracao direta (non-thinking) como Grok 4.20. Afeta: criterio de selecao de modelos, PR #386.
+
 ### Sessao 2026-06-21 — PR #386 validacao LiteLLM (F1-F6 completo)
 
 - **Bypass preview local auth exige 3 camadas: cliente + servidor + proxy** [litellm, auth, preview, experiment, gateway, pattern, pr386]

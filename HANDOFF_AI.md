@@ -1,69 +1,92 @@
-# Handoff — PR #386 LiteLLM preview: gate aberto, LiteLLM funcionando, DeepSeek lento
+# Handoff — PR #386 LiteLLM: 3 modelos testados, descoberta critica cache, Brave Search em andamento
 
-**Atualizado:** 2026-06-21 — validacao DeepSeek V4 Flash: gate OK, modelo lento (62-119s/modulo)
+**Atualizado:** 2026-06-21 — validacao Grok 4.20 + DeepSeek V4 Pro + Web Search Brave
 **Producao:** `scoutagro.vercel.app` — `LLM_PROVIDER=gemini` (sem mudanca)
-**Branch:** `feat/litellm-experiment` | **HEAD local:** `42e154d3` (3 commits novos)
+**Branch:** `feat/litellm-experiment` | **HEAD local:** `78a7805c` (6 commits novos)
 **PR:** https://github.com/brunolimaff-jpg/NOVO-APP/pull/386
-**Preview testado:** `scoutagro-bmgpi1o2e-brunolimaff-3629s-projects.vercel.app`
-**Vault:** `/Users/brunolima/Documents/Bruno Vault/20-SESSOES/2026-06/2026-06-21T12-34-00-pr386-gate-aberto-litellm-ok.md`
+**Preview:** `scoutagro-no9vz1mwu-brunolimaff-3629s-projects.vercel.app` (deploy pendente web search)
 
 ## Estado Atual
 
-| Item                          | Status                                                   |
-| ----------------------------- | -------------------------------------------------------- |
-| Fase 1-2 (gate fix 3 camadas) | OK — 3 commits, 8 arquivos alterados                     |
-| Fase 3 (testes)               | OK — 4 novos testes para preview local auth              |
-| Fase 4-5 (env + redeploy)     | OK — env vars configuradas, preview deploy `42e154d3`    |
-| **Fase 6 (validacao)**        | **Gate ABERTO** — LiteLLM chamado, `fallback_used=false` |
-| DeepSeek V4 Flash             | 2/6 modulos concluidos — 4 timeouts (62-119s/modulo)     |
-| Erros auth                    | 0 — nenhum 401/403                                       |
-| MERGE                         | **BLOQUEADO** — NAO mergear; PR e experimental           |
+| Item                                 | Status                                                                                                         |
+| ------------------------------------ | -------------------------------------------------------------------------------------------------------------- |
+| Fase 1-2 (gate fix 3 camadas)        | OK                                                                                                             |
+| Fase 6 validacao DeepSeek V4 Flash   | **LENTO** — 2/6 modulos, 4 timeouts (62-119s/modulo)                                                           |
+| Fase 6 validacao Grok 4.20 Reasoning | **RAPIDO** — 6/6 modulos, 12-22s/modulo, 0 erros                                                               |
+| Fase 6 validacao DeepSeek V4 Pro     | **LENTO** — 1/6 modulos, 44s                                                                                   |
+| **Descoberta critica**               | **Gemini recebe foundation cache (43k chars) + web search. LiteLLM models recebem ~15k chars, sem web search** |
+| Fase 10 Brave Search API             | **IMPLEMENTADO** — deploy pendente                                                                             |
 
-## Bloqueios Resolvidos
+## Descoberta Critica — Foundation Cache Gap
 
-### Bloqueio 1 (RESOLVIDO): Gate server-side `no_supabase_session`
+Gemini produz dossies excelentes porque recebe:
 
-- Solucao em 3 camadas:
-  - **Cliente** (`experimentGate.ts`): bypass `previewLocalAuth` com `LLM_EXPERIMENT_PREVIEW_LOCAL_AUTH=true`
-  - **Servidor** (`_experiment-auth.ts`): aceita `x-experiment-operator-email` header em preview
-  - **Proxy** (`geminiProxy.ts`): `setPreviewOperatorEmail()` module-level var propaga email
-- `authMode=preview_local` com `operatorEmail=bruno.ferreira@senior.com.br` — gate abriu
+- **Foundation cache** de ~43k caracteres (contexto completo do CNPJ)
+- **Google Search grounding** nativo (fontes atualizadas da web)
+- Temperatura 0.1-0.3 para modulos factuais
 
-### Bloqueio 2 (PENDENTE): Gemini API 429 credits depleted
+Modelos via LiteLLM recebem:
 
-- Ainda sem solucao. LiteLLM roda sem fallback Gemini.
-- Preview depende exclusivamente de modelos LiteLLM.
+- Apenas ~15k chars de contexto (sem foundation cache)
+- **Sem web search** — sem acesso a dados atualizados
+- Dossies genericos: "Nao encontrado" em quase todos os campos
 
-## Resultados DeepSeek V4 Flash (Shellfer 04.733.767/0001-80)
+**Exemplo concreto:** Scheffer R3 via Gemini descobriu Colombia, R$2.8Bi, 220k ha, 28 CNPJs, TOTVS Protheus+AdvPL. Grok 4.20 mesmo prompt: tudo "Nao encontrado", 1 CNPJ.
 
-| Modulo           | Status    | Tempo |
-| ---------------- | --------- | ----- |
-| 1. Identificacao | Concluido | 62s   |
-| 2. Fiscais       | Timeout   | 119s  |
-| 3. Societario    | Timeout   | 119s  |
-| 4. Comercial     | Concluido | 84s   |
-| 5. Financeiro    | Timeout   | 119s  |
-| 6. Risco         | Timeout   | 119s  |
+**Conclusao:** Sem foundation cache + web search, nenhum modelo via LiteLLM producira dossies comparaveis ao Gemini.
 
-DeepSeek V4 Flash e muito lento para uso em producao comercial (>60s/modulo). 4/6 modulos timeoutaram (limite 120s). Mesmo modulos concluidos levaram 62-84s — inviavel para experiencia do usuario.
+## Resultados Validacao (CNPJ Scheffer 04.733.767/0001-80)
+
+| Modelo                  | Modulos | Erros      | Tempo/modulo | Qualidade              |
+| ----------------------- | ------- | ---------- | ------------ | ---------------------- |
+| DeepSeek V4 Flash       | 2/6     | 4 timeouts | 62-119s      | Inviavel               |
+| **Grok 4.20 Reasoning** | **6/6** | **0**      | **12-22s**   | **Generico (sem web)** |
+| DeepSeek V4 Pro         | 1/6     | lento      | 44s          | Inviavel               |
+
+## Web Search Brave — Feito e Pendente
+
+**Implementado:**
+
+- `api/open-web-search.ts`: Brave Search como provider primario, DuckDuckGo fallback
+- `utils/llm/webSearchService.ts`: 5 queries paralelas + curadoria + grounding block
+- `waterfall-orchestrator.ts`: injecao no `sharedDossierModuleOptions.groundingContextBlock`
+- `utils/llm/modelCatalog.ts`: modelos `grok-4.20` e `deepseek-v4-pro` adicionados
+
+**Pendente:**
+
+- Deploy do preview `scoutagro-no9vz1mwu` (aguardando build)
+- Smoke autenticado com Grok + web search (validar se groundingContextBlock melhora qualidade)
+
+## Commits Novos (desde ultimo handoff)
+
+```
+69242e26 fix preview local auth (3 camadas)
+fa6938b3 adicionar grok-4.20 ao catalogo
+110fc2ad adicionar deepseek-v4-pro ao catalogo
+36754f58 fix priorizar Supabase Bearer token
+129a08a3 feat web search Brave Search
+78a7805c fix types Brave Search + remover api/web-search.ts
+```
+
+## Bloqueios Ativos
+
+- **Gemini 429 credits depleted** — ainda sem solucao. LiteLLM como unico provider.
+- **LiteLLM sem foundation cache** — descobrimos que este e o real diferencial do Gemini
+- **Web Search Brave deploy pendente** — aguardando build para smoke
 
 ## Proximo Passo
 
-Testar `oracle/xai.grok-4.20-0309-reasoning`:
-
-1. Adicionar modelo ao `modelCatalog.ts`
-2. Atualizar env vars do preview
-3. Novo deploy
-4. Smoke autenticado + waterfall Scheffer
-
-Se Grok tambem for lento, experimento LiteLLM pode ser encerrado com relatorio: "modelos alternativos nao competitivos com Gemini em velocidade."
+1. Finalizar deploy do preview com Brave Search (`scoutagro-no9vz1mwu`)
+2. Smoke autenticado com Grok 4.20 + web search (validar se grounding melhora dossie)
+3. Se web search nao resolver: experimento encerrado com relatorio "modelos alternativos incapazes de replicar Gemini sem foundation cache"
 
 ## Regras Criticas
 
 - **NAO fazer merge** — PR experimental, nunca mergear em main
 - **NAO adicionar n8n** — fora de escopo
 - **NAO liberar bypass auth local em producao** — `LLM_EXPERIMENT_PREVIEW_LOCAL_AUTH` so para preview
+- **NAO usar fetch nativo com cookies no Vercel Edge** — Brave Search usa REST API com API key
 
 ## Prompt de Retomada
 
-PR #386 feat/litellm-experiment, HEAD 42e154d3. Gate LiteLLM resolvido em 3 camadas (cliente previewLocalAuth + server x-experiment-operator-email + proxy setPreviewOperatorEmail). Validacao real com DeepSeek V4 Flash no preview: gate abriu, 0 erros auth, mas modelo muito lento (62-119s/modulo, 4/6 timeouts). Proximo: testar oracle/xai.grok-4.20-0309-reasoning. Gemini 429 ainda sem solucao. Nao mergear.
+PR #386 feat/litellm-experiment, HEAD 78a7805c. Gate LiteLLM resolvido em 3 camadas. Validacao real: Grok 4.20 rapido (12-22s/modulo) mas dossie generico sem web search; DeepSeek V4 Flash e V4 Pro lentos demais. **Descoberta critica:** o real diferencial do Gemini nao e modelo, e foundation cache (43k chars) + Google Search grounding. LiteLLM models recebem ~15k chars sem web search. Fase 10 implementou Brave Search como fonte de grounding para modelos LiteLLM. Deploy do preview com web search pendente. Gemini 429 ainda sem solucao. Nao mergear.

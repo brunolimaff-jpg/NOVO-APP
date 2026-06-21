@@ -65,10 +65,10 @@ describe('api/open-web-search', () => {
     expect(response.statusCode).toBe(200);
     expect(response.payload).toMatchObject({
       content: expect.stringContaining('Grupo Piccini abre usina'),
-      source: 'OpenWebSearch/DuckDuckGo',
+      source: 'DuckDuckGo (fallback)',
       degraded: false,
       sources: [],
-      providerStatus: [{ provider: 'duckduckgo', ok: true }],
+      providerStatus: expect.arrayContaining([{ provider: 'duckduckgo', ok: true }]),
     });
     expect(fetch).not.toHaveBeenCalled();
     expect(performWebSearchMock).toHaveBeenCalledWith('Grupo Piccini RRP Energia Tapurah');
@@ -162,10 +162,10 @@ describe('api/open-web-search', () => {
     expect(response.statusCode).toBe(200);
     expect(response.payload).toMatchObject({
       content: '',
-      source: 'OpenWebSearch/DdgDegraded',
+      source: 'OpenWebSearch/Degraded',
       degraded: true,
       detail: 'Search failed: 503',
-      providerStatus: [{ provider: 'duckduckgo', ok: false, reason: 'unknown' }],
+      providerStatus: expect.arrayContaining([{ provider: 'duckduckgo', ok: false, reason: 'unknown' }]),
     });
   });
 });

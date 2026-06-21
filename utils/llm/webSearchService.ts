@@ -24,7 +24,10 @@ export interface WebSearchDossierResult {
 }
 
 function stripHtml(html: string): string {
-  return html.replace(/<[^>]*>/g, '').replace(/&[a-z]+;/g, ' ').trim();
+  return html
+    .replace(/<[^>]*>/g, '')
+    .replace(/&[a-z]+;/g, ' ')
+    .trim();
 }
 
 async function searchOne(query: string): Promise<BraveWebResult[]> {

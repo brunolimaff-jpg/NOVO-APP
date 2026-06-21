@@ -1,5 +1,23 @@
 # decisions.md — NOVO-APP
 
+## Novas Decisoes (Sessao 2026-06-21 — PR #386 3 modelos + foundation cache gap + Brave Search)
+
+### DI-2026-06-21-04: Foundation cache gap invalida premissa do experimento LiteLLM — web search injetado como mitigation
+
+- **Contexto:** Apos validar 3 modelos (DeepSeek V4 Flash, Grok 4.20, DeepSeek V4 Pro) no waterfall Scheffer, descobriu-se que o real diferencial do Gemini nao e o modelo, mas o foundation cache (~43k chars de contexto completo do CNPJ) + Google Search grounding nativo. Modelos via LiteLLM recebem ~15k chars sem web search. Grok 4.20 (12-22s/modulo, 0 erros) produziu dossie generico — tudo "Nao encontrado", 1 CNPJ. Gemini para o mesmo CNPJ descobriu Colombia, R$2.8Bi, 220k ha, 28 CNPJs.
+- **Decisao:** (1) A premissa original do experimento ("trocar modelo resolve") esta refutada. (2) Web Search externo (Brave Search) foi implementado como injecao de grounding context nos modulos LiteLLM. (3) Se mesmo com web search os dossies continuarem genericos, o experimento LiteLLM sera encerrado. (4) Foundation cache para LiteLLM nao e viavel tecnicamente (exige proxy com cache route especifico).
+- **Impacto:** Redireciona o foco do experimento de "trocar modelo" para "equalizar infraestrutura de contexto". Brave Search implementado em 3 arquivos. Deploy pendente para validacao.
+- **Status:** aceita — grok-4.20 e deepseek-v4-pro no catalogo, web search implementado, aguardando deploy + smoke.
+- **Referencia:** commits `129a08a3`, `78a7805c`, `api/open-web-search.ts`, `utils/llm/webSearchService.ts`, `features/dossier/waterfall-orchestrator.ts`, CALIBER_LEARNINGS sessoes 2026-06-21.
+
+### DI-2026-06-21-03: Web Search externo e requisito obrigatorio para modelos LiteLLM no waterfall
+
+- **Contexto:** Os 3 modelos via LiteLLM produziram dossiers genericos porque nao tem Google Search grounding. A injecao de contexto externo via `groundingContextBlock` e a unica forma de compensar.
+- **Decisao:** (1) Brave Search como provider primario (API key configurada no preview). (2) DuckDuckGo como fallback. (3) 5 queries paralelas + curadoria no `webSearchService.ts`. (4) Injecao no `sharedDossierModuleOptions.groundingContextBlock` no waterfall-orchestrator. (5) `api/open-web-search.ts` como endpoint unificado.
+- **Impacto:** Adiciona dependencia externa (Brave Search API). Primeira implementacao de web search externo no projeto. Custo: consultas Brave Search.
+- **Status:** implementado — deploy pendente no preview `scoutagro-no9vz1mwu`.
+- **Referencia:** `api/open-web-search.ts`, `utils/llm/webSearchService.ts`, `features/dossier/waterfall-orchestrator.ts`.
+
 ## Novas Decisoes (Sessao 2026-06-21 — PR #386 preview/Kimi)
 
 ### DI-2026-06-21-02: Validacao de modelo LiteLLM exige smoke autenticado antes do waterfall

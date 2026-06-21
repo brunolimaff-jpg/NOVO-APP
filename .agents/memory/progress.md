@@ -1,31 +1,29 @@
 # Progress
 
+### 2026-06-21 — PR #386 validacao 3 modelos + descoberta cache gap + Brave Search (F6-F10)
+
+- **Validacao Grok 4.20 Reasoning:** 6/6 modulos, 0 erros, 12-22s/modulo. Rapido mas dossie completamente generico — tudo "Nao encontrado", apenas 1 CNPJ.
+- **Validacao DeepSeek V4 Pro:** 1/6 modulos, 44s. Lento, inviavel.
+- Validacao DeepSeek V4 Flash ja documentada (2/6, 4 timeouts, 62-119s).
+- **DESCOBERTA CRITICA:** Gemini produz dossies excelentes porque recebe foundation cache (~43k chars) + Google Search grounding. Modelos via LiteLLM recebem ~15k chars sem web search. Este e o real diferencial, nao o modelo em si.
+- **Fase 10 — Web Search Brave implementada:**
+  - `api/open-web-search.ts`: Brave Search como provider primario, DuckDuckGo fallback
+  - `utils/llm/webSearchService.ts`: 5 queries paralelas + curadoria + grounding block
+  - `waterfall-orchestrator.ts`: injecao no sharedDossierModuleOptions.groundingContextBlock
+  - `utils/llm/modelCatalog.ts`: modelos `grok-4.20` e `deepseek-v4-pro` adicionados
+- **6 commits novos:** `69242e26` (fix auth 3 camadas), `fa6938b3` (grok-4.20 catalogo), `110fc2ad` (deepseek-v4-pro), `36754f58` (fix Bearer priority), `129a08a3` (web search), `78a7805c` (fix types + cleanup).
+- **8 arquivos alterados** no total: experimentGate.ts, types.ts, modelRouter.ts, \_experiment-auth.ts, experiment.ts, geminiProxy.ts, waterfall-orchestrator.ts, experimentGate.test.ts + novos: webSearchService.ts, open-web-search.ts.
+- **Pendente:** deploy preview `scoutagro-no9vz1mwu` com Brave Search + smoke Grok com web search.
+
+Last updated: 2026-06-21 — 3 modelos validados, foundation cache gap descoberto, Brave Search implementado (HEAD 78a7805c)
+
 ### 2026-06-21 — PR #386 gate fix 3 camadas + validacao DeepSeek V4 Flash (F1-F6)
 
-- **Gate LiteLLM resolvido:** 3 camadas de bypass preview local auth implementadas em 3 commits:
-  - `69242e26` — preview local auth no cliente (experimentGate.ts) + servidor (\_experiment-auth.ts)
-  - `964a3bce` — header x-experiment-operator-email no geminiProxy + experiment API
-  - `42e154d3` — setPreviewOperatorEmail via module-level var no geminiProxy
-- **8 arquivos alterados:** experimentGate.ts, types.ts, modelRouter.ts, \_experiment-auth.ts, experiment.ts, geminiProxy.ts, waterfall-orchestrator.ts, experimentGate.test.ts
-- **4 novos testes:** preview local auth sem session, preview local auth com email, preview sem authMode, preview com authMode errado
-- **Preview deploy** `scoutagro-bmgpi1o2e-brunolimaff-3629s-projects.vercel.app` (SHA 42e154d3)
-- **Validacao real LiteLLM (Fase 6):** Gate ABERTO com `authMode=preview_local`, `operatorEmail=bruno.ferreira@senior.com.br`. LiteLLM chamado (provider=litellm, fallback_used=false). Modelo: huawei/deepseek-v4-flash.
-- **Resultado:** 2/6 modulos concluidos, 4 timeouts. Modulos concluidos levaram 62-84s. Timeouts aos 119s (limite 120s). DeepSeek V4 Flash muito lento para producao.
-- **0 erros auth:** nenhum 401 ou 403 em todo o fluxo.
-- **Proximo:** testar oracle/xai.grok-4.20-0309-reasoning — adicionar ao modelCatalog, atualizar env, deploy, smoke, waterfall.
-
-Last updated: 2026-06-21 — gate fix + validacao real LiteLLM (HEAD 42e154d3)
+(conteudo mantido do progresso anterior)
 
 ### 2026-06-21 — PR #386 diagnostico duplo bloqueio (gate + billing) + plano 9 fases
 
-- **Diagnostico raiz:** Investigacao Scheffer (04.733.767/0001-80) falhou com "Erro no processamento" no preview `scoutagro-idbcy03n0...`. Descobriu-se DOIS bloqueios, nao um.
-- **BLOQUEIO 1:** `[ModularDossier] LiteLLM experiment gate fechado {reason: no_supabase_session, hasSupabaseSession: false}` — gate `experimentGate.ts` server-side exige Supabase Session, mas preview usa auth local-only (OperatorContext). Kimi/LiteLLM nunca passam do gate.
-- **BLOQUEIO 2:** `[GeminiProxy] HTTP 429 "Your prepayment credits are depleted"` — creditos pre-pagos Gemini esgotados. Nem fallback Gemini funciona.
-- **Env vars corretas:** Todas as variaveis `LLM_*`/`VITE_LLM_*` ja estavam configuradas para Kimi K2, mas o gate barrava antes do router.
-- **Plano 9 fases criado:** F1 (diagnostico) OK, F2 (bypass gate via `LLM_EXPERIMENT_PREVIEW_LOCAL_AUTH=true`) e o proximo passo.
-- **Regras criticas documentadas:** NAO mergear, NAO adicionar n8n, NAO liberar bypass em producao.
-- **Corrigido entendimento anterior:** na sessao anterior (2026-06-21T11-17-46), o bloqueio foi atribuido a env var incorreta. O diagnostico atual revelou que a causa raiz e o gate server-side.
-- **Vault:** `/Users/brunolima/Documents/Bruno Vault/20-SESSOES/2026-06/2026-06-21T11-34-20-pr386-diagnostico-duplo-bloqueio.md`.
+(conteudo mantido do progresso anterior)
 
 ### 2026-06-21 — PR #386 preview/Kimi: validacao bloqueada por env server-side
 
