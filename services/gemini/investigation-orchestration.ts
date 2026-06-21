@@ -648,6 +648,8 @@ export async function generateDossierModule(
   let finalText = sanitizeSensitivePersonalData(shieldedResult.text);
 
   // Validação de markers PORTA pós-resposta (crítico para LiteLLM que não tem structured output nativo)
+  // TODO(fase-3): adicionar retry com prompt reforçado quando markers ausentes (1 tentativa max).
+  // O orchestration layer será refatorado na Fase 3 (B1/B2) — o retry deve ser integrado ali.
   if (useLiteLLM) {
     const portaParsed = parsePortaMarkerV2(finalText);
     if (!portaParsed) {
