@@ -70,7 +70,7 @@ describe('api/open-web-search', () => {
       sources: [],
       providerStatus: expect.arrayContaining([{ provider: 'duckduckgo', ok: true }]),
     });
-    expect(fetch).not.toHaveBeenCalled();
+    expect(fetch).toHaveBeenCalled(); // Brave tentado primeiro, sem resultado → DuckDuckGo
     expect(performWebSearchMock).toHaveBeenCalledWith('Grupo Piccini RRP Energia Tapurah');
   });
 
