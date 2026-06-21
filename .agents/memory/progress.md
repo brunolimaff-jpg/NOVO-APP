@@ -1,5 +1,15 @@
 # Progress
 
+### 2026-06-21 — PR #386 R3 Grok + Brave aprovado no preview novo (49505a29)
+
+- **Commit/push:** `49505a29 fix: alinhar grounding Brave — finalizar run LiteLLM`.
+- **Preview validado:** `https://scoutagro-m8rhm7656-brunolimaff-3629s-projects.vercel.app`.
+- **R3 Scheffer:** Playwright passou em 3.9 min; dossiê 8.068 chars; "Ver relatório completo" `panelEmpty=false`; 0 ocorrências de "NÃO encontrado".
+- **Brave no waterfall:** 5 chamadas `/api/open-web-search`, todas `source=Brave Search API`, `rawCount=6`, `resultCount=4`, `afterFinalLimitCount=4`, `degraded=false`.
+- **Experimento:** `createRun` 200, `finalizeRun` 200, `fallbackUsed=false`, `runStatus=success`.
+- **CI:** Typecheck, Tests, Coverage Gate, Build, Dossier Golden, Smoke preview, GitGuardian e Analyze jobs OK; status agregado `CodeQL` ainda aparece FAILURE no rollup.
+- **Gates locais:** `npm run typecheck` OK; testes focados 36/36 OK; `npm run build` OK; `npm test` 1620/1620 OK.
+
 ### 2026-06-21 — PR #386 ajuste final Brave grounding + finalizeRun (local, pendente push)
 
 - **Brave endpoint preview validado:** `/api/open-web-search` em `4d17ff96` respondeu 200 com `source=Brave Search API`, `rawCount=6`, `afterFinalLimitCount=4`, `degraded=false`.

@@ -1,38 +1,37 @@
 # Active Context
 
-**Last updated:** 2026-06-21 16:20 -04 — PR #386 Brave grounding + finalizeRun em ajuste final
+**Last updated:** 2026-06-21 16:50 -04 — PR #386 Grok + Brave R3 aprovado no preview
 
 ## Prioridade Atual
 
 **PR #386 — validar LiteLLM/Grok com Brave Search real antes de qualquer benchmark novo**
 
 - Branch: `feat/litellm-experiment`
-- HEAD remoto: `4d17ff96`
-- Estado local: ajustes pendentes de commit para contrato `sources`, `finalizeRun`, helper E2E e docs.
+- HEAD remoto: `49505a29`
 - PR: https://github.com/brunolimaff-jpg/NOVO-APP/pull/386
-- Preview atual: `https://scoutagro-git-feat-litellm-ex-cad2dc-brunolimaff-3629s-projects.vercel.app`
+- Preview validado: `https://scoutagro-m8rhm7656-brunolimaff-3629s-projects.vercel.app`
 - Produção: `LLM_PROVIDER=gemini`, sem mudança.
 
 ## Estado Técnico
 
-- Brave endpoint preview em `4d17ff96`: OK, `rawCount=6`, `afterFinalLimitCount=4`, `degraded=false`.
-- Causa raiz do grounding vazio no waterfall: `api/open-web-search` retorna `sources`; `webSearchService` lia só `results`.
-- Causa raiz do `llm_experiment_runs` sem finalização: `finalizeRun` não enviava `x-experiment-operator-email` em preview local auth.
-- E2E real com histórico cheio travava no diálogo "Histórico de investigações"; helper local agora clica `Nova investigação` dentro do diálogo.
+- Brave no waterfall R3: 5 chamadas, todas `source=Brave Search API`, `rawCount=6`, `resultCount=4`, `afterFinalLimitCount=4`, `degraded=false`.
+- `llm_experiment_runs`: `createRun` 200, `finalizeRun` 200, `fallbackUsed=false`, `runStatus=success`.
+- Render R3: dossiê 8.068 chars, `Ver relatório completo` com `panelEmpty=false`, 0 ocorrências de "NÃO encontrado".
+- Correções entregues: contrato `sources/results`, `operatorEmail` no `finalizeRun`, helper E2E para diálogo de histórico, captura R3 de Brave/experimento.
 
 ## Validação
 
 - `npm run typecheck` — OK.
 - Testes focados — OK, 36 testes.
+- `npm test` — OK, 1620/1620.
 - `npm run build` — OK.
-- R3 no preview antigo `cad2dc`: render completou, `Ver relatório completo` sem painel vazio, mas NAO APROVADO por grounding vazio e `finalizeRun` 401.
+- R3 no preview novo `m8rhm7656` — OK em 3.9 min.
 
 ## Próximo Passo
 
-1. Commitar/pushar ajustes locais.
-2. Aguardar novo preview.
-3. Reexecutar R3 Scheffer no preview novo.
-4. Só aprovar Grok+Brave com fontes curadas, `finalizeRun` 200, `fallbackUsed=false` e render final OK.
+1. Revisar status agregado CodeQL que ainda aparece FAILURE no rollup.
+2. Decidir se encerra benchmark em Grok 4 Fast + Brave ou continua candidatos baratos.
+3. Não mergear sem token MERGE explícito.
 
 ## Regras Críticas
 
