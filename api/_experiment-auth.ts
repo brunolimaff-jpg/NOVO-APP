@@ -46,6 +46,22 @@ export async function authenticateExperimentRequest(
     return { error: 'Experiment API disabled (LLM_PROVIDER=gemini)', status: 403 };
   }
 
+  const supabase = getServerSupabaseClient();
+
+  // Tenta autenticação Supabase primeiro (token Bearer)
+  const token = getBearerToken(req);
+  if (token && supabase) {
+    const { data, error } = await supabase.auth.getUser(token);
+    const user = data.user;
+    if (!error && user?.email) {
+      if (!isOperatorAllowed(user.email, getExperimentConfig(process.env))) {
+        return { error: 'Operator not in LLM_ALLOWLIST', status: 403 };
+      }
+      return { user, supabase };
+    }
+  }
+
+  // Fallback: preview local auth (apenas em preview)
   const isPreviewLocalAuth = process.env.LLM_EXPERIMENT_PREVIEW_LOCAL_AUTH === 'true';
   const isPreviewEnv = process.env.VERCEL_ENV === 'preview';
 
@@ -57,7 +73,6 @@ export async function authenticateExperimentRequest(
     if (!isOperatorAllowed(operatorEmail, getExperimentConfig(process.env))) {
       return { error: 'Operator not in LLM_ALLOWLIST', status: 403 };
     }
-    const supabase = getServerSupabaseClient();
     if (!supabase) {
       return { error: 'Supabase not configured', status: 500 };
     }
@@ -68,27 +83,7 @@ export async function authenticateExperimentRequest(
     };
   }
 
-  const supabase = getServerSupabaseClient();
-  if (!supabase) {
-    return { error: 'Supabase not configured', status: 500 };
-  }
-
-  const token = getBearerToken(req);
-  if (!token) {
-    return { error: 'Authentication required', status: 401 };
-  }
-
-  const { data, error } = await supabase.auth.getUser(token);
-  const user = data.user;
-  if (error || !user?.email) {
-    return { error: 'Invalid or expired session', status: 401 };
-  }
-
-  if (!isOperatorAllowed(user.email, getExperimentConfig(process.env))) {
-    return { error: 'Operator not in LLM_ALLOWLIST', status: 403 };
-  }
-
-  return { user, supabase };
+  return { error: 'Authentication required', status: 401 };
 }
 
 export function isExperimentAuthError(
