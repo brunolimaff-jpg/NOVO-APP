@@ -67,6 +67,7 @@ import { createExperimentRun, finalizeExperimentRun } from '../../utils/llm/expe
 import { resolveLiteLLMExperimentGate } from '../../utils/llm/experimentGate';
 import { setPreviewOperatorEmail } from '../../services/geminiProxy';
 import { getExperimentConfig, selectExperimentModel } from '../../utils/llm/modelRouter';
+import { enrichDossierWithWebSearch } from '../../utils/llm/webSearchService';
 import { checkReportQuality } from '../../utils/llm/reportQuality';
 import { calculateCost, estimateTokensFromChars } from '../../utils/llm/cost';
 import type { ExperimentSelection } from '../../utils/llm/types';
@@ -838,8 +839,31 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
           sessionId,
           companyCnpj: sessionCnpjDigits || undefined,
           companyName: resolvedMegaCompany || undefined,
+          groundingContextBlock: undefined as string | undefined,
         };
         const moduleFoundationBlock = experimentSelection ? SHARED_FOUNDATION_BLOCK_V5 : SHARED_FOUNDATION_BLOCK;
+
+        let webSearchGroundingBlock = '';
+        if (llmEnabled) {
+          try {
+            const empresaParaBusca =
+              resolvedMegaCompany || waterfallClienteSeniorData?.grupo || hintedCompany || normalizedCompany || 'empresa';
+            const webResults = await enrichDossierWithWebSearch(empresaParaBusca);
+            webSearchGroundingBlock = webResults.groundingBlock;
+            scoutDiag.info('ModularDossier', 'web search injetada no grounding', {
+              empresa: empresaParaBusca,
+              blockChars: webSearchGroundingBlock.length,
+            });
+          } catch (error) {
+            scoutDiag.warn('ModularDossier', 'web search falhou; continuando sem enriquecimento', {
+              error: error instanceof Error ? error.message : String(error),
+            });
+          }
+        }
+        const effectiveGroundingBlock = webSearchGroundingBlock;
+        if (webSearchGroundingBlock) {
+          sharedDossierModuleOptions.groundingContextBlock = webSearchGroundingBlock;
+        }
 
         const appendWaterfallChunk = (chunk: string) => {
           const normalizedChunk = chunk.trim();
