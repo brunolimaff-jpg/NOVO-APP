@@ -618,6 +618,8 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
         return;
       }
       const waterfallRunId = guardCheck.runId;
+      let waterfallSafetyTripped = false;
+      let waterfallSafetyTimer: ReturnType<typeof setTimeout> | undefined;
       let waterfallEndStatus: 'completed' | 'failed' = 'failed';
       let foundationCacheName: string | undefined;
       let sessionToPersist: ChatSession | null = null;
@@ -1219,6 +1221,33 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
         accumulatedText = reconciledText;
         assertNotAborted();
 
+        // Safety net: força limpeza do loading após timeout máximo de pós-processamento.
+        // Se qualquer etapa abaixo (validateInlineSources, continuity question,
+        // finalizeExperimentRun) travar, o usuário não fica com loading eterno.
+        const WATERFALL_SAFETY_TIMEOUT_MS = 60_000;
+        waterfallSafetyTimer = setTimeout(() => {
+          waterfallSafetyTripped = true;
+          scoutDiag.warn('ModularDossier', 'waterfall safety net disparado — forçando finalizeWaterfallUI', {
+            sessionId,
+            waterfallRunId,
+          });
+          finalizeWaterfallUI({
+            store: {
+              setIsLoading,
+              setLoadingVariant,
+              completeLoadingProgress,
+              setFailureCount,
+              activeGenerationRef,
+            },
+            sessionId,
+            reason: 'waterfall:safety_timeout',
+            waterfallEndStatus: 'completed',
+            botMsgTextLen: -1,
+            log: (area: string, event: string, payload: Record<string, unknown> | undefined) =>
+              scoutDiag.info(area, event, payload),
+          });
+        }, WATERFALL_SAFETY_TIMEOUT_MS);
+
         if (optionalStepFailures.size > 0) {
           appendWaterfallChunk(
             `⚠️ Nota operacional: algumas frentes não puderam ser concluídas nesta rodada (${Array.from(optionalStepFailures).join(', ')}). O dossiê abaixo foi consolidado com o material validado disponível.`,
@@ -1816,6 +1845,13 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
           botMsgTextLen,
           log: (area, event, payload) => scoutDiag.info(area, event, payload),
         });
+        clearTimeout(waterfallSafetyTimer);
+        if (waterfallSafetyTripped) {
+          scoutDiag.warn('ModularDossier', 'finalizeWaterfallUI executado, mas safety net já havia disparado', {
+            sessionId,
+            waterfallRunId,
+          });
+        }
         scoutDiag.info('WaterfallLifecycle', 'ui-finalized', {
           sessionId,
           waterfallRunId,
