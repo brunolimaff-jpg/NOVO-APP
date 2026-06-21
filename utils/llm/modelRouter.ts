@@ -61,7 +61,7 @@ export function getExperimentConfig(env?: Environment): ExperimentConfig {
     allowlist: parseCsv(readConfigEnv('LLM_ALLOWLIST', env)).map(email => email.toLowerCase()),
     fallbackEnabled: readConfigEnv('LLM_FALLBACK_ENABLED', env) !== 'false',
     litellmBaseUrl: readConfigEnv('LITELLM_BASE_URL', env) ?? '',
-	previewLocalAuth: readConfigEnv('LLM_EXPERIMENT_PREVIEW_LOCAL_AUTH', env) === 'true',
+    previewLocalAuth: readConfigEnv('LLM_EXPERIMENT_PREVIEW_LOCAL_AUTH', env) === 'true',
   };
 }
 

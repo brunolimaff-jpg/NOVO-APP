@@ -29,7 +29,7 @@ function stripHtml(html: string): string {
 
 async function searchOne(query: string): Promise<BraveWebResult[]> {
   try {
-    const response = await fetch('/api/web-search', {
+    const response = await fetch('/api/open-web-search', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ query }),

@@ -18,14 +18,74 @@ export const config = {
 
 export const maxDuration = 60;
 
+interface BraveResult {
+  title: string;
+  url: string;
+  description: string;
+}
+
+const BRAVE_API = 'https://api.search.brave.com/res/v1/web/search';
+const BLOCKED_DOMAINS = new Set([
+  'apontador.com.br',
+  'listamais.com.br',
+  'telelistas.net',
+  'guiamais.com.br',
+  'fonecedor.com.br',
+  'tudolocal.com.br',
+]);
+
+function isBlocked(url: string): boolean {
+  try {
+    const h = new URL(url).hostname.replace('www.', '');
+    return BLOCKED_DOMAINS.has(h) || Array.from(BLOCKED_DOMAINS).some(d => h.includes(d));
+  } catch {
+    return false;
+  }
+}
+
+async function braveSearch(query: string): Promise<{ content: string; sources: OpenWebSearchSource[] } | null> {
+  const apiKey = process.env.BRAVE_SEARCH_API_KEY;
+  if (!apiKey) return null;
+
+  try {
+    const params = new URLSearchParams({
+      q: `${query} -site:apontador.com.br -site:listamais.com.br`,
+      count: '6',
+      search_lang: 'pt',
+    });
+    const res = await fetch(`${BRAVE_API}?${params}`, {
+      headers: { Accept: 'application/json', 'Accept-Encoding': 'gzip', 'X-Subscription-Token': apiKey },
+      signal: AbortSignal.timeout(5000),
+    });
+    if (!res.ok) return null;
+
+    const data = (await res.json()) as { web?: { results?: BraveResult[] } };
+    const curated = (data.web?.results ?? []).filter(r => !isBlocked(r.url)).slice(0, 4);
+
+    if (curated.length === 0) return null;
+
+    const content = curated.map(r => `- ${r.title}: ${r.description?.slice(0, 300)}\n  ${r.url}`).join('\n\n');
+    const sources: OpenWebSearchSource[] = curated.map(r => ({
+      title: r.title,
+      url: r.url,
+      snippet: r.description?.slice(0, 300),
+      provider: 'brave' as const,
+    }));
+    return { content, sources };
+  } catch {
+    return null;
+  }
+}
+
 interface OpenWebSearchSource {
   title: string;
   url: string;
   snippet?: string;
-  provider: 'duckduckgo' | 'url';
+  provider: OpenWebSearchProvider;
 }
 
-type ProviderName = 'duckduckgo';
+type ProviderName = 'brave' | 'duckduckgo';
+type OpenWebSearchProvider = 'brave' | 'duckduckgo' | 'url';
 type ProviderFailureReason = 'empty_result' | 'unknown';
 
 interface ProviderStatus {
@@ -46,16 +106,25 @@ async function performResilientSearch(query: string): Promise<{
   const errors: string[] = [];
   const providerStatus: ProviderStatus[] = [];
 
+  // 1. Tenta Brave Search primeiro
+  const braveResult = await braveSearch(query);
+  if (braveResult) {
+    providerStatus.push({ provider: 'brave', ok: true });
+    return {
+      content: braveResult.content,
+      source: 'Brave Search API',
+      sources: braveResult.sources,
+      providerStatus,
+    };
+  }
+  providerStatus.push({ provider: 'brave', ok: false, reason: 'empty_result' });
+
+  // 2. Fallback DuckDuckGo
   try {
     const content = await performWebSearch(query);
     if (content && !/Nenhum resultado encontrado/i.test(content)) {
       providerStatus.push({ provider: 'duckduckgo', ok: true });
-      return {
-        content,
-        source: 'OpenWebSearch/DuckDuckGo',
-        sources: [],
-        providerStatus,
-      };
+      return { content, source: 'DuckDuckGo (fallback)', sources: [], providerStatus };
     }
     if (content) errors.push(content);
     providerStatus.push({ provider: 'duckduckgo', ok: false, reason: 'empty_result' });
@@ -63,12 +132,11 @@ async function performResilientSearch(query: string): Promise<{
     const message = error instanceof Error ? error.message : String(error);
     errors.push(message);
     providerStatus.push({ provider: 'duckduckgo', ok: false, reason: 'unknown' });
-    scoutDiag.warn('OpenWebSearch', 'DuckDuckGo fallback falhou', { error: message });
   }
 
   return {
     content: '',
-    source: 'OpenWebSearch/DdgDegraded',
+    source: 'OpenWebSearch/Degraded',
     sources: [],
     providerStatus,
     degraded: true,

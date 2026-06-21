@@ -609,6 +609,9 @@ _Atualizado automaticamente pelo Caliber apos sessoes de agente._
 - **Imports externos em `api/` quebram serverless functions Vercel** [vercel, serverless, api, import, deploy]
   `import { withAutoRetry } from '../utils/retry.js'` em `api/_llm-client.ts` causava `FUNCTION_INVOCATION_FAILED` no deploy — o bundle serverless da Vercel nao resolve imports relativos para fora de `api/`. Fix: implementar a funcao inline no proprio arquivo. Toda serverless route que precise de helpers (retry, timeout, formatacao) deve manter o codigo inline, nunca importar de `utils/`. Afeta: `api/_llm-client.ts`, qualquer serverless route nova.
 
+- **Modelo LiteLLM precisa de smoke autenticado antes do waterfall** [litellm, supabase, vercel, playwright]
+  UI logada/localStorage de operador nao prova que o gate LiteLLM server-side passou. Antes de gastar 6+ minutos em waterfall, fazer POST autenticado para `/api/gemini` com token Supabase real e modelo alvo. `401/403` = auth/allowlist; `400 Model not allowed for experiment` = env `LLM_EXPERIMENT_MODELS` server-side nao contem o modelo. Caso 2026-06-21: `bedrock/moonshot.kimi-k2-thinking` retornou `400 Model not allowed`, entao exige env Preview + redeploy antes de validar. Afeta: PR #386, `api/gemini.ts`, Vercel Preview.
+
 ### Sessao 2026-06-20 — PR #386 Fase 1 LiteLLM + resolve threads
 
 - **REST `/pulls/comments/{id}/replies` retorna 404 — usar GraphQL `addPullRequestReviewThreadReply`** [github, gh, pr, graphql]
@@ -619,3 +622,22 @@ _Atualizado automaticamente pelo Caliber apos sessoes de agente._
 
 - **LiteLLM guest ou mismatch auth client/server = gate nao passa (tabela vazia)** [llm, supabase, auth, experimento]
   Experimento exige sessao Supabase Auth real + email na allowlist. Guest → 401; client com email local vs server Supabase Auth mismatch impede gate. `llm_experiment_runs` vazia apos waterfall pode ser gate, nao falha de persistencia. Validar login no preview antes de diagnosticar API. Afeta: `utils/llm/experimentGate.ts`, `api/_experiment-auth.ts`, PR #386.
+
+### Sessao 2026-06-21 — PR #386 diagnostico duplo bloqueio (gate + billing)
+
+- **Gate server-side LiteLLM exige Supabase Session — preview com OperatorContext nunca passa** [litellm, experiment, gate, supabase, auth, preview, pr386]
+  O gate `experimentGate.ts` server-side verifica `hasSupabaseSession` antes de liberar o experimento. O preview Vercel usa auth local-only (OperatorContext) que nunca cria sessao Supabase. Mesmo com todas as env vars corretas (`LLM_PROVIDER=litellm`, `LLM_EXPERIMENT_MODELS` com Kimi, etc.), o gate fecha com `no_supabase_session` antes do router de modelos. A suspeita anterior de "env var errada" (sessao 2026-06-21T11-17-46) foi refutada: o bloqueio era o gate, nao a configuracao. Solucao: env `LLM_EXPERIMENT_PREVIEW_LOCAL_AUTH=true` para bypass em preview, com guarda de producao. Afeta: `utils/llm/experimentGate.ts`, `api/gemini.ts`, PR #386.
+
+- **Gemini prepayment credits depleted causa 429 que bloqueia ate fallback** [gemini, billing, 429, preview, fallback, pr386]
+  Creditos pre-pagos do Gemini esgotados geram HTTP 429 (`"Your prepayment credits are depleted"`) em TODAS as chamadas `/api/gemini`. Nem o fallback Gemini funciona. Preview fica sem LLM ate recarregar credits OU usar LiteLLM como unico provider (que tambem esta bloqueado pelo gate). Impacto: validacao do PR #386 requer resolver ambos os bloqueios; nao ha LLM funcionando no preview. Afeta: `api/gemini.ts` (GeminiProxy), PR #386.
+
+- **Ordem de diagnostico para experimento LiteLLM: gate -> allowlist -> catalogo -> smoke** [litellm, debug, diagnostico, gate, experiment, pr386]
+  A investigacao do bloqueio Kimi no preview mostrou que a ordem correta de diagnostico e: (1) gate server-side passou? olhar logs `[ModularDossier] LiteLLM experiment gate fechado`; (2) allowlist inclui operador?; (3) modelo esta no catalogo e na env `LLM_EXPERIMENT_MODELS`?; (4) smoke autenticado funciona? Pular o passo 1 leva a diagnosticar env vars como causa quando o problema real e auth server-side. O erro `400 Model not allowed for experiment` no smoke era consequencia do gate fechado, nao causa. Afeta: fluxo de debug de PR #386.
+
+### Sessao 2026-06-21 — PR #386 validacao LiteLLM (F1-F6 completo)
+
+- **Bypass preview local auth exige 3 camadas: cliente + servidor + proxy** [litellm, auth, preview, experiment, gateway, pattern, pr386]
+  Para fazer o gate LiteLLM aceitar auth local-only (OperatorContext) em preview sem quebrar auth normal de producao, foram necessarias 3 camadas: (1) no cliente, `experimentGate.ts` com `LLM_EXPERIMENT_PREVIEW_LOCAL_AUTH=true` e `authMode=preview_local` no retorno; (2) no servidor, `_experiment-auth.ts` aceitando header `x-experiment-operator-email` como alternativa ao Bearer token; (3) no proxy, `geminiProxy.ts` com `setPreviewOperatorEmail()` module-level var para propagar o email. Cada camada tem guarda de producao (NODE_ENV=production bloqueia bypass) e cobertura de testes. Qualquer bypass de auth em preview deve seguir este padrao de 3 camadas com guardas individuais. Afeta: `utils/llm/experimentGate.ts`, `api/_experiment-auth.ts`, `services/geminiProxy.ts`, PR #386.
+
+- **DeepSeek V4 Flash e inviavel para waterfall de dossie comercial (62-119s/modulo)** [litellm, performance, timeout, deepseek, modelo, pr386]
+  Teste real com `huawei/deepseek-v4-flash` no waterfall Scheffer (04.733.767/0001-80, 6 modulos): 2/6 modulos concluidos (62s e 84s), 4/6 timeout aos 119s. DeepSeek V4 Flash e um modelo de raciocinio (thinking) que prioriza qualidade sobre velocidade — adequado para analise aprofundada, nao para waterfall comercial que precisa entregar 6 modulos em <3min. Para o caso de uso de dossie comercial, modelos de raciocinio sao inviaveis. O experimento LiteLLM deve priorizar modelos de geracao direta (non-thinking) com latencia comparavel ao Gemini (<15s/modulo). Afeta: `utils/llm/modelCatalog.ts`, criterio de selecao de modelos para PR #386.

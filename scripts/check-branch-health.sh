@@ -5,7 +5,15 @@ MAIN_BRANCH="${1:-main}"
 THRESHOLD_WARN=5
 THRESHOLD_BLOCK=8
 
-count_commits() { git rev-list --count "${MAIN_BRANCH}..HEAD" 2>/dev/null || echo "0"; }
+count_commits() {
+  local remote
+  remote=$(git rev-parse --abbrev-ref '@{upstream}' 2>/dev/null) || true
+  if [ -n "$remote" ]; then
+    git rev-list --count "${remote}..HEAD" 2>/dev/null || echo "0"
+  else
+    git rev-list --count "${MAIN_BRANCH}..HEAD" 2>/dev/null || echo "0"
+  fi
+}
 
 emit_cursor_json() {
   python3 -c 'import json,sys; p=sys.argv[1]; m=sys.argv[2] if len(sys.argv)>2 else ""; o={"permission":p}; 

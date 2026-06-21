@@ -1,88 +1,69 @@
-# Handoff — PR #386 LiteLLM Fase 2 (paridade)
+# Handoff — PR #386 LiteLLM preview: gate aberto, LiteLLM funcionando, DeepSeek lento
 
-**Atualizado:** 2026-06-21 (Fase 1 + Fase 2 concluídas; branch-review PRONTO; deploy preview com 3 modelos)
+**Atualizado:** 2026-06-21 — validacao DeepSeek V4 Flash: gate OK, modelo lento (62-119s/modulo)
 **Producao:** `scoutagro.vercel.app` — `LLM_PROVIDER=gemini` (sem mudanca)
-**Branch:** `feat/litellm-experiment` | **HEAD remoto:** `a9b2417a`
+**Branch:** `feat/litellm-experiment` | **HEAD local:** `42e154d3` (3 commits novos)
 **PR:** https://github.com/brunolimaff-jpg/NOVO-APP/pull/386
-**Preview:** `https://scoutagro-mpc5evjf7-brunolimaff-3629s-projects.vercel.app`
-**CNPJ teste:** Scheffer `04733767000180`
+**Preview testado:** `scoutagro-bmgpi1o2e-brunolimaff-3629s-projects.vercel.app`
+**Vault:** `/Users/brunolima/Documents/Bruno Vault/20-SESSOES/2026-06/2026-06-21T12-34-00-pr386-gate-aberto-litellm-ok.md`
 
-## Estado atual
+## Estado Atual
 
-| Item                                                     | Status                       |
-| -------------------------------------------------------- | ---------------------------- |
-| CI GitHub SHA `a9b2417a`                                 | 14/14 (pending re-run)       |
-| Gates locais (1609 testes, typecheck, build)             | OK                           |
-| Branch-review (5 dimensoes)                              | PRONTO — 2 findings SF1/SF2  |
-| Fase 1: limpeza WIP (18 arquivos, 2 commits)             | OK                           |
-| Fase 2: paridade LiteLLM (6 arquivos, +197/-52)          | OK                           |
-| gh-resolve PR #386 (80 threads)                          | OK                           |
-| Deploy preview (3 deploys)                               | OK — qxmx4lrtn -> mpc5evjf7  |
-| Env vars atualizadas (3 modelos, traffic split 40/30/30) | OK                           |
-| Login Playwright no preview (guest vinculado)            | OK                           |
-| `mergeStateStatus`                                       | **UNSTABLE** — CI re-running |
+| Item                          | Status                                                   |
+| ----------------------------- | -------------------------------------------------------- |
+| Fase 1-2 (gate fix 3 camadas) | OK — 3 commits, 8 arquivos alterados                     |
+| Fase 3 (testes)               | OK — 4 novos testes para preview local auth              |
+| Fase 4-5 (env + redeploy)     | OK — env vars configuradas, preview deploy `42e154d3`    |
+| **Fase 6 (validacao)**        | **Gate ABERTO** — LiteLLM chamado, `fallback_used=false` |
+| DeepSeek V4 Flash             | 2/6 modulos concluidos — 4 timeouts (62-119s/modulo)     |
+| Erros auth                    | 0 — nenhum 401/403                                       |
+| MERGE                         | **BLOQUEADO** — NAO mergear; PR e experimental           |
 
-## O que foi entregue nesta sessao
+## Bloqueios Resolvidos
 
-**Fase 1 — Limpeza WIP:**
+### Bloqueio 1 (RESOLVIDO): Gate server-side `no_supabase_session`
 
-- 18 arquivos consolidados em 2 commits (docs + formatacao)
-- `.gitignore` atualizado com `supabase/.temp/` e screenshots de sessao
+- Solucao em 3 camadas:
+  - **Cliente** (`experimentGate.ts`): bypass `previewLocalAuth` com `LLM_EXPERIMENT_PREVIEW_LOCAL_AUTH=true`
+  - **Servidor** (`_experiment-auth.ts`): aceita `x-experiment-operator-email` header em preview
+  - **Proxy** (`geminiProxy.ts`): `setPreviewOperatorEmail()` module-level var propaga email
+- `authMode=preview_local` com `operatorEmail=bruno.ferreira@senior.com.br` — gate abriu
 
-**Fase 2 — Paridade LiteLLM (5 desabilitacoes eliminadas):**
+### Bloqueio 2 (PENDENTE): Gemini API 429 credits depleted
 
-- **Catalogo:** 3 novos modelos na rotacao (Grok 4.1 Fast, DeepSeek V3.2, Grok 4 Fast Reasoning); V4 Flash deprecated
-- **Output tokens:** 4096 -> 8192 (paridade com Gemini)
-- **Retry inline:** backoff exponencial 5 tentativas, 2s-30s em `api/_llm-client.ts`
-- **Markers PORTA:** XML estruturado (`instrucao_obrigatoria`) + validação pos-resposta com `parsePortaMarkerV2`
-- **Grounding hibrido:** novo modulo `utils/llm/groundingHybrid.ts` (CRM + Brasil API) via `groundingContextBlock`
-- **Leak shield:** `preserveInternalMarkersWhenSafe=true` em todos os call sites
-- **Novo modelo:** `oracle/xai.grok-4-fast-reasoning` (variant F)
+- Ainda sem solucao. LiteLLM roda sem fallback Gemini.
+- Preview depende exclusivamente de modelos LiteLLM.
 
-**Branch-review:** 5 dimensoes inspecionadas. Veredito: PRONTO. 2 findings nao bloqueantes:
+## Resultados DeepSeek V4 Flash (Shellfer 04.733.767/0001-80)
 
-- SF1: markers PORTA sem retry — TODO anotado `investigation-orchestration.ts:653`
-- SF2: `extractWebSourcesFromGroundingResponse` dead code
+| Modulo           | Status    | Tempo |
+| ---------------- | --------- | ----- |
+| 1. Identificacao | Concluido | 62s   |
+| 2. Fiscais       | Timeout   | 119s  |
+| 3. Societario    | Timeout   | 119s  |
+| 4. Comercial     | Concluido | 84s   |
+| 5. Financeiro    | Timeout   | 119s  |
+| 6. Risco         | Timeout   | 119s  |
 
-**gh-resolve-pr-comments:** PR #386 — 2 threads CodeRabbit resolvidas (watchCnpjLookup wrapper + useless assignments). Todas as ~80 threads resolvidas.
+DeepSeek V4 Flash e muito lento para uso em producao comercial (>60s/modulo). 4/6 modulos timeoutaram (limite 120s). Mesmo modulos concluidos levaram 62-84s — inviavel para experiencia do usuario.
 
-**Deploy preview:** 3 deploys. Debug: `import ../utils/retry.js` quebrava serverless com `FUNCTION_INVOCATION_FAILED` — resolvido com retry inline no proprio `_llm-client.ts`.
+## Proximo Passo
 
-**Playwright:** Login no preview `mpc5evjf7` feito; guest vinculado (`bruno.ferreira@senior.com.br`). Scheffer iniciada, aguardando waterfall.
+Testar `oracle/xai.grok-4.20-0309-reasoning`:
 
-## Mudancas arquivadas (arquivos criticos)
+1. Adicionar modelo ao `modelCatalog.ts`
+2. Atualizar env vars do preview
+3. Novo deploy
+4. Smoke autenticado + waterfall Scheffer
 
-| Arquivo                                              | Mudanca                                                        |
-| ---------------------------------------------------- | -------------------------------------------------------------- |
-| `utils/llm/modelCatalog.ts`                          | 3 novos modelos, V4 Flash deprecated                           |
-| `api/_llm-client.ts`                                 | Retry inline 5x com backoff (evita import externo)             |
-| `services/gemini/investigation-orchestration.ts`     | Markers PORTA XML, tokens 8192, grounding hibrido, leak shield |
-| `services/gemini/contracts.ts`                       | `groundingContextBlock` integrado                              |
-| `utils/llm/groundingHybrid.ts`                       | NOVO — modulo de grounding hibrido                             |
-| `tests-e2e/helpers/scheffer-research.ts`             | Fix CodeRabbit (watchCnpjLookup wrapper)                       |
-| `tests/services/investigation-orchestration.test.ts` | 4096->8192, XML markers                                        |
+Se Grok tambem for lento, experimento LiteLLM pode ser encerrado com relatorio: "modelos alternativos nao competitivos com Gemini em velocidade."
 
-## Bloqueios MERGE (ordem)
+## Regras Criticas
 
-1. **B1** — CRM + SocietaryMap no waterfall live LiteLLM. Hipoteses: resolvido pela Fase 2 (8192 tokens + retry + grounding hibrido). Aguardando validacao Playwright no preview.
-2. **B2 (P1)** — expand "ver relatorio completo" -> painel vazio (~26k chars). Aguardando Fase 3.
-3. **Criterio B** — Bruno ainda nao escolheu `success` estrito vs `quality_failure` aceitavel no `llm_experiment_runs`.
-4. **SF1** — markers PORTA sem retry (TODO em `investigation-orchestration.ts:653`). Nao bloqueante para merge atual.
+- **NAO fazer merge** — PR experimental, nunca mergear em main
+- **NAO adicionar n8n** — fora de escopo
+- **NAO liberar bypass auth local em producao** — `LLM_EXPERIMENT_PREVIEW_LOCAL_AUTH` so para preview
 
-## O que NAO funcionou
+## Prompt de Retomada
 
-- `import ../utils/retry.js` em `api/_llm-client.ts` quebrava serverless function Vercel com `FUNCTION_INVOCATION_FAILED`. Causa: bundle serverless nao resolve o import corretamente. Solucao: implementar retry inline no mesmo arquivo.
-
-## Proximo passo
-
-Validacao Playwright no preview com os 3 modelos. Se B1/B2 resolvidos pela Fase 2 -> fechar PR #386. Senao -> Fase 3 (fix UI bugs).
-
-## Links
-
-- Vault: `Bruno Vault/20-SESSOES/2026-06/2026-06-21T*-pr386-litellm-fase2-paridade.md`
-- Decisao: DI-2026-06-21-01 (retry inline vs import externo)
-- Licao: `Bruno Vault/30-LICOES/imports-externos-serverless-vercel.md`
-
-## Prompt de retomada
-
-▎ PR #386 `feat/litellm-experiment` HEAD `a9b2417a`. Fase 1 + Fase 2 concluidas: catalogo com 3 novos modelos, output tokens 8192, retry inline 5x, markers PORTA XML, grounding hibrido, leak shield. Branch-review PRONTO (2 findings SF1/SF2). 3 deploys preview (mpc5evjf7 fixou FUNCTION_INVOCATION_FAILED). Env vars atualizadas (3 modelos, 40/30/30). Login Playwright feito no preview. CI pending re-run. Bloqueios: B1 (aguardando validacao Playwright), B2 (Fase 3), Criterio B, SF1 (TODO). Proximo: validacao Playwright waterfall -> se passar, preparar merge.
+PR #386 feat/litellm-experiment, HEAD 42e154d3. Gate LiteLLM resolvido em 3 camadas (cliente previewLocalAuth + server x-experiment-operator-email + proxy setPreviewOperatorEmail). Validacao real com DeepSeek V4 Flash no preview: gate abriu, 0 erros auth, mas modelo muito lento (62-119s/modulo, 4/6 timeouts). Proximo: testar oracle/xai.grok-4.20-0309-reasoning. Gemini 429 ainda sem solucao. Nao mergear.

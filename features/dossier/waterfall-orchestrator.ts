@@ -847,7 +847,11 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
         if (llmEnabled) {
           try {
             const empresaParaBusca =
-              resolvedMegaCompany || waterfallClienteSeniorData?.grupo || hintedCompany || normalizedCompany || 'empresa';
+              resolvedMegaCompany ||
+              waterfallClienteSeniorData?.grupo ||
+              hintedCompany ||
+              normalizedCompany ||
+              'empresa';
             const webResults = await enrichDossierWithWebSearch(empresaParaBusca);
             webSearchGroundingBlock = webResults.groundingBlock;
             scoutDiag.info('ModularDossier', 'web search injetada no grounding', {

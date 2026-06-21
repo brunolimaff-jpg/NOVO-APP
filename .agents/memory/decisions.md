@@ -1,5 +1,15 @@
 # decisions.md — NOVO-APP
 
+## Novas Decisoes (Sessao 2026-06-21 — PR #386 preview/Kimi)
+
+### DI-2026-06-21-02: Validacao de modelo LiteLLM exige smoke autenticado antes do waterfall
+
+- **Contexto:** Bruno pediu testar `bedrock/moonshot.kimi-k2-thinking` no preview. Login Supabase real funcionou, mas POST autenticado `/api/gemini` retornou `400 Model not allowed for experiment`.
+- **Decisao:** Antes de rodar waterfall longo para qualquer modelo LiteLLM novo, executar smoke autenticado em `/api/gemini` com token Supabase real e modelo alvo. Se retornar `400 Model not allowed`, atualizar `LLM_EXPERIMENT_MODELS`/`VITE_LLM_EXPERIMENT_MODELS` e redeployar antes de Playwright waterfall.
+- **Impacto:** Evita gastar 6+ minutos em validação que nunca poderia usar o modelo alvo. UI logada/localStorage nao prova gate server-side.
+- **Status:** aceita operacionalmente nesta sessao; Kimi ainda **NAO VALIDADO** no waterfall.
+- **Referencia:** Vault `2026-06-21T11-17-46-pr386-preview-kimi-validation.md`, licao `validar-litellm-com-smoke-autenticado-preview.md`.
+
 ## Novas Decisoes (Sessao 2026-06-21 — PR #386 Fase 2 paridade LiteLLM)
 
 ### DI-2026-06-21-01: Funcoes de utilidade em api/ devem ser inline, nunca import externo
