@@ -1,5 +1,4 @@
 import type { LiteLLMUsageMetadata, NormalizeModelOutputResult } from '../utils/llm/types.js';
-import { withAutoRetry } from '../utils/retry.js';
 
 type Environment = Record<string, string | undefined>;
 
@@ -168,9 +167,17 @@ export async function callLiteLLM(input: LiteLLMCallInput, env: Environment = pr
   const effectiveTimeoutMs =
     Number.isFinite(timeoutMs) && timeoutMs > 0 ? timeoutMs : DEFAULT_LITELLM_REQUEST_TIMEOUT_MS;
 
-  return withAutoRetry(
-    `LiteLLM:${input.model}`,
-    async () => {
+  const maxRetries = 5;
+  const baseDelayMs = 2000;
+  const maxDelayMs = 30000;
+  let lastError: Error | undefined;
+
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    if (input.signal?.aborted) {
+      throw new Error('Aborted');
+    }
+
+    try {
       const timeoutSignal = AbortSignal.timeout(effectiveTimeoutMs);
       const signal = input.signal ? AbortSignal.any([input.signal, timeoutSignal]) : timeoutSignal;
       const response = await fetch(`${baseUrl}/chat/completions`, {
@@ -209,7 +216,14 @@ export async function callLiteLLM(input: LiteLLMCallInput, env: Environment = pr
         reasoningRemoved: normalized.reasoningRemoved,
         reasoningCharsRemoved: normalized.reasoningCharsRemoved,
       };
-    },
-    { maxRetries: 5, baseDelayMs: 2000, maxDelayMs: 30000, abortSignal: input.signal },
-  );
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error));
+      if (attempt < maxRetries && !input.signal?.aborted) {
+        const delay = Math.min(baseDelayMs * Math.pow(2, attempt), maxDelayMs);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
+  }
+
+  throw lastError ?? new Error('LiteLLM request failed');
 }
