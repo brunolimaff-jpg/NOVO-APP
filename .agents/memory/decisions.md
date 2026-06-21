@@ -1,5 +1,23 @@
 # decisions.md — NOVO-APP
 
+## Novas Decisoes (Sessao 2026-06-20 - PR #386 Fase 1 LiteLLM)
+
+### DI-2026-06-20-02: Scheffer E2E — Opção B causa raiz (sem workaround E2E)
+
+- **Contexto:** Spec live `scheffer-research-validation` separou pesquisa (R1/R2) de geração (R3). `/api/cnpj` OK (6 sócios); R1/R2 falham por CRM/SocietaryMap não montarem em 300s; R3 passa. H1 ("modelo ruim porque pesquisa falhou") refutada.
+- **Decisao:** Corrigir causa raiz **B1** (mount CRM + SocietaryMap no waterfall live LiteLLM) e **B2** (Bug P1 expand ~26k chars) antes de MERGE. **Proibido** atalhos no E2E (stubs, timeouts artificiais, skip de asserts) para forçar verde.
+- **Impacto:** MERGE_READY permanece false até B1/B2 + critério B Supabase + gates pós-fix.
+- **Status:** aceita — implementação **pendente** (implementer bloqueou por rate limit nesta sessão).
+- **Referencia:** `tests-e2e/scheffer-research-validation.spec.ts`, HANDOFF_AI.md, `Bruno Vault/20-SESSOES/2026-06/2026-06-20T22-45-00-pr386-scheffer-e2e-root-cause.md`.
+
+### DI-2026-06-20-01: Gate experimento LiteLLM exige Supabase Auth + allowlist no client e server
+
+- **Contexto:** Guest ou email fora da allowlist nao deve rotear para LiteLLM; 401/403 do experimento nao fazem fallback silencioso para Gemini pos-auth (evita leak de path experimento).
+- **Decisao:** `utils/llm/experimentGate.ts` centraliza gate no client (sessao Supabase + allowlist); server mantem gate em `api/llm-experiment.ts` e `_experiment-auth.ts`. Fallback Gemini apenas quando provider=gemini ou experimento nao elegivel.
+- **Impacto:** `llm_experiment_runs` vazia = gate nao passou (guest, email errado, ou env ausente).
+- **Status:** implementada — waterfall manual validado (UX OK); experimento registrou `quality_failure` com `fallback_used=true` (Gemini); aguarda row `completed` sem fallback ou decisão de critério.
+- **Referencia:** PR #386 commits `0d72a84f`, `a5d97516`, `HANDOFF_AI.md`.
+
 ## Novas Decisoes (Sessao 2026-06-19 - LiteLLM Preview + fix freeze link-status)
 
 ### DI-2026-06-19-04: Budget de timeout inline-validation deve cobrir latencia real de link-status

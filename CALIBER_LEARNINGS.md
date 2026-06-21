@@ -603,3 +603,14 @@ _Atualizado automaticamente pelo Caliber apos sessoes de agente._
 
 - **Instrumentacao debug (agentDebugLog) nao remover antes de validacao manual no preview** [debug, freeze, handoff]
   Sessao debug `c352f8` adicionou `utils/agentDebugLog.ts` e regioes em waterfall/porta/geminiProxy. Remover antes de Bruno confirmar waterfall completo no preview d47bkguue perde evidencia se o fix regredir. Afeta: PR #386 merge checklist.
+
+### Sessao 2026-06-20 — PR #386 Fase 1 LiteLLM + resolve threads
+
+- **REST `/pulls/comments/{id}/replies` retorna 404 — usar GraphQL `addPullRequestReviewThreadReply`** [github, gh, pr, graphql]
+  `gh api` POST em endpoint REST de reply a comentario inline falha com 404 mesmo com token valido. `scripts/resolve-pr-threads.py` deve usar GraphQL mutation `addPullRequestReviewThreadReply` (scope `AddPullRequestReviewComment`). Token com scopes `gist, read:org, repo, workflow` e insuficiente. Afeta: `scripts/resolve-pr-threads.py`, skill `gh-resolve-pr-comments`.
+
+- **Unset `GITHUB_TOKEN` para `gh` usar keyring apos device flow** [github, gh, auth, env]
+  Variavel `GITHUB_TOKEN` no ambiente sobrescreve credencial do keyring e faz `gh` usar token antigo sem scope GraphQL. Antes de `gh auth login` ou resolve threads: `unset GITHUB_TOKEN`. Afeta: sessoes de agente, scripts PR Gate.
+
+- **LiteLLM guest ou mismatch auth client/server = gate nao passa (tabela vazia)** [llm, supabase, auth, experimento]
+  Experimento exige sessao Supabase Auth real + email na allowlist. Guest → 401; client com email local vs server Supabase Auth mismatch impede gate. `llm_experiment_runs` vazia apos waterfall pode ser gate, nao falha de persistencia. Validar login no preview antes de diagnosticar API. Afeta: `utils/llm/experimentGate.ts`, `api/_experiment-auth.ts`, PR #386.

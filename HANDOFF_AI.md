@@ -1,97 +1,78 @@
-# Handoff — PR #386 LiteLLM + fix freeze consolidação
+# Handoff — PR #386 LiteLLM Fase 1
 
-**Atualizado:** 2026-06-19 (env Preview + debug freeze link-status)
-**Produção:** `scoutagro.vercel.app`
-**Branch ativa:** `feat/litellm-experiment` (PR #386)
+**Atualizado:** 2026-06-20 (ship-loop Fase 6 + Scheffer live E2E + Opção B)
+**Produção:** `scoutagro.vercel.app` — `LLM_PROVIDER=gemini` (sem mudança)
+**Branch:** `feat/litellm-experiment` | **HEAD remoto:** `0351441c`
+**PR:** https://github.com/brunolimaff-jpg/NOVO-APP/pull/386
+**Preview:** `https://scoutagro-2wcoh4w5m-brunolimaff-3629s-projects.vercel.app` ou `scoutagro-git-feat-litellm-ex-cad2dc-…vercel.app`
+**CNPJ teste:** Scheffer `04733767000180`
 
-## Estado Atual
+## Estado atual
 
-| PR       | Branch                    | Status                                                                |
-| -------- | ------------------------- | --------------------------------------------------------------------- |
-| **#385** | `fix/onda-1-raf-persist`  | ✅ **MERGEADA** 2026-06-19                                            |
-| **#386** | `feat/litellm-experiment` | 🟡 **Aguardando validação Bruno** — fix freeze deployado, debug ativo |
+| Item                                    | Status                                                        |
+| --------------------------------------- | ------------------------------------------------------------- |
+| CI GitHub SHA `0351441c`                | ✅ 14/14                                                      |
+| Gates locais (typecheck, vitest, build) | ✅                                                            |
+| PR Gate IA 16/16 no preview             | ✅                                                            |
+| Spec `scheffer-research-validation`     | ✅ commitada `0351441c`                                       |
+| `/api/cnpj` live (6 sócios, ~1.4s)      | ✅                                                            |
+| Scheffer R3 waterfall + expand          | ✅ ~4k chars, `panelEmpty=false`                              |
+| Scheffer R1 CRM (`CLIENTE SENIOR`)      | ❌ ausente em 300s                                            |
+| Scheffer R2 `societary-map-shell`       | ❌ ausente em 300s                                            |
+| Bug P1 expand ~26k chars                | ❌ painel vazio (manual Bruno)                                |
+| `llm_experiment_runs` critério B        | ⚠️ Bruno ainda não escolheu Opção 1 vs 2                      |
+| Fix causa-raiz B1/B2                    | ❌ **não implementado** — implementer bloqueou por rate limit |
+| `mergeStateStatus`                      | **BLOCKED** — MERGE_READY = false                             |
 
-**Preview com fix freeze (validar aqui):**
-https://scoutagro-d47bkguue-brunolimaff-3629s-projects.vercel.app
+## Veredito sessão
 
-**Preview anterior (V4-only, sem fix freeze):** `scoutagro-90mpwvvhr`
+**H1 refutada:** pesquisa QSA funciona (`/api/cnpj` OK). Gargalo ≠ "modelo escreveu lixo porque pesquisa falhou".
 
-## Sessão 2026-06-19 — Entregas
+**Gargalos reais:** (1) UI waterfall live — `ClienteSeniorScore` + `SocietaryMap` não montam no budget 300s; (2) Bug P1 — expand "ver relatório completo" deixa painel vazio em dossiês ~26k chars.
 
-### LiteLLM / Vercel Preview
+**Decisão Bruno (Opção B):** corrigir causa raiz em CRM/SocietaryMap + P1; **sem** atalhos/workarounds no E2E.
 
-- **18 vars** configuradas no Vercel Preview (branch `feat/litellm-experiment`); Bruno forneceu só `LITELLM_API_KEY`.
-- **Allowlist corrigida:** email real `bruno.ferreira@senior.com.br` (não `bruno@senior.com.br` — era email de teste unitário).
-- **Modelos:** R1 (`huawei/deepseek-r1-250528`) e Kimi K2 retornam **404** no LiteLLM; só `huawei/deepseek-v4-flash` funciona.
-- **Experimento restrito a V4 Flash only:** `LLM_EXPERIMENT_MODELS`, `VITE_LLM_*`, defaults e `TRAFFIC_SPLIT=100`.
-- **Limitação conhecida:** o path LiteLLM v1 não usa Google Search grounding; comparar qualidade estrutural separadamente de `valid_sources_count` até existir grounding alternativo.
-- `GEMINI_FOUNDATION_CACHE_ENABLED=0` no Preview.
-- Migration `20260620_llm_experiment.sql` ✅ aplicada no Supabase `vmqfcaoirjcfucvlnpig`.
+## Scheffer live E2E (`LITELLM_WATERFALL_TIMEOUT_MS=300000`)
 
-### Fix freeze "Consolidando informações…" (debug `c352f8`)
+| Teste                  | Resultado | Evidência                                       |
+| ---------------------- | --------- | ----------------------------------------------- |
+| R1 QSA + CRM           | ❌        | `CLIENTE SENIOR CONFIRMADO` não visível em 300s |
+| R2 socio-search + mapa | ❌        | `societary-map-shell` ausente em 300s           |
+| R3 waterfall Grok      | ✅        | waterfall completo; expand `panelEmpty=false`   |
 
-**Sintoma:** UI ~2 min em "Consolidando informações…", Chrome "Página sem resposta", overlay bloqueia cliques.
+**Arquivos:** `tests-e2e/scheffer-research-validation.spec.ts`, `tests-e2e/helpers/scheffer-research.ts`
 
-**Evidência:** `scout_diagnostics` sessão `0ea8ed46` — pipeline para em `inline-validation:fetch:start` (6 URLs), ~116s sem eventos até reload.
+## Bloqueios MERGE (ordem)
 
-| Hipótese                         | Veredito                                                         |
-| -------------------------------- | ---------------------------------------------------------------- |
-| H1 PORTA reconciliation          | ❌ REJEITADA (pre/pós instantâneo)                               |
-| H2 resolvePortaScore             | ❌ REJEITADA (extract 2ms)                                       |
-| H3 link-status vs budget cliente | ✅ **CONFIRMADA** — `/api/link-status` ~6.7s, timeout cliente 5s |
+1. **B1** — CRM + SocietaryMap no waterfall live LiteLLM (`waterfall-orchestrator.ts`, `SocietaryMap.tsx`, `investigation-orchestration.ts`)
+2. **B2** — Bug P1 expand (`SectionalBotMessage`, ~26k chars; contrato `docs/ai-context/refactor/loading-panel-contract.md`)
+3. **Critério B** — Bruno escolhe: row `status=success` (estrita) vs `quality_failure` aceitável se UX OK
+4. **Token MERGE** na mensagem
 
-**Fix implementado** (instrumentação debug **ainda presente** — não remover até Bruno confirmar):
+## Próximo passo (implementer)
 
-| Arquivo                                                      | Mudança                                                                                               |
-| ------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------- |
-| `api/link-status.ts`                                         | `REQUEST_TIMEOUT_MS` 5000→**2500**                                                                    |
-| `vercel.json`                                                | `maxDuration` **15s** para `api/link-status.ts`                                                       |
-| `features/dossier/waterfall-orchestrator.ts`                 | `VALIDATE_INLINE_TOTAL_TIMEOUT_MS` 5s→**12s**, `AbortSignal.timeout`, hard-cap **14s** → retorna `[]` |
-| `utils/agentDebugLog.ts`                                     | Criado (sessão debug)                                                                                 |
-| `porta-reconciliation.ts`, `geminiProxy.ts`                  | Instrumentação `agentDebugLog`                                                                        |
-| `tests/features/validate-inline-sources-freeze-diag.test.ts` | +1 teste hard-cap; **15/15** passando                                                                 |
+Retomar **B1** antes de B2. Instrumentar mount de CRM/map no waterfall; correlacionar `scout_diagnostics` + `operator_events`. Re-run R1/R2 após fix. MERGE só após A+B+C+D do plano abaixo.
 
-**Medição pós-deploy:** link-status ~**3.5s** no preview d47bkguue (antes ~6.7s).
+### Critérios MERGE_READY (resumo)
 
-### E2E / testes
+| #   | Critério              | Validar                                     |
+| --- | --------------------- | ------------------------------------------- |
+| A   | Bug P1                | Expand renderiza conteúdo; sem painel vazio |
+| B   | `llm_experiment_runs` | Opção 1 ou 2 documentada em `decisions.md`  |
+| C   | SHA limpo             | `0351441c` + fixes; WIP reconciliado        |
+| D   | Gates pós-fix         | CI + PR Gate 16/16 no SHA final             |
+| E   | MERGE                 | Token **MERGE** na mensagem                 |
 
-- `litellm-live-parallel` falhou CNPJ no preview (stub/route) — **NÃO VALIDADO** end-to-end LiteLLM.
-- Scheffer stub no preview passou ~27s.
-- Waterfall completo com LiteLLM real no preview d47bkguue: **pendente Bruno**.
+## WIP local unstaged (não mergear)
 
-## Env Preview — matriz LiteLLM (configurado)
-
-| Server (`api/*`)                       | Browser (`VITE_*`)           | Valor atual Preview            |
-| -------------------------------------- | ---------------------------- | ------------------------------ |
-| `LLM_PROVIDER`                         | `VITE_LLM_PROVIDER`          | `litellm`                      |
-| `LLM_EXPERIMENT_MODE`                  | `VITE_LLM_EXPERIMENT_MODE`   | `fixed`                        |
-| `LLM_MODEL_DEFAULT`                    | `VITE_LLM_MODEL_DEFAULT`     | `huawei/deepseek-v4-flash`     |
-| `LLM_EXPERIMENT_MODELS`                | `VITE_LLM_EXPERIMENT_MODELS` | `huawei/deepseek-v4-flash`     |
-| `LLM_TRAFFIC_SPLIT`                    | `VITE_LLM_TRAFFIC_SPLIT`     | `100`                          |
-| `LLM_ALLOWLIST`                        | `VITE_LLM_ALLOWLIST`         | `bruno.ferreira@senior.com.br` |
-| `LITELLM_BASE_URL` + `LITELLM_API_KEY` | —                            | server only                    |
-| `LLM_FALLBACK_ENABLED`                 | `VITE_LLM_FALLBACK_ENABLED`  | `true`                         |
-| `GEMINI_FOUNDATION_CACHE_ENABLED`      | —                            | `0`                            |
-
-**Produção:** omitir ou `LLM_PROVIDER=gemini` — zero mudança de comportamento.
-
-## Pendências
-
-| Item                                                              | Risco | Ação                                                                                                      |
-| ----------------------------------------------------------------- | ----- | --------------------------------------------------------------------------------------------------------- |
-| Bruno validar consolidação completa no preview **d47bkguue**      | Alto  | Waterfall Scheffer/Cofre sem freeze                                                                       |
-| Remover instrumentação debug (`agentDebugLog`, regiões agent log) | Médio | Só após confirmação Bruno                                                                                 |
-| Token **MERGE** para integrar #386                                | Alto  | Palavra MERGE na mensagem                                                                                 |
-| `gh-resolve` PR #386                                              | Baixo | Token `gh` sem scope `AddPullRequestReviewComment`; usar `scripts/resolve-pr-threads.py` ou renovar scope |
-| Configurar R1/Kimi no servidor LiteLLM                            | Baixo | Antes de reativar rotação 3 modelos                                                                       |
-| `litellm-live-parallel` CNPJ no preview                           | Médio | Investigar stub/route                                                                                     |
-
-## Próximo passo único
-
-**Bruno:** rodar waterfall completo (CNPJ real) no preview https://scoutagro-d47bkguue-brunolimaff-3629s-projects.vercel.app e confirmar que passa de "Consolidando informações…" sem freeze.
+`AGENTS.md`, `AuthGate.tsx`, `socio-search/types.ts`, `onboarding.ts`, `investigation-orchestration.ts`, `diagnosticLog.ts`, `pr386-desktop-waterfall-complete.png`, `scheffer-d47bkguue-expanded.png`, `supabase/.temp` — revisar antes de commit.
 
 ## Links
 
-- PR #386: https://github.com/brunolimaff-jpg/NOVO-APP/pull/386
-- Vault sessão: `Bruno Vault/20-SESSOES/2026-06/2026-06-19T23-45-00-litellm-env-freeze-link-status.md`
-- Decisões: DI-2026-06-19-03 (V4-only), DI-2026-06-19-04 (budget link-status)
+- Vault: `Bruno Vault/20-SESSOES/2026-06/2026-06-20T22-45-00-pr386-scheffer-e2e-root-cause.md`
+- Decisões: DI-2026-06-20-01, **DI-2026-06-20-02** (Opção B)
+- Sessão UI break: `2026-06-20T21-30-00-scheffer-litellm-ui-break.md`
+
+## Prompt de retomada
+
+▎ PR #386 `feat/litellm-experiment` HEAD `0351441c`. Ship-loop verde (CI 14/14, PR Gate 16/16). Scheffer live: R1/R2 fail (CRM + SocietaryMap não montam em 300s); R3 pass; `/api/cnpj` OK — H1 refutada. Bruno escolheu **Opção B**: fix causa raiz B1 (waterfall UI CRM/SocietaryMap) + B2 (P1 expand ~26k) — sem workaround E2E. Implementer **não rodou** (rate limit). WIP unstaged fora do escopo. Próximo: implementer B1 → re-run R1/R2 → B2 P1 → critério B Supabase → gates → MERGE com token.

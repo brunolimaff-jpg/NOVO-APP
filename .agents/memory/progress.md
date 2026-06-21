@@ -1,8 +1,75 @@
 # Progress
 
-Last updated: 2026-06-19 — LiteLLM env Preview + fix freeze link-status #386
+### 2026-06-20 — LiteLLM chave nova + modelos econômicos
+
+- Causa raiz fechada: chave/auth estavam corretas; V4 Flash falhava por timeout e o proxy removia markers `[[PORTA_*]]`, forçando `quality_failure`.
+- Catálogo v2: `huawei/deepseek-v4-flash`, `huawei/deepseek-v3.2`, `oracle/xai.grok-4-1-fast-non-reasoning`; preços do Bruno registrados no cálculo.
+- Leak shields server/client preservam apenas markers PORTA/TEIA seguros; texto visível continua sem metadados internos.
+- Gate de qualidade passou a auditar o bruto reconciliado antes da limpeza visual.
+- Prova Preview Scheffer: run `14a73cd2-ef62-4fc3-9708-bac8d5d3c840`, `status=success`, Grok 4.1 Fast, sem fallback, Score PORTA 63, custo US$ 0.019998.
+- Gates: 1.609 testes, typecheck, build e validate-prompts verdes.
+- Produção e merge não alterados.
+
+Last updated: 2026-06-20 — doc-handoff compact-pr PR #386 (HEAD `0351441c`, Opção B, implementer bloqueado)
 
 ## Timeline
+
+### 2026-06-20 (doc-handoff — Scheffer E2E + Opção B causa raiz — PR #386)
+
+- **Entregas:** spec E2E `scheffer-research-validation` + helper; ship-loop CI 14/14 + PR Gate 16/16; continual-learning AGENTS.md (transcripts 159→174).
+- **Scheffer live** (`300000ms`): R1/R2 fail (CRM + mapa); R3 pass; `/api/cnpj` OK — **H1 refutada** (pesquisa OK, gargalo UI).
+- **Bruno:** Opção B — fix B1/B2 sem workaround E2E; critério B Supabase pendente.
+- **Implementer:** rate limit — **zero código** de fix commitado.
+- Handoff: `Bruno Vault/20-SESSOES/2026-06/2026-06-20T22-45-00-pr386-scheffer-e2e-root-cause.md`.
+
+### 2026-06-20 (ship-loop Fase 6 — PR #386 preview `cad2dc`)
+
+- **CI:** 14/14 ✅ (SHA `0351441c`).
+- **PR Gate IA:** Playwright **16/16** ✅ no preview `scoutagro-git-feat-litellm-ex-cad2dc-…vercel.app` (~5,5 min).
+- **Scheffer live** (`LITELLM_WATERFALL_TIMEOUT_MS=300000`, ~16,8 min):
+  - **R1 fail:** `CLIENTE SENIOR CONFIRMADO` ausente em 300s.
+  - **R2 fail:** `societary-map-shell` ausente em 300s.
+  - **R3 pass:** waterfall completo, dossiê 3907 chars, expand `panelEmpty=false`.
+- **Veredito ship-loop:** **BLOCKED** — MERGE_READY não (R1/R2 + critério HANDOFF P1 bug painel 26k).
+- **Loop:** não armado (CI/deploy verdes; sem pendência assíncrona).
+
+### 2026-06-20 (spec validação pesquisa Scheffer — PR #386)
+
+- **Novo:** `tests-e2e/scheffer-research-validation.spec.ts` + `tests-e2e/helpers/scheffer-research.ts` — live no preview, sem stubs CNPJ/Gemini.
+- **Gates locais:** typecheck, 1609 testes, build ✅.
+- **Preview** `scoutagro-2wcoh4w5m-…vercel.app` (R1/R2/R3 @ 180–240s):
+  - **R1 parcial:** GET `/api/cnpj` live ✅ (`qsa≥2`, Scheffer); UI **CLIENTE SENIOR 74 módulos** ❌ (180s).
+  - **R2 fail:** `societary-map-shell` ❌ (240s).
+  - **R3 fail:** `inline-loading-bubble` ainda visível (waterfall incompleto em 180s).
+- **Veredito:** **BLOCKED** — pesquisa QSA OK; waterfall/UI societário+CRM não fecharam no budget; candidato **H2/H4** + timeout Grok.
+- **MERGE_READY:** não — aguardar rerun com `LITELLM_WATERFALL_TIMEOUT_MS=300000` ou preview SHA com waterfall estável.
+
+### 2026-06-20 (Scheffer waterfall + bug UI — PR #386)
+
+- **Waterfall Scheffer** (sessão `1f143b11…`, CNPJ `04733767000180`, preview feat/litellm): LiteLLM confirmado (`/api/llm-experiment` OK); módulos sem foundation cache; waterfall `completed`, consolidação ~1.9s, 26424 chars, PostCompletion OK.
+- **BUG P1:** pós-geração, scroll + clique "ver relatório completo" → painel principal vazio, área branca; console `dossier_accesses` 403 RLS, `raf-safety-net-fired`, Cofre `dissolve safety-timeout`.
+- **Ship-loop:** CI 14/14, PR Gate 16/16, Playwright 16/16, threads 0 — **BLOCKED** até row `completed` em `llm_experiment_runs` (confirmar Supabase).
+- **Código (não commitado):** log console `🦅 [Scout360][LLM]` por módulo em `investigation-orchestration.ts`.
+- Handoff: `Bruno Vault/20-SESSOES/2026-06/2026-06-20T21-30-00-scheffer-litellm-ui-break.md`.
+
+### 2026-06-20 (ship-loop PR #386 + prova LLM manual — PR #386)
+
+- **Ship-loop VERDICT:** BLOCKED (não MERGE_READY) — CI 14/14, gates locais, PR Gate IA **16/16**, Playwright **16/16** no preview SHA `a5d97516`.
+- **Review:** 7 threads re-resolvidas pós-ship-loop → **0 abertas**.
+- **Waterfall Bruno** (~15:43 BRT, sessão `1f143b11…`, Scheffer): `operator_events` `dossier_completed`; `scout_diagnostics` `waterfall:end` completed.
+- **Supabase `llm_experiment_runs`:** row mais recente `quality_failure`, `provider=litellm`, `fallback_used=true`, `fallback_model=gemini-3-flash-preview` — **0 rows `status=completed`**.
+- **NÃO VALIDADO:** causa do fallback V4 Flash; E2E `litellm-live-parallel` live; row `completed` sem fallback.
+- Handoff: `Bruno Vault/20-SESSOES/2026-06/2026-06-20T19-00-00-pr386-ship-loop-llm-proof.md`.
+
+### 2026-06-20 (PR #386 LiteLLM Fase 1 + resolve threads — PR #386)
+
+- **Fase 1 LiteLLM** commit `0d72a84f`: `utils/llm/experimentGate.ts`, gate client Supabase Auth + allowlist, fallback Gemini 401/403, ReDoS Bearer, hard-cap clearTimeout, `agentDebugLog` removido.
+- **Validator APROVADO:** typecheck, 1603 testes, build, contracts, golden, budget.
+- **CI** SHA `a5d97516`: 13 checks SUCCESS; `mergeStateStatus` BLOCKED.
+- **Push** `0d72a84f`, `a5d97516`; 68 review threads resolvidas (#385+#386), 0 unresolved.
+- **Token `gh`:** renovado device flow; `scripts/resolve-pr-threads.py` → GraphQL `addPullRequestReviewThreadReply`.
+- **NÃO VALIDADO:** preview waterfall real, `llm_experiment_runs`, PR Gate IA 16/16, E2E litellm-live-parallel.
+- Handoff: `Bruno Vault/20-SESSOES/2026-06/2026-06-20T16-45-00-pr386-litellm-fase1-threads.md`.
 
 ### 2026-06-19 (LiteLLM env Preview + debug freeze consolidação — PR #386)
 
