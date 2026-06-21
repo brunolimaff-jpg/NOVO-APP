@@ -1,6 +1,12 @@
 import { scoutDiag } from '../utils/diagnosticLog';
 import { getSupabaseAuthHeaders } from '../lib/supabaseClient';
 
+let previewOperatorEmail: string | null = null;
+
+export function setPreviewOperatorEmail(email: string | null): void {
+  previewOperatorEmail = email;
+}
+
 type GeminiApiAction = 'generateContent' | 'chatSendMessage' | 'health' | 'createCachedContent' | 'deleteCachedContent';
 
 interface GeminiApiBaseRequest {
@@ -195,8 +201,8 @@ async function callGeminiApi<TResponse>(
 
       const authHeaders = await getSupabaseAuthHeaders();
 
-      if (!authHeaders.Authorization && typeof (payload as any).operatorEmail === 'string') {
-        authHeaders['x-experiment-operator-email'] = (payload as any).operatorEmail;
+      if (!authHeaders.Authorization && previewOperatorEmail) {
+        authHeaders['x-experiment-operator-email'] = previewOperatorEmail;
       }
 
       response = await fetch(endpoint, {

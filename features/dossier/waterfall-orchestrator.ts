@@ -65,6 +65,7 @@ import {
 } from './porta-reconciliation';
 import { createExperimentRun, finalizeExperimentRun } from '../../utils/llm/experiment';
 import { resolveLiteLLMExperimentGate } from '../../utils/llm/experimentGate';
+import { setPreviewOperatorEmail } from '../../services/geminiProxy';
 import { getExperimentConfig, selectExperimentModel } from '../../utils/llm/modelRouter';
 import { checkReportQuality } from '../../utils/llm/reportQuality';
 import { calculateCost, estimateTokensFromChars } from '../../utils/llm/cost';
@@ -648,6 +649,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
           authMode: experimentGate.authMode ?? 'supabase',
           operatorEmail: experimentOperatorEmail,
         });
+        setPreviewOperatorEmail(experimentOperatorEmail);
       }
       const effectiveFoundationCacheEnabled = llmEnabled ? false : isFoundationCacheEnabled();
       const experimentConfig = getExperimentConfig();
