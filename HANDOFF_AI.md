@@ -1,68 +1,66 @@
-# Handoff — PR #386 LiteLLM: Grok + Brave R3 aprovado no preview
+# Handoff — PR #386 Golden Review + OpenCode Config
 
-**Atualizado:** 2026-06-21 16:50 -04
-**Branch:** `feat/litellm-experiment` | **HEAD remoto:** `49505a29`
+**Atualizado:** 2026-06-22 13:30
+
+## PR #386 — Estado
+
+**Branch:** `feat/litellm-experiment` | **HEAD:** `ef3d437` (docs-rag restaurado)
 **PR:** https://github.com/brunolimaff-jpg/NOVO-APP/pull/386
-**Preview validado:** `https://scoutagro-m8rhm7656-brunolimaff-3629s-projects.vercel.app`
-**Produção:** `scoutagro.vercel.app` com `LLM_PROVIDER=gemini` sem mudança.
+**Vault:** `/Users/brunolima/Documents/Bruno Vault/20-SESSOES/2026-06/2026-06-22T13-30-00-pr386-golden-review-4-riscos.md`
 
-## Estado Atual
+### Merge: BLOQUEADO
 
-| Item | Status |
-|------|--------|
-| Gate LiteLLM preview local auth | OK |
-| Brave endpoint preview | OK em `4d17ff96`: `rawCount=6`, `afterFinalLimitCount=4`, `degraded=false` |
-| Web search no waterfall | OK: `webSearchService` lê `sources` e injeta fontes Brave |
-| `llm_experiment_runs` finalize | OK: `finalizeRun` 200 no preview local auth |
-| E2E histórico/modal | OK: helper clica `Nova investigação` no diálogo de histórico |
-| R3 preview `m8rhm7656` | APROVADO |
-| Merge | BLOQUEADO. Não mergear PR #386 |
+## 4 Riscos Golden Review — Corrigidos
 
-## Validação Recente
+| Risco | Fix | Arquivo |
+|-------|-----|---------|
+| SSRF link-status | nip.io, IPv6, redirect manual 3 hops, GET fallback usa effectiveUrl | documentExtractor.ts, link-status.ts |
+| Scheffer Chapecó/SC | locality Sapezal/MT no case.json, localityFound na rubrica | case.json, dossierGolden.ts |
+| Brave 1/5 chamadas | waitForNetworkIdle antes assertions + no finally | golden-dossier-live.spec.ts |
+| Sem prova IDs | testInfo.attach JSON proof | golden-dossier-live.spec.ts |
 
-- `npm run typecheck` — OK.
-- `npm test -- tests/api-open-web-search.test.ts tests/utils/llm/webSearchService.test.ts tests/utils/llm/experimentGate.test.ts tests/utils/llm/modelRouter.test.ts` — OK, 36 testes.
-- `npm test` — OK, 1620/1620.
-- `npm run build` — OK.
-- R3 no preview novo `m8rhm7656`:
-  - passou em 3.9 min;
-  - renderizou dossiê de 8.068 chars;
-  - `Ver relatório completo`: `panelEmpty=false`, `textLength=8068`;
-  - `NÃO encontrado`: 0;
-  - `/api/open-web-search`: 5 chamadas, todas `source=Brave Search API`, `rawCount=6`, `resultCount=4`, `afterFinalLimitCount=4`, `degraded=false`;
-  - `/api/llm-experiment`: `createRun` 200, `finalizeRun` 200, `fallbackUsed=false`, `runStatus=success`;
-  - conclusão: Grok 4 Fast + Brave está validado no preview para R3 Scheffer.
+## Deploy
 
-## Correções Entregues
+| Commit | Preview | Status |
+|--------|---------|--------|
+| 975d3f14 | https://scoutagro-fwsradft6-brunolimaff-3629s-projects.vercel.app | ✅ Ready (4 fixes, sem finalizeRun) |
+| 18f3a621+ | — | ❌ Error — deleção docs-rag.ts quebra build |
 
-- `utils/llm/webSearchService.ts`: aceita `sources` e `results` no contrato de busca.
-- `utils/llm/types.ts`, `utils/llm/experiment.ts`, `features/dossier/waterfall-orchestrator.ts`: `FinalizeRunPayload.operatorEmail` para autenticar `finalizeRun` em preview local auth.
-- `tests-e2e/helpers/onboarding.ts`: navega corretamente quando o histórico abre como diálogo.
-- `tests-e2e/helpers/auth.ts` e `tests-e2e/helpers/scheffer-research.ts`: modo opcional `E2E_REAL_AUTH=1` com senha só via env `E2E_AUTH_PASSWORD`.
-- `tests-e2e/scheffer-research-validation.spec.ts`: R3 captura Brave, fontes e `llm-experiment` sem logar segredo.
-- `tests/utils/llm/webSearchService.test.ts`: regressão para endpoint que retorna `sources`.
+**Build local (npm run build) OK. Typecheck OK.**
 
-## PR/CI
+## Pendência Crítica
 
-- PR #386: `mergeStateStatus=BLOCKED`.
-- Checks no commit `49505a29`: Typecheck, Tests, Coverage Gate, Build, Dossier Golden, Smoke preview, GitGuardian e Analyze jobs OK.
-- Status agregado `CodeQL` aparece FAILURE no rollup; revisar antes de qualquer merge.
+Rodar golden-dossier-live no preview com credenciais reais:
+
+```bash
+E2E_REAL_AUTH=1 \
+E2E_DEPLOYMENT_SHA=<sha-do-deploy> \
+E2E_OPERATOR_EMAIL=bruno.ferreira@senior.com.br \
+E2E_AUTH_PASSWORD=Scout360@2026! \
+npx playwright test tests-e2e/golden-dossier-live.spec.ts --project=chromium
+```
+
+Exige 2 execuções consecutivas aprovadas no mesmo SHA.
+
+## OpenCode — Configurado
+
+- 10 MCPs ativos (sem apify, mermaid, context7, netlify)
+- Permissions: bash/write/edit → ask
+- Compaction: auto, prune=false, reserved=20000
+- Formatter + LSP ativos
+- Instructions consolidado: 1 arquivo (86 linhas vs 450 antes)
+- 9 comandos custom (/audit, /ctx, /licoes, /review-branch, /sessions, /sync, /end-session, /quality-gate, /comandos)
+- 11 subagentes (implementer + planner novos)
+- Variants: Opus/Sonnet com thinking budget (ctrl+t)
+- TUI: attention.notifications + sound ativos
 
 ## Próximo Passo
 
-1. Revisar status agregado CodeQL.
-2. Decidir se encerra benchmark em Grok 4 Fast + Brave ou continua candidatos baratos.
-3. Não mergear sem token **MERGE** explícito.
+1. Corrigir deploy Vercel (sem deletar docs-rag.ts)
+2. Rodar golden-dossier-live 2x
+3. Se OK, gates finais + handoff
 
 ## Regras Críticas
 
-- Não fazer merge.
-- Não adicionar n8n.
-- Não registrar credenciais.
-- Não aceitar fallback Gemini como sucesso.
-- Não prosseguir benchmark de outros modelos até R3 Grok+Brave passar.
-
-## Vault
-
-- Sessão anterior: `/Users/brunolima/Documents/Bruno Vault/20-SESSOES/2026-06/2026-06-21T22-00-00-pr386-gate-3-modelos-foundation-cache-brave.md`
-- Sessão atual: `/Users/brunolima/Documents/Bruno Vault/20-SESSOES/2026-06/2026-06-21T16-20-00-pr386-brave-grounding-finalize.md`
+- NAO mergear PR #386
+- NAO commitar credenciais

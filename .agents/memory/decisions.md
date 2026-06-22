@@ -1,5 +1,32 @@
 # decisions.md — NOVO-APP
 
+## Novas Decisoes (Sessao 2026-06-22 — Golden Review + OpenCode)
+
+### DI-2026-06-22-03: Checagem de localidade no golden dossier deve usar word boundaries, nao substring pura
+
+- **Contexto:** "SC" em `locality.forbidden` causava falso positivo em "Scheffer" porque `normalizeForMatch("Scheffer")` contém "sc".
+- **Decisao:** (1) `locality.forbidden` deve conter frases completas (ex: "Chapecó"), nao siglas soltas. (2) Alternativa futura: usar word boundary (`\b`) no match de forbidden.
+- **Status:** corrigida — case.json atualizado.
+- **Referencia:** `tests/helpers/dossierGolden.ts`, `tests/fixtures/dossier/scheffer-04733767000180/case.json`.
+
+### DI-2026-06-22-02: isValidPublicUrl deve bloquear DNS dinâmico (nip.io/sslip.io/xip.io) e IPv6 link-local
+
+- **Contexto:** SSRF pode usar `127.0.0.1.nip.io` que resolve pra localhost mas passa em checagens de hostname.
+- **Decisao:** Adicionar padrão `\.(nip\.io|sslip\.io|xip\.io)$` ao `isValidPublicUrl`. Adicionar IPv6 link-local (`fe80:`), unique-local (`fc00/fd`), CGNAT (`100.x`), `0.0.0.0`, `[::]`.
+- **Status:** implementada em `utils/documentExtractor.ts`.
+- **Referencia:** OWASP SSRF cheat sheet.
+
+## Novas Decisoes (Sessao 2026-06-22 — Correcao RLS dossier_accesses)
+
+### DI-2026-06-22-01: Politicas RLS de dossier_accesses devem cobrir role authenticated, nao apenas anon
+
+- **Contexto:** Operadores autenticados (ex: Wuender) recebiam 403 ao tentar registrar acesso a dossies de outros operadores. As politicas RLS da tabela `dossier_accesses` cobriam apenas role `anon`, mas operadores logados usam role `authenticated`.
+- **Decisao:** (1) Remover politicas antigas `anon_insert_dossier_accesses` e `anon_select_dossier_accesses`. (2) Criar novas politicas `operator_insert_dossier_accesses` e `operator_select_dossier_accesses` cobrindo ambos os roles (`anon` + `authenticated`). (3) Migration aplicada diretamente no Supabase como `fix_dossier_accesses_rls_authenticated`.
+- **Contexto de negocio:** Dossies sao compartilhados entre todos os operadores. A tabela `dossies` ja estava correta (ALL para anon+authenticated), mas `dossier_accesses` estava inconsistente — so `anon` conseguia inserir/consultar.
+- **Impacto:** Wuender e qualquer operador autenticado conseguem acessar dossies de outros operadores sem 403.
+- **Status:** implementada — migration aplicada direto no Supabase. Sem deploy Vercel necessario.
+- **Referencia:** Migration `fix_dossier_accesses_rls_authenticated`, tabela `dossier_accesses`.
+
 ## Novas Decisoes (Sessao 2026-06-21 — PR #386 3 modelos + foundation cache gap + Brave Search)
 
 ### DI-2026-06-21-04: Foundation cache gap invalida premissa do experimento LiteLLM — web search injetado como mitigation

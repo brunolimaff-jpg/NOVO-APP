@@ -1463,7 +1463,6 @@
 
 - `cnpj.ts` — config, default:handler
 - `comex.ts` — Exemplo de faixas de valor segundo MDIC/Serpro · default:handler
-- `docs-rag.ts` — config, maxDuration, default:handler
 - `extract-content.ts` — config, maxDuration, default:handler
 - `gemini.ts` — config, maxDuration, default:handler
 - `gerar-dossie.ts` — config, maxDuration, default:handler
@@ -1669,7 +1668,7 @@
 
 **tests/**
 
-- `api-docs-rag.test.ts`
+- `api-rag-docs.test.ts`
 - `api-extract.test.ts`
 - `api-gemini.test.ts`
 - `api-open-web-search.test.ts`

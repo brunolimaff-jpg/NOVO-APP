@@ -197,16 +197,16 @@
     {
       "id": "page-ingerir-docs-rag",
       "title": "Ingerir documentação para RAG",
-      "description": "Comandos e parâmetros para CSV, crawler Senior, PDFs de concorrentes, embeddings, namespaces Pinecone e verificação por `/api/docs-rag`.",
+      "description": "Comandos e parâmetros para CSV, crawler Senior, PDFs de concorrentes, embeddings, namespaces Pinecone e verificação pelo modo documental de `/api/rag`.",
       "path": "pages/14-ingerir-documentacao-para-rag.md",
       "sourceFiles": [
         "scripts/crawlAndIngestSeniorDocs.ts",
         "scripts/ingestErpDocs.ts",
         "scripts/ingestPdfDocs.ts",
-        "api/docs-rag.ts",
+        "api/rag.ts",
         "services/ragService.ts",
         "services/war-room/retrieval.ts",
-        "tests/api-docs-rag.test.ts"
+        "tests/api-rag-docs.test.ts"
       ]
     },
     {
@@ -289,15 +289,14 @@
     {
       "id": "page-rag-reference",
       "title": "Referência de RAG",
-      "description": "Contratos de `/api/rag` e `/api/docs-rag`, namespaces permitidos, thresholds, sinal sem documentação, cliente `ragService` e uso no War Room.",
+      "description": "Contrato consolidado de `/api/rag`, namespaces permitidos, thresholds, sinal sem documentação, cliente `ragService` e uso no War Room.",
       "path": "pages/20-referencia-de-rag.md",
       "sourceFiles": [
         "services/ragService.ts",
         "api/rag.ts",
-        "api/docs-rag.ts",
         "services/war-room/retrieval.ts",
         "scripts/ingestPdfDocs.ts",
-        "tests/api-docs-rag.test.ts",
+        "tests/api-rag-docs.test.ts",
         "tests/services/ragService.test.ts"
       ]
     },

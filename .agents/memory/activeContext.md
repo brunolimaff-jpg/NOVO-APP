@@ -1,41 +1,38 @@
 # Active Context
 
-**Last updated:** 2026-06-21 16:50 -04 — PR #386 Grok + Brave R3 aprovado no preview
+**Last updated:** 2026-06-22 13:30 — Golden Review 4 riscos corrigidos + OpenCode configurado
 
 ## Prioridade Atual
 
-**PR #386 — validar LiteLLM/Grok com Brave Search real antes de qualquer benchmark novo**
+**PR #386 — fechar golden review + validar no preview**
 
 - Branch: `feat/litellm-experiment`
-- HEAD remoto: `49505a29`
+- HEAD: `ef3d437` (docs-rag restaurado)
 - PR: https://github.com/brunolimaff-jpg/NOVO-APP/pull/386
-- Preview validado: `https://scoutagro-m8rhm7656-brunolimaff-3629s-projects.vercel.app`
-- Produção: `LLM_PROVIDER=gemini`, sem mudança.
+- Preview funcionando: https://scoutagro-fwsradft6-brunolimaff-3629s-projects.vercel.app (commit 975d3f14)
+- Vault: `/Users/brunolima/Documents/Bruno Vault/20-SESSOES/2026-06/2026-06-22T13-30-00-pr386-golden-review-4-riscos.md`
 
-## Estado Técnico
+## 4 Riscos Golden — Corrigidos
 
-- Brave no waterfall R3: 5 chamadas, todas `source=Brave Search API`, `rawCount=6`, `resultCount=4`, `afterFinalLimitCount=4`, `degraded=false`.
-- `llm_experiment_runs`: `createRun` 200, `finalizeRun` 200, `fallbackUsed=false`, `runStatus=success`.
-- Render R3: dossiê 8.068 chars, `Ver relatório completo` com `panelEmpty=false`, 0 ocorrências de "NÃO encontrado".
-- Correções entregues: contrato `sources/results`, `operatorEmail` no `finalizeRun`, helper E2E para diálogo de histórico, captura R3 de Brave/experimento.
+1. **SSRF link-status**: isValidPublicUrl expandido + redirect manual 3 hops
+2. **Scheffer Chapecó/SC**: locality Sapezal/MT no case.json + localityFound rubrica
+3. **Brave 1/5**: waitForNetworkIdle + no finally
+4. **IDs distintos**: testInfo.attach JSON proof
 
-## Validação
+## Deploy Quebrado
 
-- `npm run typecheck` — OK.
-- Testes focados — OK, 36 testes.
-- `npm test` — OK, 1620/1620.
-- `npm run build` — OK.
-- R3 no preview novo `m8rhm7656` — OK em 3.9 min.
+- Commits pós-18f3a621 falham com Error (deleção docs-rag.ts suspeita)
+- Build local OK. Typecheck OK.
+- Precisa: commitar finalizeRun fix SEM deletar docs-rag.ts
 
-## Próximo Passo
+## OpenCode Global Config
 
-1. Revisar status agregado CodeQL que ainda aparece FAILURE no rollup.
-2. Decidir se encerra benchmark em Grok 4 Fast + Brave ou continua candidatos baratos.
-3. Não mergear sem token MERGE explícito.
+- 10 MCPs, 9 comandos, 11 subagentes, instructions consolidado 86 linhas
+- Config em `~/.config/opencode/opencode.jsonc`
 
-## Regras Críticas
+## Pendência Crítica
 
-- NAO mergear PR #386.
-- NAO adicionar n8n.
-- NAO registrar credenciais.
-- NAO aceitar fallback Gemini como sucesso.
+Rodar golden-dossier-live 2x no preview:
+- Email: bruno.ferreira@senior.com.br
+- Senha: Scout360@2026!
+- CNPJ: 04.733.767/0001-80

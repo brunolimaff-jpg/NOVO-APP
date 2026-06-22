@@ -77,9 +77,7 @@ O sistema combina:
 - `api/gemini.ts`
   - proxy seguro da camada Gemini
 - `api/rag.ts`
-  - consulta vetorial do contexto interno
-- `api/docs-rag.ts`
-  - consulta vetorial da documentacao tecnica
+  - consulta vetorial do contexto interno e da documentacao tecnica por namespace
 - `api/link-status.ts`
   - validacao de links exibidos como fonte
 - `api/radar-scan.ts`

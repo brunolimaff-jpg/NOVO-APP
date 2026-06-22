@@ -204,6 +204,9 @@ Padroes e anti-padroes aprendidos de sessoes anteriores. Tratados como regras do
 - **AbortSignal.timeout() cobre apenas conexao, nao leitura do body** [fetch, timeout, abort, body-read]
   `fetch(url, { signal: AbortSignal.timeout(N) })` aborta apenas a fase de conexao (TCP handshake + TLS + response headers). `response.json()` le todo o body apos os headers — e essa leitura nao tem timeout proprio. Se o servidor envia headers rapido mas o corpo demora (ou e grande), `response.json()` fica bloqueada indefinidamente. Solucao: `AbortController` explicito para timeout total + `response.text()` com race contra timeout dedicado + `JSON.parse()` manual.
 
+- **Fire-and-forget com auth async pode nunca disparar o fetch** [llm, supabase, observabilidade, waterfall]
+  No PR #386, o waterfall LiteLLM completava e renderizava (`ui-finalized`, ~38k chars), mas `finalizeRun` nunca aparecia no Network e `llm_experiment_runs` ficava `running`. Causa provavel: `finalizeExperimentRun` fire-and-forget chamava `getSupabaseAuthHeaders()` no fim do waterfall; se `supabase.auth.getSession()` pendurasse, o fetch nem era iniciado e nao havia HTTP/catch para observar. Fix: capturar os headers no `createRun` e reutilizar no `finalizeRun`, alem de logar `finalizando llm_experiment_run` antes da chamada e sucesso/falha depois. Afeta: `utils/llm/experiment.ts`, `features/dossier/waterfall-orchestrator.ts`, PR #386.
+
 ## Auth Migration Supabase (12 Jun 2026) — licoes consolidadas
 
 - **Sessao Supabase salva nao exige cache proprio de identidade** [supabase, auth, localstorage, security]

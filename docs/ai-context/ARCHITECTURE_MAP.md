@@ -113,8 +113,7 @@ Observacao:
 ## APIs serverless
 
 - `api/gemini.ts`
-- `api/rag.ts`
-- `api/docs-rag.ts`
+- `api/rag.ts` (RAG global e documental consolidado)
 - `api/link-status.ts`
 - `api/open-web-search.ts`
 - `api/radar-scan.ts`

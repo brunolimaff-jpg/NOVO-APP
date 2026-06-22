@@ -26,8 +26,8 @@ ChatShell
   -> ChatPanels renderiza <WarRoom />
   -> WarRoom envia queryWarRoom(mode, message, history, target, onStatus, options)
   -> loadWarRoomDocsContext()
-       -> /api/docs-rag  namespaces: senior-erp-docs, competitor-pdfs
-       -> /api/rag       base interna
+       -> /api/rag  namespaces: senior-erp-docs, competitor-pdfs
+       -> /api/rag  sem namespace: base interna
   -> proxyGerarDossie()
        -> /api/gemini
 ```
@@ -124,7 +124,7 @@ O carregamento documental é automático para `tech` e `benchmark`.
 | Timeout War Room técnico         | `90000ms`                          |
 | Timeout War Room benchmark       | `120000ms`                         |
 | Timeout cliente RAG              | `15000ms`                          |
-| Score mínimo em `/api/docs-rag`  | `0.6`                              |
+| Score mínimo no RAG documental   | `0.6`                              |
 
 O War Room consulta documentação oficial e base interna em paralelo. Para perguntas específicas, ele reforça buscas e priorização de blocos:
 
@@ -209,10 +209,10 @@ PINECONE_DOCS_KEY=
 PINECONE_DOCS_INDEX=scout-arsenal
 ```
 
-`/api/docs-rag` aceita apenas os namespaces `senior-erp-docs` e `competitor-pdfs`. Namespace inválido retorna `400` com a lista permitida. Ausência de documentação forte retorna um sinal explícito de sem documentação, tratado no cliente como contexto indisponível.
+O modo documental de `/api/rag` aceita apenas os namespaces `senior-erp-docs` e `competitor-pdfs`. Namespace inválido retorna `400` com a lista permitida. Ausência de documentação forte retorna um sinal explícito de sem documentação.
 
 <Note>
-A implementação atual usa nomes concretos como Gemini e Pinecone, mas a fronteira de integração fica na fachada `queryWarRoom`, em `ragService` e nos endpoints `/api/docs-rag`, `/api/rag` e `/api/gemini`. Uma integração Grok-Wiki, BYOC ou BYOK deve manter a UI estável e trocar somente as fontes por arquivos, repositórios ou catálogos atrás dessas fronteiras.
+A implementação atual usa nomes concretos como Gemini e Pinecone, mas a fronteira de integração fica na fachada `queryWarRoom`, em `ragService` e nos endpoints `/api/rag` e `/api/gemini`. Uma integração Grok-Wiki, BYOC ou BYOK deve manter a UI estável e trocar somente as fontes por arquivos, repositórios ou catálogos atrás dessas fronteiras.
 </Note>
 
 ## Verificação
@@ -225,7 +225,7 @@ npm test -- tests/services/warRoomService.test.ts
 npm test -- tests/services/war-room/query.test.ts
 npm test -- tests/services/war-room/retrieval.test.ts
 npm test -- tests/services/war-room/intent.test.ts
-npm test -- tests/api-docs-rag.test.ts
+npm test -- tests/api-rag-docs.test.ts
 npm run typecheck
 ```
 
@@ -244,7 +244,7 @@ npm run build
 | Botão War Room não aparece                         | Confirme `canWarRoom=true` no fluxo que monta `ChatInterface` e `ChatShell`.                                     |
 | Resposta sempre técnica                            | A mensagem não contém marcador de benchmark reconhecido. Use `compare`, `vs`, `versus`, `contra` ou `benchmark`. |
 | Benchmark usa alvo genérico                        | Informe o concorrente na frase, por exemplo `Senior vs TOTVS`.                                                   |
-| Status fica em Pinecone indisponível               | Verifique `/api/docs-rag`, `/api/rag`, `PINECONE_API_KEY`, `PINECONE_DOCS_KEY`, índice e namespaces.             |
+| Status fica em Pinecone indisponível               | Verifique `/api/rag`, `PINECONE_API_KEY`, `PINECONE_DOCS_KEY`, índice e namespaces.                              |
 | Resposta mostra aviso de conhecimento complementar | O RAG retornou vazio, falhou ou respondeu parcialmente.                                                          |
 | Erro com botão de retry                            | Expanda `Ver detalhes` para ver `source`, `code`, `status` e mensagem normalizada.                               |
 | Consulta travou visualmente                        | Use `Parar`; se persistir, feche o War Room para abortar o controller ativo.                                     |
@@ -256,7 +256,7 @@ npm run build
     Fluxo inicial do operador e primeiro estado esperado no shell de investigação.
   </Card>
   <Card title="Referência de RAG" href="/rag-reference">
-    Contratos de `/api/rag`, `/api/docs-rag`, namespaces e sinal sem documentação.
+    Contrato de `/api/rag`, namespaces e sinal sem documentação.
   </Card>
   <Card title="Proxy Gemini" href="/gemini-proxy-reference">
     Fachada de geração, timeout, grounding e chamadas via `/api/gemini`.

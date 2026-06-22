@@ -2,7 +2,7 @@
 grok_wiki: true
 page_id: 'page-ingerir-docs-rag'
 title: 'Ingerir documentação para RAG'
-description: 'Comandos e parâmetros para CSV, crawler Senior, PDFs de concorrentes, embeddings, namespaces Pinecone e verificação por `/api/docs-rag`.'
+description: 'Comandos e parâmetros para CSV, crawler Senior, PDFs de concorrentes, embeddings, namespaces Pinecone e verificação pelo modo documental de `/api/rag`.'
 repository: 'local/NOVO-APP'
 branch: 'default'
 generated_at: '2026-06-08T23:39:43.629Z'
@@ -10,26 +10,26 @@ source_files:
   - 'scripts/crawlAndIngestSeniorDocs.ts'
   - 'scripts/ingestErpDocs.ts'
   - 'scripts/ingestPdfDocs.ts'
-  - 'api/docs-rag.ts'
+  - 'api/rag.ts'
   - 'services/ragService.ts'
   - 'services/war-room/retrieval.ts'
-  - 'tests/api-docs-rag.test.ts'
+  - 'tests/api-rag-docs.test.ts'
 ---
 
-A ingestão documental do Senior Scout 360 roda por scripts CLI em `scripts/`, gera embeddings com `gemini-embedding-001` e grava vetores no Pinecone; a consulta em runtime passa por `/api/docs-rag`, que só monta contexto evidencial quando o match possui `metadata.text` ou `metadata.content`.
+A ingestão documental do Senior Scout 360 roda por scripts CLI em `scripts/`, gera embeddings com `gemini-embedding-001` e grava vetores no Pinecone; a consulta em runtime passa por `/api/rag` com namespace, que só monta contexto evidencial quando o match possui `metadata.text` ou `metadata.content`.
 
 ## Superfície implementada
 
 | Entrada              | Comando/script                        |  Namespace padrão | Uso principal                                                           | Observação operacional                                                                                                                           |
 | -------------------- | ------------------------------------- | ----------------: | ----------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
-| CSV de links Senior  | `scripts/ingestErpDocs.ts`            | `senior-erp-docs` | Vetorizar título, área, portal e URL                                    | Não persiste texto documental em `metadata.text`; sozinho tende a retornar sinal sem documentação em `/api/docs-rag`.                            |
+| CSV de links Senior  | `scripts/ingestErpDocs.ts`            | `senior-erp-docs` | Vetorizar título, área, portal e URL                                    | Não persiste texto documental em `metadata.text`; sozinho tende a retornar sinal sem documentação no modo docs.                                 |
 | Crawler HTML Senior  | `scripts/crawlAndIngestSeniorDocs.ts` | `senior-erp-docs` | Buscar páginas em `documentacao.senior.com.br`, extrair texto e chunkar | Tem allowlist/SSRF guard e relatório final; verifique se os chunks textuais também ficam disponíveis em metadata antes de tratar como evidência. |
 | PDFs de concorrentes | `scripts/ingestPdfDocs.ts`            | `competitor-pdfs` | Extrair PDF nativo ou OCR Gemini e indexar chunks                       | Usado pelo modo `benchmark` do War Room junto com `senior-erp-docs`.                                                                             |
-| Base curada Banking  | `scripts/ingestCanonicalBanking.ts`   | `senior-erp-docs` | Inserir bloco canônico de ERP Banking                                   | Persiste `metadata.text`, portanto atende diretamente ao contrato atual de `/api/docs-rag`.                                                      |
+| Base curada Banking  | `scripts/ingestCanonicalBanking.ts`   | `senior-erp-docs` | Inserir bloco canônico de ERP Banking                                   | Persiste `metadata.text`, portanto atende diretamente ao contrato documental de `/api/rag`.                                                      |
 | Higienização         | `scripts/higienizarPinecone.ts`       | `senior-erp-docs` | Relatar stats, duplicatas e índice órfão                                | `--execute` remove o índice órfão `documentacao`; sem flag é dry-run.                                                                            |
 
 <Warning>
-Contagem de vetores no Pinecone não prova que o War Room terá contexto. O endpoint `/api/docs-rag` descarta matches que têm apenas `url`, `titulo` e `categoria`; o contexto final exige texto em `metadata.text` ou `metadata.content`.
+Contagem de vetores no Pinecone não prova que o War Room terá contexto. O modo documental de `/api/rag` descarta do contexto matches apenas com URL/título/categoria; o contexto final exige `metadata.text` ou `metadata.content`.
 </Warning>
 
 ## Variáveis de ambiente
@@ -38,13 +38,13 @@ Use variáveis sem prefixo `VITE_` para chaves reais em produção e scripts. Os
 
 | Variável                  | Usada por                                        | Default/fallback                                                             | Obrigatória                            |
 | ------------------------- | ------------------------------------------------ | ---------------------------------------------------------------------------- | -------------------------------------- |
-| `GEMINI_API_KEY`          | scripts de ingestão e `/api/docs-rag`            | scripts aceitam `VITE_API_KEY`; API exige `GEMINI_API_KEY`                   | Sim                                    |
-| `PINECONE_DOCS_KEY`       | scripts e `/api/docs-rag`                        | fallback para `PINECONE_API_KEY`; alguns scripts aceitam `VITE_PINECONE_KEY` | Sim, ou `PINECONE_API_KEY`             |
-| `PINECONE_API_KEY`        | scripts, `/api/rag`, fallback de `/api/docs-rag` | usado se `PINECONE_DOCS_KEY` não existir                                     | Sim, se não houver `PINECONE_DOCS_KEY` |
-| `PINECONE_DOCS_INDEX`     | scripts e `/api/docs-rag`                        | `scout-arsenal`                                                              | Não                                    |
-| `PINECONE_INDEX`          | `/api/docs-rag` e PDFs como fallback             | validado antes de uso                                                        | Não                                    |
-| `PINECONE_DOCS_NAMESPACE` | `/api/docs-rag` e PDFs                           | API cai para `senior-erp-docs`; PDFs caem para `competitor-pdfs`             | Não                                    |
-| `PINECONE_NAMESPACE`      | fallback de `/api/docs-rag`                      | usado antes do default                                                       | Não                                    |
+| `GEMINI_API_KEY`          | scripts de ingestão e `/api/rag`                 | scripts aceitam `VITE_API_KEY`; API exige `GEMINI_API_KEY`                   | Sim                                    |
+| `PINECONE_DOCS_KEY`       | scripts e modo documental de `/api/rag`          | fallback para `PINECONE_API_KEY`; alguns scripts aceitam `VITE_PINECONE_KEY` | Sim, ou `PINECONE_API_KEY`             |
+| `PINECONE_API_KEY`        | scripts e `/api/rag`                             | usado se `PINECONE_DOCS_KEY` não existir no modo docs                        | Sim, se não houver `PINECONE_DOCS_KEY` |
+| `PINECONE_DOCS_INDEX`     | scripts e modo documental de `/api/rag`          | `scout-arsenal`                                                              | Não                                    |
+| `PINECONE_INDEX`          | `/api/rag` e PDFs como fallback                  | validado antes de uso                                                        | Não                                    |
+| `PINECONE_DOCS_NAMESPACE` | scripts de ingestão e PDFs                       | override de ingestão; não seleciona modo docs no runtime                     | Não                                    |
+| `PINECONE_NAMESPACE`      | `/api/rag` global                                | namespace opcional somente no modo global                                    | Não                                    |
 | `GEMINI_OCR_MODEL`        | OCR de PDFs                                      | `gemini-3-flash-preview`                                                     | Não                                    |
 
 O nome do índice passa por guarda defensiva: valor vazio, valor com prefixo de chave `pcsk_` ou nome fora do padrão de índice faz a API cair para `scout-arsenal`.
@@ -62,7 +62,7 @@ export PINECONE_DOCS_INDEX="scout-arsenal"
 ```
 
 <Note>
-`check-exports.command` confirma chave e índice Pinecone. Para ingestão e `/api/docs-rag`, `GEMINI_API_KEY` também precisa existir porque a consulta e os scripts geram embeddings.
+`check-exports.command` confirma chave e índice Pinecone. Para ingestão e `/api/rag`, `GEMINI_API_KEY` também precisa existir porque a consulta e os scripts geram embeddings.
 </Note>
 
 ## Ingerir CSV de links Senior
@@ -114,7 +114,7 @@ Parâmetros e limites fixos:
 O crawler só aceita URLs `https://documentacao.senior.com.br/`. A guarda bloqueia protocolo não HTTPS, `localhost`, loopback, `169.254.*`, `10.*`, `172.16-31.*` e `192.168.*`.
 
 <Warning>
-O relatório final do crawler mostra páginas, falhas e chunks indexados. Depois dele, valide `/api/docs-rag`; se a resposta continuar com sinal sem documentação, o problema provável é ausência de texto em metadata ou score abaixo de `0.6`, não necessariamente falha de upsert.
+O relatório final do crawler mostra páginas, falhas e chunks indexados. Depois dele, valide `/api/rag` com namespace; se a resposta continuar com sinal sem documentação, o problema provável é ausência de texto em metadata ou score abaixo de `0.6`.
 </Warning>
 
 ## Ingerir PDFs de concorrentes
@@ -145,7 +145,7 @@ O script varre PDFs recursivamente, tenta extração nativa com `pdf-parse` e s�
 
 ## Namespaces permitidos
 
-`/api/docs-rag` aceita apenas dois namespaces documentais:
+O modo documental de `/api/rag` aceita apenas dois namespaces:
 
 | Namespace         | Origem esperada                                   | Uso no app                                                 |
 | ----------------- | ------------------------------------------------- | ---------------------------------------------------------- |
@@ -154,9 +154,9 @@ O script varre PDFs recursivamente, tenta extração nativa com `pdf-parse` e s�
 
 Qualquer outro valor em `namespace` retorna `400` com `error: "Invalid namespace"` e a lista `allowed`.
 
-## Contrato de `/api/docs-rag`
+## Contrato documental de `/api/rag`
 
-:::endpoint POST /api/docs-rag Consulta documentação técnica indexada
+:::endpoint POST /api/rag Consulta documentação técnica indexada
 
 Gera embedding da `query`, consulta Pinecone com `topK: 8`, filtra matches com score mínimo `0.6` e retorna contexto textual separado por `---`.
 
@@ -164,14 +164,14 @@ Gera embedding da `query`, consulta Pinecone com `topK: 8`, filtra matches com s
 Texto de busca. Deve ter de `1` a `10000` caracteres.
 </ParamField>
 
-<ParamField body="namespace" type="string">
-Namespace documental opcional. Só aceita `senior-erp-docs` ou `competitor-pdfs`.
+<ParamField body="namespace" type="string" required>
+Namespace documental obrigatório. Só aceita `senior-erp-docs` ou `competitor-pdfs`; sem ele, a consulta é global.
 </ParamField>
 
 <RequestExample>
 
 ```bash
-curl -s "https://SEU_DEPLOY.vercel.app/api/docs-rag" \
+curl -s "https://SEU_DEPLOY.vercel.app/api/rag" \
   -H "Content-Type: application/json" \
   -d '{"query":"ERP Banking pagamentos eletrônicos", "namespace":"senior-erp-docs"}'
 ```
@@ -210,7 +210,7 @@ Respostas especiais:
 
 ## Como o War Room consome documentação
 
-`services/ragService.ts` normaliza a query para até `9500` caracteres, chama `/api/docs-rag` com timeout de `15s` e marca `failed: true` quando recebe status não OK, timeout, erro de rede, contexto vazio ou o prefixo `[SEM DOCUMENTAÇÃO ENCONTRADA`.
+`services/ragService.ts` normaliza a query para até `9500` caracteres, chama `/api/rag` com namespace documental e timeout de `15s`, e marca falhas de modo conservador.
 
 `services/war-room/retrieval.ts` usa cache por `namespace::query` por `120000ms`, corta o contexto final em `6000` caracteres e consulta documentação só nos modos `tech` e `benchmark`.
 
@@ -238,7 +238,7 @@ Rode `./check-exports.command` e confirme `PINECONE_DOCS_KEY` ou `PINECONE_API_K
 Use o script adequado para CSV, crawler ou PDFs. No final, confira namespace, índice, quantidade de chunks ou registros e falhas reportadas.
 </Step>
 
-<Step title="3. Consulte `/api/docs-rag`">
+<Step title="3. Consulte `/api/rag` com namespace">
 Use uma query que deve bater em um documento recém-indexado e informe o namespace correto.
 </Step>
 
@@ -247,16 +247,16 @@ Considere sucesso apenas quando `context` trouxer texto documental e fonte. Resp
 </Step>
 </Steps>
 
-Em dev local, o Vite faz proxy de `/api/docs-rag` para `LOCAL_DEV_API_PROXY_TARGET`, cujo default é `https://scoutagro.vercel.app`. Para validar outro preview, defina `LOCAL_DEV_API_PROXY_TARGET` e, se necessário, `VERCEL_AUTOMATION_BYPASS_SECRET`.
+Em dev local, o Vite faz proxy de `/api/rag` para `LOCAL_DEV_API_PROXY_TARGET`, cujo default é `https://scoutagro.vercel.app`.
 
 ```bash title="consulta via dev server proxy"
-curl -s "http://localhost:3000/api/docs-rag" \
+curl -s "http://localhost:3000/api/rag" \
   -H "Content-Type: application/json" \
   -d '{"query":"consulta analítica de talhão", "namespace":"senior-erp-docs"}'
 ```
 
 ```bash title="testes de contrato"
-npx vitest run tests/api-docs-rag.test.ts tests/services/ragService.test.ts tests/config/localDevApiProxy.test.ts
+npx vitest run tests/api-rag-docs.test.ts tests/services/ragService.test.ts tests/config/localDevApiProxy.test.ts
 ```
 
 ## Manutenção do Pinecone
@@ -279,7 +279,7 @@ O dry-run relata estatísticas do índice principal, tenta listar registros com 
 
 | Sintoma                                                                   | Causa provável                                                                                           | Ação                                                                                 |
 | ------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
-| `/api/docs-rag` retorna `[SEM DOCUMENTAÇÃO ENCONTRADA ...]` após ingestão | Match sem `metadata.text`/`metadata.content`, score abaixo de `0.6` ou namespace errado                  | Inspecione metadata dos vetores e valide com `senior-erp-docs` ou `competitor-pdfs`. |
+| `/api/rag` retorna `[SEM DOCUMENTAÇÃO ENCONTRADA ...]` após ingestão | Match sem `metadata.text`/`metadata.content`, score abaixo de `0.6` ou namespace errado                  | Inspecione metadata dos vetores e valide com `senior-erp-docs` ou `competitor-pdfs`. |
 | `Invalid namespace`                                                       | Namespace fora da allowlist                                                                              | Use apenas `senior-erp-docs` ou `competitor-pdfs`.                                   |
 | Índice configurado cai para `scout-arsenal`                               | `PINECONE_DOCS_INDEX` vazio, com formato inválido ou contendo chave `pcsk_`                              | Corrija o nome do índice; não coloque API key no campo de índice.                    |
 | Crawler rejeita URL                                                       | URL fora de `https://documentacao.senior.com.br/` ou host privado/reservado                              | Ajuste o CSV; o crawler não é genérico.                                              |
@@ -291,7 +291,7 @@ O dry-run relata estatísticas do índice principal, tenta listar registros com 
 
 <CardGroup>
 <Card title="Referência de RAG" href="/rag-reference">
-Contratos de `/api/rag` e `/api/docs-rag`, namespaces, thresholds e cliente `ragService`.
+Contrato consolidado de `/api/rag`, namespaces, thresholds e cliente `ragService`.
 </Card>
 <Card title="Usar o War Room" href="/usar-war-room">
 Fluxo de consulta técnica e benchmark com contexto documental.
@@ -309,7 +309,7 @@ Chaves no servidor, headers comuns, SSRF guard e limites de payload.
 - `scripts/crawlAndIngestSeniorDocs.ts`
 - `scripts/ingestErpDocs.ts`
 - `scripts/ingestPdfDocs.ts`
-- `api/docs-rag.ts`
+- `api/rag.ts`
 - `services/ragService.ts`
 - `services/war-room/retrieval.ts`
-- `tests/api-docs-rag.test.ts`
+- `tests/api-rag-docs.test.ts`

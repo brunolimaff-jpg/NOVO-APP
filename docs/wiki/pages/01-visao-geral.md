@@ -106,8 +106,7 @@ O estado vivo do handoff registra tela branca mitigada com safety net, mas causa
 | ---------------------- | ------ | ------- | --------------------------------------------------------------------------------------------------------------------- |
 | `/api/gemini`          | `POST` | Node.js | Proxy Gemini com ações `health`, `generateContent`, `createCachedContent`, `deleteCachedContent` e `chatSendMessage`. |
 | `/api/cnpj`            | `GET`  | Node.js | Lookup cadastral por CNPJ, com CORS para produção, previews Vercel e dev local.                                       |
-| `/api/rag`             | `POST` | Node.js | Busca contexto interno no Pinecone usando embedding Gemini.                                                           |
-| `/api/docs-rag`        | `POST` | Node.js | Busca documentação técnica em namespaces permitidos, com sinal explícito quando não há documentação.                  |
+| `/api/rag`             | `POST` | Node.js | Busca contexto interno ou documentação por namespace, usando embedding Gemini.                                        |
 | `/api/radar-scan`      | `POST` | Node.js | Varredura RSS/Google News, deduplicação e resumo com Gemini.                                                          |
 | `/api/socio-search`    | `POST` | Node.js | Busca societária estruturada para Teia e enriquecimento CNPJ.                                                         |
 | `/api/open-web-search` | `POST` | Node.js | Busca aberta controlada para fallback web.                                                                            |

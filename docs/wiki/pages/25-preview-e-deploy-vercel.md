@@ -125,7 +125,6 @@ Rotas cobertas pelo proxy central:
 | `/api/link-status`     |
 | `/api/extract-content` |
 | `/api/rag`             |
-| `/api/docs-rag`        |
 | `/api/socio-search`    |
 
 Alguns clientes também aceitam overrides próprios:

@@ -71,7 +71,7 @@ O boot React não exige variáveis obrigatórias no estado atual: a lista `REQUI
 
 | Variável                                            | Escopo                 | Uso local esperado                                                                                                                        |
 | --------------------------------------------------- | ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| `GEMINI_API_KEY`                                    | Servidor/API           | Exigida por rotas como `/api/gemini`, `/api/gerar-dossie`, `/api/rag`, `/api/docs-rag` e Radar quando essas rotas rodam no ambiente alvo. |
+| `GEMINI_API_KEY`                                    | Servidor/API           | Exigida por rotas como `/api/gemini`, `/api/gerar-dossie`, `/api/rag` e Radar quando essas rotas rodam no ambiente alvo. |
 | `GEMINI_API_KEY_FALLBACK`                           | Servidor/API           | Chave secundária para handlers Gemini que suportam fallback.                                                                              |
 | `PINECONE_API_KEY` ou `PINECONE_DOCS_KEY`           | Servidor/API e scripts | Usada por RAG, docs RAG e ingestões. `check-exports.command` aceita uma das duas.                                                         |
 | `PINECONE_DOCS_INDEX`                               | Servidor/API e scripts | Índice de documentação. O exemplo usa `scout-arsenal`; alguns scripts de validação exigem export explícito.                               |
@@ -134,7 +134,6 @@ Rotas proxadas no checkout atual:
 /api/link-status
 /api/extract-content
 /api/rag
-/api/docs-rag
 /api/socio-search
 ```
 
@@ -212,7 +211,7 @@ A chave precisa existir no ambiente que executa a rota `/api/gemini` ou `/api/ge
 
 ### RAG degrada ou volta vazio
 
-`/api/rag` e `/api/docs-rag` dependem de `GEMINI_API_KEY` e de `PINECONE_API_KEY` ou `PINECONE_DOCS_KEY`. `docs-rag` usa namespace padrão `senior-erp-docs` quando não há override válido; namespaces aceitos incluem `senior-erp-docs` e `competitor-pdfs`.
+`/api/rag` depende de `GEMINI_API_KEY` e de `PINECONE_API_KEY` ou `PINECONE_DOCS_KEY`. O cliente documental envia por padrão `senior-erp-docs`; os namespaces documentais aceitos são `senior-erp-docs` e `competitor-pdfs`.
 
 ### Supabase aparece desativado
 
