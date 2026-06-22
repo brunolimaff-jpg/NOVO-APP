@@ -92,6 +92,26 @@ describe('finalizeWaterfallUI', () => {
     expect(bubble?.style.display).toBe('none');
   });
 
+  it('emite render-ready do Cofre quando bot-message-content já está visível', async () => {
+    const listener = vi.fn();
+    window.addEventListener('scout:cofre-render-ready', listener);
+    mountTestDom([{ testId: 'bot-message-content', text: 'Dossiê', style: { width: '100px', height: '40px' } }]);
+
+    finalizeWaterfallUI({
+      store: {},
+      sessionId: 'session-cofre',
+      reason: 'completed',
+      waterfallEndStatus: 'success',
+      botMsgTextLen: 12_000,
+    });
+
+    await flushFinalizeDomPasses();
+
+    expect(listener).toHaveBeenCalled();
+    expect((listener.mock.calls[0][0] as CustomEvent).detail).toEqual({ sessionId: 'session-cofre' });
+    window.removeEventListener('scout:cofre-render-ready', listener);
+  });
+
   it('NÃO deleta activeGenerationRef — responsabilidade exclusiva do processMessage.finally', () => {
     const activeGenRef = { current: { 'session-1': 'bot-msg-123' } };
 

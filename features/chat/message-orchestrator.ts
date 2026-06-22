@@ -188,10 +188,20 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
   currentSessionIdRef.current = currentSessionId;
 
   /**
-   * Agenda verificações pós-finalização do dossiê em 0/100/500/1k/3k/10k ms.
+   * Agenda verificações pós-finalização do dossiê em 0/1k/10k ms.
    * Cada check captura estado do DOM, overlays, composer e viewport.
    * Retorna função de cancelamento para limpar timers pendentes.
    */
+  function measureTimelineViewportHeight(): number {
+    const panel = document.querySelector('[data-testid="chat-main-panel"]');
+    const root = panel || document;
+    const virtuoso = root.querySelector('[data-virtuoso-scroller]') as HTMLElement | null;
+    if (virtuoso?.clientHeight) return virtuoso.clientHeight;
+    const staticFallback = root.querySelector('[data-testid="messages-static-fallback"]') as HTMLElement | null;
+    if (staticFallback?.clientHeight) return staticFallback.clientHeight;
+    return (panel as HTMLElement | null)?.clientHeight ?? 0;
+  }
+
   function schedulePostCompletionChecks(sessionId: string, generationKind: GenerationKind): () => void {
     const delays = [...POST_COMPLETION_PROBE_DELAYS_MS];
     const timerIds: ReturnType<typeof setTimeout>[] = [];
@@ -209,6 +219,7 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
             '[data-testid="message-input"], [data-testid="chat-input"], [data-testid="composer-input"]',
           );
           const scroller = document.querySelector('[data-virtuoso-scroller]');
+          const timelineViewportHeight = measureTimelineViewportHeight();
           const botTextMaxLen = Math.max(
             0,
             ...[...botMessages].map(el => (el as HTMLElement).textContent?.length || 0),
@@ -238,9 +249,9 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
             loadingOverlayExists: Boolean(loadingOverlay),
             botMessageCount: botMessages.length,
             botTextMaxLen,
-            composerDisabled: (composer as HTMLInputElement)?.disabled || false,
-            scrollerHeight: (scroller as HTMLElement)?.clientHeight || 0,
-            scrollerScrollHeight: (scroller as HTMLElement)?.scrollHeight || 0,
+            composerDisabled: composer ? (composer as HTMLInputElement).disabled : postCompletionIsLoading,
+            scrollerHeight: timelineViewportHeight,
+            scrollerScrollHeight: (scroller as HTMLElement)?.scrollHeight || timelineViewportHeight,
             blankPanelDetected: blankPanelSnapshot?.blankDetected ?? false,
             blankPanelReason: blankPanelSnapshot?.reason ?? null,
             mainPanelChars: blankPanelSnapshot?.mainPanelChars ?? 0,
@@ -281,12 +292,12 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
             isCofreRenderReady({
               generationKind,
               storeIsLoading: postCompletionIsLoading,
-              composerDisabled: (composer as HTMLInputElement | null)?.disabled ?? true,
-              blankPanelDetected: blankPanelSnapshot?.blankDetected ?? true,
-              panelVisible: blankPanelSnapshot?.panelVisible ?? false,
+              composerDisabled: composer ? (composer as HTMLInputElement).disabled : postCompletionIsLoading,
+              blankPanelDetected: blankPanelSnapshot?.blankDetected ?? false,
+              panelVisible: blankPanelSnapshot?.panelVisible ?? timelineViewportHeight > 0,
               visibleBotWithCharsCount: blankPanelSnapshot?.visibleBotWithCharsCount ?? 0,
               botTextMaxLen,
-              scrollerHeight: (scroller as HTMLElement | null)?.clientHeight ?? 0,
+              scrollerHeight: timelineViewportHeight,
             })
           ) {
             cofreReadyEmitted = true;
@@ -719,6 +730,7 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
         // o render síncrono terminar e devolver controle ao event loop.
         setIsLoading(false);
         (setLoadingVariant as (v: string | undefined) => void)(undefined);
+        latestLoadingRef.current = { isLoading: false, loadingVariant: null };
         completeLoadingProgress();
         setRequestKind('default');
         setLoadingPinnedLabel(null);

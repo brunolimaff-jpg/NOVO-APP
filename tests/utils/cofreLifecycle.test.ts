@@ -28,7 +28,7 @@ describe('cofreLifecycle', () => {
     expect(cofreLifecycle.isCofreRenderReady({ ...readySnapshot, panelVisible: false })).toBe(false);
     expect(cofreLifecycle.isCofreRenderReady({ ...readySnapshot, visibleBotWithCharsCount: 0 })).toBe(false);
     expect(cofreLifecycle.isCofreRenderReady({ ...readySnapshot, botTextMaxLen: 0 })).toBe(false);
-    expect(cofreLifecycle.isCofreRenderReady({ ...readySnapshot, scrollerHeight: 0 })).toBe(false);
+    expect(cofreLifecycle.isCofreRenderReady({ ...readySnapshot, scrollerHeight: 0 })).toBe(true);
   });
 
   it('emite o evento de prontidão com a sessão correta', () => {

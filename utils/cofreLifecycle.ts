@@ -31,6 +31,11 @@ export function resolveCofreTotalStageCount(
 }
 
 export function isCofreRenderReady(snapshot: CofreRenderSnapshot): boolean {
+  // scrollerHeight cobre Virtuoso; timeline estática (messages-static-fallback) não tem
+  // [data-virtuoso-scroller]. visibleBotWithCharsCount já prova render real no painel.
+  const timelineReady =
+    snapshot.scrollerHeight > 0 || (snapshot.visibleBotWithCharsCount > 0 && snapshot.botTextMaxLen > 0);
+
   return (
     snapshot.generationKind === 'dossier' &&
     !snapshot.storeIsLoading &&
@@ -39,7 +44,7 @@ export function isCofreRenderReady(snapshot: CofreRenderSnapshot): boolean {
     snapshot.panelVisible &&
     snapshot.visibleBotWithCharsCount > 0 &&
     snapshot.botTextMaxLen > 0 &&
-    snapshot.scrollerHeight > 0
+    timelineReady
   );
 }
 

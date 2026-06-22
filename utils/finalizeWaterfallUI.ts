@@ -5,6 +5,7 @@
 // Motivação: PR #334 e PR #335 corrigiram o overlay hero, mas outros estados
 
 import * as Sentry from '@sentry/react';
+import { dispatchCofreRenderReady } from './cofreLifecycle';
 // de UI (spinner "Preparando investigação...", botão Interromper, composer disabled)
 // permaneciam ativos porque cada um era controlado por uma variável diferente.
 // Esta função garante invariante: se waterfall terminou e botMsgTextLen > 0,
@@ -105,12 +106,24 @@ export function finalizeWaterfallUI(params: FinalizeWaterfallUIParams): void {
       }, 300);
     };
 
-    const runHidePass = () => hideLoadingDOM(botMsgTextLen);
+    const tryDispatchCofreReady = () => {
+      if (botMsgTextLen > 0 && isBotMessageContentVisible()) {
+        dispatchCofreRenderReady(sessionId);
+      }
+    };
+
+    const runHidePass = () => {
+      hideLoadingDOM(botMsgTextLen);
+      tryDispatchCofreReady();
+    };
 
     rafA = requestAnimationFrame(() => {
       runHidePass();
       rafB = requestAnimationFrame(runHidePass);
-      inlinePollTimer = window.setTimeout(scheduleInlineBubblePoll, 600);
+      inlinePollTimer = window.setTimeout(() => {
+        scheduleInlineBubblePoll();
+        tryDispatchCofreReady();
+      }, 600);
     });
 
     void rafA;

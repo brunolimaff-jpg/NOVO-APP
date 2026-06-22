@@ -53,6 +53,44 @@ describe('useCofreTransition', () => {
     expect(result.current.cofrePhase).toBe('visible');
   });
 
+  it('libera quando o dossiê já está visível no DOM após loading terminar', () => {
+    const bot = document.createElement('article');
+    bot.dataset.testid = 'bot-message-content';
+    bot.textContent = 'Dossiê visível no painel';
+    bot.style.width = '100px';
+    bot.style.height = '40px';
+    document.body.replaceChildren(bot);
+
+    const rect = {
+      x: 0,
+      y: 0,
+      top: 0,
+      left: 0,
+      right: 800,
+      bottom: 600,
+      width: 800,
+      height: 600,
+      toJSON: () => ({}),
+    } as DOMRect;
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue(rect);
+
+    const { result, rerender } = renderHook(props => useCofreTransition(props), {
+      initialProps: baseParams(),
+    });
+
+    act(() => vi.advanceTimersByTime(200));
+    rerender(baseParams({ isLoading: false }));
+
+    act(() => {
+      vi.runOnlyPendingTimers();
+    });
+
+    expect(result.current.cofrePhase).toBe('dissolving');
+    act(() => vi.advanceTimersByTime(350));
+    expect(result.current.cofrePhase).toBe('hidden');
+    document.body.replaceChildren();
+  });
+
   it('libera após PostCompletion válido da mesma sessão', () => {
     const { result, rerender } = renderHook(props => useCofreTransition(props), {
       initialProps: baseParams(),

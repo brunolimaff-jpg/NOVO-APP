@@ -17,6 +17,19 @@ interface UseCofreTransitionResult {
 const ENTER_DURATION_MS = 200;
 const DISSOLVE_DURATION_MS = 350;
 const POST_API_SAFETY_TIMEOUT_MS = 10_000;
+const DOM_READY_POLL_MAX_ATTEMPTS = 80;
+
+function isBotContentVisibleInDom(): boolean {
+  if (typeof document === 'undefined') return false;
+  const bot = document.querySelector('[data-testid="bot-message-content"]');
+  if (!bot) return false;
+  const style = window.getComputedStyle(bot);
+  if (style.display === 'none' || style.visibility === 'hidden' || Number(style.opacity || '1') <= 0.01) {
+    return false;
+  }
+  const rect = bot.getBoundingClientRect();
+  return rect.width > 0 && rect.height > 0 && Boolean(bot.textContent?.trim());
+}
 
 export function useCofreTransition({
   generationKind,
@@ -80,8 +93,30 @@ export function useCofreTransition({
       generationKind === 'dossier' && !isLoading && cofrePhase !== 'hidden' && cofrePhase !== 'dissolving';
     if (!isWaitingForRender) return;
 
+    let cancelled = false;
+    let attempts = 0;
+    let rafHandle = 0;
+
+    const pollDomReady = () => {
+      if (cancelled) return;
+      if (isBotContentVisibleInDom()) {
+        startDissolve('render-ready');
+        return;
+      }
+      attempts += 1;
+      if (attempts < DOM_READY_POLL_MAX_ATTEMPTS) {
+        rafHandle = requestAnimationFrame(pollDomReady);
+      }
+    };
+
+    rafHandle = requestAnimationFrame(pollDomReady);
+
     const timer = window.setTimeout(() => startDissolve('safety-timeout'), POST_API_SAFETY_TIMEOUT_MS);
-    return () => window.clearTimeout(timer);
+    return () => {
+      cancelled = true;
+      if (rafHandle) cancelAnimationFrame(rafHandle);
+      window.clearTimeout(timer);
+    };
   }, [cofrePhase, generationKind, isLoading, startDissolve]);
 
   useEffect(() => {
