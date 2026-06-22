@@ -33,6 +33,7 @@
 ## Pendência Crítica
 
 Rodar golden-dossier-live 2x no preview:
+
 - Email: bruno.ferreira@senior.com.br
-- Senha: Scout360@2026!
+- Senha: `<configurar no GitHub Secrets>` (`GOLDEN_E2E_AUTH_PASSWORD`)
 - CNPJ: 04.733.767/0001-80

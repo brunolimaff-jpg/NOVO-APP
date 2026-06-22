@@ -12,19 +12,19 @@
 
 ## 4 Riscos Golden Review — Corrigidos
 
-| Risco | Fix | Arquivo |
-|-------|-----|---------|
-| SSRF link-status | nip.io, IPv6, redirect manual 3 hops, GET fallback usa effectiveUrl | documentExtractor.ts, link-status.ts |
-| Scheffer Chapecó/SC | locality Sapezal/MT no case.json, localityFound na rubrica | case.json, dossierGolden.ts |
-| Brave 1/5 chamadas | waitForNetworkIdle antes assertions + no finally | golden-dossier-live.spec.ts |
-| Sem prova IDs | testInfo.attach JSON proof | golden-dossier-live.spec.ts |
+| Risco               | Fix                                                                 | Arquivo                              |
+| ------------------- | ------------------------------------------------------------------- | ------------------------------------ |
+| SSRF link-status    | nip.io, IPv6, redirect manual 3 hops, GET fallback usa effectiveUrl | documentExtractor.ts, link-status.ts |
+| Scheffer Chapecó/SC | locality Sapezal/MT no case.json, localityFound na rubrica          | case.json, dossierGolden.ts          |
+| Brave 1/5 chamadas  | waitForNetworkIdle antes assertions + no finally                    | golden-dossier-live.spec.ts          |
+| Sem prova IDs       | testInfo.attach JSON proof                                          | golden-dossier-live.spec.ts          |
 
 ## Deploy
 
-| Commit | Preview | Status |
-|--------|---------|--------|
-| 975d3f14 | https://scoutagro-fwsradft6-brunolimaff-3629s-projects.vercel.app | ✅ Ready (4 fixes, sem finalizeRun) |
-| 18f3a621+ | — | ❌ Error — deleção docs-rag.ts quebra build |
+| Commit    | Preview                                                           | Status                                      |
+| --------- | ----------------------------------------------------------------- | ------------------------------------------- |
+| 975d3f14  | https://scoutagro-fwsradft6-brunolimaff-3629s-projects.vercel.app | ✅ Ready (4 fixes, sem finalizeRun)         |
+| 18f3a621+ | —                                                                 | ❌ Error — deleção docs-rag.ts quebra build |
 
 **Build local (npm run build) OK. Typecheck OK.**
 
@@ -36,7 +36,7 @@ Rodar golden-dossier-live no preview com credenciais reais:
 E2E_REAL_AUTH=1 \
 E2E_DEPLOYMENT_SHA=<sha-do-deploy> \
 E2E_OPERATOR_EMAIL=bruno.ferreira@senior.com.br \
-E2E_AUTH_PASSWORD=Scout360@2026! \
+E2E_AUTH_PASSWORD=<GOLDEN_E2E_AUTH_PASSWORD — GitHub Secrets> \
 npx playwright test tests-e2e/golden-dossier-live.spec.ts --project=chromium
 ```
 
