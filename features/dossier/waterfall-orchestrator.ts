@@ -81,6 +81,8 @@ const MODULAR_DOSSIER_TOTAL_STAGES = 7;
 const MODULAR_REQUIRED_STEP_TIMEOUT_MS = 150_000;
 const MODULAR_OPTIONAL_STEP_TIMEOUT_MS = 60000;
 const WATERFALL_CONTEXT_WINDOW_CHARS = 12000;
+/** Hard-cap do waterfall no preview — garante finally/finalizeRun antes do budget E2E (360s). */
+const WATERFALL_HARD_CAP_MS = 330_000;
 const MAX_INLINE_SOURCES_TO_VALIDATE = 8;
 const FIRST_MODULE_INDEX = 0;
 
@@ -635,6 +637,8 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
       let experimentOutputTokens = 0;
       let experimentModulesGenerated = 0;
       const waterfallStartedAt = Date.now();
+      let waterfallHardCapTimer: ReturnType<typeof setTimeout> | undefined;
+      let relayParentWaterfallAbort: (() => void) | undefined;
 
       const experimentGate = await resolveLiteLLMExperimentGate(waterfallOperatorEmail);
       const llmEnabled = experimentGate.llmEnabled;
@@ -689,6 +693,20 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
       }
 
       try {
+        const waterfallAbort = new AbortController();
+        relayParentWaterfallAbort = () => waterfallAbort.abort();
+        signal.addEventListener('abort', relayParentWaterfallAbort, { once: true });
+        waterfallHardCapTimer = setTimeout(() => {
+          scoutDiag.error('ModularDossier', 'waterfall hard-cap; abortando etapas pendentes', {
+            sessionId,
+            waterfallRunId,
+            hardCapMs: WATERFALL_HARD_CAP_MS,
+            elapsedMs: Date.now() - waterfallStartedAt,
+          });
+          waterfallAbort.abort();
+        }, WATERFALL_HARD_CAP_MS);
+        const activeSignal = waterfallAbort.signal;
+
         let accumulatedText = '';
         let previousStageCompleted = false;
         const optionalStepFailures = new Set<string>();
@@ -745,14 +763,14 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
         };
 
         const assertNotAborted = () => {
-          if (signal.aborted) {
+          if (activeSignal.aborted) {
             throw new DOMException('The operation was aborted', 'AbortError');
           }
         };
 
         if (lookupTarget) {
           try {
-            const clienteData = await withAbortSignal(lookupCliente(lookupTarget), signal);
+            const clienteData = await withAbortSignal(lookupCliente(lookupTarget), activeSignal);
             waterfallLookupContext = formatarParaPrompt(clienteData);
             waterfallClienteSeniorData = extractClienteSeniorData(clienteData);
           } catch (error) {
@@ -772,7 +790,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
         const teiaResearchContext = await buildTeiaResearchContext({
           company: resolvedMegaCompany || waterfallClienteSeniorData?.grupo || 'empresa analisada',
           sessionCnpjDigits,
-          signal,
+          signal: activeSignal,
         });
         assertNotAborted();
 
@@ -788,7 +806,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
             foundationCacheName = await createWaterfallFoundationCache({
               foundationBlock: SHARED_FOUNDATION_BLOCK,
               staticContext: staticDossierContext,
-              signal,
+              signal: activeSignal,
             });
             assertNotAborted();
           } catch (error) {
@@ -954,7 +972,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
             module.prompt,
             buildModuleExtraContext(accumulatedTextSnapshot, contextHint),
             {
-              signal,
+              signal: activeSignal,
               timeoutMs,
               ...sharedDossierModuleOptions,
             },
@@ -972,7 +990,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
               PROMPT_TEIA_IDENTITY_MODULE,
               buildModuleExtraContext(accumulatedText),
               {
-                signal,
+                signal: activeSignal,
                 timeoutMs: MODULAR_REQUIRED_STEP_TIMEOUT_MS,
                 temperature: 0.1,
                 ...sharedDossierModuleOptions,
@@ -1056,7 +1074,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
                 PROMPT_TEIA_DEEP_MODULE,
                 buildModuleExtraContext(combinedTeiaText),
                 {
-                  signal,
+                  signal: activeSignal,
                   timeoutMs: MODULAR_REQUIRED_STEP_TIMEOUT_MS,
                   temperature: 0.1,
                   ...sharedDossierModuleOptions,
@@ -1169,7 +1187,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
         const benchmarkCompleted = await runDossierBenchmarkStage({
           sessionId,
           company: resolvedMegaCompany,
-          signal,
+          signal: activeSignal,
           appendWaterfallChunk,
           optionalStepFailures,
           setFailureCount,
@@ -1197,7 +1215,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
           const result = await Promise.race([
             reconcileWaterfallPorta({
               sessionId,
-              signal,
+              signal: activeSignal,
               resolvedMegaCompany,
               sessionCnpjDigits,
               dossierSeedContext,
@@ -1223,7 +1241,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
           waterfallPortaResolution = result.resolution;
           portaIntegrityHold = result.portaIntegrityHold;
         } catch (error) {
-          if (signal?.aborted) throw error;
+          if (activeSignal.aborted) throw error;
           scoutDiag.warn(
             'ModularDossier',
             'reconcileWaterfallPorta falhou ou timeout; continuando com texto acumulado',
@@ -1347,10 +1365,10 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
           const continuityController = new AbortController();
           const forwardContinuityAbort = () => continuityController.abort();
           let continuityTimeoutId: ReturnType<typeof setTimeout> | undefined;
-          if (signal.aborted) {
+          if (activeSignal.aborted) {
             continuityController.abort();
           } else {
-            signal.addEventListener('abort', forwardContinuityAbort, { once: true });
+            activeSignal.addEventListener('abort', forwardContinuityAbort, { once: true });
           }
 
           try {
@@ -1402,10 +1420,10 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
             waterfallSuggestions = await Promise.race([continuityPromise, timeoutFallbackPromise]);
           } finally {
             if (continuityTimeoutId) clearTimeout(continuityTimeoutId);
-            signal.removeEventListener('abort', forwardContinuityAbort);
+            activeSignal.removeEventListener('abort', forwardContinuityAbort);
           }
         } catch (error) {
-          if (signal.aborted) throw error;
+          if (activeSignal.aborted) throw error;
           scoutDiag.warn('ModularDossier', 'falha ao gerar sugestões finais do waterfall', {
             sessionId,
             company: resolvedMegaCompany || null,
@@ -1667,6 +1685,11 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
 
         waterfallEndStatus = 'completed';
       } finally {
+        if (waterfallHardCapTimer) clearTimeout(waterfallHardCapTimer);
+        if (relayParentWaterfallAbort) {
+          signal.removeEventListener('abort', relayParentWaterfallAbort);
+        }
+
         if (experimentRunId && experimentRunToken) {
           try {
             const quality = checkReportQuality({

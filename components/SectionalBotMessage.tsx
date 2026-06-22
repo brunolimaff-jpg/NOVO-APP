@@ -491,7 +491,7 @@ const SectionalBotMessage: React.FC<SectionalBotMessageProps> = ({
                   </span>
                 </div>
               )}
-              {idx === societaryMapSectionIndex && !isLoading ? (
+              {idx === societaryMapSectionIndex && !isLoading && !message.isThinking ? (
                 <SocietaryMap
                   cnpj={cnpj}
                   empresaAlvo={empresaAlvo}
