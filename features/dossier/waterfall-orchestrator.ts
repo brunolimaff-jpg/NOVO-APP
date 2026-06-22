@@ -618,8 +618,6 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
         return;
       }
       const waterfallRunId = guardCheck.runId;
-      let waterfallSafetyTripped = false;
-      let waterfallSafetyTimer: ReturnType<typeof setTimeout> | undefined;
       let waterfallEndStatus: 'completed' | 'failed' = 'failed';
       let foundationCacheName: string | undefined;
       let sessionToPersist: ChatSession | null = null;
@@ -1167,86 +1165,55 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
 
         replaceLoadingProgressStage(MODULAR_DOSSIER_CONSOLIDATION_STAGE, MODULAR_DOSSIER_TOTAL_STAGES);
 
-        if (!llmEnabled) {
-          scoutDiag.info('WaterfallLifecycle', 'pre-porta-reconciliation', { sessionId, waterfallRunId });
-          try {
-            const result = await Promise.race([
-              reconcileWaterfallPorta({
-                sessionId,
-                signal,
-                resolvedMegaCompany,
-                sessionCnpjDigits,
-                dossierSeedContext,
-                waterfallLookupContext,
-                seniorEvidenceContext,
-                staticDossierContext,
-                foundationCacheName,
-                accumulatedText,
-                modulesByName,
-                runWaterfallModule,
-                optionalStepFailures,
-                setFailureCount,
-              }),
-              new Promise<never>((_, reject) => {
-                portaTimeoutId = setTimeout(
-                  () => reject(new Error('PORTA reconciliation timeout')),
-                  PORTA_RECONCILIATION_TIMEOUT_MS,
-                );
-              }),
-            ]);
-            assertNotAborted();
-            reconciledText = result.accumulatedText;
-            waterfallPortaResolution = result.resolution;
-            portaIntegrityHold = result.portaIntegrityHold;
-          } catch (error) {
-            if (signal?.aborted) throw error;
-            scoutDiag.warn(
-              'ModularDossier',
-              'reconcileWaterfallPorta falhou ou timeout; continuando com texto acumulado',
-              {
-                sessionId,
-                error: error instanceof Error ? error.message : String(error),
-              },
-            );
-            optionalStepFailures.add('porta-reconciliation');
-            setFailureCount((prev: number) => prev + 1);
-            portaIntegrityHold = true;
-          } finally {
-            if (portaTimeoutId) clearTimeout(portaTimeoutId);
-          }
-          scoutDiag.info('WaterfallLifecycle', 'pos-porta-reconciliation', { sessionId, waterfallRunId });
-        } else {
-          scoutDiag.info('WaterfallLifecycle', 'porta-reconciliation-skipped-llm-experiment', { sessionId, waterfallRunId });
+        scoutDiag.info('WaterfallLifecycle', 'pre-porta-reconciliation', { sessionId, waterfallRunId });
+        try {
+          const result = await Promise.race([
+            reconcileWaterfallPorta({
+              sessionId,
+              signal,
+              resolvedMegaCompany,
+              sessionCnpjDigits,
+              dossierSeedContext,
+              waterfallLookupContext,
+              seniorEvidenceContext,
+              staticDossierContext,
+              foundationCacheName,
+              accumulatedText,
+              modulesByName,
+              runWaterfallModule,
+              optionalStepFailures,
+              setFailureCount,
+            }),
+            new Promise<never>((_, reject) => {
+              portaTimeoutId = setTimeout(
+                () => reject(new Error('PORTA reconciliation timeout')),
+                PORTA_RECONCILIATION_TIMEOUT_MS,
+              );
+            }),
+          ]);
+          assertNotAborted();
+          reconciledText = result.accumulatedText;
+          waterfallPortaResolution = result.resolution;
+          portaIntegrityHold = result.portaIntegrityHold;
+        } catch (error) {
+          if (signal?.aborted) throw error;
+          scoutDiag.warn(
+            'ModularDossier',
+            'reconcileWaterfallPorta falhou ou timeout; continuando com texto acumulado',
+            {
+              sessionId,
+              error: error instanceof Error ? error.message : String(error),
+            },
+          );
+          optionalStepFailures.add('porta-reconciliation');
+          setFailureCount((prev: number) => prev + 1);
+          portaIntegrityHold = true;
+        } finally {
+          if (portaTimeoutId) clearTimeout(portaTimeoutId);
         }
+        scoutDiag.info('WaterfallLifecycle', 'pos-porta-reconciliation', { sessionId, waterfallRunId });
         accumulatedText = reconciledText;
         assertNotAborted();
-
-        // Safety net: força limpeza do loading após timeout máximo de pós-processamento.
-        // Se qualquer etapa abaixo (validateInlineSources, continuity question,
-        // finalizeExperimentRun) travar, o usuário não fica com loading eterno.
-        const WATERFALL_SAFETY_TIMEOUT_MS = 60_000;
-        waterfallSafetyTimer = setTimeout(() => {
-          waterfallSafetyTripped = true;
-          scoutDiag.warn('ModularDossier', 'waterfall safety net disparado — forçando finalizeWaterfallUI', {
-            sessionId,
-            waterfallRunId,
-          });
-          finalizeWaterfallUI({
-            store: {
-              setIsLoading,
-              setLoadingVariant,
-              completeLoadingProgress,
-              setFailureCount,
-              activeGenerationRef,
-            },
-            sessionId,
-            reason: 'waterfall:safety_timeout',
-            waterfallEndStatus: 'completed',
-            botMsgTextLen: -1,
-            log: (area: string, event: string, payload: Record<string, unknown> | undefined) =>
-              scoutDiag.info(area, event, payload),
-          });
-        }, WATERFALL_SAFETY_TIMEOUT_MS);
 
         if (optionalStepFailures.size > 0) {
           appendWaterfallChunk(
@@ -1845,13 +1812,6 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
           botMsgTextLen,
           log: (area, event, payload) => scoutDiag.info(area, event, payload),
         });
-        clearTimeout(waterfallSafetyTimer);
-        if (waterfallSafetyTripped) {
-          scoutDiag.warn('ModularDossier', 'finalizeWaterfallUI executado, mas safety net já havia disparado', {
-            sessionId,
-            waterfallRunId,
-          });
-        }
         scoutDiag.info('WaterfallLifecycle', 'ui-finalized', {
           sessionId,
           waterfallRunId,
