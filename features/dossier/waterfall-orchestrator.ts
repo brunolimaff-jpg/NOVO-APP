@@ -68,6 +68,7 @@ import { resolveLiteLLMExperimentGate } from '../../utils/llm/experimentGate';
 import { setPreviewOperatorEmail } from '../../services/geminiProxy';
 import { getExperimentConfig, selectExperimentModel } from '../../utils/llm/modelRouter';
 import { enrichDossierWithWebSearch } from '../../utils/llm/webSearchService';
+import { buildWaterfallSocioSearchContext } from './waterfall-socio-search';
 import { checkReportQuality } from '../../utils/llm/reportQuality';
 import { calculateCost, estimateTokensFromChars } from '../../utils/llm/cost';
 import type { ExperimentSelection } from '../../utils/llm/types';
@@ -88,6 +89,7 @@ const WATERFALL_PREVIEW_PUSH_MS = 2_000;
 const WATERFALL_PREVIEW_MIN_CHAR_DELTA = 800;
 /** Hard-cap do waterfall no preview — garante finally/finalizeRun antes do budget E2E (360s). */
 const WATERFALL_HARD_CAP_MS = 330_000;
+/** Socio-search no contexto teia: cap agregado 100s em waterfall-socio-search.ts (evita ~312s em 12 sócios). */
 const MAX_INLINE_SOURCES_TO_VALIDATE = 8;
 const FIRST_MODULE_INDEX = 0;
 
@@ -160,20 +162,29 @@ async function buildTeiaResearchContext(params: {
   company: string;
   sessionCnpjDigits?: string | null;
   signal: AbortSignal;
+  operatorId?: string;
 }): Promise<TeiaResearchContext> {
-  const { company, sessionCnpjDigits, signal } = params;
+  const { company, sessionCnpjDigits, signal, operatorId } = params;
   const blocks: string[] = [];
   let qsaCount = 0;
   let hasHolding = false;
   let stateHint = '';
   const knownCnpjs = new Set<string>();
+  let qsaPartners: Array<{ name: string }> = [];
+  let rootCompanyName = company;
+  let rootCnpjDigits = '';
 
   const normalizedCnpj = normalizeCnpj(sessionCnpjDigits || '');
   if (normalizedCnpj.length === 14) {
     try {
       const companyData = await fetchCompanyByCnpj(normalizedCnpj, signal);
       knownCnpjs.add(normalizeCnpj(companyData.cnpj));
+      rootCompanyName = companyData.companyName || company;
+      rootCnpjDigits = normalizeCnpj(companyData.cnpj);
       qsaCount = companyData.qsa?.length || 0;
+      qsaPartners = (companyData.qsa || [])
+        .map(partner => ({ name: (partner.name || '').trim() }))
+        .filter(partner => partner.name.length > 0);
       stateHint = companyData.state || '';
       const qsaLines = (companyData.qsa || []).map(partner => {
         const partnerDoc = partner.document ? normalizeCnpj(partner.document) : '';
@@ -226,6 +237,32 @@ async function buildTeiaResearchContext(params: {
       company,
       error: error instanceof Error ? error.message : String(error),
     });
+  }
+
+  if (qsaPartners.length > 0 && rootCompanyName.trim()) {
+    try {
+      const socioSearchContext = await buildWaterfallSocioSearchContext({
+        partners: qsaPartners,
+        rootCompanyName,
+        rootCnpj: rootCnpjDigits || normalizedCnpj,
+        operatorId,
+        signal,
+      });
+      if (socioSearchContext.text) {
+        blocks.push(socioSearchContext.text);
+      }
+      for (const cnpj of socioSearchContext.discoveredCnpjs) {
+        knownCnpjs.add(cnpj);
+      }
+    } catch (error) {
+      if (isAbortLikeError(error)) throw error;
+      scoutDiag.warn('TeiaSocietaria', 'falha ao montar socio-search no contexto do waterfall', {
+        company,
+        rootCompanyName,
+        partnersCount: qsaPartners.length,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
   }
 
   const combined = blocks.join('\n\n');
@@ -796,6 +833,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
           company: resolvedMegaCompany || waterfallClienteSeniorData?.grupo || 'empresa analisada',
           sessionCnpjDigits,
           signal: activeSignal,
+          operatorId: waterfallOperatorId,
         });
         assertNotAborted();
 
