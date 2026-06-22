@@ -97,10 +97,11 @@ const MessageRowBody = memo(({ index, msg, data }: MessageRowBodyProps) => {
   const groundingSources = useMemo(() => coerceGroundingSources(msg.groundingSources), [msg.groundingSources]);
 
   const auditableSources = useMemo<AuditableSource[]>(() => {
+    if (msg.isThinking) return [];
     const pool = verifiedSourcesToPool(groundingSources);
     const cleaned = applyDossierLinkIntegrity(msg.text || '', { allowedPool: pool });
     return buildAuditableSources(cleaned, groundingSources);
-  }, [msg.text, groundingSources]);
+  }, [msg.isThinking, msg.text, groundingSources]);
 
   const citedInTextSources = useMemo(
     () => auditableSources.filter(source => source.sourceTypes.includes('inline_citation')),

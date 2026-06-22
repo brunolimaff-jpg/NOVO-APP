@@ -81,6 +81,11 @@ const MODULAR_DOSSIER_TOTAL_STAGES = 7;
 const MODULAR_REQUIRED_STEP_TIMEOUT_MS = 150_000;
 const MODULAR_OPTIONAL_STEP_TIMEOUT_MS = 60000;
 const WATERFALL_CONTEXT_WINDOW_CHARS = 12000;
+/** Preview incremental — espelhado em usePanelState / App.tsx */
+export const WATERFALL_PREVIEW_MIN_CHARS = 200;
+/** Throttle store updates durante Cofre para não bloquear main thread */
+const WATERFALL_PREVIEW_PUSH_MS = 2_000;
+const WATERFALL_PREVIEW_MIN_CHAR_DELTA = 800;
 /** Hard-cap do waterfall no preview — garante finally/finalizeRun antes do budget E2E (360s). */
 const WATERFALL_HARD_CAP_MS = 330_000;
 const MAX_INLINE_SOURCES_TO_VALIDATE = 8;
@@ -889,15 +894,32 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
           sharedDossierModuleOptions.groundingContextBlock = webSearchGroundingBlock;
         }
 
-        const WATERFALL_PREVIEW_MIN_CHARS = 200;
-        const WATERFALL_PREVIEW_PUSH_MS = 500;
         let lastPreviewPushAt = 0;
-        const pushWaterfallPreviewToStore = (previewText: string, force = false) => {
+        let lastPreviewPushChars = 0;
+        let pendingPreviewText: string | null = null;
+        let previewFlushKind: 'none' | 'timeout' | 'idle' = 'none';
+        let previewFlushHandle: ReturnType<typeof setTimeout> | number | null = null;
+
+        const cancelScheduledPreviewFlush = () => {
+          if (previewFlushKind === 'timeout' && previewFlushHandle !== null) {
+            clearTimeout(previewFlushHandle as ReturnType<typeof setTimeout>);
+          } else if (
+            previewFlushKind === 'idle' &&
+            previewFlushHandle !== null &&
+            typeof cancelIdleCallback !== 'undefined'
+          ) {
+            cancelIdleCallback(previewFlushHandle as number);
+          }
+          previewFlushKind = 'none';
+          previewFlushHandle = null;
+        };
+
+        const flushWaterfallPreviewToStore = (previewText: string) => {
           const trimmed = previewText.trim();
           if (trimmed.length < WATERFALL_PREVIEW_MIN_CHARS) return;
-          const now = Date.now();
-          if (!force && now - lastPreviewPushAt < WATERFALL_PREVIEW_PUSH_MS) return;
-          lastPreviewPushAt = now;
+          lastPreviewPushAt = Date.now();
+          lastPreviewPushChars = trimmed.length;
+          pendingPreviewText = null;
           updateSessionById(sessionId, session => ({
             ...session,
             messages: session.messages.map(message =>
@@ -911,6 +933,50 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
                 : message,
             ),
           }));
+        };
+
+        const runPendingPreviewFlush = () => {
+          previewFlushKind = 'none';
+          previewFlushHandle = null;
+          const text = pendingPreviewText;
+          if (!text) return;
+          flushWaterfallPreviewToStore(text);
+        };
+
+        const scheduleDeferredPreviewFlush = () => {
+          if (previewFlushKind !== 'none') return;
+          if (typeof requestIdleCallback !== 'undefined') {
+            previewFlushKind = 'idle';
+            previewFlushHandle = requestIdleCallback(runPendingPreviewFlush, { timeout: 2_500 });
+          } else {
+            previewFlushKind = 'timeout';
+            previewFlushHandle = setTimeout(runPendingPreviewFlush, 0);
+          }
+        };
+
+        const pushWaterfallPreviewToStore = (previewText: string, force = false) => {
+          const trimmed = previewText.trim();
+          if (trimmed.length < WATERFALL_PREVIEW_MIN_CHARS && !force) return;
+          pendingPreviewText = trimmed;
+
+          if (force) {
+            cancelScheduledPreviewFlush();
+            runPendingPreviewFlush();
+            return;
+          }
+
+          const now = Date.now();
+          const charDelta = trimmed.length - lastPreviewPushChars;
+          if (now - lastPreviewPushAt < WATERFALL_PREVIEW_PUSH_MS && charDelta < WATERFALL_PREVIEW_MIN_CHAR_DELTA) {
+            if (previewFlushKind === 'none') {
+              previewFlushKind = 'timeout';
+              const delayMs = Math.max(WATERFALL_PREVIEW_PUSH_MS - (now - lastPreviewPushAt), 50);
+              previewFlushHandle = setTimeout(runPendingPreviewFlush, delayMs);
+            }
+            return;
+          }
+
+          scheduleDeferredPreviewFlush();
         };
 
         const appendWaterfallChunk = (chunk: string) => {

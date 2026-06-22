@@ -275,6 +275,8 @@ function stripUnsafeSocietarySections(markdown: string): string {
 }
 
 const TRUNCATION_SECTION_THRESHOLD = 3;
+/** Durante waterfall (isThinking), limita parse/render para não bloquear main thread */
+const WATERFALL_THINKING_PREVIEW_MAX_CHARS = 3_500;
 
 const SectionalBotMessage: React.FC<SectionalBotMessageProps> = ({
   message,
@@ -291,16 +293,20 @@ const SectionalBotMessage: React.FC<SectionalBotMessageProps> = ({
   isLoading = false,
 }) => {
   const content = message.text || '';
+  const isWaterfallThinkingPreview = Boolean(message.isThinking && content.trim().length >= 200);
 
   const { cleanText, options: parsedOptions } = useMemo(() => {
+    if (isWaterfallThinkingPreview) return { cleanText: content, options: [] as string[] };
     return parseSmartOptions(content);
-  }, [content]);
+  }, [content, isWaterfallThinkingPreview]);
   const displayText = useMemo(() => {
+    if (isWaterfallThinkingPreview) return content;
     return stripUnsafeSocietarySections(cleanText);
-  }, [cleanText]);
+  }, [cleanText, content, isWaterfallThinkingPreview]);
   const sections = useMemo(() => {
+    if (isWaterfallThinkingPreview) return [];
     return parseMarkdownSections(displayText);
-  }, [displayText]);
+  }, [displayText, isWaterfallThinkingPreview]);
 
   // Pré-computa as fontes de cada seção em useMemo para estabilizar as referências
   // de array passadas ao MarkdownRenderer. Sem isso, filterSourcesForSection é chamado
@@ -312,8 +318,9 @@ const SectionalBotMessage: React.FC<SectionalBotMessageProps> = ({
   );
 
   const parsedTeiaData = useMemo(() => {
+    if (isWaterfallThinkingPreview) return { companies: [], warnings: [] as string[] };
     return parseTeiaText(cleanText);
-  }, [cleanText]);
+  }, [cleanText, isWaterfallThinkingPreview]);
   const geminiCnpjsForMap = useMemo(() => {
     if (parsedTeiaData.companies.length === 0) return undefined;
     return parsedTeiaData.companies;
@@ -390,7 +397,24 @@ const SectionalBotMessage: React.FC<SectionalBotMessageProps> = ({
   const hiddenSectionCount = sections.length - TRUNCATION_SECTION_THRESHOLD;
 
   // Só mostra o botão copiar se houver conteúdo substancial (dossiê real)
-  const showCopyButton = displayText.length > 300;
+  const showCopyButton = displayText.length > 300 && !isWaterfallThinkingPreview;
+
+  if (isWaterfallThinkingPreview) {
+    const previewText =
+      content.length > WATERFALL_THINKING_PREVIEW_MAX_CHARS
+        ? `${content.slice(0, WATERFALL_THINKING_PREVIEW_MAX_CHARS)}\n\n…`
+        : content;
+    return (
+      <div className="flex min-w-0 flex-col gap-2" data-testid="waterfall-thinking-preview">
+        <MarkdownRenderer
+          content={previewText}
+          isDarkMode={isDarkMode}
+          groundingSources={message.groundingSources}
+          auditableSources={[]}
+        />
+      </div>
+    );
+  }
 
   if (sections.length <= 1 && !/^(#{1,3})\s+/m.test(displayText)) {
     return (
