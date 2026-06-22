@@ -21,6 +21,8 @@ interface MessageTimelineProps {
   showOperatorGate: boolean;
   showInitialHome: boolean;
   shouldSuspendVirtualizedList: boolean;
+  forceStaticTimelineFallback?: boolean;
+  onRequestStaticFallback?: () => void;
   onConfirmOperatorName: (name: string, email: string, existingOperatorId?: string) => void;
   onStartInvestigation: (payload: StartInvestigationPayload) => Promise<void>;
   radar?: RadarProps;
@@ -67,6 +69,8 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
   showOperatorGate,
   showInitialHome,
   shouldSuspendVirtualizedList,
+  forceStaticTimelineFallback = false,
+  onRequestStaticFallback,
   onConfirmOperatorName,
   onStartInvestigation,
   radar,
@@ -99,6 +103,8 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const [virtuosoKey, setVirtuosoKey] = useState(0);
   const safeMessages = Array.isArray(messages) ? messages : [];
+  const shouldRenderStaticTimelineFallback = forceStaticTimelineFallback;
+  const shouldRenderSuspendedViewport = shouldSuspendVirtualizedList && !shouldRenderStaticTimelineFallback;
 
   // ── Instrumentação: detecta timeline renderizando vazia ──
   const prevTimelineLenRef = useRef(safeMessages.length);
@@ -107,7 +113,14 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
     const curr = safeMessages.length;
     prevTimelineLenRef.current = curr;
 
-    if (prev > 0 && curr === 0 && !showInitialHome && !shouldSuspendVirtualizedList && !isLoading) {
+    if (
+      prev > 0 &&
+      curr === 0 &&
+      !showInitialHome &&
+      !shouldRenderSuspendedViewport &&
+      !shouldRenderStaticTimelineFallback &&
+      !isLoading
+    ) {
       console.error(
         '[Scout360][MessageTimeline] ⚠ Timeline renderizando VAZIA',
         JSON.stringify({
@@ -120,7 +133,15 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
         }),
       );
     }
-  }, [safeMessages.length, showInitialHome, shouldSuspendVirtualizedList, isLoading, currentSession?.id, isDarkMode]);
+  }, [
+    safeMessages.length,
+    showInitialHome,
+    shouldRenderSuspendedViewport,
+    shouldRenderStaticTimelineFallback,
+    isLoading,
+    currentSession?.id,
+    isDarkMode,
+  ]);
 
   // Overscan tuned per content type:
   // - Messages with teia societária (SocietaryMap) use a reduced overscan to avoid
@@ -217,7 +238,7 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
 
   // ── Virtuoso ready signal ──
   useEffect(() => {
-    if (showInitialHome || shouldSuspendVirtualizedList) {
+    if (showInitialHome || shouldRenderSuspendedViewport || shouldRenderStaticTimelineFallback) {
       setIsMessagesViewportReady(false);
       return;
     }
@@ -239,7 +260,8 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
       scrollHeight: viewport.scrollHeight,
       totalItems: safeMessages.length,
       showInitialHome,
-      shouldSuspendVirtualizedList,
+      shouldSuspendVirtualizedList: shouldRenderSuspendedViewport,
+      forceStaticTimelineFallback: shouldRenderStaticTimelineFallback,
     });
     const hasValidSize = () => viewport.clientHeight > 0 && viewport.clientWidth > 0;
     const markReady = (reason: string) => {
@@ -293,7 +315,7 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
       }
       if (emergencyTimer !== null) window.clearTimeout(emergencyTimer);
     };
-  }, [currentSession?.id, shouldSuspendVirtualizedList, showInitialHome]);
+  }, [currentSession?.id, shouldRenderStaticTimelineFallback, shouldRenderSuspendedViewport, showInitialHome]);
 
   // ── Recovery: blank panel / watchdog → remount Virtuoso ──
   useEffect(() => {
@@ -339,10 +361,11 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
         lastBotTextLen,
       });
       setVirtuosoKey(k => k + 1);
+      onRequestStaticFallback?.();
     }, 500);
 
     return () => window.clearTimeout(timer);
-  }, [currentSession?.id, isLoading, isMessagesViewportReady, lastBotTextLen]);
+  }, [currentSession?.id, isLoading, isMessagesViewportReady, lastBotTextLen, onRequestStaticFallback]);
 
   // ── Virtuoso display:none recovery watchdog ──
   useEffect(() => {
@@ -440,6 +463,19 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
 
   const itemContent = useCallback((index: number) => <MessageRow index={index} data={itemData} />, [itemData]);
 
+  useEffect(() => {
+    if (!shouldRenderStaticTimelineFallback) return;
+
+    const botMsg = safeMessages.find(message => message.sender === Sender.Bot);
+    scoutDiag.warn('Virtuoso', 'static-fallback-rendered', {
+      sessionId: currentSession?.id ?? null,
+      totalItems: safeMessages.length,
+      botTextLen: botMsg?.text?.length ?? 0,
+    });
+  }, [currentSession?.id, safeMessages, shouldRenderStaticTimelineFallback]);
+
+  const initialTopMostItemIndex = Math.max(0, safeMessages.length - 1);
+
   return (
     <div className="flex flex-col flex-1 min-h-0 relative">
       {showOperatorGate ? (
@@ -459,7 +495,28 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
           />
           <HelpCenterFloating isDarkMode={isDarkMode} />
         </div>
-      ) : shouldSuspendVirtualizedList ? (
+      ) : shouldRenderStaticTimelineFallback ? (
+        <div
+          className="flex-1 min-h-0 w-full overflow-y-auto custom-scrollbar"
+          data-testid="messages-static-fallback"
+          data-scout-virtuoso="static-fallback"
+        >
+          {hasMore ? (
+            <div className="flex justify-center py-3">
+              <button
+                type="button"
+                onClick={onLoadMore}
+                className={`text-xs px-3 py-1.5 rounded-full transition-colors ${theme.btnSecondary}`}
+              >
+                Carregar mensagens anteriores
+              </button>
+            </div>
+          ) : null}
+          {safeMessages.map((message, index) => (
+            <MessageRow key={message.id} index={index} data={itemData} />
+          ))}
+        </div>
+      ) : shouldRenderSuspendedViewport ? (
         <div
           className="flex-1 min-h-0 w-full flex items-center justify-center"
           data-testid="messages-viewport-suspended"
@@ -482,6 +539,7 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
               data={safeMessages}
               computeItemKey={(_, message) => message.id}
               itemContent={itemContent}
+              initialTopMostItemIndex={initialTopMostItemIndex}
               followOutput={false}
               increaseViewportBy={{ top: virtuosoOverscan, bottom: virtuosoOverscan }}
               defaultItemHeight={96}
