@@ -4,7 +4,6 @@ import {
   completeOnboarding,
   dismissDuplicateDossierModal,
   dismissMigrationNotice,
-  e2eCompanyName,
   preventMigrationNotice,
   startNewInvestigation,
 } from './onboarding';
@@ -179,17 +178,20 @@ export async function validateCnpjInForm(page: Page) {
         }
       });
   }
+
+  return payload;
 }
 
-export async function submitSchefferInvestigation(page: Page, companySuffix?: string) {
-  const companyName = companySuffix ?? e2eCompanyName('Scheffer Research');
-
+export async function submitSchefferInvestigation(page: Page, _runLabel?: string) {
   await ensureInvestigationForm(page);
-  await validateCnpjInForm(page);
+  const payload = await validateCnpjInForm(page);
+  const companyName = payload.companyName?.trim() || 'SCHEFFER & CIA LTDA';
+  const city = payload.city?.trim() || 'Sapezal';
+  const state = payload.state?.trim() || 'MT';
 
   await page.getByTestId('investigation-company-input').fill(companyName);
-  await page.getByTestId('investigation-city-input').fill('Chapecó');
-  await page.getByTestId('investigation-uf-input').fill('SC');
+  await page.getByTestId('investigation-city-input').fill(city);
+  await page.getByTestId('investigation-uf-input').fill(state);
   await page.getByTestId('investigation-submit-button').click({ force: true });
 
   await dismissDuplicateDossierModal(page);

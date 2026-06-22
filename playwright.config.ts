@@ -27,6 +27,7 @@ export default defineConfig({
     {
       name: 'chromium',
       use: desktopChrome,
+      testIgnore: /golden-dossier-live\.spec\.ts/,
     },
     {
       name: 'critical-ux',
@@ -45,6 +46,18 @@ export default defineConfig({
       name: 'p2-cnpj-live',
       use: desktopChrome,
       testMatch: /cnpj-investigation-flow\.spec\.ts/,
+    },
+    {
+      name: 'golden-dossier-live',
+      use: {
+        ...desktopChrome,
+        trace: 'on',
+        video: 'on',
+      },
+      testMatch: /golden-dossier-live\.spec\.ts/,
+      fullyParallel: false,
+      workers: 1,
+      retries: 0,
     },
   ],
 

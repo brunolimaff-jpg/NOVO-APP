@@ -211,7 +211,10 @@ test.describe('Scheffer — validação pesquisa live (preview)', () => {
     ).toBeTruthy();
 
     const finalize = experimentCaptures.find(item => item.action === 'finalizeRun');
-    expect(experimentCaptures.some(item => item.action === 'createRun' && item.ok), 'createRun precisa passar').toBeTruthy();
+    expect(
+      experimentCaptures.some(item => item.action === 'createRun' && item.ok),
+      'createRun precisa passar',
+    ).toBeTruthy();
     expect(finalize?.ok, 'finalizeRun precisa passar').toBeTruthy();
     expect(finalize?.fallbackUsed, 'fallback Gemini não pode ser usado como sucesso').toBe(false);
 
