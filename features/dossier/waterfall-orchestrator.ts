@@ -624,6 +624,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
       let experimentSelection: ExperimentSelection | null = null;
       let experimentRunId: string | null = null;
       let experimentRunToken: string | null = null;
+      let experimentRunAuthHeaders: Record<string, string> | null = null;
       let experimentReportText = '';
       let experimentQualityText = '';
       let experimentSourcesCount = 0;
@@ -676,6 +677,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
             });
             experimentRunId = experimentRun.id;
             experimentRunToken = experimentRun.runToken;
+            experimentRunAuthHeaders = experimentRun.authHeaders;
           } catch (error) {
             scoutDiag.warn('ModularDossier', 'falha ao criar llm_experiment_run; continuando waterfall', {
               sessionId,
@@ -1648,13 +1650,13 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
               portaScore: experimentPortaScore,
               parserSuccess: waterfallEndStatus === 'completed',
             });
-            const status = quality.isQualityFailure
-              ? 'quality_failure'
-              : waterfallEndStatus !== 'completed'
+            const status = waterfallEndStatus !== 'completed'
                 ? 'failed'
                 : experimentFallbackUsed
                   ? 'fallback'
-                  : 'success';
+                  : quality.isQualityFailure
+                    ? 'quality_failure'
+                    : 'completed';
             const estimatedTokens = estimateTokensFromChars(experimentReportText.length);
             const hasMeasuredUsage = experimentInputTokens > 0 || experimentOutputTokens > 0;
             const measuredCost = experimentSelection
@@ -1667,52 +1669,95 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
                 )
               : null;
 
-            void finalizeExperimentRun({
-              id: experimentRunId,
-              runToken: experimentRunToken,
+            scoutDiag.info('ModularDossier', 'finalizando llm_experiment_run', {
+              sessionId,
+              waterfallRunId,
+              experimentRunId,
               status,
-              operatorEmail: experimentOperatorEmail ?? undefined,
-              structuralScore: quality.structuralScore,
               fallbackUsed: experimentFallbackUsed,
-              fallbackModel: experimentFallbackUsed ? 'gemini-3-flash-preview' : undefined,
-              modulesGenerated: experimentModulesGenerated,
               reportChars: experimentReportText.length,
-              reportTokensEstimated: estimatedTokens,
-              inputTokens: hasMeasuredUsage ? experimentInputTokens : undefined,
-              outputTokens: hasMeasuredUsage ? experimentOutputTokens : estimatedTokens,
-              totalTokens: hasMeasuredUsage ? experimentInputTokens + experimentOutputTokens : estimatedTokens,
-              inputCostUsd: measuredCost?.inputCostUsd,
-              outputCostUsd: measuredCost?.outputCostUsd,
-              totalCostUsd: measuredCost?.totalCostUsd,
-              estimatedCost: measuredCost?.estimated ?? true,
-              costEstimationMethod: measuredCost?.method ?? 'chars',
-              inputPriceUsed: measuredCost?.inputPriceUsed,
-              outputPriceUsed: measuredCost?.outputPriceUsed,
-              sourcesCount: experimentSourcesCount,
-              validSourcesCount: experimentValidSourcesCount,
-              portaMarkersValid: quality.portaMarkersValid,
-              teiaComplexidadePresent: quality.teiaComplexidadePresent,
-              portaScorePresent: experimentPortaScore !== null,
-              portaScore: experimentPortaScore ?? undefined,
-              waterfallDurationMs: Date.now() - waterfallStartedAt,
-              totalLatencyMs: Date.now() - waterfallStartedAt,
-              renderSuccess: waterfallEndStatus === 'completed',
-              markdownBroken: quality.markdownBroken,
-              responseEmpty: !experimentReportText.trim(),
-            }).catch(error => {
-              scoutDiag.warn('ModularDossier', 'falha ao finalizar llm_experiment_run', {
-                sessionId,
-                waterfallRunId,
-                experimentRunId,
-                error: error instanceof Error ? error.message : String(error),
-              });
+              reusedAuthHeaders: Boolean(experimentRunAuthHeaders),
             });
+
+            void finalizeExperimentRun(
+              {
+                id: experimentRunId,
+                runToken: experimentRunToken,
+                status,
+                operatorEmail: experimentOperatorEmail ?? undefined,
+                structuralScore: quality.structuralScore,
+                fallbackUsed: experimentFallbackUsed,
+                fallbackModel: experimentFallbackUsed ? 'gemini-3-flash-preview' : undefined,
+                modulesGenerated: experimentModulesGenerated,
+                reportChars: experimentReportText.length,
+                reportTokensEstimated: estimatedTokens,
+                inputTokens: hasMeasuredUsage ? experimentInputTokens : undefined,
+                outputTokens: hasMeasuredUsage ? experimentOutputTokens : estimatedTokens,
+                totalTokens: hasMeasuredUsage ? experimentInputTokens + experimentOutputTokens : estimatedTokens,
+                inputCostUsd: measuredCost?.inputCostUsd,
+                outputCostUsd: measuredCost?.outputCostUsd,
+                totalCostUsd: measuredCost?.totalCostUsd,
+                estimatedCost: measuredCost?.estimated ?? true,
+                costEstimationMethod: measuredCost?.method ?? 'chars',
+                inputPriceUsed: measuredCost?.inputPriceUsed,
+                outputPriceUsed: measuredCost?.outputPriceUsed,
+                sourcesCount: experimentSourcesCount,
+                validSourcesCount: experimentValidSourcesCount,
+                portaMarkersValid: quality.portaMarkersValid,
+                teiaComplexidadePresent: quality.teiaComplexidadePresent,
+                portaScorePresent: experimentPortaScore !== null,
+                portaScore: experimentPortaScore ?? undefined,
+                waterfallDurationMs: Date.now() - waterfallStartedAt,
+                totalLatencyMs: Date.now() - waterfallStartedAt,
+                renderSuccess: waterfallEndStatus === 'completed',
+                markdownBroken: quality.markdownBroken,
+                responseEmpty: !experimentReportText.trim(),
+              },
+              { authHeaders: experimentRunAuthHeaders ?? undefined },
+            )
+              .then(() => {
+                scoutDiag.info('ModularDossier', 'llm_experiment_run finalizado', {
+                  sessionId,
+                  waterfallRunId,
+                  experimentRunId,
+                  status,
+                });
+              })
+              .catch(error => {
+                scoutDiag.warn('ModularDossier', 'falha ao finalizar llm_experiment_run', {
+                  sessionId,
+                  waterfallRunId,
+                  experimentRunId,
+                  error: error instanceof Error ? error.message : String(error),
+                });
+              });
           } catch (error) {
             scoutDiag.warn('ModularDossier', 'falha ao calcular qualidade llm_experiment_run', {
               sessionId,
               waterfallRunId,
               experimentRunId,
               error: error instanceof Error ? error.message : String(error),
+            });
+            void finalizeExperimentRun(
+              {
+                id: experimentRunId,
+                runToken: experimentRunToken,
+                status: 'failed',
+                operatorEmail: experimentOperatorEmail ?? undefined,
+                fallbackUsed: experimentFallbackUsed,
+                reportChars: experimentReportText.length,
+                responseEmpty: !experimentReportText.trim(),
+                waterfallDurationMs: Date.now() - waterfallStartedAt,
+                renderSuccess: false,
+              },
+              { authHeaders: experimentRunAuthHeaders ?? undefined },
+            ).catch(finalizeError => {
+              scoutDiag.warn('ModularDossier', 'falha na finalização mínima llm_experiment_run', {
+                sessionId,
+                waterfallRunId,
+                experimentRunId,
+                error: finalizeError instanceof Error ? finalizeError.message : String(finalizeError),
+              });
             });
           }
         }
