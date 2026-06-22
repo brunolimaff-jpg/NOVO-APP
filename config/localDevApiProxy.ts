@@ -9,6 +9,5 @@ export const LOCAL_DEV_API_PROXY_PATHS = [
   '/api/link-status',
   '/api/extract-content',
   '/api/rag',
-  '/api/docs-rag',
   '/api/socio-search',
 ] as const;

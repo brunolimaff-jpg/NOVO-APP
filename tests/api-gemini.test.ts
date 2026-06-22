@@ -702,7 +702,7 @@ describe('api/gemini handler', () => {
     expect(callLiteLLMMock).not.toHaveBeenCalled();
   });
 
-  it('retorna vazio quando leak shield bloqueia e fallback está desativado', async () => {
+  it('retorna erro quando leak shield bloqueia e fallback está desativado', async () => {
     isLiteLLMEnabledMock.mockReturnValue(true);
     isFallbackEnabledMock.mockReturnValue(false);
     callLiteLLMMock.mockResolvedValueOnce({
@@ -724,7 +724,8 @@ describe('api/gemini handler', () => {
 
     await handler(req, res);
 
-    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ text: '', _llm_fallback_used: false }));
+    expect(res.status).toHaveBeenCalledWith(502);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ error: expect.any(String) }));
   });
 
   it('deleta cached content quando foundation cache está habilitado', async () => {

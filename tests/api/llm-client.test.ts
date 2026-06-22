@@ -11,6 +11,7 @@ import {
   isLiteLLMEnabled,
   normalizeModelOutput,
   normalizeUsage,
+  resolveLiteLLMRequestBudgetMs,
 } from '../../api/_llm-client.js';
 
 describe('normalizeModelOutput', () => {
@@ -144,7 +145,8 @@ describe('callLiteLLM', () => {
     fetchMock.mockReset();
     fetchMock.mockResolvedValue({
       ok: true,
-      json: async () => ({
+      status: 200,
+      text: async () => JSON.stringify({
         choices: [
           {
             message: { content: `<${'redacted_' + 'thinking'}>x</${'redacted_' + 'thinking'}>\n# Dossiê` },
@@ -190,9 +192,8 @@ describe('callLiteLLM', () => {
     });
   });
 
-  it('usa budget de 140s por padrão para caber no step obrigatório de 150s', async () => {
-    const timeoutSpy = vi.spyOn(AbortSignal, 'timeout');
-
+  it('usa budget total inferior a 60s por padrão', async () => {
+    expect(resolveLiteLLMRequestBudgetMs()).toBe(55_000);
     await callLiteLLM(
       { model: 'huawei/deepseek-v4-flash', userContent: 'gerar dossiê' },
       {
@@ -201,12 +202,13 @@ describe('callLiteLLM', () => {
       },
     );
 
-    expect(timeoutSpy).toHaveBeenCalledWith(140_000);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
   it('respeita timeout explícito válido', async () => {
-    const timeoutSpy = vi.spyOn(AbortSignal, 'timeout');
-
+    expect(resolveLiteLLMRequestBudgetMs('60000')).toBe(55_000);
+    expect(resolveLiteLLMRequestBudgetMs('999999')).toBe(55_000);
+    expect(resolveLiteLLMRequestBudgetMs('1000')).toBe(1000);
     await callLiteLLM(
       { model: 'huawei/deepseek-v4-flash', userContent: 'gerar dossiê' },
       {
@@ -216,6 +218,77 @@ describe('callLiteLLM', () => {
       },
     );
 
-    expect(timeoutSpy).toHaveBeenCalledWith(60_000);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('não repete erro 4xx permanente', async () => {
+    fetchMock.mockResolvedValueOnce({ ok: false, status: 401, text: async () => 'unauthorized' });
+
+    await expect(
+      callLiteLLM(
+        { model: 'model', userContent: 'prompt' },
+        { LITELLM_API_KEY: 'key', LITELLM_BASE_URL: 'https://litellm.example' },
+      ),
+    ).rejects.toThrow('HTTP 401');
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('repete erro transitório e respeita o budget agregado', async () => {
+    fetchMock
+      .mockResolvedValueOnce({ ok: false, status: 503, text: async () => 'busy' })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        text: async () => JSON.stringify({ choices: [{ message: { content: '# Recuperado' } }] }),
+      });
+
+    const result = await callLiteLLM(
+      { model: 'model', userContent: 'prompt' },
+      {
+        LITELLM_API_KEY: 'key',
+        LITELLM_BASE_URL: 'https://litellm.example',
+        LITELLM_REQUEST_TIMEOUT_MS: '5000',
+        LITELLM_RETRY_BASE_DELAY_MS: '1',
+      },
+    );
+
+    expect(result.text).toBe('# Recuperado');
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('rejeita resposta vazia do provider', async () => {
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      text: async () => JSON.stringify({ choices: [{ message: { content: '   ' } }] }),
+    });
+
+    await expect(
+      callLiteLLM(
+        { model: 'model', userContent: 'prompt' },
+        { LITELLM_API_KEY: 'key', LITELLM_BASE_URL: 'https://litellm.example' },
+      ),
+    ).rejects.toThrow('resposta vazia');
+  });
+
+  it('aplica o budget também à leitura do body', async () => {
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      text: () => new Promise<string>(() => undefined),
+    });
+
+    await expect(
+      callLiteLLM(
+        { model: 'model', userContent: 'prompt' },
+        {
+          LITELLM_API_KEY: 'key',
+          LITELLM_BASE_URL: 'https://litellm.example',
+          LITELLM_REQUEST_TIMEOUT_MS: '10',
+          LITELLM_MAX_RETRIES: '0',
+        },
+      ),
+    ).rejects.toThrow('budget');
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 });

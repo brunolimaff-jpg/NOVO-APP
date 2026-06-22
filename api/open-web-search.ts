@@ -69,7 +69,10 @@ function removeNegativeSiteOperators(query: string): string {
 
 function buildSimplifiedQuery(query: string): string {
   const withoutOperators = removeNegativeSiteOperators(query)
-    .replace(/\b(?:holding|grupo econômico|controladora|faturamento|receita|resultado financeiro|área|hectares|fazendas|produção agrícola|exportação|internacional|operações exterior|ERP|sistema gestão|tecnologia|SAP|TOTVS|Senior)\b/gi, ' ')
+    .replace(
+      /\b(?:holding|grupo econômico|controladora|faturamento|receita|resultado financeiro|área|hectares|fazendas|produção agrícola|exportação|internacional|operações exterior|ERP|sistema gestão|tecnologia|SAP|TOTVS|Senior)\b/gi,
+      ' ',
+    )
     .replace(/[()]/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
@@ -182,7 +185,10 @@ function curateBraveResults(rawResults: BraveResult[], diagnostics: BraveDiagnos
   diagnostics.sampleDomains = Array.from(
     new Set(rawResults.map(r => safeDomain(r.url)).filter((domain): domain is string => Boolean(domain))),
   ).slice(0, 5);
-  diagnostics.sampleTitles = rawResults.map(r => shortTitle(r.title)).filter(Boolean).slice(0, 3);
+  diagnostics.sampleTitles = rawResults
+    .map(r => shortTitle(r.title))
+    .filter(Boolean)
+    .slice(0, 3);
 
   const domainAllowed = rawResults.filter(r => !isBlocked(r.url));
   diagnostics.blockedByDomainCount = rawResults.length - domainAllowed.length;
@@ -258,7 +264,9 @@ async function braveSearch(query: string): Promise<BraveAttemptResult | BraveAtt
 
       diagnostics.emptyReason = rawResults.length === 0 ? 'RAW_ZERO' : 'BRAVE_RESULTS_FILTERED_OUT';
       bestFailure =
-        !bestFailure || diagnostics.rawCount > bestFailure.rawCount || diagnostics.blockedByDomainCount > bestFailure.blockedByDomainCount
+        !bestFailure ||
+        diagnostics.rawCount > bestFailure.rawCount ||
+        diagnostics.blockedByDomainCount > bestFailure.blockedByDomainCount
           ? diagnostics
           : bestFailure;
       scoutDiag.warn('BraveSearch', '0 resultados após curadoria', { ...diagnostics });
@@ -286,7 +294,13 @@ interface OpenWebSearchSource {
 
 type ProviderName = 'brave' | 'duckduckgo';
 type OpenWebSearchProvider = 'brave' | 'duckduckgo' | 'url';
-type ProviderFailureReason = 'empty_result' | 'unknown' | 'BRAVE_RESULTS_FILTERED_OUT' | 'HTTP_ERROR' | 'RAW_ZERO' | 'NO_API_KEY';
+type ProviderFailureReason =
+  | 'empty_result'
+  | 'unknown'
+  | 'BRAVE_RESULTS_FILTERED_OUT'
+  | 'HTTP_ERROR'
+  | 'RAW_ZERO'
+  | 'NO_API_KEY';
 
 interface ProviderStatus {
   provider: ProviderName;
@@ -335,7 +349,13 @@ async function performResilientSearch(query: string): Promise<{
     const content = await performWebSearch(query);
     if (content && !/Nenhum resultado encontrado/i.test(content)) {
       providerStatus.push({ provider: 'duckduckgo', ok: true });
-      return { content, source: 'DuckDuckGo (fallback)', sources: [], providerStatus, braveDiagnostics: braveResult.diagnostics };
+      return {
+        content,
+        source: 'DuckDuckGo (fallback)',
+        sources: [],
+        providerStatus,
+        braveDiagnostics: braveResult.diagnostics,
+      };
     }
     if (content) errors.push(content);
     providerStatus.push({ provider: 'duckduckgo', ok: false, reason: 'empty_result' });

@@ -33,6 +33,12 @@ describe('getExperimentConfig', () => {
     expect(config.experimentMode).toBe('fixed');
   });
 
+  it('modo desconhecido falha fechado em off', () => {
+    const config = getExperimentConfig(litellmEnv({ LLM_EXPERIMENT_MODE: 'typo' }));
+    expect(config.experimentMode).toBe('off');
+    expect(config.enabled).toBe(false);
+  });
+
   it('sem env explícito lê VITE_LLM_* no browser', () => {
     vi.stubEnv('VITE_LLM_PROVIDER', 'litellm');
     vi.stubEnv('VITE_LLM_EXPERIMENT_MODE', 'fixed');

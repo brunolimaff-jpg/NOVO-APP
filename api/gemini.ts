@@ -361,14 +361,7 @@ async function executeLiteLLMGenerateContent(
     if (!finalText) {
       if (!isFallbackEnabled()) {
         await logGenerateContentModuleEnd(srvModuleName, srvRunId, model);
-        return res.status(200).json({
-          text: '',
-          candidates: [],
-          usageMetadata: litellmResult.usage,
-          groundingChunks: [],
-          _llm_provider: 'litellm',
-          _llm_fallback_used: false,
-        });
+        return res.status(502).json({ error: 'LiteLLM returned an empty or blocked response' });
       }
       return respondWithGeminiFallback('empty_response');
     }

@@ -37,9 +37,9 @@ describe('checkReportQuality', () => {
     expect(result.problems).toContain('teia_complexidade_missing');
   });
 
-  it('dossiê vazio não é quality_failure', () => {
+  it('dossiê vazio é quality_failure', () => {
     const result = checkReportQuality({ text: '   ' });
-    expect(result.isQualityFailure).toBe(false);
+    expect(result.isQualityFailure).toBe(true);
     expect(result.problems).toContain('empty_report');
   });
 

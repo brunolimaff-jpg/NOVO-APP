@@ -44,9 +44,13 @@ function normalizeEmail(email: string | null | undefined): string {
   return (email ?? '').trim().toLowerCase();
 }
 
+function parseExperimentMode(value: string | undefined): ExperimentMode {
+  return value === 'fixed' || value === 'random' ? value : 'off';
+}
+
 export function getExperimentConfig(env?: Environment): ExperimentConfig {
   const provider = readConfigEnv('LLM_PROVIDER', env) === 'litellm' ? 'litellm' : 'gemini';
-  const experimentMode = (readConfigEnv('LLM_EXPERIMENT_MODE', env) ?? 'off') as ExperimentMode;
+  const experimentMode = parseExperimentMode(readConfigEnv('LLM_EXPERIMENT_MODE', env));
   const experimentModels = parseCsv(readConfigEnv('LLM_EXPERIMENT_MODELS', env));
   const models = experimentModels.length > 0 ? experimentModels : [...EXPERIMENT_MODELS];
 

@@ -2,7 +2,54 @@ import type { LiteLLMUsageMetadata, NormalizeModelOutputResult } from '../utils/
 
 type Environment = Record<string, string | undefined>;
 
-const DEFAULT_LITELLM_REQUEST_TIMEOUT_MS = 140_000;
+const DEFAULT_LITELLM_REQUEST_TIMEOUT_MS = 55_000;
+const MAX_LITELLM_REQUEST_TIMEOUT_MS = 55_000;
+const DEFAULT_LITELLM_MAX_RETRIES = 2;
+const DEFAULT_RETRY_BASE_DELAY_MS = 500;
+
+class LiteLLMHttpError extends Error {
+  constructor(
+    readonly status: number,
+    message: string,
+  ) {
+    super(message);
+  }
+}
+
+function isRetryableStatus(status: number): boolean {
+  return status === 408 || status === 429 || status >= 500;
+}
+
+function remainingBudget(deadline: number): number {
+  return Math.max(0, deadline - Date.now());
+}
+
+async function waitWithinBudget(delayMs: number, deadline: number, signal?: AbortSignal): Promise<void> {
+  const available = remainingBudget(deadline);
+  if (available <= delayMs) throw new Error('LiteLLM total request budget exceeded');
+
+  await new Promise<void>((resolve, reject) => {
+    const timeout = setTimeout(resolve, delayMs);
+    const abort = () => {
+      clearTimeout(timeout);
+      reject(new Error('Aborted'));
+    };
+    if (signal?.aborted) abort();
+    else signal?.addEventListener('abort', abort, { once: true });
+  });
+}
+
+async function withDeadline<T>(operation: Promise<T>, signal: AbortSignal): Promise<T> {
+  if (signal.aborted) throw new Error('LiteLLM total request budget exceeded');
+  return Promise.race([
+    operation,
+    new Promise<T>((_, reject) => {
+      signal.addEventListener('abort', () => reject(new Error('LiteLLM total request budget exceeded')), {
+        once: true,
+      });
+    }),
+  ]);
+}
 
 const REASONING_PREFIXES = [
   /^let me analyze[\s\S]*?(?=\n#|\[\[PORTA|\{)/i,
@@ -16,6 +63,12 @@ export function isLiteLLMEnabled(env: Environment = process.env): boolean {
 
 export function isFallbackEnabled(env: Environment = process.env): boolean {
   return env.LLM_FALLBACK_ENABLED !== 'false';
+}
+
+export function resolveLiteLLMRequestBudgetMs(rawValue?: string): number {
+  const configured = Number(rawValue ?? DEFAULT_LITELLM_REQUEST_TIMEOUT_MS);
+  if (!Number.isFinite(configured) || configured <= 0) return DEFAULT_LITELLM_REQUEST_TIMEOUT_MS;
+  return Math.min(configured, MAX_LITELLM_REQUEST_TIMEOUT_MS);
 }
 
 function stripClosedTag(text: string, tag: string): { text: string; removedChars: number } {
@@ -163,13 +216,17 @@ export async function callLiteLLM(input: LiteLLMCallInput, env: Environment = pr
   }
   messages.push({ role: 'user', content: input.userContent });
 
-  const timeoutMs = Number(env.LITELLM_REQUEST_TIMEOUT_MS || DEFAULT_LITELLM_REQUEST_TIMEOUT_MS);
-  const effectiveTimeoutMs =
-    Number.isFinite(timeoutMs) && timeoutMs > 0 ? timeoutMs : DEFAULT_LITELLM_REQUEST_TIMEOUT_MS;
+  const effectiveTimeoutMs = resolveLiteLLMRequestBudgetMs(env.LITELLM_REQUEST_TIMEOUT_MS);
 
-  const maxRetries = 5;
-  const baseDelayMs = 2000;
-  const maxDelayMs = 30000;
+  const deadline = Date.now() + effectiveTimeoutMs;
+  const configuredRetries = Number(env.LITELLM_MAX_RETRIES ?? DEFAULT_LITELLM_MAX_RETRIES);
+  const maxRetries = Number.isInteger(configuredRetries) && configuredRetries >= 0
+    ? Math.min(configuredRetries, DEFAULT_LITELLM_MAX_RETRIES)
+    : DEFAULT_LITELLM_MAX_RETRIES;
+  const configuredDelay = Number(env.LITELLM_RETRY_BASE_DELAY_MS ?? DEFAULT_RETRY_BASE_DELAY_MS);
+  const baseDelayMs = Number.isFinite(configuredDelay) && configuredDelay >= 0
+    ? configuredDelay
+    : DEFAULT_RETRY_BASE_DELAY_MS;
   let lastError: Error | undefined;
 
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
@@ -177,10 +234,16 @@ export async function callLiteLLM(input: LiteLLMCallInput, env: Environment = pr
       throw new Error('Aborted');
     }
 
+    let attemptTimeoutId: ReturnType<typeof setTimeout> | undefined;
     try {
-      const timeoutSignal = AbortSignal.timeout(effectiveTimeoutMs);
-      const signal = input.signal ? AbortSignal.any([input.signal, timeoutSignal]) : timeoutSignal;
-      const response = await fetch(`${baseUrl}/chat/completions`, {
+      const available = remainingBudget(deadline);
+      if (available <= 0) throw new Error('LiteLLM total request budget exceeded');
+      const timeoutController = new AbortController();
+      attemptTimeoutId = setTimeout(() => timeoutController.abort(), available);
+      const signal = input.signal
+        ? AbortSignal.any([input.signal, timeoutController.signal])
+        : timeoutController.signal;
+      const response = await withDeadline(fetch(`${baseUrl}/chat/completions`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -193,14 +256,17 @@ export async function callLiteLLM(input: LiteLLMCallInput, env: Environment = pr
           max_tokens: input.maxOutputTokens ?? 8192,
         }),
         signal,
-      });
+      }), signal);
 
       if (!response.ok) {
-        const errorBody = await response.text().catch(() => '');
-        throw new Error(`LiteLLM HTTP ${response.status}: ${errorBody.slice(0, 200)}`);
+        const errorBody = await withDeadline(response.text().catch(() => ''), signal);
+        clearTimeout(attemptTimeoutId);
+        throw new LiteLLMHttpError(response.status, `LiteLLM HTTP ${response.status}: ${errorBody.slice(0, 200)}`);
       }
 
-      const completion = (await response.json()) as {
+      const responseBody = await withDeadline(response.text(), signal);
+      if (remainingBudget(deadline) <= 0) throw new Error('LiteLLM total request budget exceeded');
+      const completion = JSON.parse(responseBody) as {
         choices?: Array<{ message?: { content?: string }; finish_reason?: string }>;
         usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number };
       };
@@ -208,6 +274,10 @@ export async function callLiteLLM(input: LiteLLMCallInput, env: Environment = pr
       const choice = completion.choices?.[0];
       const rawText = choice?.message?.content ?? '';
       const normalized = normalizeModelOutput(rawText);
+      clearTimeout(attemptTimeoutId);
+      if (!normalized.text.trim()) {
+        throw new Error('LiteLLM retornou resposta vazia');
+      }
 
       return {
         text: normalized.text,
@@ -217,11 +287,12 @@ export async function callLiteLLM(input: LiteLLMCallInput, env: Environment = pr
         reasoningCharsRemoved: normalized.reasoningCharsRemoved,
       };
     } catch (error) {
+      if (attemptTimeoutId) clearTimeout(attemptTimeoutId);
       lastError = error instanceof Error ? error : new Error(String(error));
-      if (attempt < maxRetries && !input.signal?.aborted) {
-        const delay = Math.min(baseDelayMs * Math.pow(2, attempt), maxDelayMs);
-        await new Promise(resolve => setTimeout(resolve, delay));
-      }
+      const permanentHttpError = error instanceof LiteLLMHttpError && !isRetryableStatus(error.status);
+      const retryable = !permanentHttpError && !(error instanceof SyntaxError) && !/resposta vazia/i.test(lastError.message);
+      if (attempt >= maxRetries || input.signal?.aborted || !retryable) break;
+      await waitWithinBudget(baseDelayMs * Math.pow(2, attempt), deadline, input.signal);
     }
   }
 

@@ -24,12 +24,33 @@ export interface WebSearchDossierResult {
   groundingBlock: string;
 }
 
-function stripHtml(html: string): string {
-  return html
-    .replace(/<[^>]*>/g, '')
-    .replace(/&[a-z]+;/g, ' ')
-    .replace(/[<>]/g, '')
+function toPlainText(value: string): string {
+  const document = new DOMParser().parseFromString(value, 'text/html');
+  document
+    .querySelectorAll('script, style, template, noscript, iframe, object, embed, svg, math')
+    .forEach(node => node.remove());
+  const printableText = Array.from(document.body.textContent ?? '')
+    .filter(character => {
+      const codePoint = character.codePointAt(0) ?? 0;
+      return codePoint >= 32 && codePoint !== 127;
+    })
+    .join('');
+
+  return printableText
+    .replace(/[<>]/g, ' ')
+    .replace(/\s+/g, ' ')
     .trim();
+}
+
+function normalizeExternalUrl(value: string): string {
+  try {
+    const url = new URL(value);
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') return '';
+    if (/[<>]/.test(value)) return '';
+    return url.toString();
+  } catch {
+    return '';
+  }
 }
 
 async function searchOne(query: string): Promise<BraveWebResult[]> {
@@ -53,8 +74,9 @@ async function searchOne(query: string): Promise<BraveWebResult[]> {
       scoutDiag.info('WebSearch', 'diagnóstico do servidor', data._debug);
     }
     return (data.results ?? data.sources ?? []).map(r => ({
-      ...r,
-      snippet: stripHtml(r.snippet),
+      title: toPlainText(r.title),
+      url: normalizeExternalUrl(r.url),
+      snippet: toPlainText(r.snippet),
     }));
   } catch (error) {
     scoutDiag.warn('WebSearch', 'erro de rede na query', {

@@ -37,7 +37,7 @@ export function checkReportQuality(input: ReportQualityInput): ReportQualityResu
   if (!trimmed) {
     return {
       structuralScore: 0,
-      isQualityFailure: false,
+      isQualityFailure: true,
       problems: ['empty_report'],
       portaMarkersValid: false,
       teiaComplexidadePresent: false,
