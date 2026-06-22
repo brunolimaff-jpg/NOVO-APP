@@ -4,8 +4,8 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { authenticateExperimentRequest, isExperimentAuthError } from './_experiment-auth.js';
 import type { CreateRunPayload, ExperimentRunStatus, FinalizeRunPayload } from '../utils/llm/types.js';
 
-const ALLOWED_STATUSES = new Set<ExperimentRunStatus>([
-  'running',
+const FINAL_STATUSES = new Set<ExperimentRunStatus>([
+  'completed',
   'success',
   'partial_success',
   'failed',
@@ -67,6 +67,23 @@ async function handleCreateRun(
   supabase: SupabaseClient,
   payload: CreateRunPayload,
 ): Promise<{ id: string } | { error: string }> {
+  if (payload.operatorId) {
+    const staleBefore = new Date(Date.now() - 30 * 60_000).toISOString();
+    const { error: reconciliationError } = await supabase
+      .from('llm_experiment_runs')
+      .update({
+        status: 'failed',
+        completed_at: new Date().toISOString(),
+        error_normalized: 'stale_client_finalize_missing',
+      })
+      .eq('operator_id', payload.operatorId)
+      .eq('status', 'running')
+      .lt('created_at', staleBefore);
+    if (reconciliationError) {
+      console.warn('[LLMExperiment] stale run reconciliation failed:', reconciliationError.message);
+    }
+  }
+
   const { data, error } = await supabase
     .from('llm_experiment_runs')
     .insert({
@@ -105,7 +122,7 @@ async function handleFinalizeRun(
 ): Promise<{ ok: true } | { error: string }> {
   if (!isNonEmptyString(payload.id)) return { error: 'id is required' };
   if (!isNonEmptyString(payload.status)) return { error: 'status is required' };
-  if (!ALLOWED_STATUSES.has(payload.status as ExperimentRunStatus)) {
+  if (!FINAL_STATUSES.has(payload.status as ExperimentRunStatus)) {
     return { error: `Invalid status: ${payload.status}` };
   }
 
@@ -162,7 +179,12 @@ async function handleFinalizeRun(
     }
   }
 
-  const { error } = await supabase.from('llm_experiment_runs').update(updateRow).eq('id', payload.id);
+  // Idempotente: retries não sobrescrevem uma execução que já chegou a estado terminal.
+  const { error } = await supabase
+    .from('llm_experiment_runs')
+    .update(updateRow)
+    .eq('id', payload.id)
+    .eq('status', 'running');
 
   if (error) {
     return { error: error.message };
@@ -176,6 +198,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const auth = await authenticateExperimentRequest(req);
     if (isExperimentAuthError(auth)) {
       return res.status(auth.status).json({ error: auth.error });
+    }
+    const runId = typeof req.query?.id === 'string' ? req.query.id : undefined;
+    if (runId) {
+      const { data, error } = await auth.supabase
+        .from('llm_experiment_runs')
+        .select('id,status,fallback_used,report_chars,structural_score,completed_at')
+        .eq('id', runId)
+        .eq('operator_id', auth.user.id)
+        .maybeSingle();
+      if (error) return res.status(500).json({ error: error.message });
+      if (!data) return res.status(404).json({ error: 'Experiment run not found' });
+      return res.status(200).json({
+        run: {
+          id: data.id,
+          status: data.status,
+          fallbackUsed: data.fallback_used,
+          reportChars: data.report_chars,
+          structuralScore: data.structural_score,
+          completedAt: data.completed_at,
+        },
+      });
     }
     return handleReport(req, res, auth.supabase);
   }

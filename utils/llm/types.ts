@@ -4,6 +4,7 @@ export type ExperimentMode = 'off' | 'fixed' | 'random';
 
 export type ExperimentRunStatus =
   | 'running'
+  | 'completed'
   | 'success'
   | 'partial_success'
   | 'failed'

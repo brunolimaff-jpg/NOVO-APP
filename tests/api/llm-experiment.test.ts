@@ -5,6 +5,8 @@ const fromMock = vi.hoisted(() => vi.fn());
 const insertMock = vi.hoisted(() => vi.fn());
 const updateMock = vi.hoisted(() => vi.fn());
 const eqMock = vi.hoisted(() => vi.fn());
+const statusEqMock = vi.hoisted(() => vi.fn());
+const staleLtMock = vi.hoisted(() => vi.fn());
 const selectMock = vi.hoisted(() => vi.fn());
 const singleMock = vi.hoisted(() => vi.fn());
 const getUserMock = vi.hoisted(() => vi.fn());
@@ -74,7 +76,9 @@ describe('api/llm-experiment', () => {
     updateMock.mockReturnValue({
       eq: eqMock,
     });
-    eqMock.mockResolvedValue({ error: null });
+    eqMock.mockReturnValue({ eq: statusEqMock });
+    statusEqMock.mockReturnValue({ lt: staleLtMock });
+    staleLtMock.mockResolvedValue({ error: null });
     getUserMock.mockResolvedValue({
       data: { user: { id: 'auth-user-1', email: 'bruno@senior.com.br' } },
       error: null,
@@ -100,7 +104,9 @@ describe('api/llm-experiment', () => {
     insertMock.mockReturnValue({ select: selectMock });
     selectMock.mockReturnValue({ single: singleMock });
     updateMock.mockReturnValue({ eq: eqMock });
-    eqMock.mockResolvedValue({ error: null });
+    eqMock.mockReturnValue({ eq: statusEqMock });
+    statusEqMock.mockReturnValue({ lt: staleLtMock });
+    staleLtMock.mockResolvedValue({ error: null });
     getUserMock.mockResolvedValue({
       data: { user: { id: 'auth-user-1', email: 'bruno@senior.com.br' } },
       error: null,
@@ -128,6 +134,57 @@ describe('api/llm-experiment', () => {
     expect(String(state.body)).toContain('LLM Experiment Report');
   });
 
+  it('GET run — retorna persistência autenticada normalizada', async () => {
+    const maybeSingleMock = vi.fn().mockResolvedValue({
+      data: {
+        id: 'run-uuid-1',
+        status: 'completed',
+        fallback_used: false,
+        report_chars: 38871,
+        structural_score: 95,
+        completed_at: '2026-06-22T12:00:00.000Z',
+      },
+      error: null,
+    });
+    const ownerEqMock = vi.fn().mockReturnValue({ maybeSingle: maybeSingleMock });
+    const idEqMock = vi.fn().mockReturnValue({ eq: ownerEqMock });
+    fromMock.mockReturnValue({ select: vi.fn().mockReturnValue({ eq: idEqMock }) });
+
+    const { res, state } = makeMockRes();
+    await handler(
+      { method: 'GET', query: { id: 'run-uuid-1' }, headers: { authorization: 'Bearer valid-user-jwt' } },
+      res,
+    );
+
+    expect(state.statusCode).toBe(200);
+    expect(state.body).toEqual({
+      run: {
+        id: 'run-uuid-1',
+        status: 'completed',
+        fallbackUsed: false,
+        reportChars: 38871,
+        structuralScore: 95,
+        completedAt: '2026-06-22T12:00:00.000Z',
+      },
+    });
+  });
+
+  it('GET run — retorna 404 quando a execução não pertence ao operador', async () => {
+    const maybeSingleMock = vi.fn().mockResolvedValue({ data: null, error: null });
+    const ownerEqMock = vi.fn().mockReturnValue({ maybeSingle: maybeSingleMock });
+    const idEqMock = vi.fn().mockReturnValue({ eq: ownerEqMock });
+    fromMock.mockReturnValue({ select: vi.fn().mockReturnValue({ eq: idEqMock }) });
+
+    const { res, state } = makeMockRes();
+    await handler(
+      { method: 'GET', query: { id: 'other-run' }, headers: { authorization: 'Bearer valid-user-jwt' } },
+      res,
+    );
+
+    expect(state.statusCode).toBe(404);
+    expect(state.body).toEqual({ error: 'Experiment run not found' });
+  });
+
   it('createRun — retorna id', async () => {
     singleMock.mockResolvedValue({ data: { id: 'run-uuid-1' }, error: null });
 
@@ -149,6 +206,7 @@ describe('api/llm-experiment', () => {
     expect(state.statusCode).toBe(200);
     expect(state.body).toEqual({ id: 'run-uuid-1', runToken: runToken('run-uuid-1') });
     expect(insertMock).toHaveBeenCalled();
+    expect(staleLtMock).toHaveBeenCalledWith('created_at', expect.any(String));
   });
 
   it('createRun — valida campos obrigatórios', async () => {
@@ -164,7 +222,7 @@ describe('api/llm-experiment', () => {
       makeMockReq({
         action: 'finalizeRun',
         id: 'run-uuid-1',
-        status: 'success',
+        status: 'completed',
         runToken: runToken('run-uuid-1'),
         structuralScore: 90,
         totalCostUsd: 0.12,
@@ -177,12 +235,30 @@ describe('api/llm-experiment', () => {
     expect(state.body).toEqual({ ok: true });
     expect(updateMock).toHaveBeenCalled();
     expect(eqMock).toHaveBeenCalledWith('id', 'run-uuid-1');
+    expect(statusEqMock).toHaveBeenCalledWith('status', 'running');
   });
 
   it('finalizeRun — exige id e status', async () => {
     const { res, state } = makeMockRes();
     await handler(makeMockReq({ action: 'finalizeRun', operatorEmail: 'bruno@senior.com.br' }), res);
     expect(state.statusCode).toBe(400);
+  });
+
+  it('finalizeRun — rejeita status running', async () => {
+    const { res, state } = makeMockRes();
+    await handler(
+      makeMockReq({
+        action: 'finalizeRun',
+        id: 'run-uuid-1',
+        status: 'running',
+        runToken: runToken('run-uuid-1'),
+      }),
+      res,
+    );
+
+    expect(state.statusCode).toBe(400);
+    expect(state.body).toEqual({ error: 'Invalid status: running' });
+    expect(updateMock).not.toHaveBeenCalled();
   });
 
   it('rejeita action inválida', async () => {
