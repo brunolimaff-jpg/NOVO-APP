@@ -149,14 +149,21 @@ test.describe('Scheffer — validação pesquisa live (preview)', () => {
       }
     });
 
-    await setupSchefferResearchAuth(page);
-
-    // Limpa estado residual de investigações anteriores (histórico acumulado)
-    await page.evaluate(() => {
-      const keys = Object.keys(localStorage).filter(k => k.includes('scout360:') && k !== 'scout360:auth_skip_until' && k !== 'scout360:supabase_migration_seen' && k !== 'scout360:operator_email' && k !== 'scout360:operator_name' && k !== 'scout360:operator_id');
-      for (const k of keys) localStorage.removeItem(k);
+    // Limpa estado residual ANTES da pagina carregar (addInitScript)
+    await page.addInitScript(() => {
+      const PREFIX = 'scout360:';
+      const keepKeys = ['auth_skip_until', 'supabase_migration_seen', 'operator_email', 'operator_name', 'operator_id'];
+      const keysToRemove: string[] = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith(PREFIX) && !keepKeys.some(k => key === PREFIX + k)) {
+          keysToRemove.push(key);
+        }
+      }
+      for (const k of keysToRemove) localStorage.removeItem(k);
     });
 
+    await setupSchefferResearchAuth(page);
     await prepareSchefferInvestigationForm(page);
     await submitSchefferInvestigation(page, `Scheffer R3 ${Date.now()}`);
 
