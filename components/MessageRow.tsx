@@ -199,8 +199,24 @@ const MessageRowBody = memo(({ index, msg, data }: MessageRowBodyProps) => {
   }, [isBot, msg.text, msg.id, msg.sender, renderBranch]);
 
   if (isStaleThinking) {
-    // Stale-thinking: loading acabou mas msg não atualizou — sem erro, sem loading
-    return null;
+    // Stale-thinking: store liberou mas Virtuoso ainda não commitou o texto final.
+    // Mantém fallback visível em vez de null (evita painel vazio pós-waterfall).
+    content = (
+      <div className="flex justify-start animate-fade-in">
+        <div
+          className={`rounded-2xl p-4 shadow-sm w-full ${
+            isDarkMode ? 'bg-slate-900 border border-gray-700/30' : 'bg-white border border-gray-200'
+          } px-3 md:px-5 py-3 md:py-4`}
+          data-testid="hero-loading-inline-fallback"
+        >
+          <div className="flex items-center justify-between mb-2 opacity-70 text-[10px] uppercase font-bold tracking-wider select-none">
+            <span>{assistantLabel}</span>
+            <span>{msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+          </div>
+          <InlineTypingResponse isDarkMode={isDarkMode} stage={processing?.stage} />
+        </div>
+      </div>
+    );
   } else if (showHeroLoading) {
     // LoadingSmart should cover this path, but stale preview/runtime state can expose
     // the timeline. Keep a visible row so an active session never becomes a blank panel.

@@ -302,6 +302,48 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
     }
   }, [recoveryKey]);
 
+  const lastBotTextLen = useMemo(() => {
+    for (let i = safeMessages.length - 1; i >= 0; i -= 1) {
+      const message = safeMessages[i];
+      if (message.sender === Sender.Bot && !message.isError) {
+        return message.text?.trim().length ?? 0;
+      }
+    }
+    return 0;
+  }, [safeMessages]);
+  const storeDomRecoverySignatureRef = useRef('');
+
+  // ── Recovery: store tem texto final mas DOM ainda sem bot-message-content ──
+  useEffect(() => {
+    if (isLoading || !isMessagesViewportReady || lastBotTextLen < 200) return;
+
+    const signature = `${currentSession?.id ?? 'no-session'}|${lastBotTextLen}`;
+    if (storeDomRecoverySignatureRef.current === signature) return;
+
+    const timer = window.setTimeout(() => {
+      const botNode = messagesViewportRef.current?.querySelector('[data-testid="bot-message-content"]');
+      const botVisible = (() => {
+        if (!botNode) return false;
+        const style = window.getComputedStyle(botNode);
+        const opacity = Number(style.opacity || '1');
+        if (style.display === 'none' || style.visibility === 'hidden' || opacity <= 0.01) return false;
+        const rect = botNode.getBoundingClientRect();
+        return rect.width > 0 && rect.height > 0;
+      })();
+
+      if (botVisible) return;
+
+      storeDomRecoverySignatureRef.current = signature;
+      scoutDiag.warn('Virtuoso', 'store-has-bot-text-dom-empty', {
+        sessionId: currentSession?.id ?? null,
+        lastBotTextLen,
+      });
+      setVirtuosoKey(k => k + 1);
+    }, 500);
+
+    return () => window.clearTimeout(timer);
+  }, [currentSession?.id, isLoading, isMessagesViewportReady, lastBotTextLen]);
+
   // ── Virtuoso display:none recovery watchdog ──
   useEffect(() => {
     if (!isMessagesViewportReady) return;
