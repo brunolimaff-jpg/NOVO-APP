@@ -1,0 +1,112 @@
+---
+name: Golden Dossier Live
+
+on: # yamllint disable-line rule:truthy
+  deployment_status:
+  workflow_dispatch:
+    inputs:
+      preview_url:
+        description: URL imutável do deployment preview Vercel
+        required: true
+        type: string
+      deployment_sha:
+        description: SHA Git completo compilado no deployment
+        required: true
+        type: string
+      pr_number:
+        description: PR atual cujo head deve corresponder ao deployment
+        required: true
+        type: number
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  golden-dossier-live:
+    name: Golden Dossier Live (blocking)
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'deployment_status' &&
+       github.event.deployment_status.state == 'success' &&
+       github.event.deployment.production_environment != true)
+    runs-on: ubuntu-latest
+    container:
+      image: mcr.microsoft.com/playwright:v1.59.1-noble
+    timeout-minutes: 20
+
+    steps:
+      - name: Resolver e validar deployment
+        id: deployment
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_PREVIEW_URL: ${{ inputs.preview_url }}
+          INPUT_DEPLOYMENT_SHA: ${{ inputs.deployment_sha }}
+          EVENT_PREVIEW_URL: ${{ github.event.deployment_status.environment_url || github.event.deployment_status.target_url }}
+          EVENT_DEPLOYMENT_SHA: ${{ github.event.deployment.sha }}
+        run: |
+          set -euo pipefail
+          if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
+            PREVIEW_URL="$INPUT_PREVIEW_URL"
+            DEPLOYMENT_SHA="$INPUT_DEPLOYMENT_SHA"
+          else
+            PREVIEW_URL="$EVENT_PREVIEW_URL"
+            DEPLOYMENT_SHA="$EVENT_DEPLOYMENT_SHA"
+          fi
+          PREVIEW_URL="${PREVIEW_URL%/}"
+          [[ "$PREVIEW_URL" =~ ^https:// ]] || { echo "preview_url deve usar HTTPS" >&2; exit 1; }
+          [[ "$DEPLOYMENT_SHA" =~ ^[0-9a-fA-F]{40}$ ]] || { echo "deployment_sha deve ser um SHA Git completo" >&2; exit 1; }
+          echo "preview_url=$PREVIEW_URL" >> "$GITHUB_OUTPUT"
+          echo "deployment_sha=$DEPLOYMENT_SHA" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout do mesmo SHA implantado
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.deployment.outputs.deployment_sha }}
+
+      - name: Confirmar SHA do PR atual (execução manual)
+        if: github.event_name == 'workflow_dispatch'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ inputs.pr_number }}
+          DEPLOYMENT_SHA: ${{ steps.deployment.outputs.deployment_sha }}
+        run: |
+          set -euo pipefail
+          PR_HEAD_SHA=$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}" --jq '.head.sha')
+          [[ "$PR_HEAD_SHA" == "$DEPLOYMENT_SHA" ]] || {
+            echo "O preview ($DEPLOYMENT_SHA) não corresponde ao head atual da PR #$PR_NUMBER ($PR_HEAD_SHA)." >&2
+            exit 1
+          }
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Instalar dependências
+        run: npm ci
+
+      - name: Executar duas rodadas Golden live
+        env:
+          BASE_URL: ${{ steps.deployment.outputs.preview_url }}
+          E2E_DEPLOYMENT_SHA: ${{ steps.deployment.outputs.deployment_sha }}
+          E2E_REAL_AUTH: '1'
+          E2E_OPERATOR_EMAIL: ${{ secrets.GOLDEN_E2E_OPERATOR_EMAIL }}
+          E2E_AUTH_PASSWORD: ${{ secrets.GOLDEN_E2E_AUTH_PASSWORD }}
+          VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
+        run: npm run test:e2e:golden-live
+
+      - name: Publicar evidências Golden
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: golden-dossier-live-${{ steps.deployment.outputs.deployment_sha }}
+          path: |
+            playwright-report/
+            test-results/
+          if-no-files-found: warn
+          retention-days: 14
