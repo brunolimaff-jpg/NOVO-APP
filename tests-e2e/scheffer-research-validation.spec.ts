@@ -150,6 +150,13 @@ test.describe('Scheffer — validação pesquisa live (preview)', () => {
     });
 
     await setupSchefferResearchAuth(page);
+
+    // Limpa estado residual de investigações anteriores (histórico acumulado)
+    await page.evaluate(() => {
+      const keys = Object.keys(localStorage).filter(k => k.includes('scout360:') && k !== 'scout360:auth_skip_until' && k !== 'scout360:supabase_migration_seen' && k !== 'scout360:operator_email' && k !== 'scout360:operator_name' && k !== 'scout360:operator_id');
+      for (const k of keys) localStorage.removeItem(k);
+    });
+
     await prepareSchefferInvestigationForm(page);
     await submitSchefferInvestigation(page, `Scheffer R3 ${Date.now()}`);
 
