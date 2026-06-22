@@ -871,10 +871,35 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
           sharedDossierModuleOptions.groundingContextBlock = webSearchGroundingBlock;
         }
 
+        const WATERFALL_PREVIEW_MIN_CHARS = 200;
+        const WATERFALL_PREVIEW_PUSH_MS = 500;
+        let lastPreviewPushAt = 0;
+        const pushWaterfallPreviewToStore = (previewText: string, force = false) => {
+          const trimmed = previewText.trim();
+          if (trimmed.length < WATERFALL_PREVIEW_MIN_CHARS) return;
+          const now = Date.now();
+          if (!force && now - lastPreviewPushAt < WATERFALL_PREVIEW_PUSH_MS) return;
+          lastPreviewPushAt = now;
+          updateSessionById(sessionId, session => ({
+            ...session,
+            messages: session.messages.map(message =>
+              message.id === botMessageId
+                ? {
+                    ...message,
+                    text: trimmed,
+                    isThinking: true,
+                    loadingVariant: message.loadingVariant ?? 'inline',
+                  }
+                : message,
+            ),
+          }));
+        };
+
         const appendWaterfallChunk = (chunk: string) => {
           const normalizedChunk = chunk.trim();
           if (!normalizedChunk) return;
           accumulatedText += (accumulatedText ? '\n\n---\n\n' : '') + normalizedChunk;
+          pushWaterfallPreviewToStore(accumulatedText);
         };
 
         const modules: DossierWaterfallModule[] = [
@@ -1286,6 +1311,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
           finalized.text ||
           accumulatedText ||
           `Dossiê de ${resolvedMegaCompany || 'empresa'} não pôde ser gerado. Tente novamente.`;
+        pushWaterfallPreviewToStore(waterfallFinalText, true);
         experimentReportText = waterfallFinalText;
         experimentSourcesCount = waterfallGroundingSources.length;
         experimentValidSourcesCount = waterfallGroundingSources.filter(
@@ -1650,7 +1676,8 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
               portaScore: experimentPortaScore,
               parserSuccess: waterfallEndStatus === 'completed',
             });
-            const status = waterfallEndStatus !== 'completed'
+            const status =
+              waterfallEndStatus !== 'completed'
                 ? 'failed'
                 : experimentFallbackUsed
                   ? 'fallback'

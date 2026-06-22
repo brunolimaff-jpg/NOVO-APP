@@ -47,6 +47,7 @@ export interface UseStaticTimelineFallbackParams {
   hasActiveSession: boolean;
   hasDossierContent: boolean;
   showOperatorGate: boolean;
+  hasBotThinkingPlaceholder?: boolean;
 }
 
 export interface UseStaticTimelineFallbackResult {
@@ -71,6 +72,7 @@ export function useStaticTimelineFallback(params: UseStaticTimelineFallbackParam
     hasActiveSession,
     hasDossierContent,
     showOperatorGate,
+    hasBotThinkingPlaceholder = false,
   } = params;
 
   const [forceStaticTimelineFallback, setForceStaticTimelineFallback] = useState(false);
@@ -165,6 +167,30 @@ export function useStaticTimelineFallback(params: UseStaticTimelineFallbackParam
     staticTimelineFallbackSessionRef.current = null;
     postWaterfallWatchdogLoggedRef.current = null;
   }, [currentSession?.id]);
+
+  // ── Efeito #3b: Fallback estático proativo durante waterfall de dossiê ──
+  // Virtuoso falha em dossiês grandes; ativar timeline estática enquanto o bot
+  // placeholder existe evita painel vazio mesmo antes do texto final na store.
+  useEffect(() => {
+    if (!currentSession?.id || showInitialHome || showOperatorGate) return;
+    if (!isLoading || !hasBotThinkingPlaceholder) return;
+
+    staticTimelineFallbackSessionRef.current = currentSession.id;
+    setForceStaticTimelineFallback(true);
+    scoutDiag.info('ChatInterface', 'static-fallback-proactive-dossier-loading', {
+      sessionId: currentSession.id,
+      expectedBotCharsMax,
+      safeMessagesLength,
+    } as unknown as Record<string, unknown>);
+  }, [
+    currentSession?.id,
+    expectedBotCharsMax,
+    hasBotThinkingPlaceholder,
+    isLoading,
+    safeMessagesLength,
+    showInitialHome,
+    showOperatorGate,
+  ]);
 
   // ── Efeito #4: Reset ao iniciar loading + recovery proativo ao terminar ──
   useEffect(() => {

@@ -85,6 +85,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
     hasDossierContent,
     panelState,
     expectedBotCharsMax,
+    hasBotThinkingPlaceholder,
   } = usePanelState({
     messages,
     currentSession,
@@ -150,6 +151,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
     hasActiveSession,
     hasDossierContent,
     showOperatorGate,
+    hasBotThinkingPlaceholder,
   });
   // ── Instrumentação: safeMessages vazio com sessão ativa ──
   const prevSafeLenRef = useRef(safeMessages.length);

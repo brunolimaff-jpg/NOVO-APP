@@ -139,6 +139,30 @@ describe('Efeito #3 — Reset ao trocar de sessão', () => {
 });
 
 // ─────────────────────────────────────────────────────
+//  EFETO #3b — Fallback proativo durante waterfall
+// ─────────────────────────────────────────────────────
+
+describe('Efeito #3b — Fallback proativo durante waterfall', () => {
+  beforeEach(() => vi.resetAllMocks());
+
+  it('ativa fallback quando isLoading e bot thinking placeholder', async () => {
+    const useHook = await loadHook();
+    const { result } = renderHook(props => useHook(props), {
+      initialProps: baseParams({ isLoading: true, hasBotThinkingPlaceholder: true }),
+    });
+    expect(result.current.forceStaticTimelineFallback).toBe(true);
+  });
+
+  it('NÃO ativa sem bot thinking placeholder', async () => {
+    const useHook = await loadHook();
+    const { result } = renderHook(props => useHook(props), {
+      initialProps: baseParams({ isLoading: true, hasBotThinkingPlaceholder: false }),
+    });
+    expect(result.current.forceStaticTimelineFallback).toBe(false);
+  });
+});
+
+// ─────────────────────────────────────────────────────
 //  EFETO #4 — Reset ao iniciar loading
 // ─────────────────────────────────────────────────────
 
