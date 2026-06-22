@@ -96,6 +96,11 @@ describe('supabaseMigrations contract — llm experiment', () => {
   const llmSecurityMigration = existsSync(resolve(MIGRATIONS_DIR, '20260620152104_secure_llm_report_view.sql'))
     ? readFileSync(resolve(MIGRATIONS_DIR, '20260620152104_secure_llm_report_view.sql'), 'utf-8')
     : '';
+  const llmCompletedMigration = existsSync(
+    resolve(MIGRATIONS_DIR, '20260622_llm_experiment_completed_status.sql'),
+  )
+    ? readFileSync(resolve(MIGRATIONS_DIR, '20260622_llm_experiment_completed_status.sql'), 'utf-8')
+    : '';
 
   it('tabela llm_experiment_runs existe com RLS deny_anon_all', () => {
     expect(llmMigration).toContain('CREATE TABLE IF NOT EXISTS llm_experiment_runs');
@@ -122,6 +127,16 @@ describe('supabaseMigrations contract — llm experiment', () => {
   it('índices llm_experiment_runs documentados', () => {
     expect(llmMigration).toContain('idx_llm_runs_experiment_model');
     expect(llmMigration).toContain('idx_llm_runs_status');
+  });
+
+  it('reconcilia runs abandonadas por pg_cron com job idempotente', () => {
+    expect(llmCompletedMigration).toContain('CREATE EXTENSION IF NOT EXISTS pg_cron');
+    expect(llmCompletedMigration).toContain("jobname = 'reconcile-stale-llm-experiment-runs'");
+    expect(llmCompletedMigration).toContain('cron.unschedule(existing_job_id)');
+    expect(llmCompletedMigration).toContain("'reconcile-stale-llm-experiment-runs'");
+    expect(llmCompletedMigration).toContain("WHERE status = 'running'");
+    expect(llmCompletedMigration).toContain("INTERVAL '30 minutes'");
+    expect(llmCompletedMigration).toContain("error_normalized = 'stale_client_finalize_missing'");
   });
 });
 
