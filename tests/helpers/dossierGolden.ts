@@ -290,9 +290,10 @@ export async function evaluateDossierGolden(
   let localityFound = true;
   if (dossierCase.locality) {
     const { city, state } = dossierCase.locality;
-    const localityMatch = matchableActual.includes(normalizeForMatch(`${city}`))
-      || matchableActual.includes(normalizeForMatch(`${city}/${state}`))
-      || matchableActual.includes(normalizeForMatch(`${city} - ${state}`));
+    const localityMatch =
+      matchableActual.includes(normalizeForMatch(`${city}`)) ||
+      matchableActual.includes(normalizeForMatch(`${city}/${state}`)) ||
+      matchableActual.includes(normalizeForMatch(`${city} - ${state}`));
     if (!localityMatch) {
       errors.push(`localidade divergente: esperado ${city}/${state} não encontrado no dossiê`);
       localityFound = false;

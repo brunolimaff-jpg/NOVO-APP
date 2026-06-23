@@ -36,10 +36,7 @@ function toPlainText(value: string): string {
     })
     .join('');
 
-  return printableText
-    .replace(/[<>]/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
+  return printableText.replace(/[<>]/g, ' ').replace(/\s+/g, ' ').trim();
 }
 
 function normalizeExternalUrl(value: string): string {

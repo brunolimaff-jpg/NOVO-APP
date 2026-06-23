@@ -185,9 +185,7 @@ describe('api/rag handler — modo docs consolidado', () => {
 
     expect(res._status).toBe(200);
     expect(namespaceMock).toHaveBeenCalledWith('competitor-pdfs');
-    expect(res._data?.matches).toEqual([
-      expect.objectContaining({ content: 'Conteúdo comparativo indexado.' }),
-    ]);
+    expect(res._data?.matches).toEqual([expect.objectContaining({ content: 'Conteúdo comparativo indexado.' })]);
   });
 
   it('trima o namespace documental antes de consultar a allowlist', async () => {

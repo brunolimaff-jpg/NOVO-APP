@@ -146,15 +146,16 @@ describe('callLiteLLM', () => {
     fetchMock.mockResolvedValue({
       ok: true,
       status: 200,
-      text: async () => JSON.stringify({
-        choices: [
-          {
-            message: { content: `<${'redacted_' + 'thinking'}>x</${'redacted_' + 'thinking'}>\n# Dossiê` },
-            finish_reason: 'stop',
-          },
-        ],
-        usage: { prompt_tokens: 10, completion_tokens: 20, total_tokens: 30 },
-      }),
+      text: async () =>
+        JSON.stringify({
+          choices: [
+            {
+              message: { content: `<${'redacted_' + 'thinking'}>x</${'redacted_' + 'thinking'}>\n# Dossiê` },
+              finish_reason: 'stop',
+            },
+          ],
+          usage: { prompt_tokens: 10, completion_tokens: 20, total_tokens: 30 },
+        }),
     });
   });
 
@@ -234,13 +235,11 @@ describe('callLiteLLM', () => {
   });
 
   it('repete erro transitório e respeita o budget agregado', async () => {
-    fetchMock
-      .mockResolvedValueOnce({ ok: false, status: 503, text: async () => 'busy' })
-      .mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        text: async () => JSON.stringify({ choices: [{ message: { content: '# Recuperado' } }] }),
-      });
+    fetchMock.mockResolvedValueOnce({ ok: false, status: 503, text: async () => 'busy' }).mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      text: async () => JSON.stringify({ choices: [{ message: { content: '# Recuperado' } }] }),
+    });
 
     const result = await callLiteLLM(
       { model: 'model', userContent: 'prompt' },

@@ -29,6 +29,7 @@ dist-ssr
 *.sw?
 
 # Local agent/cursor artifacts
+opencode.json
 .cursor/
 .kilo/
 .playwright-mcp/

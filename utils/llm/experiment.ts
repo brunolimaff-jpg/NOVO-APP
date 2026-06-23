@@ -27,7 +27,10 @@ export interface ExperimentRequestOptions {
 const DEFAULT_EXPERIMENT_REQUEST_TIMEOUT_MS = 15_000;
 
 class ExperimentApiError extends Error {
-  constructor(readonly status: number, message: string) {
+  constructor(
+    readonly status: number,
+    message: string,
+  ) {
     super(message);
   }
 }
@@ -79,7 +82,8 @@ async function postExperimentAction(
   options: ExperimentRequestOptions = {},
 ): Promise<ExperimentApiCallResult> {
   const timeoutMs = options.timeoutMs ?? DEFAULT_EXPERIMENT_REQUEST_TIMEOUT_MS;
-  const deadline = Date.now() + (Number.isFinite(timeoutMs) && timeoutMs > 0 ? timeoutMs : DEFAULT_EXPERIMENT_REQUEST_TIMEOUT_MS);
+  const deadline =
+    Date.now() + (Number.isFinite(timeoutMs) && timeoutMs > 0 ? timeoutMs : DEFAULT_EXPERIMENT_REQUEST_TIMEOUT_MS);
   let authHeaders = await withinDeadline(resolveExperimentAuthHeaders(payload, options.authHeaders), deadline);
 
   let authRefreshed = false;
@@ -120,7 +124,11 @@ async function postExperimentAction(
       throw new ExperimentApiError(401, 'llm-experiment authentication failed after session refresh');
     }
 
-    if (!response.ok && (response.status === 408 || response.status === 429 || response.status >= 500) && !transientRetryUsed) {
+    if (
+      !response.ok &&
+      (response.status === 408 || response.status === 429 || response.status >= 500) &&
+      !transientRetryUsed
+    ) {
       transientRetryUsed = true;
       continue;
     }
@@ -128,12 +136,8 @@ async function postExperimentAction(
     const data = await withinDeadline(response.json() as Promise<ExperimentApiResponse>, deadline, controller);
     if (response.ok) return { data, authHeaders };
 
-    throw new ExperimentApiError(
-      response.status,
-      data.error ?? `llm-experiment ${action} failed (${response.status})`,
-    );
+    throw new ExperimentApiError(response.status, data.error ?? `llm-experiment ${action} failed (${response.status})`);
   }
-
 }
 
 export async function createExperimentRun(payload: CreateRunPayload): Promise<ExperimentRunHandle> {
