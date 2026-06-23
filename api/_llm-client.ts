@@ -217,10 +217,12 @@ export async function callLiteLLM(input: LiteLLMCallInput, env: Environment = pr
   messages.push({ role: 'user', content: input.userContent });
 
   const effectiveTimeoutMs = resolveLiteLLMRequestBudgetMs(env.LITELLM_REQUEST_TIMEOUT_MS);
-  console.warn('[LiteLLM] callLiteLLM budget configurado', {
+  console.error('[LiteLLM] callLiteLLM CHAMADO', {
     raw: env.LITELLM_REQUEST_TIMEOUT_MS,
     effective: effectiveTimeoutMs,
-    maxRetries: env.LITELLM_MAX_RETRIES,
+    provider: env.LLM_PROVIDER,
+    hasUrl: !!env.LITELLM_BASE_URL,
+    hasKey: !!env.LITELLM_API_KEY,
   });
 
   const deadline = Date.now() + effectiveTimeoutMs;
