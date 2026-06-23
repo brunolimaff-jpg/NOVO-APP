@@ -1,4 +1,4 @@
-console.error('BUILD_TS_20260623_1838_gemini_v2');
+console.error('BUILD_TS_20260623_1840_gemini_v3_FORCE_CACHE_MISS');
 
 import { GoogleGenAI, ThinkingLevel as GeminiSdkThinkingLevel } from '@google/genai';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
