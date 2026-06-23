@@ -194,7 +194,7 @@ describe('callLiteLLM', () => {
   });
 
   it('usa budget total inferior a 60s por padrão', async () => {
-    expect(resolveLiteLLMRequestBudgetMs()).toBe(55_000);
+    expect(resolveLiteLLMRequestBudgetMs()).toBe(38_000);
     await callLiteLLM(
       { model: 'huawei/deepseek-v4-flash', userContent: 'gerar dossiê' },
       {
@@ -207,8 +207,8 @@ describe('callLiteLLM', () => {
   });
 
   it('respeita timeout explícito válido', async () => {
-    expect(resolveLiteLLMRequestBudgetMs('60000')).toBe(55_000);
-    expect(resolveLiteLLMRequestBudgetMs('999999')).toBe(55_000);
+    expect(resolveLiteLLMRequestBudgetMs('60000')).toBe(38_000);
+    expect(resolveLiteLLMRequestBudgetMs('999999')).toBe(38_000);
     expect(resolveLiteLLMRequestBudgetMs('1000')).toBe(1000);
     await callLiteLLM(
       { model: 'huawei/deepseek-v4-flash', userContent: 'gerar dossiê' },

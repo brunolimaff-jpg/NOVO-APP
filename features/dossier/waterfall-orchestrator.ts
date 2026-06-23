@@ -80,6 +80,9 @@ interface ResetLoadingProgressOptions {
 const MODULAR_DOSSIER_TOTAL_STAGES = 7;
 const MODULAR_REQUIRED_STEP_TIMEOUT_MS = 150_000;
 const MODULAR_OPTIONAL_STEP_TIMEOUT_MS = 60000;
+/** LiteLLM + fallback Gemini no Hobby: cap cliente < hard-cap waterfall para não serializar 150s/módulo. */
+const LITELLM_MODULAR_REQUIRED_STEP_TIMEOUT_MS = 52_000;
+const LITELLM_MODULAR_OPTIONAL_STEP_TIMEOUT_MS = 45_000;
 const WATERFALL_CONTEXT_WINDOW_CHARS = 12000;
 /** Preview incremental — espelhado em usePanelState / App.tsx */
 export const WATERFALL_PREVIEW_MIN_CHARS = 200;
@@ -701,7 +704,8 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
         });
         setPreviewOperatorEmail(experimentOperatorEmail);
       }
-      const effectiveFoundationCacheEnabled = llmEnabled ? false : isFoundationCacheEnabled();
+      // Foundation cache acelera fallback Gemini server-side quando LiteLLM falha/timeout.
+      const effectiveFoundationCacheEnabled = isFoundationCacheEnabled();
       const experimentConfig = getExperimentConfig();
 
       if (llmEnabled) {
@@ -1074,6 +1078,19 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
           },
         ];
 
+        if (llmEnabled) {
+          for (const module of modules) {
+            module.timeoutMs = module.optional
+              ? LITELLM_MODULAR_OPTIONAL_STEP_TIMEOUT_MS
+              : LITELLM_MODULAR_REQUIRED_STEP_TIMEOUT_MS;
+          }
+          scoutDiag.info('ModularDossier', 'timeouts LiteLLM aplicados aos módulos', {
+            sessionId,
+            requiredMs: LITELLM_MODULAR_REQUIRED_STEP_TIMEOUT_MS,
+            optionalMs: LITELLM_MODULAR_OPTIONAL_STEP_TIMEOUT_MS,
+          });
+        }
+
         const modulesByName = new Map(modules.map(module => [module.name, module]));
         const runWaterfallModule: RunWaterfallModule = async (
           module,
@@ -1096,6 +1113,9 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
 
         const runTeiaSocietariaOrchestration = async (): Promise<string> => {
           let identityResult: string;
+          const teiaRequiredTimeoutMs = llmEnabled
+            ? LITELLM_MODULAR_REQUIRED_STEP_TIMEOUT_MS
+            : MODULAR_REQUIRED_STEP_TIMEOUT_MS;
 
           try {
             const identityStart = performance.now();
@@ -1107,7 +1127,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
               buildModuleExtraContext(accumulatedText),
               {
                 signal: activeSignal,
-                timeoutMs: MODULAR_REQUIRED_STEP_TIMEOUT_MS,
+                timeoutMs: teiaRequiredTimeoutMs,
                 temperature: 0.1,
                 ...sharedDossierModuleOptions,
               },
@@ -1191,7 +1211,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
                 buildModuleExtraContext(combinedTeiaText),
                 {
                   signal: activeSignal,
-                  timeoutMs: MODULAR_REQUIRED_STEP_TIMEOUT_MS,
+                  timeoutMs: teiaRequiredTimeoutMs,
                   temperature: 0.1,
                   ...sharedDossierModuleOptions,
                 },
@@ -2014,6 +2034,26 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
         // e overlay DOM. PR #334/#335 corrigiram só o overlay — persistiam
         // "Preparando investigação...", "Gerando resposta...", Interromper.
         const botMsgTextLen = typeof healthBotMsg?.text === 'string' ? healthBotMsg.text.length : -1;
+
+        if (
+          waterfallEndStatus !== 'completed' &&
+          healthBotMsg &&
+          typeof healthBotMsg.text === 'string' &&
+          healthBotMsg.text.length >= WATERFALL_PREVIEW_MIN_CHARS &&
+          healthBotMsg.isThinking
+        ) {
+          updateSessionById(sessionId, session => ({
+            ...session,
+            messages: session.messages.map(message =>
+              message.id === botMessageId ? { ...message, isThinking: false, loadingVariant: undefined } : message,
+            ),
+          }));
+          scoutDiag.info('WaterfallLifecycle', 'preview-promoted-on-failure', {
+            sessionId,
+            waterfallRunId,
+            previewChars: healthBotMsg.text.length,
+          });
+        }
 
         finalizeWaterfallUI({
           store: {

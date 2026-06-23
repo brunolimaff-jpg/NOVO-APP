@@ -618,6 +618,7 @@ export async function generateDossierModule(
             : useLiteLLM
               ? {
                   systemInstruction: finalPrompt,
+                  ...(options.foundationCacheName ? { cachedContent: options.foundationCacheName } : {}),
                   temperature: options.temperature ?? 0.2,
                   maxOutputTokens: 8192,
                 }

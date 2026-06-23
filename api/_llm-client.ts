@@ -2,8 +2,9 @@ import type { LiteLLMUsageMetadata, NormalizeModelOutputResult } from '../utils/
 
 type Environment = Record<string, string | undefined>;
 
-const DEFAULT_LITELLM_REQUEST_TIMEOUT_MS = 55_000;
-const MAX_LITELLM_REQUEST_TIMEOUT_MS = 55_000;
+/** Hobby Vercel = 60s hard limit — budget 38s leaves room for fallback Gemini no mesmo handler. */
+const DEFAULT_LITELLM_REQUEST_TIMEOUT_MS = 38_000;
+const MAX_LITELLM_REQUEST_TIMEOUT_MS = 38_000;
 const DEFAULT_LITELLM_MAX_RETRIES = 2;
 const DEFAULT_RETRY_BASE_DELAY_MS = 500;
 

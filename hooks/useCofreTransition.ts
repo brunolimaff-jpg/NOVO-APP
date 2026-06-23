@@ -18,6 +18,8 @@ const ENTER_DURATION_MS = 200;
 const DISSOLVE_DURATION_MS = 350;
 const POST_API_SAFETY_TIMEOUT_MS = 10_000;
 const DOM_READY_POLL_MAX_ATTEMPTS = 80;
+/** Hard-cap absoluto do Cofre durante dossiê — evita overlay preso se isLoading não zerar. */
+const COFRE_ABSOLUTE_MAX_MS = 340_000;
 
 function isBotContentVisibleInDom(): boolean {
   if (typeof document === 'undefined') return false;
@@ -118,6 +120,22 @@ export function useCofreTransition({
       window.clearTimeout(timer);
     };
   }, [cofrePhase, generationKind, isLoading, startDissolve]);
+
+  useEffect(() => {
+    if (generationKind !== 'dossier' || cofrePhase === 'hidden' || cofrePhase === 'dissolving') return;
+
+    const timer = window.setTimeout(() => {
+      if (phaseRef.current === 'hidden' || phaseRef.current === 'dissolving') return;
+      scoutDiag.warn('Cofre', 'absolute-max-timeout', {
+        sessionId: lifecycleSessionRef.current,
+        phase: phaseRef.current,
+        isLoading,
+      });
+      startDissolve('safety-timeout');
+    }, COFRE_ABSOLUTE_MAX_MS);
+
+    return () => window.clearTimeout(timer);
+  }, [cofrePhase, generationKind, isLoading, sessionId, startDissolve]);
 
   useEffect(() => {
     if (cofrePhase !== 'dissolving') return;

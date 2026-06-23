@@ -185,8 +185,13 @@ async function callGeminiApi<TResponse>(
   }
 
   const controller = new AbortController();
-  const timeoutMs =
-    Number.isFinite(GEMINI_PROXY_TIMEOUT_MS) && GEMINI_PROXY_TIMEOUT_MS > 0 ? GEMINI_PROXY_TIMEOUT_MS : 90000;
+  const isLiteLLMExperimentRequest = action === 'generateContent' && model.length > 0 && !model.includes('gemini');
+  const experimentGenerateTimeoutMs = 55_000;
+  const timeoutMs = isLiteLLMExperimentRequest
+    ? experimentGenerateTimeoutMs
+    : Number.isFinite(GEMINI_PROXY_TIMEOUT_MS) && GEMINI_PROXY_TIMEOUT_MS > 0
+      ? GEMINI_PROXY_TIMEOUT_MS
+      : 90000;
   let timedOut = false;
   const requestClass =
     action === 'generateContent' || action === 'chatSendMessage'
