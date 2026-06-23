@@ -3,6 +3,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { z } from 'zod';
 
 import { insertDiagnosticsBatch, MAX_EVENTS_PER_BATCH } from '../utils/serverDiagnostics.js';
+import { scoutDiag } from '../utils/diagnosticLog.js';
 import { callLiteLLM, isFallbackEnabled, isLiteLLMEnabled } from './_llm-client.js';
 import { isQuotaExhausted, isBillingOrPermissionDenied } from './_gemini-key-utils.js';
 import { applyCors } from './_cors-headers.js';
@@ -488,6 +489,7 @@ async function executeGeminiAction(
           return res.status(auth.status).json({ error: auth.error });
         }
         console.error('[TRACE] G3 auth_OK', { acao: 'prosseguir para G5' });
+        scoutDiag.error('LiteLLM-Gate', 'auth_OK_prosseguindo', { requestedModel: requestedModel });
         const allowedModels = getExperimentConfig(process.env).experimentModels;
         console.error('[TRACE] G5 allowedModels_check', {
           requestedModel,
@@ -502,6 +504,7 @@ async function executeGeminiAction(
           model: requestedModel,
           fallbackEnabled: isFallbackEnabled(),
         });
+        scoutDiag.error('LiteLLM-Gate', 'executando_callLiteLLM', { model: requestedModel, timestamp: Date.now() });
         const requestController = new AbortController();
         req.once?.('aborted', () => requestController.abort());
         return executeLiteLLMGenerateContent(ai, body, res, requestController.signal);
