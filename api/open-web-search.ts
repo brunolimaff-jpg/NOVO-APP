@@ -444,20 +444,26 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     const hasBraveKey = Boolean(process.env.BRAVE_SEARCH_API_KEY);
+    const includeDebug = process.env.VERCEL_ENV !== 'production' || process.env.DEBUG_WEB_SEARCH === 'true';
 
-    return res.status(200).json({
+    const payload: Record<string, unknown> = {
       content,
       source,
       sources,
       degraded,
       detail,
       providerStatus,
-      _debug: {
+    };
+
+    if (includeDebug) {
+      payload._debug = {
         hasBraveKey,
         braveAttempted: Boolean(providerStatus.find(s => s.provider === 'brave')),
         brave: braveDiagnostics,
-      },
-    });
+      };
+    }
+
+    return res.status(200).json(payload);
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Unknown error';
     scoutDiag.error('OpenWebSearch', 'Falha crítica', { error: message });

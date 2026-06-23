@@ -26,9 +26,11 @@ function isNonEmptyString(value: unknown): value is string {
 }
 
 function signRun(id: string, userId: string): string {
-  return createHmac('sha256', process.env.SUPABASE_SERVICE_ROLE_KEY || '')
-    .update(`${id}:${userId}`)
-    .digest('hex');
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!key) {
+    throw new Error('SUPABASE_SERVICE_ROLE_KEY is required for experiment run signing');
+  }
+  return createHmac('sha256', key).update(`${id}:${userId}`).digest('hex');
 }
 
 function verifyRunToken(id: string, userId: string, token: unknown): boolean {

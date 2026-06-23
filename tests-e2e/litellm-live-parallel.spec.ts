@@ -79,7 +79,11 @@ test.describe('LiteLLM live — 5 fluxos paralelos', () => {
       await expect(bot).toBeVisible({ timeout: 45_000 });
 
       const text = await bot.innerText();
-      expect(text.length).toBeGreaterThan(50);
+      expect(text.length).toBeGreaterThan(500);
+
+      const hasContent = /Scheffer|Sapezal|agro|CNPJ|dossi/i.test(text);
+      const looksLikeDossier = /#+\s|\[\[PORTA|módulo|mercado|operação/i.test(text);
+      expect(hasContent || looksLikeDossier).toBe(true);
 
       console.log(`\n✅ ${flowLabel} OK — ${text.length} chars`);
     });

@@ -76,7 +76,15 @@ const SOFT_PROMPT_LEAK_PATTERNS: RegExp[] = [
   /priorize objetividade.*fontes audit[aá]veis/i,
 ];
 
-function stripInternalMarkersLocal(text: string): string {
+function stripInternalMarkersLocal(text: string, preserveSafeMarkers = false): string {
+  if (!preserveSafeMarkers) {
+    return (text || '')
+      .replace(INTERNAL_MARKER_REGEX, '')
+      .replace(INTERNAL_MARKER_OPEN_TAIL_REGEX, '')
+      .replace(/\n{3,}/g, '\n\n')
+      .replace(/^\s*\]\s*$/gm, '')
+      .trim();
+  }
   return (text || '')
     .replace(INTERNAL_MARKER_REGEX, marker => (SAFE_MACHINE_MARKER_REGEX.test(marker) ? marker : ''))
     .replace(INTERNAL_MARKER_OPEN_TAIL_REGEX, marker =>
@@ -99,14 +107,17 @@ function detectPromptLeakIndicatorsLocal(text: string): { detected: boolean; ind
   };
 }
 
-function applyPromptLeakShieldLocal(text: string): {
+function applyPromptLeakShieldLocal(
+  text: string,
+  preserveSafeMarkers = false,
+): {
   text: string;
   blocked: boolean;
   indicators: string[];
 } {
-  const cleaned = stripInternalMarkersLocal(text || '');
+  const cleaned = stripInternalMarkersLocal(text || '', preserveSafeMarkers);
   const sample = cleaned || (text || '').trim();
-  const detectionSample = sample.replace(SAFE_MACHINE_MARKER_GLOBAL_REGEX, '').trim();
+  const detectionSample = preserveSafeMarkers ? sample.replace(SAFE_MACHINE_MARKER_GLOBAL_REGEX, '').trim() : sample;
   const detection = detectPromptLeakIndicatorsLocal(detectionSample);
 
   if (!detection.detected) {
@@ -345,7 +356,7 @@ async function executeLiteLLMGenerateContent(
       signal,
     });
 
-    const leakShieldResult = applyPromptLeakShieldLocal(litellmResult.text);
+    const leakShieldResult = applyPromptLeakShieldLocal(litellmResult.text, true);
     if (leakShieldResult.blocked) {
       console.warn('[PromptLeakShield][api/gemini] resposta LiteLLM bloqueada', {
         action: body.action,

@@ -96,9 +96,7 @@ describe('supabaseMigrations contract — llm experiment', () => {
   const llmSecurityMigration = existsSync(resolve(MIGRATIONS_DIR, '20260620152104_secure_llm_report_view.sql'))
     ? readFileSync(resolve(MIGRATIONS_DIR, '20260620152104_secure_llm_report_view.sql'), 'utf-8')
     : '';
-  const llmCompletedMigration = existsSync(
-    resolve(MIGRATIONS_DIR, '20260622_llm_experiment_completed_status.sql'),
-  )
+  const llmCompletedMigration = existsSync(resolve(MIGRATIONS_DIR, '20260622_llm_experiment_completed_status.sql'))
     ? readFileSync(resolve(MIGRATIONS_DIR, '20260622_llm_experiment_completed_status.sql'), 'utf-8')
     : '';
 
@@ -132,7 +130,7 @@ describe('supabaseMigrations contract — llm experiment', () => {
   it('reconcilia runs abandonadas por pg_cron com job idempotente', () => {
     expect(llmCompletedMigration).toContain('CREATE EXTENSION IF NOT EXISTS pg_cron');
     expect(llmCompletedMigration).toContain("jobname = 'reconcile-stale-llm-experiment-runs'");
-    expect(llmCompletedMigration).toContain('cron.unschedule(existing_job_id)');
+    expect(llmCompletedMigration).toContain('cron.unschedule(jobid)');
     expect(llmCompletedMigration).toContain("'reconcile-stale-llm-experiment-runs'");
     expect(llmCompletedMigration).toContain("WHERE status = 'running'");
     expect(llmCompletedMigration).toContain("INTERVAL '30 minutes'");

@@ -3,7 +3,13 @@ import type { ExperimentConfig, ExperimentMode, ExperimentSelection } from './ty
 
 type Environment = Record<string, string | undefined>;
 
-/** Lê env: parâmetro explícito (testes/server) → VITE_* (browser) → process.env. */
+/**
+ * Lê env: parâmetro explícito (testes/server) → VITE_* (browser) → process.env.
+ *
+ * ATENÇÃO: Quando chamada sem argumentos no browser, VITE_LLM_ALLOWLIST é
+ * exposta no bundle JavaScript. A autenticação server-side (_experiment-auth.ts)
+ * é authoritative e não depende deste valor. O client-side é apenas gate visual.
+ */
 function readConfigEnv(key: string, env?: Environment): string | undefined {
   if (env && env[key]) {
     return env[key];

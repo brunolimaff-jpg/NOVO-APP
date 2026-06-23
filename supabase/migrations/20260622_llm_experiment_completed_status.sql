@@ -31,31 +31,37 @@ GRANT SELECT ON public.llm_model_daily_report TO service_role;
 
 -- Reconciliação independente do browser: qualquer run abandonada por mais de
 -- 30 minutos chega a um estado terminal mesmo que o cliente nunca retorne.
-CREATE EXTENSION IF NOT EXISTS pg_cron WITH SCHEMA pg_catalog;
+-- pg_cron é opcional: se a extensão não estiver disponível (ex: plano Hobby sem
+-- habilitação manual), a reconciliação automática não é agendada, mas a
+-- migration principal (view + RLS) aplica normalmente.
+DO $$
+BEGIN
+  CREATE EXTENSION IF NOT EXISTS pg_cron WITH SCHEMA pg_catalog;
+EXCEPTION
+  WHEN insufficient_privilege OR OTHERS THEN
+    RAISE NOTICE 'pg_cron extension unavailable; skipping scheduled reconciliation job';
+END $$;
 
 DO $$
-DECLARE
-  existing_job_id BIGINT;
 BEGIN
-  FOR existing_job_id IN
-    SELECT jobid
+  IF EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'pg_cron') THEN
+    PERFORM cron.unschedule(jobid)
       FROM cron.job
-     WHERE jobname = 'reconcile-stale-llm-experiment-runs'
-  LOOP
-    PERFORM cron.unschedule(existing_job_id);
-  END LOOP;
-END;
-$$;
+     WHERE jobname = 'reconcile-stale-llm-experiment-runs';
 
-SELECT cron.schedule(
-  'reconcile-stale-llm-experiment-runs',
-  '*/5 * * * *',
-  $job$
-    UPDATE public.llm_experiment_runs
-       SET status = 'failed',
-           completed_at = NOW(),
-           error_normalized = 'stale_client_finalize_missing'
-     WHERE status = 'running'
-       AND created_at < NOW() - INTERVAL '30 minutes';
-  $job$
-);
+    PERFORM cron.schedule(
+      'reconcile-stale-llm-experiment-runs',
+      '*/5 * * * *',
+      $job$
+        UPDATE public.llm_experiment_runs
+           SET status = 'failed',
+               completed_at = NOW(),
+               error_normalized = 'stale_client_finalize_missing'
+         WHERE status = 'running'
+           AND created_at < NOW() - INTERVAL '30 minutes';
+      $job$
+    );
+  ELSE
+    RAISE NOTICE 'pg_cron not enabled; reconciliation function created but not scheduled.';
+  END IF;
+END $$;
