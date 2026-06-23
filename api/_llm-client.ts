@@ -217,16 +217,21 @@ export async function callLiteLLM(input: LiteLLMCallInput, env: Environment = pr
   messages.push({ role: 'user', content: input.userContent });
 
   const effectiveTimeoutMs = resolveLiteLLMRequestBudgetMs(env.LITELLM_REQUEST_TIMEOUT_MS);
+  console.warn('[LiteLLM] callLiteLLM budget configurado', {
+    raw: env.LITELLM_REQUEST_TIMEOUT_MS,
+    effective: effectiveTimeoutMs,
+    maxRetries: env.LITELLM_MAX_RETRIES,
+  });
 
   const deadline = Date.now() + effectiveTimeoutMs;
   const configuredRetries = Number(env.LITELLM_MAX_RETRIES ?? DEFAULT_LITELLM_MAX_RETRIES);
-  const maxRetries = Number.isInteger(configuredRetries) && configuredRetries >= 0
-    ? Math.min(configuredRetries, DEFAULT_LITELLM_MAX_RETRIES)
-    : DEFAULT_LITELLM_MAX_RETRIES;
+  const maxRetries =
+    Number.isInteger(configuredRetries) && configuredRetries >= 0
+      ? Math.min(configuredRetries, DEFAULT_LITELLM_MAX_RETRIES)
+      : DEFAULT_LITELLM_MAX_RETRIES;
   const configuredDelay = Number(env.LITELLM_RETRY_BASE_DELAY_MS ?? DEFAULT_RETRY_BASE_DELAY_MS);
-  const baseDelayMs = Number.isFinite(configuredDelay) && configuredDelay >= 0
-    ? configuredDelay
-    : DEFAULT_RETRY_BASE_DELAY_MS;
+  const baseDelayMs =
+    Number.isFinite(configuredDelay) && configuredDelay >= 0 ? configuredDelay : DEFAULT_RETRY_BASE_DELAY_MS;
   let lastError: Error | undefined;
 
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
@@ -243,23 +248,29 @@ export async function callLiteLLM(input: LiteLLMCallInput, env: Environment = pr
       const signal = input.signal
         ? AbortSignal.any([input.signal, timeoutController.signal])
         : timeoutController.signal;
-      const response = await withDeadline(fetch(`${baseUrl}/chat/completions`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${apiKey}`,
-        },
-        body: JSON.stringify({
-          model: input.model,
-          messages,
-          temperature: input.temperature ?? 0.1,
-          max_tokens: input.maxOutputTokens ?? 8192,
+      const response = await withDeadline(
+        fetch(`${baseUrl}/chat/completions`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${apiKey}`,
+          },
+          body: JSON.stringify({
+            model: input.model,
+            messages,
+            temperature: input.temperature ?? 0.1,
+            max_tokens: input.maxOutputTokens ?? 8192,
+          }),
+          signal,
         }),
         signal,
-      }), signal);
+      );
 
       if (!response.ok) {
-        const errorBody = await withDeadline(response.text().catch(() => ''), signal);
+        const errorBody = await withDeadline(
+          response.text().catch(() => ''),
+          signal,
+        );
         clearTimeout(attemptTimeoutId);
         throw new LiteLLMHttpError(response.status, `LiteLLM HTTP ${response.status}: ${errorBody.slice(0, 200)}`);
       }
@@ -290,7 +301,8 @@ export async function callLiteLLM(input: LiteLLMCallInput, env: Environment = pr
       if (attemptTimeoutId) clearTimeout(attemptTimeoutId);
       lastError = error instanceof Error ? error : new Error(String(error));
       const permanentHttpError = error instanceof LiteLLMHttpError && !isRetryableStatus(error.status);
-      const retryable = !permanentHttpError && !(error instanceof SyntaxError) && !/resposta vazia/i.test(lastError.message);
+      const retryable =
+        !permanentHttpError && !(error instanceof SyntaxError) && !/resposta vazia/i.test(lastError.message);
       if (attempt >= maxRetries || input.signal?.aborted || !retryable) break;
       await waitWithinBudget(baseDelayMs * Math.pow(2, attempt), deadline, input.signal);
     }
