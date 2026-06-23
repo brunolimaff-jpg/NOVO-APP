@@ -201,7 +201,7 @@ async function callGeminiApi<TResponse>(
 
       const authHeaders = await getSupabaseAuthHeaders();
 
-      if (!authHeaders.Authorization && previewOperatorEmail) {
+      if (previewOperatorEmail) {
         authHeaders['x-experiment-operator-email'] = previewOperatorEmail;
       }
 
