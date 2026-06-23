@@ -1,3 +1,5 @@
+console.error('BUILD_TS_20260623_1838_gemini_v2');
+
 import { GoogleGenAI, ThinkingLevel as GeminiSdkThinkingLevel } from '@google/genai';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { z } from 'zod';
