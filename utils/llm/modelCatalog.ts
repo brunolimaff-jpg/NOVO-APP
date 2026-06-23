@@ -1,6 +1,7 @@
 import type { ModelCatalogEntry } from './types.js';
 
 export const EXPERIMENT_MODELS = [
+  'bedrock/us.amazon.nova-2-lite-v1:0',
   'huawei/glm-5',
   'huawei/deepseek-v4-pro',
   'huawei/deepseek-v3.2',
@@ -84,6 +85,14 @@ export const MODEL_CATALOG: Record<string, ModelCatalogEntry> = {
     inputPricePerMillion: 0.6,
     outputPricePerMillion: 2.5,
     reasoning: true,
+  },
+  'bedrock/us.amazon.nova-2-lite-v1:0': {
+    id: 'bedrock/us.amazon.nova-2-lite-v1:0',
+    variant: 'J',
+    displayName: 'Amazon Nova 2 Lite',
+    inputPricePerMillion: 0.33,
+    outputPricePerMillion: 2.75,
+    reasoning: false,
   },
   [FALLBACK_MODEL]: {
     id: FALLBACK_MODEL,
