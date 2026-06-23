@@ -1,11 +1,11 @@
 import type { ModelCatalogEntry } from './types.js';
 
 export const EXPERIMENT_MODELS = [
+  'huawei/glm-5',
   'huawei/deepseek-v4-pro',
-  'oracle/xai.grok-4-1-fast-non-reasoning',
   'huawei/deepseek-v3.2',
-  'oracle/xai.grok-4-fast-reasoning',
-  'oracle/xai.grok-4.20-0309-reasoning',
+  'huawei/deepseek-r1-250528',
+  'bedrock/moonshot.kimi-k2-thinking',
 ] as const;
 
 export type ExperimentModelId = (typeof EXPERIMENT_MODELS)[number];
@@ -27,6 +27,14 @@ export const MODEL_CATALOG: Record<string, ModelCatalogEntry> = {
     displayName: 'DeepSeek V4 Flash (deprecated — timeout)',
     inputPricePerMillion: 0.14,
     outputPricePerMillion: 0.27,
+    reasoning: true,
+  },
+  'huawei/glm-5': {
+    id: 'huawei/glm-5',
+    variant: 'I',
+    displayName: 'GLM-5',
+    inputPricePerMillion: 0.81,
+    outputPricePerMillion: 2.96,
     reasoning: true,
   },
   'huawei/deepseek-v3.2': {

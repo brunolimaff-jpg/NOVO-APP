@@ -89,7 +89,7 @@ describe('utils/llm/experiment', () => {
 
     const run = await createExperimentRun({
       experimentId: 'exp-1',
-      selectedModel: 'oracle/xai.grok-4-fast-reasoning',
+      selectedModel: 'huawei/glm-5',
       provider: 'litellm',
       runId: 'waterfall-1',
       operatorEmail: 'bruno.ferreira@senior.com.br',

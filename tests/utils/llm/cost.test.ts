@@ -37,15 +37,15 @@ describe('calculateCost', () => {
     expect(result.totalCostUsd).toBe(0.67);
   });
 
-  it('calcula custo real Grok 4.1 Fast', () => {
-    const result = calculateCost('oracle/xai.grok-4-1-fast-non-reasoning', {
+  it('calcula custo real GLM-5', () => {
+    const result = calculateCost('huawei/glm-5', {
       inputTokens: 1_000_000,
       outputTokens: 1_000_000,
     });
 
-    expect(result.inputCostUsd).toBe(0.2);
-    expect(result.outputCostUsd).toBe(0.5);
-    expect(result.totalCostUsd).toBe(0.7);
+    expect(result.inputCostUsd).toBe(0.81);
+    expect(result.outputCostUsd).toBe(2.96);
+    expect(result.totalCostUsd).toBe(3.77);
   });
 
   it('calcula custo real Kimi K2 Thinking', () => {

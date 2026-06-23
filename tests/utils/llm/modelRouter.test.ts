@@ -69,18 +69,18 @@ describe('selectExperimentModel', () => {
     expect(selection?.variant).toBe('B');
   });
 
-  it('mode fixed retorna Grok 4.1 Fast', () => {
-    const config = getExperimentConfig(litellmEnv({ LLM_MODEL_DEFAULT: 'oracle/xai.grok-4-1-fast-non-reasoning' }));
+  it('mode fixed retorna GLM-5', () => {
+    const config = getExperimentConfig(litellmEnv({ LLM_MODEL_DEFAULT: 'huawei/glm-5' }));
     const selection = selectExperimentModel({ config, seed: 1 });
-    expect(selection?.model).toBe('oracle/xai.grok-4-1-fast-non-reasoning');
-    expect(selection?.variant).toBe('E');
+    expect(selection?.model).toBe('huawei/glm-5');
+    expect(selection?.variant).toBe('I');
   });
 
   it('mode random distribui entre 3 modelos', () => {
     const config = getExperimentConfig(
       litellmEnv({
         LLM_EXPERIMENT_MODE: 'random',
-        LLM_EXPERIMENT_MODELS: 'huawei/deepseek-v4-flash,huawei/deepseek-v3.2,oracle/xai.grok-4-1-fast-non-reasoning',
+        LLM_EXPERIMENT_MODELS: 'huawei/deepseek-v4-flash,huawei/deepseek-v3.2,huawei/deepseek-v4-pro',
         LLM_EXPERIMENT_TRAFFIC_SPLIT: '33,33,34',
       }),
     );
@@ -98,7 +98,7 @@ describe('selectExperimentModel', () => {
     const config = getExperimentConfig(
       litellmEnv({
         LLM_EXPERIMENT_MODE: 'random',
-        LLM_EXPERIMENT_MODELS: 'huawei/deepseek-v4-flash,huawei/deepseek-v3.2,oracle/xai.grok-4-1-fast-non-reasoning',
+        LLM_EXPERIMENT_MODELS: 'huawei/deepseek-v4-flash,huawei/deepseek-v3.2,huawei/deepseek-v4-pro',
       }),
     );
 
