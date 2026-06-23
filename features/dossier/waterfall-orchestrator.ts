@@ -81,8 +81,8 @@ const MODULAR_DOSSIER_TOTAL_STAGES = 7;
 const MODULAR_REQUIRED_STEP_TIMEOUT_MS = 150_000;
 const MODULAR_OPTIONAL_STEP_TIMEOUT_MS = 60000;
 /** LiteLLM + fallback Gemini no Hobby: cap cliente < hard-cap waterfall para não serializar 150s/módulo. */
-const LITELLM_MODULAR_REQUIRED_STEP_TIMEOUT_MS = 52_000;
-const LITELLM_MODULAR_OPTIONAL_STEP_TIMEOUT_MS = 45_000;
+const LITELLM_MODULAR_REQUIRED_STEP_TIMEOUT_MS = 42_000;
+const LITELLM_MODULAR_OPTIONAL_STEP_TIMEOUT_MS = 38_000;
 const WATERFALL_CONTEXT_WINDOW_CHARS = 12000;
 /** Preview incremental — espelhado em usePanelState / App.tsx */
 export const WATERFALL_PREVIEW_MIN_CHARS = 200;

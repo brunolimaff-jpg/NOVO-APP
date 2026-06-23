@@ -42,6 +42,9 @@ export function useCofreTransition({
   const [cofrePhase, setCofrePhase] = useState<CofrePhase>('hidden');
   const phaseRef = useRef<CofrePhase>('hidden');
   const lifecycleSessionRef = useRef<string | null>(null);
+  /** Evita reabrir Cofre após safety/absolute timeout enquanto isLoading ainda true. */
+  const cofreReleasedRef = useRef(false);
+  const cofreOpenedAtRef = useRef<number | null>(null);
 
   const commitPhase = useCallback((nextPhase: CofrePhase) => {
     phaseRef.current = nextPhase;
@@ -51,6 +54,9 @@ export function useCofreTransition({
   const startDissolve = useCallback(
     (reason: 'render-ready' | 'aborted-or-failed' | 'safety-timeout') => {
       if (phaseRef.current === 'hidden' || phaseRef.current === 'dissolving') return;
+      if (reason === 'safety-timeout' || reason === 'aborted-or-failed') {
+        cofreReleasedRef.current = true;
+      }
       scoutDiag.info('Cofre', 'dissolve', {
         reason,
         sessionId: lifecycleSessionRef.current,
@@ -60,9 +66,18 @@ export function useCofreTransition({
     [commitPhase],
   );
 
+  useEffect(() => {
+    cofreReleasedRef.current = false;
+    cofreOpenedAtRef.current = null;
+  }, [sessionId]);
+
   useLayoutEffect(() => {
+    if (cofreReleasedRef.current) return;
     if (generationKind !== 'dossier' || !isLoading || !sessionId) return;
     lifecycleSessionRef.current = sessionId;
+    if (cofreOpenedAtRef.current === null) {
+      cofreOpenedAtRef.current = Date.now();
+    }
     commitPhase('entering');
     scoutDiag.info('Cofre', 'entering', { sessionId });
   }, [commitPhase, generationKind, isLoading, sessionId]);
@@ -123,16 +138,21 @@ export function useCofreTransition({
 
   useEffect(() => {
     if (generationKind !== 'dossier' || cofrePhase === 'hidden' || cofrePhase === 'dissolving') return;
+    const openedAt = cofreOpenedAtRef.current;
+    if (!openedAt) return;
 
+    const elapsed = Date.now() - openedAt;
+    const delay = Math.max(0, COFRE_ABSOLUTE_MAX_MS - elapsed);
     const timer = window.setTimeout(() => {
       if (phaseRef.current === 'hidden' || phaseRef.current === 'dissolving') return;
       scoutDiag.warn('Cofre', 'absolute-max-timeout', {
         sessionId: lifecycleSessionRef.current,
         phase: phaseRef.current,
         isLoading,
+        elapsedMs: Date.now() - (openedAt ?? Date.now()),
       });
       startDissolve('safety-timeout');
-    }, COFRE_ABSOLUTE_MAX_MS);
+    }, delay);
 
     return () => window.clearTimeout(timer);
   }, [cofrePhase, generationKind, isLoading, sessionId, startDissolve]);
