@@ -173,11 +173,21 @@ async function callGeminiApi<TResponse>(
     | Record<string, unknown>,
   signal?: AbortSignal,
 ): Promise<TResponse> {
+  const action = typeof payload.action === 'string' ? payload.action : 'unknown';
+  const model =
+    typeof payload === 'object' && payload !== null && 'model' in payload
+      ? String((payload as { model?: unknown }).model ?? '')
+      : '';
+
+  if (signal?.aborted) {
+    console.error('[TRACE] callGeminiApi:signal-aborted-early', { action, model });
+    throw buildAbortError();
+  }
+
   const controller = new AbortController();
   const timeoutMs =
     Number.isFinite(GEMINI_PROXY_TIMEOUT_MS) && GEMINI_PROXY_TIMEOUT_MS > 0 ? GEMINI_PROXY_TIMEOUT_MS : 90000;
   let timedOut = false;
-  const action = typeof payload.action === 'string' ? payload.action : 'unknown';
   const requestClass =
     action === 'generateContent' || action === 'chatSendMessage'
       ? 'ai'
@@ -197,14 +207,30 @@ async function callGeminiApi<TResponse>(
   let responseText: string;
   try {
     try {
-      scoutDiag.info('GeminiProxy', 'request:start', { endpoint, action, requestClass, timeoutMs });
+      scoutDiag.warn('GeminiProxy', 'request:start', { endpoint, action, requestClass, timeoutMs, model });
+      console.error('[TRACE] request:start', {
+        endpoint,
+        action,
+        model,
+        requestClass,
+        timeoutMs,
+        signalAborted: signal?.aborted ?? false,
+      });
 
       const authHeaders = await getSupabaseAuthHeaders();
+      const hasAuth = Boolean(authHeaders.Authorization ?? authHeaders.authorization);
+      console.error('[TRACE] pre-fetch', {
+        action,
+        model,
+        hasAuth,
+        signalAborted: signal?.aborted ?? false,
+      });
 
       if (previewOperatorEmail) {
         authHeaders['x-experiment-operator-email'] = previewOperatorEmail;
       }
 
+      console.error('[TRACE] fetch-disparado', { endpoint, action, model });
       response = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...authHeaders },
@@ -292,7 +318,11 @@ export async function proxyGenerateContent(
   params: Omit<GeminiGenerateRequest, 'action'>,
   signal?: AbortSignal,
 ): Promise<GeminiGenerateResponse> {
-  // endpoint resolvido lazy — sem const de módulo
+  console.error('[TRACE] proxyGenerateContent:entry', {
+    model: params.model,
+    signalAborted: signal?.aborted ?? false,
+    module: params.module ?? null,
+  });
   return callGeminiApi<GeminiGenerateResponse>(
     resolveGeminiApiEndpoint(),
     { action: 'generateContent', ...params },

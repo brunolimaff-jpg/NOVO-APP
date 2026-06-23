@@ -834,6 +834,11 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
           signal: activeSignal,
           operatorId: waterfallOperatorId,
         });
+        console.error('[TRACE] post-teia', {
+          llmEnabled,
+          teiaChars: teiaResearchContext.text.length,
+          signalAborted: activeSignal.aborted,
+        });
         assertNotAborted();
 
         const staticDossierContext = buildStaticDossierContext({
@@ -914,6 +919,10 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
               hintedCompany ||
               normalizedCompany ||
               'empresa';
+            console.error('[TRACE] pre-websearch', {
+              llmEnabled,
+              signalAborted: activeSignal.aborted,
+            });
             const webResults = await enrichDossierWithWebSearch(empresaParaBusca);
             webSearchGroundingBlock = webResults.groundingBlock;
             scoutDiag.info('ModularDossier', 'web search injetada no grounding', {
@@ -1233,6 +1242,12 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
           });
         }
 
+        console.error('[TRACE] pre-module-loop', {
+          llmEnabled,
+          moduleCount: modules.length,
+          experimentModel: experimentSelection?.model ?? null,
+          signalAborted: activeSignal.aborted,
+        });
         for (let index = 0; index < modules.length; index += 1) {
           assertNotAborted();
 

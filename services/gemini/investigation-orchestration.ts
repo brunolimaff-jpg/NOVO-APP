@@ -554,6 +554,7 @@ export async function generateDossierModule(
   const usesFoundationCache = Boolean(options.foundationCacheName);
   const modelToUse = options.selectedModel || STABLE_RESEARCH_MODEL_ID;
   const useLiteLLM = Boolean(options.selectedModel);
+  console.error('[TRACE] module:start', { moduleName, useLiteLLM, modelToUse });
   // LiteLLM providers (OpenAI-compatible) não têm contexto caching do Gemini.
   // Foundation block DEVE ser incluído no prompt de cada módulo — custo extra de tokens
   // compensado pela velocidade superior dos modelos LiteLLM (~3-8s vs ~12-25s do Gemini).
