@@ -453,15 +453,15 @@ async function executeGeminiAction(
       const requestedModel = body.model ?? DEFAULT_GEMINI_MODEL;
       const litellmEnabled = isLiteLLMEnabled();
       const useLiteLLMPath = litellmEnabled && typeof requestedModel === 'string' && !requestedModel.includes('gemini');
-      if (!useLiteLLMPath) {
-        console.warn('[GeminiProxy] LiteLLM path NAO usado', {
-          litellmEnabled,
-          requestedModel,
-          provider: process.env.LLM_PROVIDER,
-          hasKey: !!process.env.LITELLM_API_KEY,
-          hasUrl: !!process.env.LITELLM_BASE_URL,
-        });
-      }
+      console.error('[TRACE] G2 useLiteLLMPath', {
+        useLiteLLMPath,
+        litellmEnabled,
+        requestedModel,
+        caminho: useLiteLLMPath ? 'LiteLLM' : 'Gemini_nativo',
+        LLM_PROVIDER: process.env.LLM_PROVIDER,
+        hasKey: !!process.env.LITELLM_API_KEY,
+        hasUrl: !!process.env.LITELLM_BASE_URL,
+      });
       if (useLiteLLMPath) {
         const auth = await authenticateExperimentRequest(req);
         if (isExperimentAuthError(auth)) {
@@ -480,12 +480,28 @@ async function executeGeminiAction(
               _llm_fallback_reason: `auth_${auth.status}`,
             });
           }
+          console.error('[TRACE] G3 auth_falhou_sem_fallback', {
+            authStatus: auth.status,
+            authError: auth.error,
+            acao: 'return error sem Gemini fallback',
+          });
           return res.status(auth.status).json({ error: auth.error });
         }
+        console.error('[TRACE] G3 auth_OK', { acao: 'prosseguir para G5' });
         const allowedModels = getExperimentConfig(process.env).experimentModels;
+        console.error('[TRACE] G5 allowedModels_check', {
+          requestedModel,
+          allowedModels,
+          match: allowedModels.includes(requestedModel),
+        });
         if (!allowedModels.includes(requestedModel)) {
+          console.error('[TRACE] G5 BLOCKED', { requestedModel, acao: 'return 400' });
           return res.status(400).json({ error: 'Model not allowed for experiment' });
         }
+        console.error('[TRACE] executeLiteLLMGenerateContent CHAMANDO', {
+          model: requestedModel,
+          fallbackEnabled: isFallbackEnabled(),
+        });
         const requestController = new AbortController();
         req.once?.('aborted', () => requestController.abort());
         return executeLiteLLMGenerateContent(ai, body, res, requestController.signal);

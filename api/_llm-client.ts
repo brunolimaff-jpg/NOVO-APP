@@ -58,7 +58,19 @@ const REASONING_PREFIXES = [
 ];
 
 export function isLiteLLMEnabled(env: Environment = process.env): boolean {
-  return env.LLM_PROVIDER === 'litellm' && Boolean(env.LITELLM_API_KEY) && Boolean(env.LITELLM_BASE_URL);
+  const provider = env.LLM_PROVIDER;
+  const hasKey = Boolean(env.LITELLM_API_KEY);
+  const hasUrl = Boolean(env.LITELLM_BASE_URL);
+  const result = provider === 'litellm' && hasKey && hasUrl;
+  console.error('[TRACE] G1 isLiteLLMEnabled', {
+    result,
+    LLM_PROVIDER: provider,
+    hasKey,
+    hasUrl,
+    baseUrl_preview: (env.LITELLM_BASE_URL || '').slice(0, 50),
+    keyLength: (env.LITELLM_API_KEY || '').length,
+  });
+  return result;
 }
 
 export function isFallbackEnabled(env: Environment = process.env): boolean {
@@ -302,6 +314,19 @@ export async function callLiteLLM(input: LiteLLMCallInput, env: Environment = pr
     } catch (error) {
       if (attemptTimeoutId) clearTimeout(attemptTimeoutId);
       lastError = error instanceof Error ? error : new Error(String(error));
+      const isAbort =
+        lastError.message.includes('aborted') ||
+        lastError.message.includes('AbortError') ||
+        lastError.name === 'AbortError';
+      const isTimeout = lastError.message.includes('timed out') || lastError.message.includes('budget exceeded');
+      console.error('[TRACE] callLiteLLM catch', {
+        attempt,
+        errorMessage: lastError.message,
+        isAbort,
+        isTimeout,
+        errorName: lastError.name,
+        budgetRemaining: remainingBudget(deadline),
+      });
       const permanentHttpError = error instanceof LiteLLMHttpError && !isRetryableStatus(error.status);
       const retryable =
         !permanentHttpError && !(error instanceof SyntaxError) && !/resposta vazia/i.test(lastError.message);
@@ -310,5 +335,11 @@ export async function callLiteLLM(input: LiteLLMCallInput, env: Environment = pr
     }
   }
 
-  throw lastError ?? new Error('LiteLLM request failed');
+  const finalError = lastError ?? new Error('LiteLLM request failed');
+  console.error('[TRACE] callLiteLLM FAIL FINAL', {
+    errorMessage: finalError.message,
+    isAbort: finalError.message.includes('aborted'),
+    isTimeout: finalError.message.includes('budget') || finalError.message.includes('timed out'),
+  });
+  throw finalError;
 }
