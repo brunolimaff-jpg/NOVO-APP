@@ -210,7 +210,7 @@ async function runGoldenRound(browser: Browser, testInfo: TestInfo, round: numbe
       contentType: 'image/png',
     });
 
-    await page.waitForNetworkIdle({ timeout: 15_000 }).catch(() => {
+    await page.waitForLoadState('networkidle', { timeout: 15_000 }).catch(() => {
       // network idle pode nunca estabilizar com keepalive/heartbeat no preview
     });
 
@@ -310,7 +310,7 @@ async function runGoldenRound(browser: Browser, testInfo: TestInfo, round: numbe
 
     return { rubric, experimentCaptures, runId: finalize!.id! };
   } finally {
-    await page.waitForNetworkIdle({ timeout: 5_000 }).catch(() => {});
+    await page.waitForLoadState('networkidle', { timeout: 5_000 }).catch(() => {});
     await context.close();
   }
 }
