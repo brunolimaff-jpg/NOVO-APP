@@ -14,7 +14,6 @@ import {
   PROMPT_TEIA_DEEP_MODULE,
   PROMPT_VERSION,
   SHARED_FOUNDATION_BLOCK,
-  SHARED_FOUNDATION_BLOCK_V5,
 } from '../../prompts/megaPrompts';
 import { generateContinuityQuestion, generateDossierModule } from '../../services/geminiService';
 import {
@@ -904,7 +903,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
           companyName: resolvedMegaCompany || undefined,
           groundingContextBlock: undefined as string | undefined,
         };
-        const moduleFoundationBlock = experimentSelection ? SHARED_FOUNDATION_BLOCK_V5 : SHARED_FOUNDATION_BLOCK;
+        const moduleFoundationBlock = SHARED_FOUNDATION_BLOCK;
 
         let webSearchGroundingBlock = '';
         if (llmEnabled) {
