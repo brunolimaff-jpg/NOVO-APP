@@ -107,6 +107,21 @@ describe('waterfall-socio-search', () => {
       expect(result.partnersSearched).toBe(0);
     });
 
+    it('degrada em timeout de fetch no modo LiteLLM sem propagar abort', async () => {
+      const fetchMock = vi.fn().mockRejectedValue(new DOMException('The operation was aborted', 'AbortError'));
+      vi.stubGlobal('fetch', fetchMock);
+
+      const result = await buildWaterfallSocioSearchContext({
+        partners: [{ name: 'Guilherme Scheffer' }],
+        rootCompanyName: 'Scheffer & Cia Ltda',
+        signal: new AbortController().signal,
+        liteLLMExperiment: true,
+      });
+
+      expect(result.degraded).toBe(true);
+      expect(result.text).toContain('busca degradada');
+    });
+
     it('propaga abort sem degradar silenciosamente', async () => {
       const controller = new AbortController();
       controller.abort();

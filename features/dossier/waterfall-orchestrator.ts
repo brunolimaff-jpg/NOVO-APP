@@ -162,8 +162,9 @@ async function buildTeiaResearchContext(params: {
   sessionCnpjDigits?: string | null;
   signal: AbortSignal;
   operatorId?: string;
+  liteLLMExperiment?: boolean;
 }): Promise<TeiaResearchContext> {
-  const { company, sessionCnpjDigits, signal, operatorId } = params;
+  const { company, sessionCnpjDigits, signal, operatorId, liteLLMExperiment } = params;
   const blocks: string[] = [];
   let qsaCount = 0;
   let hasHolding = false;
@@ -246,6 +247,7 @@ async function buildTeiaResearchContext(params: {
         rootCnpj: rootCnpjDigits || normalizedCnpj,
         operatorId,
         signal,
+        liteLLMExperiment,
       });
       if (socioSearchContext.text) {
         blocks.push(socioSearchContext.text);
@@ -254,7 +256,8 @@ async function buildTeiaResearchContext(params: {
         knownCnpjs.add(cnpj);
       }
     } catch (error) {
-      if (isAbortLikeError(error)) throw error;
+      if (isAbortLikeError(error) && signal.aborted) throw error;
+      if (isAbortLikeError(error) && !liteLLMExperiment) throw error;
       scoutDiag.warn('TeiaSocietaria', 'falha ao montar socio-search no contexto do waterfall', {
         company,
         rootCompanyName,
@@ -833,6 +836,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
           sessionCnpjDigits,
           signal: activeSignal,
           operatorId: waterfallOperatorId,
+          liteLLMExperiment: llmEnabled,
         });
         console.error('[TRACE] post-teia', {
           llmEnabled,

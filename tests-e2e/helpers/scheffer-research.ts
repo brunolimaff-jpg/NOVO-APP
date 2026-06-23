@@ -127,8 +127,14 @@ export async function ensureInvestigationForm(page: Page) {
   if (await cnpjInput.isVisible({ timeout: 2_000 }).catch(() => false)) {
     return;
   }
+
+  const submitReady = page.getByRole('button', { name: /iniciar investigação completa/i });
+  if (await submitReady.isVisible({ timeout: 2_000 }).catch(() => false)) {
+    return;
+  }
+
   await startNewInvestigation(page);
-  await expect(cnpjInput).toBeVisible({ timeout: 15_000 });
+  await expect(cnpjInput.or(submitReady).first()).toBeVisible({ timeout: 15_000 });
 }
 
 export async function validateCnpjInForm(page: Page) {
@@ -184,7 +190,12 @@ export async function validateCnpjInForm(page: Page) {
 
 export async function submitSchefferInvestigation(page: Page, _runLabel?: string) {
   await ensureInvestigationForm(page);
-  const payload = await validateCnpjInForm(page);
+
+  const cnpjInput = page.getByTestId('investigation-cnpj-input');
+  const payload = (await cnpjInput.isVisible({ timeout: 1_000 }).catch(() => false))
+    ? await validateCnpjInForm(page)
+    : await assertCnpjApiLive(page);
+
   const companyName = payload.companyName?.trim() || 'SCHEFFER & CIA LTDA';
   const city = payload.city?.trim() || 'Sapezal';
   const state = payload.state?.trim() || 'MT';

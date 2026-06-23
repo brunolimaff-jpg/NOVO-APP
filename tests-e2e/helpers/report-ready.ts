@@ -1,6 +1,5 @@
 import { expect, type APIRequestContext, type Page, type TestInfo } from '@playwright/test';
 import { setupRealSupabaseAuthFromEnv } from './auth';
-import { preventMigrationNotice } from './onboarding';
 import {
   prepareSchefferInvestigationForm,
   submitSchefferInvestigation,
@@ -53,7 +52,7 @@ export function requireReportReadyEnvironment(testInfo: TestInfo): ReportReadyEn
 }
 
 export async function setupReportReadyAuth(page: Page, email = DEFAULT_REPORT_READY_OPERATOR_EMAIL) {
-  await preventMigrationNotice(page);
+  // loginViaSupabase configura localStorage e abre AuthModal — preventMigrationNotice conflita (auth_skip_until).
   await setupRealSupabaseAuthFromEnv(page, { email });
 }
 

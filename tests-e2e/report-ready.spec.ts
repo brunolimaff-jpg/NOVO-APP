@@ -39,22 +39,43 @@ test.describe('report-ready — dossiê live no preview', () => {
   });
 
   test('Scheffer — dossiê gerado (funcional, sem qualidade)', async ({ page, request }, testInfo) => {
+    const traceMilestones: string[] = [];
+    page.on('console', msg => {
+      const text = msg.text();
+      if (text.includes('[TRACE]')) {
+        traceMilestones.push(text);
+        console.log(text);
+      }
+    });
+
     const env = requireReportReadyEnvironment(testInfo);
 
-    await setupReportReadyAuth(page, env.operatorEmail);
+    try {
+      await setupReportReadyAuth(page, env.operatorEmail);
 
-    if (env.deploymentSha) {
-      await page.goto('/');
-      await assertServedDeploymentSha(request, page, env.deploymentSha);
+      if (env.deploymentSha) {
+        await assertServedDeploymentSha(request, page, env.deploymentSha);
+      }
+
+      const { cnpj, textLength } = await runReportReadyFlow(page, `report-ready ${Date.now()}`);
+
+      await testInfo.attach('trace-milestones', {
+        body: Buffer.from(traceMilestones.join('\n') || '(nenhum [TRACE] capturado)'),
+        contentType: 'text/plain',
+      });
+
+      console.log('\n✅ report-ready OK', {
+        cnpj,
+        textLength,
+        previewUrl: env.baseURL,
+        deploymentSha: env.deploymentSha ?? '(não verificado)',
+      });
+    } catch (error) {
+      await testInfo.attach('trace-milestones', {
+        body: Buffer.from(traceMilestones.join('\n') || '(nenhum [TRACE] capturado)'),
+        contentType: 'text/plain',
+      });
+      throw error;
     }
-
-    const { cnpj, textLength } = await runReportReadyFlow(page, `report-ready ${Date.now()}`);
-
-    console.log('\n✅ report-ready OK', {
-      cnpj,
-      textLength,
-      previewUrl: env.baseURL,
-      deploymentSha: env.deploymentSha ?? '(não verificado)',
-    });
   });
 });

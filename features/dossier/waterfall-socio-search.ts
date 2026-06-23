@@ -18,12 +18,20 @@ const MAX_WATERFALL_SOCIO_PARTNERS = 12;
  */
 export const WATERFALL_SOCIO_SEARCH_AGGREGATE_CAP_MS = 100_000;
 
+/** Cap agregado menor no experimento LiteLLM — prioriza chegar ao loop de módulos. */
+export const WATERFALL_SOCIO_SEARCH_AGGREGATE_CAP_MS_LITE_LLM = 18_000;
+
+/** Timeout por sócio no LiteLLM — abaixo do teto de 52s que abortava o waterfall inteiro. */
+export const WATERFALL_SOCIO_SEARCH_PARTNER_TIMEOUT_MS_LITE_LLM = 8_000;
+
 export interface WaterfallSocioSearchParams {
   partners: Array<{ name: string }>;
   rootCompanyName: string;
   rootCnpj?: string;
   operatorId?: string;
   signal: AbortSignal;
+  /** Reduz caps e degrada em timeout de fetch (não propaga abort ao loop principal). */
+  liteLLMExperiment?: boolean;
 }
 
 export interface WaterfallSocioSearchResult {
@@ -34,21 +42,29 @@ export interface WaterfallSocioSearchResult {
   degraded: boolean;
 }
 
-function mergeAbortSignals(primary: AbortSignal, timeoutMs: number): AbortSignal {
-  const merged = new AbortController();
-  const abortMerged = () => merged.abort();
-  if (primary.aborted) {
-    abortMerged();
-    return merged.signal;
-  }
-  primary.addEventListener('abort', abortMerged, { once: true });
+function createPartnerFetchTimeoutSignal(timeoutMs: number): AbortSignal {
   if (typeof AbortSignal.timeout === 'function') {
-    const timeoutSignal = AbortSignal.timeout(timeoutMs);
-    timeoutSignal.addEventListener('abort', abortMerged, { once: true });
-  } else {
-    setTimeout(abortMerged, timeoutMs);
+    return AbortSignal.timeout(timeoutMs);
   }
-  return merged.signal;
+  const controller = new AbortController();
+  setTimeout(() => controller.abort(), timeoutMs);
+  return controller.signal;
+}
+
+function resolveSocioSearchBudget(params: WaterfallSocioSearchParams): {
+  aggregateCapMs: number;
+  partnerTimeoutMs: number;
+} {
+  if (params.liteLLMExperiment) {
+    return {
+      aggregateCapMs: WATERFALL_SOCIO_SEARCH_AGGREGATE_CAP_MS_LITE_LLM,
+      partnerTimeoutMs: WATERFALL_SOCIO_SEARCH_PARTNER_TIMEOUT_MS_LITE_LLM,
+    };
+  }
+  return {
+    aggregateCapMs: WATERFALL_SOCIO_SEARCH_AGGREGATE_CAP_MS,
+    partnerTimeoutMs: SOCIO_SEARCH_CLIENT_TIMEOUT_MS,
+  };
 }
 
 function describeScopeForPrompt(company: SocietaryCompanyInput): string {
@@ -127,31 +143,45 @@ async function fetchSocioSearchPartner(params: {
   rootCompanyName: string;
   rootCnpj?: string;
   operatorId?: string;
-  signal: AbortSignal;
+  partnerTimeoutMs: number;
+  degradeOnFetchAbort: boolean;
 }): Promise<SocioSearchResponse> {
-  const fetchSignal = mergeAbortSignals(params.signal, SOCIO_SEARCH_CLIENT_TIMEOUT_MS);
-  const response = await fetch('/api/socio-search', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      socioName: params.partnerName,
-      rootCompanyName: params.rootCompanyName,
-      rootCnpj: params.rootCnpj,
-      operatorId: params.operatorId,
-    }),
-    signal: fetchSignal,
-  });
-
-  if (!response.ok) {
-    scoutDiag.warn('TeiaSocietaria', 'socio-search waterfall HTTP não-OK', {
-      partnerName: params.partnerName,
-      status: response.status,
-      rootCompanyName: params.rootCompanyName,
+  const fetchSignal = createPartnerFetchTimeoutSignal(params.partnerTimeoutMs);
+  try {
+    const response = await fetch('/api/socio-search', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        socioName: params.partnerName,
+        rootCompanyName: params.rootCompanyName,
+        rootCnpj: params.rootCnpj,
+        operatorId: params.operatorId,
+      }),
+      signal: fetchSignal,
     });
-    return { companies: [], degraded: true };
-  }
 
-  return (await response.json()) as SocioSearchResponse;
+    if (!response.ok) {
+      scoutDiag.warn('TeiaSocietaria', 'socio-search waterfall HTTP não-OK', {
+        partnerName: params.partnerName,
+        status: response.status,
+        rootCompanyName: params.rootCompanyName,
+      });
+      return { companies: [], degraded: true };
+    }
+
+    return (await response.json()) as SocioSearchResponse;
+  } catch (error) {
+    if (params.degradeOnFetchAbort && isAbortLikeError(error)) {
+      scoutDiag.warn('TeiaSocietaria', 'socio-search waterfall timeout ou abort no fetch — degradando', {
+        partnerName: params.partnerName,
+        rootCompanyName: params.rootCompanyName,
+        partnerTimeoutMs: params.partnerTimeoutMs,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      return { companies: [], degraded: true };
+    }
+    throw error;
+  }
 }
 
 export async function buildWaterfallSocioSearchContext(
@@ -180,11 +210,16 @@ export async function buildWaterfallSocioSearchContext(
   let degraded = false;
   let companiesFound = 0;
 
+  const { aggregateCapMs, partnerTimeoutMs } = resolveSocioSearchBudget(params);
+  const degradeOnFetchAbort = Boolean(params.liteLLMExperiment);
   const startedAt = Date.now();
   scoutDiag.info('TeiaSocietaria', 'socio-search waterfall iniciado', {
     rootCompanyName: params.rootCompanyName,
     rootCnpj: params.rootCnpj,
     partnersCount: partners.length,
+    liteLLMExperiment: Boolean(params.liteLLMExperiment),
+    aggregateCapMs,
+    partnerTimeoutMs,
   });
 
   for (let index = 0; index < partners.length; index += SOCIO_SEARCH_BATCH_SIZE) {
@@ -193,13 +228,13 @@ export async function buildWaterfallSocioSearchContext(
     }
 
     const elapsedMs = Date.now() - startedAt;
-    if (elapsedMs >= WATERFALL_SOCIO_SEARCH_AGGREGATE_CAP_MS) {
+    if (elapsedMs >= aggregateCapMs) {
       degraded = true;
       const remaining = partners.slice(index);
       scoutDiag.warn('TeiaSocietaria', 'socio-search waterfall interrompido por cap agregado', {
         rootCompanyName: params.rootCompanyName,
         elapsedMs,
-        capMs: WATERFALL_SOCIO_SEARCH_AGGREGATE_CAP_MS,
+        capMs: aggregateCapMs,
         partnersSkipped: remaining.length,
         partnersCompleted: index,
       });
@@ -214,6 +249,7 @@ export async function buildWaterfallSocioSearchContext(
     }
 
     const batch = partners.slice(index, index + SOCIO_SEARCH_BATCH_SIZE);
+    const batchStartedAt = Date.now();
     const batchResults = await Promise.all(
       batch.map(async partner => {
         try {
@@ -222,7 +258,8 @@ export async function buildWaterfallSocioSearchContext(
             rootCompanyName: params.rootCompanyName,
             rootCnpj: params.rootCnpj,
             operatorId: params.operatorId,
-            signal: params.signal,
+            partnerTimeoutMs,
+            degradeOnFetchAbort,
           });
           const companies = payload.companies || [];
           if (payload.degraded) degraded = true;
@@ -232,7 +269,18 @@ export async function buildWaterfallSocioSearchContext(
             degraded: payload.degraded,
           };
         } catch (error) {
-          if (isAbortLikeError(error)) throw error;
+          if (isAbortLikeError(error)) {
+            if (params.signal.aborted) throw error;
+            if (degradeOnFetchAbort) {
+              degraded = true;
+              return {
+                partnerName: partner.name,
+                companies: [],
+                degraded: true,
+              };
+            }
+            throw error;
+          }
           scoutDiag.warn('TeiaSocietaria', 'socio-search waterfall falhou para sócio', {
             partnerName: partner.name,
             error: error instanceof Error ? error.message : String(error),
@@ -246,6 +294,17 @@ export async function buildWaterfallSocioSearchContext(
         }
       }),
     );
+
+    console.error('[TRACE] socio-search-batch', {
+      batchIndex: Math.floor(index / SOCIO_SEARCH_BATCH_SIZE),
+      elapsedMs: Date.now() - startedAt,
+      batchMs: Date.now() - batchStartedAt,
+      partnersInBatch: batch.length,
+      signalAborted: params.signal.aborted,
+      liteLLMExperiment: Boolean(params.liteLLMExperiment),
+      aggregateCapMs,
+      partnerTimeoutMs,
+    });
 
     partnerResults.push(...batchResults);
     companiesFound += batchResults.reduce((sum, result) => sum + result.companies.length, 0);
