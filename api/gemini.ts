@@ -451,8 +451,17 @@ async function executeGeminiAction(
       }
 
       const requestedModel = body.model ?? DEFAULT_GEMINI_MODEL;
-      const useLiteLLMPath =
-        isLiteLLMEnabled() && typeof requestedModel === 'string' && !requestedModel.includes('gemini');
+      const litellmEnabled = isLiteLLMEnabled();
+      const useLiteLLMPath = litellmEnabled && typeof requestedModel === 'string' && !requestedModel.includes('gemini');
+      if (!useLiteLLMPath) {
+        console.warn('[GeminiProxy] LiteLLM path NAO usado', {
+          litellmEnabled,
+          requestedModel,
+          provider: process.env.LLM_PROVIDER,
+          hasKey: !!process.env.LITELLM_API_KEY,
+          hasUrl: !!process.env.LITELLM_BASE_URL,
+        });
+      }
       if (useLiteLLMPath) {
         const auth = await authenticateExperimentRequest(req);
         if (isExperimentAuthError(auth)) {
