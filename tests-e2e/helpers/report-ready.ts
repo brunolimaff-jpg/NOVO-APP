@@ -86,13 +86,15 @@ export async function assertWaterfallStarted(page: Page) {
 }
 
 export async function waitForReportReadyLoadingOff(page: Page, timeoutMs = REPORT_READY_TIMEOUT_MS) {
-  await expect(page.getByTestId('loading-smart-overlay')).not.toBeVisible({ timeout: timeoutMs });
-  await expect(page.getByTestId('inline-loading-bubble')).not.toBeVisible({ timeout: timeoutMs });
+  const deadline = Date.now() + timeoutMs;
+  const remaining = () => Math.max(1, deadline - Date.now());
 
-  const cofre = page.getByTestId('cofre-overlay');
-  if (await cofre.isVisible().catch(() => false)) {
-    await expect(cofre).toBeHidden({ timeout: COFRE_BUFFER_MS });
-  }
+  await expect(page.getByTestId('loading-smart-overlay')).not.toBeVisible({ timeout: remaining() });
+  await expect(page.getByTestId('inline-loading-bubble')).not.toBeVisible({ timeout: remaining() });
+
+  // Waterfall LiteLLM pode manter o Cofre visível durante o loop de módulos (>> 60s).
+  // Budget compartilhado até REPORT_READY_TIMEOUT_MS — não usar COFRE_BUFFER_MS isolado aqui.
+  await expect(page.getByTestId('cofre-overlay')).not.toBeVisible({ timeout: remaining() });
 }
 
 export async function assertReportVisible(page: Page, minLength = REPORT_READY_MIN_TEXT_LENGTH) {
