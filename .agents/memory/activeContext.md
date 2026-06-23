@@ -1,39 +1,31 @@
 # Active Context
 
-**Last updated:** 2026-06-22 13:30 — Golden Review 4 riscos corrigidos + OpenCode configurado
+**Last updated:** 2026-06-23 — Fase 1 TRACE deployada; REPORT_READY bloqueado
 
 ## Prioridade Atual
 
-**PR #386 — fechar golden review + validar no preview**
+**PR #386 — Fase 1.5: capturar TRACE no console preview Scheffer → Fase 2 condicional**
 
 - Branch: `feat/litellm-experiment`
-- HEAD: `ef3d437` (docs-rag restaurado)
+- HEAD remoto: `b628c45b39dd067b89a32b719278e19586f014bd`
+- Preview: https://scoutagro-imm8c1ae2-brunolimaff-3629s-projects.vercel.app
 - PR: https://github.com/brunolimaff-jpg/NOVO-APP/pull/386
-- Preview funcionando: https://scoutagro-fwsradft6-brunolimaff-3629s-projects.vercel.app (commit 975d3f14)
-- Vault: `/Users/brunolima/Documents/Bruno Vault/20-SESSOES/2026-06/2026-06-22T13-30-00-pr386-golden-review-4-riscos.md`
+- Estado: **BLOQUEADO** (Golden Dossier Live timeout 840s; report-ready não rodado local)
 
-## 4 Riscos Golden — Corrigidos
+## ACHADO CRITICO (confirmado)
 
-1. **SSRF link-status**: isValidPublicUrl expandido + redirect manual 3 hops
-2. **Scheffer Chapecó/SC**: locality Sapezal/MT no case.json + localityFound rubrica
-3. **Brave 1/5**: waitForNetworkIdle + no finally
-4. **IDs distintos**: testInfo.attach JSON proof
+ZERO `action:generateContent` chega a `/api/gemini` durante waterfall LiteLLM. Fase 1 TRACE cliente deployada para localizar ponto exato de parada.
 
-## Deploy Quebrado
+## Fase 1 — CONCLUÍDA
 
-- Commits pós-18f3a621 falham com Error (deleção docs-rag.ts suspeita)
-- Build local OK. Typecheck OK.
-- Precisa: commitar finalizeRun fix SEM deletar docs-rag.ts
+TRACE em `geminiProxy.ts`, `waterfall-orchestrator.ts`, `investigation-orchestration.ts` — commit `4f453edd`, deploy `b628c45b`.
 
-## OpenCode Global Config
+## Proximo passo exato
 
-- 10 MCPs, 9 comandos, 11 subagentes, instructions consolidado 86 linhas
-- Config em `~/.config/opencode/opencode.jsonc`
+1. Bruno: DevTools console no preview Scheffer → grep `[TRACE]` → árvore decisão
+2. Rodar `npm run test:e2e:report-ready` com `E2E_AUTH_PASSWORD` em env
+3. Aplicar Fase 2 do plano **somente** com evidência TRACE (C1/C2/C3/A2/B)
 
-## Pendência Crítica
+## Hipoteses (ordem)
 
-Rodar golden-dossier-live 2x no preview:
-
-- Email: bruno.ferreira@senior.com.br
-- Senha: `<configurar no GitHub Secrets>` (`GOLDEN_E2E_AUTH_PASSWORD`)
-- CNPJ: 04.733.767/0001-80
+C3 pré-módulo → C2 auth hang → C1 path break → A2 signal → B Hobby 60s

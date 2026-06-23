@@ -1,66 +1,83 @@
-# Handoff — PR #386 Golden Review + OpenCode Config
+# Handoff — PR #386 LiteLLM: Fase 1 TRACE deployada, REPORT_READY bloqueado
 
-**Atualizado:** 2026-06-22 13:30
-
-## PR #386 — Estado
-
-**Branch:** `feat/litellm-experiment` | **HEAD:** `ef3d437` (docs-rag restaurado)
+**Atualizado:** 2026-06-23 (delivery-loop Fase 1 + push + CI)
+**Branch:** `feat/litellm-experiment` | **HEAD remoto:** `b628c45b`
 **PR:** https://github.com/brunolimaff-jpg/NOVO-APP/pull/386
-**Vault:** `/Users/brunolima/Documents/Bruno Vault/20-SESSOES/2026-06/2026-06-22T13-30-00-pr386-golden-review-4-riscos.md`
 
-### Merge: BLOQUEADO
+### Estado terminal: **BLOQUEADO** — REPORT_READY não atingido (waterfall timeout)
 
-## 4 Riscos Golden Review — Corrigidos
+### Merge: BLOQUEADO — MERGE_READY false — digite **MERGE** só após REPORT_READY
 
-| Risco               | Fix                                                                 | Arquivo                              |
-| ------------------- | ------------------------------------------------------------------- | ------------------------------------ |
-| SSRF link-status    | nip.io, IPv6, redirect manual 3 hops, GET fallback usa effectiveUrl | documentExtractor.ts, link-status.ts |
-| Scheffer Chapecó/SC | locality Sapezal/MT no case.json, localityFound na rubrica          | case.json, dossierGolden.ts          |
-| Brave 1/5 chamadas  | waitForNetworkIdle antes assertions + no finally                    | golden-dossier-live.spec.ts          |
-| Sem prova IDs       | testInfo.attach JSON proof                                          | golden-dossier-live.spec.ts          |
+---
 
-## Deploy
+## O que esta sessão fez
 
-| Commit    | Preview                                                           | Status                                      |
-| --------- | ----------------------------------------------------------------- | ------------------------------------------- |
-| 975d3f14  | https://scoutagro-fwsradft6-brunolimaff-3629s-projects.vercel.app | ✅ Ready (4 fixes, sem finalizeRun)         |
-| 18f3a621+ | —                                                                 | ❌ Error — deleção docs-rag.ts quebra build |
+1. **Fase 1 TRACE cliente implementada** (passos 1.1–1.7)
+   - `services/geminiProxy.ts` — entry, request:start (warn+console), pre-fetch, fetch-disparado, guard abort
+   - `features/dossier/waterfall-orchestrator.ts` — post-teia, pre-websearch, pre-module-loop
+   - `services/gemini/investigation-orchestration.ts` — module:start
+2. **Commits temáticos pushados** (3 commits após `aaf05ec5`)
+   - `4f453edd` — debug(trace): Fase 1 cliente
+   - `97815710` — feat(e2e): report-ready + ship-loop-watch
+   - `b628c45b` — test: ajustes unitários LiteLLM/webSearch
+3. **Gates locais:** typecheck ✅ | build ✅ | test 1681/1683 (2 flaky em suite completa; passam isolados)
+4. **Preview deployado** — SHA `b628c45b` confirmado no bundle
+   - URL: https://scoutagro-imm8c1ae2-brunolimaff-3629s-projects.vercel.app
+   - Marcadores TRACE no bundle: `post-teia`, `pre-module-loop` ✅
+5. **CI principal:** Build, Tests, Coverage, Typecheck, Dossier Golden, Smoke preview, Vercel ✅
+6. **Golden Dossier Live:** ❌ timeout 840s (14 min) — waterfall não completou no preview `b628c45b`
+7. **report-ready local:** não executado — `E2E_AUTH_PASSWORD` ausente no ambiente do agente
 
-**Build local (npm run build) OK. Typecheck OK.**
+---
 
-## Pendência Crítica
+## Achado crítico (inalterado)
 
-Rodar golden-dossier-live no preview com credenciais reais:
+Durante runs LiteLLM no preview:
 
-```bash
-E2E_REAL_AUTH=1 \
-E2E_DEPLOYMENT_SHA=<sha-do-deploy> \
-E2E_OPERATOR_EMAIL=bruno.ferreira@senior.com.br \
-E2E_AUTH_PASSWORD=<GOLDEN_E2E_AUTH_PASSWORD — GitHub Secrets> \
-npx playwright test tests-e2e/golden-dossier-live.spec.ts --project=chromium
+- **ZERO** POSTs `action: generateContent` em `/api/gemini` — só `recordDiagnostics`
+- TRACE **G1–G5** servidor nunca nos logs Vercel do waterfall LiteLLM
+- Fase 1 cliente agora permite medir **onde** o fluxo para (console browser no preview)
+
+---
+
+## Próximo passo (Fase 1.5 — evidência obrigatória antes de Fase 2)
+
+1. Abrir preview https://scoutagro-imm8c1ae2-brunolimaff-3629s-projects.vercel.app
+2. Login Supabase → Scheffer CNPJ `04.733.767/0001-80` → DevTools Console
+3. Filtrar `[TRACE]` e aplicar árvore de decisão:
+
+```
+Sem post-teia / pre-module-loop     → C3 (pré-módulo socio-search)
+post-module-loop + sem proxy entry   → C1
+proxy entry + sem pre-fetch          → C2 (getSupabaseAuthHeaders hang)
+pre-fetch signalAborted=true         → A2
+fetch-disparado + sem G1             → rede/endpoint
+G1 + timeout ~55-60s                 → B (budget Hobby)
 ```
 
-Exige 2 execuções consecutivas aprovadas no mesmo SHA.
+4. **NÃO aplicar Fase 2** sem evidência TRACE do console
+5. Rodar report-ready local com secrets:
+   ```bash
+   BASE_URL=https://scoutagro-imm8c1ae2-brunolimaff-3629s-projects.vercel.app \
+   E2E_REAL_AUTH=1 \
+   E2E_OPERATOR_EMAIL=bruno.ferreira@senior.com.br \
+   E2E_AUTH_PASSWORD="$E2E_AUTH_PASSWORD" \
+   E2E_DEPLOYMENT_SHA=b628c45b39dd067b89a32b719278e19586f014bd \
+   npm run test:e2e:report-ready
+   ```
 
-## OpenCode — Configurado
+---
 
-- 10 MCPs ativos (sem apify, mermaid, context7, netlify)
-- Permissions: bash/write/edit → ask
-- Compaction: auto, prune=false, reserved=20000
-- Formatter + LSP ativos
-- Instructions consolidado: 1 arquivo (86 linhas vs 450 antes)
-- 9 comandos custom (/audit, /ctx, /licoes, /review-branch, /sessions, /sync, /end-session, /quality-gate, /comandos)
-- 11 subagentes (implementer + planner novos)
-- Variants: Opus/Sonnet com thinking budget (ctrl+t)
-- TUI: attention.notifications + sound ativos
+## Notas operacionais
 
-## Próximo Passo
+- `ship-loop-watch.sh` falha em GitGuardian (fail-fast) — CI core verde; ignorar GitGuardian para gate funcional
+- URL antiga do comentário PR (`scoutagro-ak7ic69gz`) serve SHA `02728fb2` — usar deployment mais recente acima
+- Working tree local: docs/handoff/wiki ainda não commitados (commit separado pendente)
 
-1. Corrigir deploy Vercel (sem deletar docs-rag.ts)
-2. Rodar golden-dossier-live 2x
-3. Se OK, gates finais + handoff
+---
 
-## Regras Críticas
+## Leitura na abertura da próxima sessão
 
-- NAO mergear PR #386
-- NAO commitar credenciais
+1. Este arquivo
+2. [docs/plans/PR-386-plano-entregavel.md](docs/plans/PR-386-plano-entregavel.md) §7
+3. `.agents/memory/activeContext.md`
