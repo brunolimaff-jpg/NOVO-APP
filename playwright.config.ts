@@ -7,6 +7,7 @@ const desktopChrome = { ...devices['Desktop Chrome'] };
 const vercelBypassHeaders = process.env.VERCEL_AUTOMATION_BYPASS_SECRET
   ? { 'x-vercel-protection-bypass': process.env.VERCEL_AUTOMATION_BYPASS_SECRET }
   : undefined;
+const reportReadyTimeoutMs = Number(process.env.REPORT_READY_TIMEOUT_MS ?? 390_000);
 
 export default defineConfig({
   testDir: './tests-e2e',
@@ -58,6 +59,20 @@ export default defineConfig({
       fullyParallel: false,
       workers: 1,
       retries: 0,
+    },
+    {
+      // Fase 6 delivery-loop: dossiê live no preview (sem gate de qualidade)
+      name: 'report-ready',
+      use: {
+        ...desktopChrome,
+        trace: 'on',
+        video: 'retain-on-failure',
+      },
+      testMatch: /report-ready\.spec\.ts/,
+      fullyParallel: false,
+      workers: 1,
+      retries: 0,
+      timeout: reportReadyTimeoutMs + 120_000,
     },
   ],
 

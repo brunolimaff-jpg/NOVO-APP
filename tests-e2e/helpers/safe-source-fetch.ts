@@ -73,9 +73,7 @@ export function isPublicIpAddress(address: string): boolean {
       bits === 0n || numeric >> (128n - bits) === network >> (128n - bits);
     if (numeric >> 32n === 0xffffn) {
       const mapped = Number(numeric & 0xffffffffn);
-      return isPublicIpAddress(
-        [mapped >>> 24, (mapped >>> 16) & 255, (mapped >>> 8) & 255, mapped & 255].join('.'),
-      );
+      return isPublicIpAddress([mapped >>> 24, (mapped >>> 16) & 255, (mapped >>> 8) & 255, mapped & 255].join('.'));
     }
     return !(
       numeric === 0n ||
