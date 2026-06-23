@@ -259,7 +259,16 @@ async function callGeminiApi<TResponse>(
     }
 
     const trimmedBody = responseText.trim();
-    if (!trimmedBody) return {} as TResponse;
+    if (!trimmedBody) {
+      scoutDiag.warn('GeminiProxy', 'resposta vazia do proxy — possível tela branca', {
+        endpoint,
+        action,
+        requestClass,
+        status: response.status,
+        headers: Object.fromEntries(response.headers.entries()),
+      });
+      return {} as TResponse;
+    }
 
     try {
       return JSON.parse(trimmedBody) as TResponse;
