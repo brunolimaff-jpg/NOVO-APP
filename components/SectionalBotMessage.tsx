@@ -305,7 +305,10 @@ const SectionalBotMessage: React.FC<SectionalBotMessageProps> = ({
   }, [cleanText, content, isWaterfallThinkingPreview]);
   const sections = useMemo(() => {
     if (isWaterfallThinkingPreview) return [];
-    return parseMarkdownSections(displayText);
+    console.time('⏱️ parseMarkdownSections');
+    const result = parseMarkdownSections(displayText);
+    console.timeEnd('⏱️ parseMarkdownSections');
+    return result;
   }, [displayText, isWaterfallThinkingPreview]);
 
   // Pré-computa as fontes de cada seção em useMemo para estabilizar as referências

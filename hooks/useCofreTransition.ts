@@ -61,6 +61,11 @@ export function useCofreTransition({
       if (reason === 'safety-timeout' || reason === 'aborted-or-failed') {
         cofreReleasedRef.current = true;
       }
+      console.log('⏱️ [Cofre] startDissolve', {
+        reason,
+        sessionId: lifecycleSessionRef.current?.substring(0, 8),
+        phaseBefore: phaseRef.current,
+      });
       scoutDiag.info('Cofre', 'dissolve', {
         reason,
         sessionId: lifecycleSessionRef.current,
@@ -76,6 +81,12 @@ export function useCofreTransition({
   }, [sessionId]);
 
   useLayoutEffect(() => {
+    console.log('⏱️ [Cofre] useLayoutEffect', {
+      generationKind,
+      isLoading,
+      hasSessionId: !!sessionId,
+      cofreReleased: cofreReleasedRef.current,
+    });
     if (cofreReleasedRef.current) return;
     if (generationKind !== 'dossier' || !isLoading || !sessionId) return;
     lifecycleSessionRef.current = sessionId;
@@ -181,7 +192,11 @@ export function useCofreTransition({
 
   useEffect(() => {
     if (cofrePhase !== 'dissolving') return;
+    const dissolveStart = performance.now();
     const timer = window.setTimeout(() => {
+      console.log('⏱️ [Cofre] commitPhase hidden', {
+        totalDissolveMs: Math.round(performance.now() - dissolveStart),
+      });
       lifecycleSessionRef.current = null;
       commitPhase('hidden');
       onHidden?.();

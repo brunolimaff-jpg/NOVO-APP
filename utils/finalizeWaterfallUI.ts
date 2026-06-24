@@ -75,6 +75,8 @@ function hideLoadingDOM(botMsgTextLen: number): void {
 export function finalizeWaterfallUI(params: FinalizeWaterfallUIParams): void {
   const { store, sessionId, reason, waterfallEndStatus, botMsgTextLen, log } = params;
 
+  const timingStart = typeof performance !== 'undefined' ? performance.now() : 0;
+
   // 1. Zera React state de loading
   store.setIsLoading?.(false);
   store.setLoadingVariant?.(undefined);
@@ -107,7 +109,16 @@ export function finalizeWaterfallUI(params: FinalizeWaterfallUIParams): void {
     };
 
     const tryDispatchCofreReady = () => {
+      const now = typeof performance !== 'undefined' ? performance.now() : 0;
+      const elementExists = !!document.querySelector('[data-testid="bot-message-content"]');
+      console.log('⏱️ [finalizeWaterfallUI] tryDispatchCofreReady', {
+        elapsedMs: Math.round(now - timingStart),
+        botMsgTextLen,
+        elementExists,
+        elementVisible: elementExists ? isBotMessageContentVisible() : false,
+      });
       if (botMsgTextLen > 0 && isBotMessageContentVisible()) {
+        console.log('⏱️ [finalizeWaterfallUI] ✅ dispatchCofreRenderReady at', Math.round(now - timingStart), 'ms');
         dispatchCofreRenderReady(sessionId);
       }
     };
