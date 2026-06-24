@@ -102,7 +102,7 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
   const [isMessagesViewportReady, setIsMessagesViewportReady] = useState(false);
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const [virtuosoKey, setVirtuosoKey] = useState(0);
-  const safeMessages = Array.isArray(messages) ? messages : [];
+  const safeMessages = useMemo(() => (Array.isArray(messages) ? messages : []), [messages]);
   const shouldRenderStaticTimelineFallback = forceStaticTimelineFallback;
   const shouldRenderSuspendedViewport = shouldSuspendVirtualizedList && !shouldRenderStaticTimelineFallback;
 
@@ -472,7 +472,12 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
       totalItems: safeMessages.length,
       botTextLen: botMsg?.text?.length ?? 0,
     });
-  }, [currentSession?.id, safeMessages, shouldRenderStaticTimelineFallback]);
+  }, [
+    currentSession?.id,
+    safeMessages.length,
+    shouldRenderStaticTimelineFallback,
+    safeMessages.find(m => m.sender === Sender.Bot)?.text?.length ?? 0,
+  ]);
 
   const initialTopMostItemIndex = Math.max(0, safeMessages.length - 1);
 

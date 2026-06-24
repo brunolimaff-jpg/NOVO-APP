@@ -174,6 +174,7 @@ export function useStaticTimelineFallback(params: UseStaticTimelineFallbackParam
   useEffect(() => {
     if (!currentSession?.id || showInitialHome || showOperatorGate) return;
     if (!isLoading || !hasBotThinkingPlaceholder) return;
+    if (forceStaticTimelineFallback) return; // já ativo, evita re-disparo durante crescimento do texto
 
     staticTimelineFallbackSessionRef.current = currentSession.id;
     setForceStaticTimelineFallback(true);
@@ -185,6 +186,7 @@ export function useStaticTimelineFallback(params: UseStaticTimelineFallbackParam
   }, [
     currentSession?.id,
     expectedBotCharsMax,
+    forceStaticTimelineFallback,
     hasBotThinkingPlaceholder,
     isLoading,
     safeMessagesLength,

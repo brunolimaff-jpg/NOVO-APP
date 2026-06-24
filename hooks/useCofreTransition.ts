@@ -117,6 +117,7 @@ export function useCofreTransition({
     let cancelled = false;
     let attempts = 0;
     let rafHandle = 0;
+    let fallbackTimer = 0;
 
     const pollDomReady = () => {
       if (cancelled) return;
@@ -132,11 +133,27 @@ export function useCofreTransition({
 
     rafHandle = requestAnimationFrame(pollDomReady);
 
+    // Fallback via setTimeout: se RAF estiver saturado (main thread ocupada),
+    // setTimeout garante segunda via de polling a cada 500ms
+    fallbackTimer = window.setTimeout(() => {
+      const pollWithTimeout = () => {
+        if (cancelled || attempts >= DOM_READY_POLL_MAX_ATTEMPTS) return;
+        if (isBotContentVisibleInDom()) {
+          startDissolve('render-ready');
+          return;
+        }
+        attempts += 1;
+        fallbackTimer = window.setTimeout(pollWithTimeout, 500);
+      };
+      pollWithTimeout();
+    }, 2000);
+
     const timer = window.setTimeout(() => startDissolve('safety-timeout'), POST_API_SAFETY_TIMEOUT_MS);
     return () => {
       cancelled = true;
       if (rafHandle) cancelAnimationFrame(rafHandle);
       window.clearTimeout(timer);
+      window.clearTimeout(fallbackTimer);
     };
   }, [cofrePhase, generationKind, isLoading, startDissolve]);
 
