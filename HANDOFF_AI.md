@@ -1,83 +1,74 @@
-# Handoff — PR #386 LiteLLM: Fase 1 TRACE deployada, REPORT_READY bloqueado
+# Handoff — PR #386 LiteLLM experiment (EM VERIFICAÇÃO — Fix Virtuoso deployado)
 
-**Atualizado:** 2026-06-23 (delivery-loop Fase 1 + push + CI)
-**Branch:** `feat/litellm-experiment` | **HEAD remoto:** `b628c45b`
+**Atualizado:** 2026-06-24 00:40 UTC (sessão contínua)
+**Branch:** `feat/litellm-experiment`
 **PR:** https://github.com/brunolimaff-jpg/NOVO-APP/pull/386
+**Estado:** **EM VERIFICAÇÃO** — Fix Virtuoso deployado (SHA: `3d42cf03`), waterfall Scheffer rodando
 
-### Estado terminal: **BLOQUEADO** — REPORT_READY não atingido (waterfall timeout)
+---
 
-### Merge: BLOQUEADO — MERGE_READY false — digite **MERGE** só após REPORT_READY
+## Diagnóstico Real (2026-06-24)
+
+### Causa raiz do painel vazio: Virtuoso, NÃO fallback_used
+
+**Diagnóstico anterior REFUTADO:** A entrada no CALIBER_LEARNINGS ("fallback_used: true bloqueia UI") estava ERRADA. NENHUM filtro de `fallback_used` existe no frontend. O bug real:
+
+1. `computeItemKey={(_, message) => message.id}` em `MessageTimeline.tsx:540` faz Virtuoso reutilizar item quando `message.text` muda de `''` para 27K chars (mesmo ID)
+2. Bot-message-content renderiza mas fica invisível (`height: 0`), detectado via `commit:invisible-bot-content` em `MessageRow.tsx:193`
+3. `dispatchCofreRenderReady` depende de `bot-message-content` visível no DOM → nunca dispara
+4. Cofre dissolve apenas por `absolute-max` (320s)
+
+### callLiteLLM sempre lança exceção
+
+Todos os dossiês "LiteLLM" foram na verdade gerados pelo Gemini (fallback). O `catch` em `api/gemini.ts:392` captura o erro mas só logava `error.message` sem stack.
 
 ---
 
 ## O que esta sessão fez
 
-1. **Fase 1 TRACE cliente implementada** (passos 1.1–1.7)
-   - `services/geminiProxy.ts` — entry, request:start (warn+console), pre-fetch, fetch-disparado, guard abort
-   - `features/dossier/waterfall-orchestrator.ts` — post-teia, pre-websearch, pre-module-loop
-   - `services/gemini/investigation-orchestration.ts` — module:start
-2. **Commits temáticos pushados** (3 commits após `aaf05ec5`)
-   - `4f453edd` — debug(trace): Fase 1 cliente
-   - `97815710` — feat(e2e): report-ready + ship-loop-watch
-   - `b628c45b` — test: ajustes unitários LiteLLM/webSearch
-3. **Gates locais:** typecheck ✅ | build ✅ | test 1681/1683 (2 flaky em suite completa; passam isolados)
-4. **Preview deployado** — SHA `b628c45b` confirmado no bundle
-   - URL: https://scoutagro-imm8c1ae2-brunolimaff-3629s-projects.vercel.app
-   - Marcadores TRACE no bundle: `post-teia`, `pre-module-loop` ✅
-5. **CI principal:** Build, Tests, Coverage, Typecheck, Dossier Golden, Smoke preview, Vercel ✅
-6. **Golden Dossier Live:** ❌ timeout 840s (14 min) — waterfall não completou no preview `b628c45b`
-7. **report-ready local:** não executado — `E2E_AUTH_PASSWORD` ausente no ambiente do agente
+### Investigação (Phases A-C)
+- **SCOPE+TRACE:** Mapeados 24 arquivos, 6.435 linhas, 17 env vars, critical path de 13 passos
+- **DIAGNOSE:** Encontrado `commit:invisible-bot-content` no console do preview — texto 21.829 chars, width 1353px, mas height=0
+- **ADVERSARIAL REVIEW:** 3 personas (Saboteur, New Hire, Security Auditor). Veredict: **BLOCK**. 5 CRITICAL findings:
+  - S-1+N-2 [CRITICAL]: Virtuoso `computeItemKey` por ID + Cofre 320s = UI presa
+  - S-2 [CRITICAL]: catch do LiteLLM sem stack trace/Sentry
+  - N-1+S-4 [CRITICAL]: 19 runs órfãs + fire-and-forget finalize
+  - N-2 [CRITICAL]: CALIBER_LEARNINGS com diagnóstico falso
+  - N-3 [CRITICAL]: waterfall_logs parados desde 30/maio
+
+### Correções (Phase D)
+- **Fix #1 (P0):** `computeItemKey` inclui `isThinking` para forçar re-render → commit `3d42cf03`
+- **Fix #2 (P0):** `console.error` detalhado no catch do callLiteLLM → commit `5912a03b`
+- **Fix #3 (P1):** `Sentry.captureException` no catch do finalizeExperimentRun → commit `72a140c0`
+- **Fix #4 (P1):** CALIBER_LEARNINGS corrigido com diagnóstico real
+
+### Skills Instaladas
+- `.claude/skills/focused-fix/SKILL.md` — Protocolo 5 fases (Iron Law: zero fixes antes do diagnóstico)
+- `.claude/skills/adversarial-reviewer/SKILL.md` — 3 personas hostis, cross-promotion, verdict
+- `.claude/skills/rag-architect/SKILL.md` — Avaliação quantitativa de qualidade
 
 ---
 
-## Achado crítico (inalterado)
+## Estado atual (00:40 UTC)
 
-Durante runs LiteLLM no preview:
-
-- **ZERO** POSTs `action: generateContent` em `/api/gemini` — só `recordDiagnostics`
-- TRACE **G1–G5** servidor nunca nos logs Vercel do waterfall LiteLLM
-- Fase 1 cliente agora permite medir **onde** o fluxo para (console browser no preview)
+- **Preview ativo:** https://scoutagro-qqpyt1k76-brunolimaff-3629s-projects.vercel.app (SHA `3d42cf03`)
+- **Waterfall Scheffer:** Rodando agora com Virtuoso fix — aguardando resultado
+- **Console:** Zero erros de `commit:invisible-bot-content` até o momento
 
 ---
 
-## Próximo passo (Fase 1.5 — evidência obrigatória antes de Fase 2)
+## Pendências
 
-1. Abrir preview https://scoutagro-imm8c1ae2-brunolimaff-3629s-projects.vercel.app
-2. Login Supabase → Scheffer CNPJ `04.733.767/0001-80` → DevTools Console
-3. Filtrar `[TRACE]` e aplicar árvore de decisão:
+1. **Verificar waterfall:** Aguardar ~200s para ver se dossiê aparece na UI
+2. **Deploy do fix Sentry:** SHA `72a140c0` ainda em fila (deployment `egrf38abw` queued)
+3. **Limpar 19 runs órfãs:** SQL direto ou reconciliação automática
+4. **Investigar waterfall_logs:** Por que pararam em 30/maio
+5. **Investigar callLiteLLM:** Com o novo console.error, capturar erro real e decidir: consertar LiteLLM ou aceitar fallback Gemini como padrão?
 
-```
-Sem post-teia / pre-module-loop     → C3 (pré-módulo socio-search)
-post-module-loop + sem proxy entry   → C1
-proxy entry + sem pre-fetch          → C2 (getSupabaseAuthHeaders hang)
-pre-fetch signalAborted=true         → A2
-fetch-disparado + sem G1             → rede/endpoint
-G1 + timeout ~55-60s                 → B (budget Hobby)
-```
+## Próximo passo
 
-4. **NÃO aplicar Fase 2** sem evidência TRACE do console
-5. Rodar report-ready local com secrets:
-   ```bash
-   BASE_URL=https://scoutagro-imm8c1ae2-brunolimaff-3629s-projects.vercel.app \
-   E2E_REAL_AUTH=1 \
-   E2E_OPERATOR_EMAIL=bruno.ferreira@senior.com.br \
-   E2E_AUTH_PASSWORD="$E2E_AUTH_PASSWORD" \
-   E2E_DEPLOYMENT_SHA=b628c45b39dd067b89a32b719278e19586f014bd \
-   npm run test:e2e:report-ready
-   ```
+Se waterfall Scheffer renderizar dossiê → atualizar PR #386, rodar gates, preparar merge.
+Se não renderizar → investigar se há segundo bug além do Virtuoso key.
 
----
-
-## Notas operacionais
-
-- `ship-loop-watch.sh` falha em GitGuardian (fail-fast) — CI core verde; ignorar GitGuardian para gate funcional
-- URL antiga do comentário PR (`scoutagro-ak7ic69gz`) serve SHA `02728fb2` — usar deployment mais recente acima
-- Working tree local: docs/handoff/wiki ainda não commitados (commit separado pendente)
-
----
-
-## Leitura na abertura da próxima sessão
-
-1. Este arquivo
-2. [docs/plans/PR-386-plano-entregavel.md](docs/plans/PR-386-plano-entregavel.md) §7
-3. `.agents/memory/activeContext.md`
+▎**Prompt de retomada:**
+"Retomar verificação PR #386: Virtuoso fix (computeItemKey com isThinking) deployado no preview qqpyt1k76. Waterfall Scheffer iniciado. Verificar se dossiê renderizou (sem commit:invisible-bot-content), checar Supabase llm_experiment_runs, e decidir próximos passos."
