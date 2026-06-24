@@ -1922,6 +1922,11 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
                   experimentRunId,
                   error: error instanceof Error ? error.message : String(error),
                 });
+                Sentry.captureException(error, {
+                  level: 'warning',
+                  tags: { area: 'experiment-finalize', experiment_run_id: experimentRunId },
+                  extra: { sessionId, waterfallRunId },
+                });
               });
           } catch (error) {
             scoutDiag.warn('ModularDossier', 'falha ao calcular qualidade llm_experiment_run', {
