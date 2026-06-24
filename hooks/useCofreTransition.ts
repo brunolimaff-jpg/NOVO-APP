@@ -159,12 +159,22 @@ export function useCofreTransition({
       pollWithTimeout();
     }, 2000);
 
+    // Safety net: dissolve incondicional após 3s. Se RAF e setTimeout polling
+    // nao encontraram o DOM (React ainda nao commitou), garante que o Cofre
+    // nao fique preso por 320s. Nao depende de isBotContentVisibleInDom().
+    const safetyTimer = window.setTimeout(() => {
+      if (cancelled) return;
+      console.log('⏱️ [Cofre] safety-net dissolve após 3s (DOM polling esgotado)');
+      startDissolve('safety-timeout');
+    }, 3000);
+
     const timer = window.setTimeout(() => startDissolve('safety-timeout'), POST_API_SAFETY_TIMEOUT_MS);
     return () => {
       cancelled = true;
       if (rafHandle) cancelAnimationFrame(rafHandle);
       window.clearTimeout(timer);
       window.clearTimeout(fallbackTimer);
+      window.clearTimeout(safetyTimer);
     };
   }, [cofrePhase, generationKind, isLoading, startDissolve]);
 
