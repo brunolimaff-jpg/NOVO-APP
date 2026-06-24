@@ -391,7 +391,19 @@ async function executeLiteLLMGenerateContent(
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown LiteLLM error';
-    console.error('[GeminiProxy] LiteLLM generateContent falhou:', message);
+    const stack = error instanceof Error ? error.stack : undefined;
+    const cause = error instanceof Error ? (error as Error & { cause?: unknown }).cause : undefined;
+    console.error('[GeminiProxy] LiteLLM generateContent FALHOU', {
+      message,
+      model,
+      hasBaseUrl: !!process.env.LITELLM_BASE_URL,
+      hasApiKey: !!process.env.LITELLM_API_KEY,
+      timeout: process.env.LITELLM_REQUEST_TIMEOUT_MS,
+      cause: cause instanceof Error ? { message: cause.message, name: cause.name } : cause,
+      errorName: error instanceof Error ? error.name : typeof error,
+      errorConstructor: error?.constructor?.name,
+      stackTop: stack?.split('\n').slice(0, 4).join('\n'),
+    });
     if (!isFallbackEnabled()) {
       throw error;
     }
