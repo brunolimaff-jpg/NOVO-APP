@@ -537,7 +537,7 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
               key={virtuosoKey}
               ref={virtuosoRef}
               data={safeMessages}
-              computeItemKey={(_, message) => message.id}
+              computeItemKey={(_, message) => message.id + (message.isThinking ? ':thinking' : '')}
               itemContent={itemContent}
               initialTopMostItemIndex={initialTopMostItemIndex}
               followOutput={false}

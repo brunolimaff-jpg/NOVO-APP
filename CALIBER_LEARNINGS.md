@@ -2,6 +2,9 @@
 
 Padroes e anti-padroes aprendidos de sessoes anteriores. Tratados como regras do projeto.
 
+- **[REFUTADO] LiteLLM fallback_used: true NÃO causa descarte na UI** [litellm, ui, bug, pr386, refutado]
+  Diagnóstico anterior ("frontend descarta mensagens com fallback_used: true") foi REFUTADO em 2026-06-23 via adversarial review + auditoria completa de código. NENHUM filtro baseado em fallback_used existe em ChatInterface.tsx, message-orchestrator.ts, MessageTimeline.tsx ou MessageRow.tsx. Causa real da UI vazia: (1) Virtuoso computeItemKey por message.id não força re-render quando message.text muda de '' para 27K chars — bot-message-content fica invisível (height:0) mesmo com texto presente; (2) Cofre dissolve por absolute-max (320s) porque dispatchCofreRenderReady depende de bot-message-content visível no DOM. Fix: computeItemKey com isThinking no key (MessageTimeline.tsx:540). Afeta: components/chat/MessageTimeline.tsx, hooks/useCofreTransition.ts, components/MessageRow.tsx (commit:invisible-bot-content), PR #386.
+
 ## Padroes confirmados
 
 - **Supabase + IDB como cache offline** [react, typescript, supabase, offline] ⚠️ HISTORICO
@@ -508,6 +511,53 @@ Afeta: qualquer comando `gh api`ou`gh pr` com corpo gerado dinamicamente.
 - **console.error strict em E2E quebra com telemetria debug Scout360** [e2e, playwright, console, telemetria]
   Specs com `page.on('console', msg => expect(msg.type()).not.toBe('error'))` falham quando o app emite logs debug legitimos (`scoutDiag`, telemetria Scout360). Solucao: allowlist de padroes conhecidos ou filtrar por origem. Afeta: `tests-e2e/`, specs `critical-ux`.
 
+### Sessao 2026-06-23 — PR #386: descoberta do waterfall path — generateContent nunca chamado
+
+- **Instrumentar servidor e insuficiente quando o problema esta no cliente** [litellm, debug, instrumentacao, pr386]
+  Adicionamos [TRACE] logs completos nos 5 gates do servidor (G1 `_llm-client.ts`, G2 `gemini.ts`, G3 `_experiment-auth.ts`, G4 `modelRouter.ts`, G5 `gemini.ts`). TRACE G1 mostrou `isLiteLLMEnabled=true` quando chamado manualmente, mas ZERO chamadas `action: generateContent` chegaram ao `/api/gemini` durante o waterfall — todos os POSTs eram `recordDiagnostics`. A instrumentacao no servidor provou que o problema estava ANTES do servidor. Licao: ao diagnosticar fluxo silencioso, instrumentar PRIMEIRO o ponto de saida do cliente (antes do `fetch`), nao o servidor. Servidor instrumentado sem confirmacao de que o cliente esta chamando e tempo perdido.
+  Afeta: `services/geminiProxy.ts`, `api/gemini.ts`, fluxo de debug de qualquer modulo silencioso.
+
+- **ProxyGenerateContent e o ponto cego do debug — cliente nunca fez o fetch** [litellm, debug, fetch, cliente, pr386]
+  `proxyGenerateContent` em `services/geminiProxy.ts:291` e a funcao que faz o `fetch` para `/api/gemini` com `action: generateContent`. Mas durante todo o debug de 8h, ninguem verificou se `proxyGenerateContent` era chamada ou se o `fetch` executava. A hipotese do header fix (`8c74e71e`) assumiu que o codigo chegava ate o fetch — estava errada. Licao: ao diagnosticar fluxo silencioso entre cliente e servidor, o PRIMEIRO passo e confirmar que a funcao que faz o fetch esta sendo executada (console.error antes do fetch). Depois confirmar parametros, headers, e so entao investigar servidor/rede.
+  Afeta: `services/geminiProxy.ts`, fluxo de debug cliente-servidor.
+
+- **Header fix necessario mas insuficiente — nao confundir "necessario" com "suficiente"** [litellm, debug, hipotese, pr386]
+  O header `x-experiment-operator-email` precisava ser enviado (era um bug). Foi corrigido. Mas o waterfall continuou nao funcionando. Assumimos que o header era a causa raiz porque era o unico bug visivel depois de 6 hipoteses erradas. Na verdade, o header era apenas UM dos problemas — o `proxyGenerateContent` nunca fazia o fetch. Licao: a existencia de um bug nao prova que ele e a causa raiz. "Corrigi algo e nao resolveu" significa que a causa raiz e OUTRA. Voltar a investigar, nao insistir na mesma hipotese.
+  Afeta: `services/geminiProxy.ts:204`, fluxo de diagnostico multi-causa.
+
+- **TRACE G1-G5 provaram que o codigo servidor nunca era alcancado** [litellm, trace, diagnostico, instrumentacao, pr386]
+  A melhor evidencia de que o problema estava no cliente: o TRACE G1 (`isLiteLLMEnabled`) nunca apareceu nos logs durante o waterfall. G1 e a primeira linha executada quando `action: generateContent` chega ao handler do `gemini.ts`. Se G1 nao aparece, e porque o `generateContent` nunca chega. TRACE logs funcionaram como "ponto de luz" — se acende, o codigo passou por ali. Se nao acende, o problema esta antes.
+  Afeta: fluxo de instrumentacao em cadeia para diagnosticos complexos.
+
+### Sessao 2026-06-23 — PR #386: descoberta dos 5 gates + fix header geminiProxy
+
+- **Condicao invisivel e mais perigosa que erro visivel** [litellm, debug, header, gateway, pr386]
+  `services/geminiProxy.ts:204`: `if (!authHeaders.Authorization && previewOperatorEmail)` parecia correta ("so enviar header se nao tem auth normal"). Mas isso impedia o header `x-experiment-operator-email` de chegar ao servidor quando o usuario estava logado via Supabase (ja que `authHeaders.Authorization` estava preenchido). O servidor tentava fallback de autenticacao, o header estava ausente, e o experimento LiteLLM nunca ativava — sem erro visivel, sem log, sem excecao. O sintoma parecia "proxy LiteLLM nao responde" quando na verdade o codigo nunca chegava no proxy. Fix: `if (previewOperatorEmail)` — header sempre enviado, independente de auth. Licao: toda condicao que FILTRA um dado necessario deve ser questionada: auth e ortogonal a propagacao de header.
+  Afeta: `services/geminiProxy.ts:204`, `api/_experiment-auth.ts`, PR #386, `Bruno Vault/30-LICOES/LICOES-5-GATES-LITELLM-2026-06-23.md`.
+
+- **`console.error` com payload revela se codigo executa — diagnostico mais rapido que telemetria** [litellm, debug, console, observabilidade, pr386]
+  O debug do LiteLLM gastou 6 hipoteses erradas (rede, modelo, timeout, env) porque ninguem sabia se `callLiteLLM` era chamado. Logs com `scoutDiag` so aparecem no Supabase, nao nos logs do Vercel em tempo real. `console.error('[LiteLLM] callLiteLLM CHAMADO', { provider, hasUrl, hasKey, timeout })` no commit `8206c667` forcou o log a aparecer nos logs do Vercel Runtime e revelou imediatamente que a funcao nunca era invocada. Isso eliminou TODAS as hipoteses de rede/modelo/config de uma vez. `scoutDiag` e bom para producao; `console.error` e melhor para diagnostico ativo.
+  Afeta: `api/_llm-client.ts:220`, fluxo de debug de qualquer modulo silencioso.
+
+- **3+ gates em serie criam barreira opaca — cada gate precisa de log individual** [litellm, auth, gateway, seguranca, pr386]
+  O LiteLLM tem 5 gates: G1 env vars, G2 roteamento nao-Gemini, G3 provider check, G4 allowlist, G5 catalogo. Cada gate considerado isoladamente parece correto e inofensivo. Juntos, QUALQUER UM pode estar fechado e o sintoma e identico: "LiteLLM nao funciona". Sem logs individuais, o diagnostico vira chute. Fix: `api/gemini.ts:456-464` adiciona `console.warn` que loga `litellmEnabled, model, provider, hasKey, hasUrl` quando o path LiteLLM nao e usado. Licao: ao projetar sistema com multiplos gates em serie, cada gate DEVE ter log de passagem com estado atual.
+  Afeta: `api/gemini.ts`, `_llm-client.ts`, `_experiment-auth.ts`, `modelRouter.ts`.
+
+- **Resposta de erro de API deve SEMPRE incluir todos os campos do contrato** [api, erro, tela-branca, contrato, pr386]
+  `api/gerar-dossie.ts` retornava `{ error: '...', detail: '...' }` sem `text`. O cliente fazia `JSON.parse` e acessava `data.text` → `undefined` → React podia renderizar nada ou quebrar. Fix: `{ text: '', error: '...', detail: '...' }`. Licao: toda API com contrato definido deve preencher TODOS os campos mesmo em erro. Valores vazios sao melhores que `undefined`.
+  Afeta: `api/gerar-dossie.ts:126`, qualquer API que retorne JSON com campos obrigatorios.
+
+- **Guard contra `response.text()` vazio antes de `JSON.parse`** [api, json, erro-silencioso, pr386]
+  `services/geminiProxy.ts` fazia `response.text()` → `JSON.parse(trimmedBody)`. Se a resposta do proxy fosse vazia (timeout sem body), `JSON.parse('')` lancava excecao silenciosa. Fix: guard `if (!trimmedBody)` com `scoutDiag.warn` logando status, headers, endpoint. Licao: toda sequencia `text()` → `JSON.parse()` precisa de guard contra texto vazio com log rico.
+  Afeta: `services/geminiProxy.ts:262`.
+
+- **Ping nao prova que o fluxo real funciona** [debug, diagnostico, fluxo, pr386]
+  Testamos ping no proxy LiteLLM 5 vezes. Funcionou todas. Assumimos que o fluxo real (waterfall com auth, headers, modelo) tambem funcionaria. Estavamos errados — o problema estava ANTES de chegar no proxy. Licao: ping so prova conectividade TCP/TLS. Nao prova que o codigo esta chamando o endpoint, nem que os headers estao corretos, nem que o auth passou. Ordem de diagnostico: (1) o codigo executa? (2) parametros e headers estao corretos? (3) a rede funciona? (4) o servidor responde?
+
+- **Header propagation deve ser verificada em todos os modos de auth** [auth, header, propagacao, pr386]
+  `x-experiment-operator-email` era configurado em 3 camadas (cliente, servidor, proxy), mas o proxy so enviava quando `!authHeaders.Authorization`. Para usuarios logados (que tem Authorization preenchido), o header nunca chegava. Licao: ao propagar headers de auth entre camadas, verificar TODOS os modos: sem sessao, operator local, Supabase, sessao expirada. Cada modo pode ter caminho diferente de propagacao.
+  Afeta: `services/geminiProxy.ts`, `api/_experiment-auth.ts`, `utils/llm/experimentGate.ts`.
+
 - **PR Gate IA e gate definitivo para app Vercel+Supabase — CI E2E localhost nao substitui** [vercel, supabase, e2e, pr-gate, ci]
   Para apps com preview Vercel + Supabase real + serverless, o gate de merge e: CI rapido verde + Playwright `critical-ux` no preview (agente) + comentario evidencia + **MERGE**. CI E2E Docker/localhost e instavel e nao representa UX real. Aprovado PR #383: 11/11 SHA `63f1c85e`. Afeta: branch protection, `AGENTS.md`, fluxo merge.
 
@@ -658,3 +708,42 @@ _Atualizado automaticamente pelo Caliber apos sessoes de agente._
 
 - **DeepSeek V4 Flash e inviavel para waterfall de dossie comercial (62-119s/modulo)** [litellm, performance, timeout, deepseek, modelo, pr386]
   Teste real com `huawei/deepseek-v4-flash` no waterfall Scheffer (04.733.767/0001-80, 6 modulos): 2/6 modulos concluidos (62s e 84s), 4/6 timeout aos 119s. DeepSeek V4 Flash e um modelo de raciocinio (thinking) que prioriza qualidade sobre velocidade — adequado para analise aprofundada, nao para waterfall comercial que precisa entregar 6 modulos em <3min. Para o caso de uso de dossie comercial, modelos de raciocinio sao inviaveis. O experimento LiteLLM deve priorizar modelos de geracao direta (non-thinking) com latencia comparavel ao Gemini (<15s/modulo). Afeta: `utils/llm/modelCatalog.ts`, criterio de selecao de modelos para PR #386.
+
+### Sessao 2026-06-22 — PR #386 waterfall UI parcial + qualidade Scheffer Grok
+
+- **Painel com texto nao e criterio de merge nem de qualidade** [litellm, qualidade, merge, pr386, waterfall]
+  Waterfall LiteLLM pode completar com ~36k chars e `domHasBotContent: true` no preview manual, mas o dossiê Scheffer Grok ficou com 2 CNPJs vs 38 no golden Gemini, `groundingSources: 0` em todos os modulos e PORTA ausente. Nao mergear PR #386 so porque o painel deixou de ficar em branco. Criterio de qualidade exige comparacao com golden (CNPJs, fontes, PORTA), nao apenas presenca de texto. Afeta: PR #386, `DI-2026-06-22-04`, criterio de merge.
+
+- **socio-search na UI nao alimenta o prompt do waterfall (gap Scheffer B1)** [litellm, socio-search, contexto, waterfall, pr386]
+  `/api/socio-search` dispara no `SocietaryMap` apos o waterfall, mas os resultados nao entram em `staticDossierContext` server-side. O modelo LiteLLM gera dossiê sem teia societaria/CRM no prompt — causa direta de CNPJs e entidades faltantes vs golden. P0: injetar socio-search no contexto waterfall antes dos modulos. Afeta: `features/dossier/waterfall-orchestrator.ts`, `DI-2026-06-22-04`, Scheffer B1.
+
+- **Brave injetado com groundingSources: 0 por modulo indica gap de paridade** [litellm, brave, grounding, web-search, pr386]
+  Web search externo foi implementado (`groundingContextBlock`), mas logs do preview mostraram `groundingSources: 0` em todos os modulos Grok e `foundationCacheName: null`. Brave ≠ Google Search grounding nativo por modulo. Validar que fontes chegam ao prompt antes de comparar modelos. Afeta: `utils/llm/webSearchService.ts`, `waterfall-orchestrator.ts`, PR #386.
+
+- **Playwright R3 e preview manual podem divergir no bug P1 painel vazio** [e2e, playwright, blank-panel, pr386]
+  Run manual no preview: waterfall completed, texto visivel. Playwright R3 em `7f76d1aa`: `bot-message-content` ausente apos 360s — mesmo apos throttle preview 2s/800chars (`7f76d1aa`) e socio-search hard-cap (`699d2938`). Fixes UI parciais nao destravam gate E2E. Re-rodar R3 no HEAD do preview apos cada fix; nao declarar P1 resolvido so com validacao manual. Afeta: `tests-e2e/scheffer-research-validation.spec.ts`, `finalizeWaterfallUI.ts`.
+
+- **Throttle de preview incremental nao corrige gate E2E de conteudo visivel** [waterfall, throttle, e2e, pr386]
+  Commit `7f76d1aa` limitou flush de preview a 2s/800chars para reduzir freeze no Cofre. R3 continuou reprovado com sintoma identico. Otimizacao de performance de preview e ortogonal ao seletor `bot-message-content` que o gate espera. Afeta: `features/dossier/waterfall-orchestrator.ts`, R3 spec.
+
+### Sessao 2026-06-22 — PR #386 P0#1 socio-search + Cofre overlay
+
+- **isCofreRenderReady nao pode exigir Virtuoso quando timeline estatica esta ativa** [cofre, virtuoso, blank-panel, waterfall, pr386]
+  Pos-waterfall com dossie grande, `finalizeWaterfallUI` ativa timeline estatica antes do Virtuoso. `isCofreRenderReady` exigia scroller Virtuoso → overlay Cofre preso (`scheffer-cnpj-blank-panel` 15/16). Fix: considerar dossie visivel via static fallback OU Virtuoso render-ready. critical-ux 16/16 apos `2b1c5902`. Afeta: `cofreLifecycle.ts`, `finalizeWaterfallUI.ts`, `useCofreTransition.ts`, `DI-2026-06-22-06`.
+
+- **socio-search server-side no prompt com cap agregado 100s** [litellm, socio-search, waterfall, budget, pr386]
+  P0#1: bloco `[TEIA SOCIO-SEARCH]` injetado em `staticDossierContext` antes dos modulos (`waterfall-socio-search.ts`). Cap `WATERFALL_SOCIO_SEARCH_AGGREGATE_CAP_MS=100s` (hard-cap waterfall 330s). `scoutDiag.warn` em HTTP nao-OK e cap excedido — degradacao graciosa. Fecha gap Scheffer B1 de contexto; qualidade vs golden ainda precisa validacao manual. Afeta: `waterfall-orchestrator.ts`, `DI-2026-06-22-05`, commit `02728fb2`.
+
+- **critical-ux 16/16 nao substitui Scheffer R3 live LiteLLM** [e2e, critical-ux, litellm, pr386]
+  critical-ux usa stubs Gemini — prova UX Cofre/overlay, nao waterfall LiteLLM live. Apos fix Cofre (`2b1c5902`), gate 16/16 no preview; Scheffer R3 B1/B2 ainda NAO RODADO no HEAD. Nao declarar MERGE_READY so com critical-ux. Afeta: `tests-e2e/scheffer-research-validation.spec.ts`, PR Gate IA.
+
+### Sessao 2026-06-23 — PR #386 delivery-loop TRACE + socio-search abort + report-ready
+
+- **socio-search com mergeAbortSignals no sinal do waterfall aborta todo o loop** [litellm, socio-search, abort, waterfall, pr386]
+  Timeout agregado ~52s em `waterfall-socio-search.ts` ligado ao `AbortSignal` compartilhado do waterfall produziu `signal is aborted without reason` ~58s antes de qualquer `generateContent`. TRACE mostrava `post-teia` mas nunca `pre-module-loop`/`fetch-disparado`. Fix: timeout isolado por socio (8s LiteLLM / 18s cap), degradar sem abort. Afeta: `waterfall-socio-search.ts`, `DI-2026-06-23-06`, commit `f82bf780`.
+
+- **Gate E2E cofre 60s isolado mascara bug pos-modulo de 390s** [e2e, report-ready, cofre, litellm, pr386]
+  `waitForReportReadyLoadingOff` com `COFRE_BUFFER_MS` (60s) falhava antes do waterfall terminar. Corrigido para budget compartilhado 390s (`1bb7fe49`). Apos fix, falha persiste em `cofre-overlay` visible — prova que o bloqueio e app (UI/waterfall hang pos-fetch), nao timeout do teste. Nao aumentar timeout E2E para mascarar; investigar por que overlay nao fecha apos modulos iniciarem. Afeta: `tests-e2e/helpers/report-ready.ts`, `DI-2026-06-23-07`.
+
+- **TRACE fetch-disparado sem bot-message-content = bloqueio pos-cliente** [litellm, trace, waterfall, pr386]
+  Quando TRACE confirma 5× `fetch-disparado generateContent` mas report-ready expira sem `bot-message-content`, o bloqueio migrou para servidor (504/timeout Hobby 60s) ou UI (Cofre/isLoading). Proximo passo: Network status dos POSTs + logs Vercel G1–G5 — nao re-instrumentar cliente. Afeta: delivery-loop Fase 3, `docs/plans/PR-386-plano-entregavel.md` §7.
