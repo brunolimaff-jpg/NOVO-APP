@@ -1033,11 +1033,20 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
           scheduleDeferredPreviewFlush();
         };
 
+        // BLOQUEIO TEMPORÁRIO: não fazer flush preview durante módulos.
+        // Cada pushWaterfallPreviewToStore causa React re-render + react-markdown
+        // em DOM crescente (7K→14K→20K→25K→30K), saturando main thread e
+        // congelando UI. Apenas o flush final (force=true, linha ~1474) é mantido.
+        // Lição: "Nao fazer flushWaterfallPreview por modulo no waterfall"
+        // (CALIBER_LEARNINGS:153).
+        let suspendMidWaterfallPreview = false;
         const appendWaterfallChunk = (chunk: string) => {
           const normalizedChunk = chunk.trim();
           if (!normalizedChunk) return;
           accumulatedText += (accumulatedText ? '\n\n---\n\n' : '') + normalizedChunk;
-          pushWaterfallPreviewToStore(accumulatedText);
+          if (!suspendMidWaterfallPreview) {
+            pushWaterfallPreviewToStore(accumulatedText);
+          }
         };
 
         const modules: DossierWaterfallModule[] = [
@@ -1272,6 +1281,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
           experimentModel: experimentSelection?.model ?? null,
           signalAborted: activeSignal.aborted,
         });
+        suspendMidWaterfallPreview = true; // TESTE: evitar re-renders durante módulos
         for (let index = 0; index < modules.length; index += 1) {
           assertNotAborted();
 
