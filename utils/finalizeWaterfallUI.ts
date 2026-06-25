@@ -5,6 +5,7 @@
 // Motivação: PR #334 e PR #335 corrigiram o overlay hero, mas outros estados
 
 import * as Sentry from '@sentry/react';
+import { dispatchCofreRenderReady } from './cofreLifecycle';
 // de UI (spinner "Preparando investigação...", botão Interromper, composer disabled)
 // permaneciam ativos porque cada um era controlado por uma variável diferente.
 // Esta função garante invariante: se waterfall terminou e botMsgTextLen > 0,
@@ -28,8 +29,53 @@ export interface FinalizeWaterfallUIParams {
   log?: (area: string, event: string, payload: Record<string, unknown>) => void;
 }
 
+const INLINE_LOADING_BUBBLE_SELECTOR = '[data-testid="inline-loading-bubble"]';
+const BOT_MESSAGE_CONTENT_SELECTOR = '[data-testid="bot-message-content"]';
+
+const ALWAYS_HIDE_SELECTORS = [
+  '[data-testid="loading-smart-overlay"]',
+  '[data-testid="messages-viewport-suspended"]',
+  '[data-testid="loading-stop-button"]',
+] as const;
+
+function isDomElementVisible(element: Element | null): boolean {
+  if (!element || typeof window === 'undefined') return false;
+  const style = window.getComputedStyle(element);
+  const opacity = Number(style.opacity || '1');
+  if (style.display === 'none' || style.visibility === 'hidden' || opacity <= 0.01) return false;
+  const htmlEl = element as HTMLElement;
+  const rect = element.getBoundingClientRect();
+  const width = Math.max(rect.width, htmlEl.offsetWidth);
+  const height = Math.max(rect.height, htmlEl.offsetHeight);
+  if (width > 0 && height > 0) return true;
+  return Boolean(element.textContent?.trim());
+}
+
+function isBotMessageContentVisible(): boolean {
+  if (typeof document === 'undefined') return false;
+  return isDomElementVisible(document.querySelector(BOT_MESSAGE_CONTENT_SELECTOR));
+}
+
+function hideElement(selector: string): void {
+  document.querySelector<HTMLElement>(selector)?.style.setProperty('display', 'none');
+}
+
+function hideInlineLoadingBubbleIfSafe(botMsgTextLen: number): void {
+  if (botMsgTextLen > 0 && !isBotMessageContentVisible()) return;
+  hideElement(INLINE_LOADING_BUBBLE_SELECTOR);
+}
+
+function hideLoadingDOM(botMsgTextLen: number): void {
+  for (const sel of ALWAYS_HIDE_SELECTORS) {
+    hideElement(sel);
+  }
+  hideInlineLoadingBubbleIfSafe(botMsgTextLen);
+}
+
 export function finalizeWaterfallUI(params: FinalizeWaterfallUIParams): void {
   const { store, sessionId, reason, waterfallEndStatus, botMsgTextLen, log } = params;
+
+  const timingStart = typeof performance !== 'undefined' ? performance.now() : 0;
 
   // 1. Zera React state de loading
   store.setIsLoading?.(false);
@@ -38,27 +84,62 @@ export function finalizeWaterfallUI(params: FinalizeWaterfallUIParams): void {
   store.setFailureCount?.(0);
 
   // 2. DOM safety net: esconde overlay e elementos de loading via seletores diretos.
-  //    requestAnimationFrame garante execução após o commit do React, sem bloquear.
+  //    inline-loading-bubble só some quando bot-message-content está visível (ou não há dossiê).
   if (typeof document !== 'undefined') {
-    const HIDE_SELECTORS = [
-      '[data-testid="loading-smart-overlay"]',
-      '[data-testid="inline-loading-bubble"]',
-      '[data-testid="messages-viewport-suspended"]',
-      '[data-testid="loading-stop-button"]',
-    ];
+    let rafA: number | null = null;
+    let rafB: number | null = null;
+    let inlinePollTimer: number | null = null;
+    let inlinePollAttempts = 0;
+    const maxInlinePollAttempts = 40;
 
-    const hideLoadingDOM = () => {
-      for (const sel of HIDE_SELECTORS) {
-        document.querySelector<HTMLElement>(sel)?.style.setProperty('display', 'none');
+    const scheduleInlineBubblePoll = () => {
+      if (botMsgTextLen <= 0 || isBotMessageContentVisible()) {
+        hideInlineLoadingBubbleIfSafe(botMsgTextLen);
+        return;
+      }
+      if (inlinePollAttempts >= maxInlinePollAttempts) return;
+
+      inlinePollAttempts += 1;
+      inlinePollTimer = window.setTimeout(() => {
+        hideInlineLoadingBubbleIfSafe(botMsgTextLen);
+        if (!isBotMessageContentVisible() && inlinePollAttempts < maxInlinePollAttempts) {
+          scheduleInlineBubblePoll();
+        }
+      }, 300);
+    };
+
+    const tryDispatchCofreReady = () => {
+      const now = typeof performance !== 'undefined' ? performance.now() : 0;
+      const elementExists = !!document.querySelector('[data-testid="bot-message-content"]');
+      console.log('⏱️ [finalizeWaterfallUI] tryDispatchCofreReady', {
+        elapsedMs: Math.round(now - timingStart),
+        botMsgTextLen,
+        elementExists,
+        elementVisible: elementExists ? isBotMessageContentVisible() : false,
+      });
+      if (botMsgTextLen > 0 && isBotMessageContentVisible()) {
+        console.log('⏱️ [finalizeWaterfallUI] ✅ dispatchCofreRenderReady at', Math.round(now - timingStart), 'ms');
+        dispatchCofreRenderReady(sessionId);
       }
     };
 
-    // Após o React commitar o re-render (isLoading=false → unmount LoadingSmart)
-    requestAnimationFrame(() => {
-      hideLoadingDOM();
-      // Duplo RAF: garante que passou pelo ciclo completo de paint
-      requestAnimationFrame(hideLoadingDOM);
+    const runHidePass = () => {
+      hideLoadingDOM(botMsgTextLen);
+      tryDispatchCofreReady();
+    };
+
+    rafA = requestAnimationFrame(() => {
+      runHidePass();
+      rafB = requestAnimationFrame(runHidePass);
+      inlinePollTimer = window.setTimeout(() => {
+        scheduleInlineBubblePoll();
+        tryDispatchCofreReady();
+      }, 600);
     });
+
+    void rafA;
+    void rafB;
+    void inlinePollTimer;
   }
 
   // 5. Log ui-finalize-state com todos os booleanos para diagnóstico
@@ -67,7 +148,8 @@ export function finalizeWaterfallUI(params: FinalizeWaterfallUIParams): void {
       if (typeof document === 'undefined') return {};
       return {
         domHasOverlay: Boolean(document.querySelector('[data-testid="loading-smart-overlay"]')),
-        domHasInlineBubble: Boolean(document.querySelector('[data-testid="inline-loading-bubble"]')),
+        domHasInlineBubble: Boolean(document.querySelector(INLINE_LOADING_BUBBLE_SELECTOR)),
+        domHasBotContent: isBotMessageContentVisible(),
         domHasSuspended: Boolean(document.querySelector('[data-testid="messages-viewport-suspended"]')),
         domHasStopButton: Boolean(document.querySelector('[data-testid="loading-stop-button"]')),
         domComposerDisabled: Boolean(

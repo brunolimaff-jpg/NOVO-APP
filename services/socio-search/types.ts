@@ -151,12 +151,7 @@ export function normalizeText(value: string): string {
     .trim();
 }
 
-export function buildCacheKey(
-  rootCnpj: string,
-  rootCompanyName: string,
-  socioName: string,
-  operatorId = '',
-): string {
+export function buildCacheKey(rootCnpj: string, rootCompanyName: string, socioName: string, operatorId = ''): string {
   const cnpj = normalizeCnpj(rootCnpj);
   const operatorScope = normalizeText(operatorId) || 'anonymous';
   return `${CACHE_KEY_VERSION}::${operatorScope}::${cnpj || normalizeText(rootCompanyName)}::${normalizeText(socioName)}`;

@@ -411,4 +411,46 @@ describe('SectionalBotMessage', () => {
     // Com novo message.id, deve resetar e truncar novamente
     expect(getByRole('button', { name: /Ver relatório completo/ })).toBeInTheDocument();
   });
+
+  it('usa preview leve durante waterfall isThinking sem parsear secoes', () => {
+    const longBody = 'Conteúdo parcial do dossiê. '.repeat(120);
+    const message: Message = {
+      id: 'bot-waterfall-preview',
+      sender: Sender.Bot,
+      timestamp: new Date(),
+      isThinking: true,
+      text: `# Perfil Comercial\n\n${longBody}`,
+    };
+
+    render(<SectionalBotMessage message={message} isDarkMode={false} />);
+
+    expect(screen.getByTestId('waterfall-thinking-preview')).toBeInTheDocument();
+    expect(screen.queryByTestId('societary-map-shell')).not.toBeInTheDocument();
+  });
+
+  it('nao monta SocietaryMap enquanto isLoading ou isThinking estiver ativo', () => {
+    const message: Message = {
+      id: 'bot-teia-preview',
+      sender: Sender.Bot,
+      timestamp: new Date(),
+      isThinking: true,
+      text: [
+        '## Mapa de poder societario',
+        '',
+        'Análise da teia societária da empresa com texto suficiente para preview incremental no waterfall.',
+      ].join('\n'),
+    };
+
+    render(
+      <SectionalBotMessage
+        message={message}
+        isDarkMode={false}
+        empresaAlvo="Scheffer & Cia"
+        cnpj="04733767000180"
+        isLoading={false}
+      />,
+    );
+
+    expect(screen.queryByTestId('societary-map')).not.toBeInTheDocument();
+  });
 });

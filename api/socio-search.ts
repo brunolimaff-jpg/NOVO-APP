@@ -21,6 +21,23 @@ import {
 export const config = { runtime: 'nodejs' };
 export const maxDuration = 60;
 
+/** Margem abaixo de maxDuration — garante resposta JSON mesmo se runSearch estourar. */
+const HANDLER_DEADLINE_MS = 52_000;
+
+async function withHandlerDeadline<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<never>((_, reject) => {
+        timeoutId = setTimeout(() => reject(new Error(`${label} deadline after ${ms}ms`)), ms);
+      }),
+    ]);
+  } finally {
+    if (timeoutId) clearTimeout(timeoutId);
+  }
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   applyCors(req, res);
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
@@ -93,7 +110,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    const payload = await runSearch(parsed.data, wantsTrace);
+    const payload = await withHandlerDeadline(runSearch(parsed.data, wantsTrace), HANDLER_DEADLINE_MS, 'socio-search');
     setMemoryCached(cacheKey, payload);
 
     if (hasPersistentConfig) {
@@ -121,9 +138,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     return res.status(200).json(responsePayload);
   } catch (error) {
-    scoutDiag.warn('SocioSearch', 'falha no drill-down de socio', {
+    const timedOut = error instanceof Error && /deadline after/i.test(error.message);
+    scoutDiag.warn('SocioSearch', timedOut ? 'deadline no drill-down de socio' : 'falha no drill-down de socio', {
       socioName: parsed.data.socioName,
       rootCompanyName: parsed.data.rootCompanyName,
+      timedOut,
       message: error instanceof Error ? error.message : String(error),
     });
     const fallbackPayload: SocioSearchResponse & { detail: string } = {

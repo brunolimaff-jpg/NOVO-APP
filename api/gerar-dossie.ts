@@ -123,6 +123,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const message = lastError instanceof Error ? lastError.message : 'Unknown error';
   console.error('[GerarDossie] Falha total na geracao do dossie:', message);
   return res.status(extractHttpStatus(lastError)).json({
+    text: '',
     error: 'Falha ao gerar dossie. Tente novamente em instantes.',
     detail: message,
   });

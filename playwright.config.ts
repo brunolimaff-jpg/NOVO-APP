@@ -7,6 +7,7 @@ const desktopChrome = { ...devices['Desktop Chrome'] };
 const vercelBypassHeaders = process.env.VERCEL_AUTOMATION_BYPASS_SECRET
   ? { 'x-vercel-protection-bypass': process.env.VERCEL_AUTOMATION_BYPASS_SECRET }
   : undefined;
+const reportReadyTimeoutMs = Number(process.env.REPORT_READY_TIMEOUT_MS ?? 390_000);
 
 export default defineConfig({
   testDir: './tests-e2e',
@@ -27,6 +28,7 @@ export default defineConfig({
     {
       name: 'chromium',
       use: desktopChrome,
+      testIgnore: /golden-dossier-live\.spec\.ts/,
     },
     {
       name: 'critical-ux',
@@ -45,6 +47,32 @@ export default defineConfig({
       name: 'p2-cnpj-live',
       use: desktopChrome,
       testMatch: /cnpj-investigation-flow\.spec\.ts/,
+    },
+    {
+      name: 'golden-dossier-live',
+      use: {
+        ...desktopChrome,
+        trace: 'on',
+        video: 'on',
+      },
+      testMatch: /golden-dossier-live\.spec\.ts/,
+      fullyParallel: false,
+      workers: 1,
+      retries: 0,
+    },
+    {
+      // Fase 6 delivery-loop: dossiê live no preview (sem gate de qualidade)
+      name: 'report-ready',
+      use: {
+        ...desktopChrome,
+        trace: 'on',
+        video: 'retain-on-failure',
+      },
+      testMatch: /report-ready\.spec\.ts/,
+      fullyParallel: false,
+      workers: 1,
+      retries: 0,
+      timeout: reportReadyTimeoutMs + 120_000,
     },
   ],
 

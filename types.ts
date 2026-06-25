@@ -138,6 +138,16 @@ export interface ParsedContent {
   scorePorta: ScorePortaData | null;
 }
 
+export interface DossierModuleError {
+  moduleName: string;
+  modelId: string;
+  modelDisplayName: string;
+  errorMessage: string;
+  errorType: 'timeout' | 'http_error' | 'empty_response' | 'network' | 'unknown';
+  timestamp: string; // ISO 8601
+  stack?: string;
+}
+
 export interface Message {
   id: string;
   sender: Sender;
@@ -173,6 +183,8 @@ export interface Message {
    */
   groundingUsed?: boolean;
   webVerificationStatus?: WebVerificationStatus;
+  // NOVO: Erros por módulo (pipeline híbrido)
+  moduleErrors?: DossierModuleError[];
 }
 
 export interface ClienteSeniorData {

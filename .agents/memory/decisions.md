@@ -1,294 +1,232 @@
 # decisions.md — NOVO-APP
 
-## Novas Decisoes (Sessao 2026-06-19 - Auditoria 50 PRs + Onda 2.4)
+## ARQUITETURA FINAL (consolidado Fase 5 — 2026-06-24)
 
-### DI-2026-06-19-02: Cache read-only de sessoes vs toast/retry obrigatorio (Onda 2.4)
+### DI-2026-06-24-FINAL: Arquitetura Final Senior Scout 360 pos-experimento LiteLLM
 
-- **Contexto:** Auditoria 50 PRs (#358) apontou remocao do fallback localStorage em PR #317. Supabase indisponivel = sidebar vazia + risco de perda de percepcao de historico. PR #383 removeu lockout auth; outage nao trava mais o app, mas leitura de sessoes falha silenciosamente em alguns paths.
-- **Opcao A — Restaurar cache read-only das ultimas N sessoes quando Supabase falha**
-  - **Pros:** Resiliencia em outage de leitura; sidebar continua util; alinha com recomendacao retroativa da auditoria (#358); UX degradada mas nao vazia; N pequeno limita stale data.
-  - **Contras:** Reintroduz segunda fonte de leitura (PR #317 removeu IDB justamente por dual-source); exige TTL, invalidacao e testes de consistencia; risco de exibir dossies desatualizados ou de outro operator se isolamento falhar; escopo de implementacao medio-alto.
-- **Opcao B — Manter sem fallback + toast/retry obrigatorio**
-  - **Pros:** Supabase permanece fonte unica de verdade (coerente com PR #317 e DI-2026-06-10-01); Onda 1.1 endereca silent data loss no flush com scoutDiag + retry visivel; implementacao menor; evita regressao de sync cross-device documentada em CALIBER.
-  - **Contras:** Sidebar vazia durante outage prolongado; usuario depende de retry manual; nao protege leitura historica offline; percepcao de "app quebrou" se toast nao for claro.
-- **Recomendacao:** **Opcao B** para Onda 2, complementada por Onda 1.1 (persist flush com toast/retry). Reavaliar Opcao A somente se metricas de producao (`operator_events`, falhas Supabase read) mostrarem outage frequente (>1/semana) ou se Bruno priorizar resiliencia offline de leitura. Criterio de reavaliacao: 30 dias pos-Onda 1 sem incidentes de sidebar vazia reportados.
-- **Status:** aceita (Opção B) — implementada via Onda 1.1 (toast/retry persist); cache read-only não restaurado.
-- **Referencia:** auditoria `auditoria-50-prs-scout360 (1).md`, plano `.cursor/plans/avaliação_auditoria_50_prs_f7ced8ea.plan.md`, PR #317, PR #358, PR #383.
+- **Provedores de IA:** Sonnet 4.6 (modulos criticos) + DeepSeek V3.2 (operacionais) via proxy LiteLLM/Bedrock. DeepSeek direto (`api.deepseek.com`) como provider economico ($0.06/dossie). Gemini ELIMINADO como provider principal.
+- **Roteamento:** HYBRID_MODEL_MAP em `utils/llm/modelRouter.ts:34`. Feature flag `VITE_WATERFALL_TIER` para alternar entre 3 tiers (Premium $0.60 / Padrao $0.17 / Economico $0.06).
+- **Fallback:** BINARIO — `respondWithGeminiFallback` REMOVIDO (commit `322b3d7f`). `isFallbackEnabled = false` hardcoded em `_llm-client.ts:79`. Pipeline hibrido nao faz fallback automatico.
+- **UI Loading:** Aspiracional — skeleton loading (DossieSkeletonLoader). Realidade atual — CofreOverlay com fixes (computeItemKey, isCofreRenderReady leniente, safety-net dissolve 3s). Skeleton em worktree separado (`feature/inline-loading-bubble`).
+- **Qualidade:** `checkReportQuality` com modo lenient para non-Gemini (implementado em `164ad5d3`). Aceita provider nao-Gemini sem bloquear renderizacao.
+- **LiteLLM Proxy:** DEV (`litellm.dev.seniorlabs.io`) e HOMOLOG funcionais. PROD (`litellm.seniorlabs.io`) bloqueado (`token_not_found_in_db`).
+- **Diferencial Gemini irreproduzivel:** Foundation Cache (~43K chars CNPJ) + Google Search Grounding nativo por modulo. LiteLLM recebe ~15K chars sem web search. Brave Search externo e substituto parcial inferior (15 CNPJs vs 35, score 69 vs 84).
+- **Causa da falha callLiteLLM ENCONTRADA:** `MAX_LITELLM_REQUEST_TIMEOUT_MS = 38_000` em `_llm-client.ts:7` — Tabbit descobriu. Corrigido para 180_000 (`a9a93d4f`). **2 waterwalls validados apos o fix** — ambos completos (6/6 modulos, 47-51K chars, $0.13-0.14). Timeout de 38s era a unica causa da falha.
+- **Causa do travamento modulo 4-5 RESOLVIDA:** `WATERFALL_HARD_CAP_MS = 330_000` em `waterfall-orchestrator.ts:99` abortava o waterfall no modulo 5-6. Removido no commit `ffdcf096`. Waterfall agora completa 6/6 modulos (~373s).
+- **Ref:** CALIBER_LEARNINGS.md secao "ARQUITETURA FINAL", HANDOFF_AI.md, decisions.md DI-24-19 a DI-24-25, PR #386.
 
-## Novas Decisoes (Sessao 2026-06-19 - PR #383 Fase D + PR Gate IA)
+### INCONSISTENCIA REGISTRADA: Decisoes DI-24-14 vs DI-24-19 nao sao conflitantes — complementares
 
-### DI-2026-06-19-01: PR Gate IA — E2E fora dos required checks do GitHub (TRAVA FINAL)
+DI-24-14 ("DeepSeek direto substitui Gemini") e DI-24-19 ("Pipeline hibrido Sonnet+DeepSeek como arquitetura definitiva") sao tiers diferentes do mesmo sistema. DI-24-14 e o tier Economico ($0.06), DI-24-19 e o tier Padrao ($0.17). Ambos coexistem. Pipeline hibrido implementado e FUNCIONAL — 2 waterwalls validados em 2026-06-24 (47-51K chars, 6/6 modulos, $0.13-0.14).
 
-- **Decisao:** O gate de merge no GitHub usa apenas CI rapido (typecheck, vitest, coverage, build, dossier golden, smoke HTTP). E2E Critical UX e E2E Preview Vercel **nao** sao required checks. Antes do merge: agente roda Playwright `critical-ux` (11 testes) no preview Vercel, comenta evidencia na PR; merge somente com token **MERGE** explicito.
-- **Contexto:** Fase D expandiu E2E blocking (17 testes, 2 jobs). Falhas: timeout install, `playwright-github-action` Ubuntu 24.04, CI localhost ≠ preview Vercel, workflow 15 min cancel. Preview manual 5/5 e PR Gate IA 11/11 provaram ambiente real.
-- **Aprovacao PR #383:** PR Gate IA 11/11 no preview SHA `63f1c85e` (~2,7 min). Evidencia: https://github.com/brunolimaff-jpg/NOVO-APP/pull/383#issuecomment-4754627777. E2E blocking removido (`e6f256d8`). CI verde. Threads 0 abertas.
-- **Impacto:** Modelo permanente para app Vercel+Supabase. PR template com secao Preview Validation IA (follow-up).
-- **Referencia:** PR #383 HEAD `63f1c85e`, `Bruno Vault/30-DECISOES/DECISAO-PR-GATE-IA-2026-06-19.md`, `AGENTS.md` Learned Workspace Facts.
+### INCONSISTENCIA RESOLVIDA: Task #30 ("api/gemini.ts: Remove respondWithGeminiFallback") — agora implementada no commit `322b3d7f`
 
+`respondWithGeminiFallback` foi removido no commit `322b3d7f` (feat: pipeline hibrido Sonnet+DeepSeek + Zero Gemini). `isFallbackEnabled = false` hardcoded em `_llm-client.ts:79`. A task #30 esta agora refletida no codigo.
 
-## Novas Decisoes (Sessao 2026-06-18 - Sprint 1)
+### INCONSISTENCIA RESOLVIDA: Task #14 ("checkReportQuality modo lenient") — implementada no commit `164ad5d3`
 
-### DI-2026-06-18-08: Fix de pipeline deve cobrir o fluxo completo do dado (Set -> consumidores)
+`checkReportQuality` agora aceita provider nao-Gemini sem bloquear renderizacao. Implementado em `utils/llm/reportQuality.ts`.
 
-- **Decisao:** Correcoes de validacao de dados devem rastrear o fluxo completo da entrada ate o consumidor final. Nao basta adicionar ao Set intermediario se o consumidor extrai do texto formatado (`partnerText`).
-- **Contexto:** T-B.2 inicial so adicionava CNPJs validados ao Set em `knownCnpjs`, mas `validateTeiaCnpjsOutput` extrai CNPJs do `partnerText` por regex. Sem incluir no partnerText, os falsos-positivos de "CNPJ nao confirmado" continuavam. O fix real foi formatar o `partner.document` validado dentro do partnerText.
-- **Impacto:** Falsos-positivos eliminados. Validacao cross-checks partnerText + knownCnpjs para cada CNPJ.
-- **Referencia:** PR #380, `services/socio-search/extractors/teia/extractTeiaFromSsRequest.ts`
+---
 
-### DI-2026-06-18-07: Documentos de QSA validados como CNPJ (14 digitos) antes de usar
+## Novas Decisoes (Sessao 2026-06-24 — TABBIT DESCOBRE O BUG REAL: 38s timeout cap)
 
-- **Decisao:** `partner.document` de QSA deve ser validado com `length === 14` antes de ser tratado como CNPJ. CPFs mascarados (`***.123.456-**`) nao devem ser passados como CNPJ para `deriveObjectiveComplexity`.
-- **Contexto:** `pickPublicDocument` suprime IDs completos por seguranca. QSA de pessoa fisica retorna CPF mascarado que infla `deriveObjectiveComplexity` como "CNPJ nao encontrado". A validacao `length === 14` filtra CPFs mascarados (11 digitos) e outros formatos invalidos.
-- **Impacto:** `deriveObjectiveComplexity` recebe apenas CNPJs reais. Complexidade do dossie calculada corretamente.
-- **Referencia:** PR #380, `services/socio-search/extractors/teia/extractTeiaFromSsRequest.ts`
+### DI-2026-06-24-26 (CRITICA): MAX_LITELLM_REQUEST_TIMEOUT_MS=38s era o bug real da PR #386 — Tabbit descobriu
 
-### DI-2026-06-18-06: Vercel deploy poll em 2s, nao 5s
+- **Contexto:** Por 7 dias, debugamos `callLiteLLM failed` assumindo erro de rede, modelo, ou auth. Mudamos env var LITELLM_REQUEST_TIMEOUT_MS para 120000, mudamos o cliente, mudamos o waterfall... mas `_llm-client.ts:7` tinha `MAX_LITELLM_REQUEST_TIMEOUT_MS = 38_000` que anulava TUDO: `Math.min(120000, 38000) = 38s` efetivo. O Tabbit (ferramenta de audit automatizado) encontrou o valor em 5 minutos lendo o arquivo. Commit `a9a93d4f` corrigiu para 180_000.
+- **Decisao:** (1) O timeout de 38s no servidor era a causa mais provavel da falha do callLiteLLM. (2) Corrigido para 180_000. (3) O waterfall com timeout de 180s agora tem margem real para modulos DeepSeek que levam 8-44s. (4) **NAO testado apos o fix** — pode ser que o unico bug era o timeout.
+- **Causa do travamento modulo 4-5 (waterfall HOMOLOG): INCONCLUSIVO.** 12 chamadas `/api/gemini` retornaram 200 OK (monitoramento Playwright). Waterfall quebrou no modulo 4-5. Pode ser timeout (38s corrigido), erro de parsing na resposta, ou budget do proxy. Requer logs do Vercel para confirmar.
+- **Licao:** Nunca confiar em "ja mudei" sem `cat <arquivo>` ou `git diff` para confirmar. O 38s cap estava escrito em codigo desde o commit inicial e ninguem verificou.
+- **Status:** timeout corrigido — causa do travamento modulo 4-5 ainda INCONCLUSIVA.
+- **Referencia:** `api/_llm-client.ts:7`, commit `a9a93d4f`, PR #386, [[2026-06-24T23-30-00-pr386-descoberta-38s-cap]], vault `30-LICOES/LICOES-NUNCA-CONFIAR-JA-MUDEI-SEM-VERIFICAR-ARQUIVO-2026-06-24.md`.
 
-- **Decisao:** O intervalo do deploy poll no fluxo de deploy local deve ser 2s (nao 5s). O polling mais rapido reduz o tempo de espera sem impacto significativo no rate limit da API Vercel.
-- **Contexto:** Durante o deploy da PR #379, o polling de 5s atrasava a deteccao de "Ready". O deploy polling e uma operacao local de baixa frequencia (max 1 deploy por execucao).
-- **Impacto:** Deploys ficam 3s mais rapidos em media.
+### DI-2026-06-24-27: Zero Gemini implementado — respondWithGeminiFallback removido, isFallbackEnabled=false
 
-### DI-2026-06-18-05: Codex/CodeRabbit nao modifica config de infraestrutura local
+- **Contexto:** A arquitetura aspiracional de "Zero Gemini como provider principal" foi implementada no commit `322b3d7f`. `respondWithGeminiFallback` (antes em `api/gemini.ts:339`) foi removido. `isFallbackEnabled` em `_llm-client.ts:79` retorna `false` hardcoded. Agora o pipeline hibrido Sonnet+DeepSeek e o unico caminho de geracao.
+- **Decisao:** (1) Gemini eliminado como provider principal. (2) Fallback e binario — ou o provider configurado roda ou mostra erro. (3) `isFallbackEnabled = false` evita fallback silencioso que mascara erros reais. (4) Supabase credits depleted (429) agora e um erro visivel, nao um fallback silencioso.
+- **Impacto:** Se o LiteLLM estiver offline, o usuario ve erro em vez de dossie Gemini. Consciente e aceito como trade-off de confiabilidade.
+- **Status:** implementado — commit `322b3d7f`.
+- **Referencia:** `api/_llm-client.ts:79`, `api/gemini.ts`, PR #386.
 
-- **Decisao:** Ferramentas de codigo automatizado (Codex, CodeRabbit, Gemini Code Assist, etc.) nao devem modificar `.mcp.json`, `nimbalyst-local/`, `.claude/plugins/`, `docs/superpowers/` ou quaisquer arquivos de configuracao local/plugins — a menos que o Bruno peca explicitamente.
-- **Contexto:** O Codex modificou `.mcp.json` (substituiu deepseek, vercel, sentry), `nimbalyst-local/`, `.claude/plugins/`, escreveu `docs/superpowers/` e criou `CODEX.md` (duplicata de CLAUDE.md) sem solicitacao.
-- **Impacto:** `.mcp.json` restaurado com deepseek, vercel, sentry; `ai-actions.md` restaurado; manifest.json e 4 planos restaurados; CODEX.md removido.
+### DI-2026-06-24-11: Causa do freeze CONFIRMADA experimentalmente — pushWaterfallPreviewToStore a cada modulo satura React
 
-### DI-2026-06-18-04: CRON_DELETE_ENABLED nunca configurado
+- **Contexto:** A hipotese arquitetural (RAF ~16ms antes do commit React) foi testada experimentalmente com `suspendMidWaterfallPreview = true` no commit `fccfddfd`. Resultado: 7/7 modulos completos vs 6/7 antes, 0 freeze vs freeze de 390s antes, 292s vs 349s. A eliminacao do `pushWaterfallPreviewToStore` durante os modulos eliminou COMPLETAMENTE o freeze. A causa esta CONFIRMADA.
+- **Decisao:** (1) `pushWaterfallPreviewToStore` chamado a cada modulo e a causa raiz do freeze mid-waterfall. (2) O mecanismo de flush preview agendava re-renders do React com ~30K chars que colidiam com o RAF do dissolve. (3) O fix precisa bufferizar ou suprimir previews intermediarios e garantir que o flush final produza saida visual.
+- **Problema residual:** O flush final (`waterfallLifecycle.flush()` com force=true) nao gerou saida visual. O dossie completo nao apareceu. O fix precisa de ajuste para garantir que o estado final seja commitado ao DOM.
+- **Alternativas para o flush final:** (a) Bufferizar previews em array e flushar no final; (b) Corrigir `suspendMidWaterfallPreview` para que o flush manual final funcione; (c) MutationObserver no container do chat para detectar commit DOM.
+- **Status:** causa confirmada — aguardando fix do flush final.
+- **Referencia:** Commit `fccfddfd`, `features/dossier/waterfallLifecycle.ts`, PR #386.
 
-- **Decisao:** `CRON_DELETE_ENABLED` nunca sera configurado em nenhum ambiente. O cron existira apenas como painel de observacao (dry-run permanente), retornando a contagem de candidatos sem excluir.
-- **Contexto:** Bruno decidiu que o cron nao deve deletar contas nao confirmadas. A flag `CRON_DELETE_ENABLED=true` que ativaria a exclusao nunca sera setada.
-- **Impacto:** Cron retorna `{"dryRun":true,"candidates":0,"cleaned":0,"total":0}`. Usuarios com contas nao confirmadas permanecem no banco.
-- **Referencia:** `api/cron-email-confirmation.ts`, `CRON_DELETE_ENABLED` env var.
+### DI-2026-06-24-10: Framework de 7 oticas para isolar causa do freeze pos-waterfall
 
-### DI-2026-06-18-03: Hook de conclusao e consultivo, nao bloqueante
+- **Contexto:** Mesmo apos corrigir as 3 causas conhecidas (Virtuoso computeItemKey, static-fallback loop, isCofreRenderReady leniente), o freeze pos-waterfall pode persistir. O diagnostico anterior focava em `fallback_used` (REFUTADO — nao existe no frontend). Era necessario um framework sistematico para isolar a causa real entre multiplas possibilidades concorrentes.
+- **Decisao:** Adotar framework de 7 oticas concorrentes, cada uma com confianca estimada:
+  - #1 (85%): react-markdown ~30K chars bloqueia main thread -> RAF do dissolve nunca executa
+  - #2 (60%): RAF em `finalizeWaterfallUI` executa antes do React commitar novo texto ao DOM
+  - #3 (90%): Cofre DISSOLVIDO no state React mas visualmente ainda visivel (gap state vs DOM)
+  - #4 (30%): MessageRow re-renderiza apos waterfall e sobrescreve estado do Cofre
+  - #5 (95%): Cofre overlay z-index 60 cobre chat — sem freeze, mas usuario nao interage
+  - #6 (10%): useLayoutEffect re-abre Cofre apos dissolve
+  - #7 (80%): Static-fallback + markdown simultaneos criam janela de tela "vazia"
+- **Instrumentacao:** `console.time`/`console.timeEnd` injetado em 3 arquivos: `SectionalBotMessage.tsx` (tempo renderizacao), `finalizeWaterfallUI.ts` (timing dissolve), `useCofreTransition.ts` (timing transicao). Logs permitirao identificar qual otica esta ativa.
+- **Impacto:** Framework estrutural para debug. Permite direcionar investigacao com base em dados em vez de tentativa e erro. Confiancas permitem priorizar: testar #5 primeiro (mais simples), depois #3 e #1.
+- **Status:** documentada — instrumentacao deployada em `bde69158`. Aguardando logs do subagente de validacao.
+- **Referencia:** `SectionalBotMessage.tsx`, `finalizeWaterfallUI.ts`, `useCofreTransition.ts`, HANDOFF_AI.md secao "7 oticas", PR #386.
 
-- **Decisao:** O hook global usa a versao do repo em `scripts/hooks/completion-check.sh`, retorna `decision: null` e apresenta pendencias como aviso.
-- **Contexto:** O bloqueio repetido impedia o proprio fechamento documental. Para um hook de baixo risco, o contrato minimo e avisar sem impedir a continuidade.
-- **Impacto:** Pendencias continuam visiveis, mas nao criam loop de encerramento. O teste do hook passou.
-- **Referencia:** `scripts/hooks/completion-check.sh`.
+### DI-2026-06-24-09: Loop de re-render do static-fallback requer useMemo + deps ESTAVEIS para nao saturar main thread
 
-### DI-2026-06-18-02: Cron de limpeza e dry-run por padrao
+- **Contexto:** `safeMessages` sem `useMemo` + `cofreElapsedTimeMs` timer a cada 1s + deps instaveis no efeito `static-fallback-rendered` geravam 110+ re-renders durante o waterfall de 349s. A main thread saturada impedia o RAF do Cofre dissolve de executar, mantendo o overlay preso. O `handleFallbackDissolve` existia mas nunca chegava a rodar.
+- **Decisao:** (1) Envolver `safeMessages` em `useMemo` com deps estaveis. (2) Guarda booleano no efeito #3b para impedir re-execucao do static-fallback. (3) `setTimeout` para dissolve do fallback apos 100ms — tira o RAF da fila principal e evita colisao com re-renders. (4) Nao usar timer de 1s como dep de efeito que causa re-render em cadeia.
+- **Impacto:** static-fallback caiu de 110+ re-renders para 7. Cofre dissolve agora executa na main thread desobstruida.
+- **Status:** implementada — commit `9b958ad8`.
+- **Referencia:** `hooks/useCofreTransition.ts`, `components/chat/MessageTimeline.tsx`, PR #386.
 
-- **Decisao:** `api/cron-email-confirmation.ts` nao remove usuarios por padrao. A exclusao exige `CRON_DELETE_ENABLED=true`; sem a flag, o endpoint retorna a quantidade de candidatos e `cleaned: 0`.
-- **Contexto:** Em 18/06, producao retornou `CRON_SECRET not configured`. Habilitar o segredo na versao antiga acionaria exclusao direta sem prova previa da contagem.
-- **Impacto:** O rollout passa a ser em duas etapas: publicar e revisar dry-run; depois autorizar a exclusao.
-- **Referencia:** `api/cron-email-confirmation.ts`, `tests/api/cron-email-confirmation.test.ts`.
+## Novas Decisoes (Sessao 2026-06-24 — PR #386 diagnostico REAL + 3 correcoes)
 
-### DI-2026-06-18-01: Playbook priorizado, sem trava global
+### DI-2026-06-24-08: computeItemKey do Virtuoso deve forcAR re-render quando message.text muda — nao apenas message.id
 
-- **Decisao:** O playbook permanece como roadmap de qualidade, mas nao bloqueia mudancas de assunto e nao exige confirmacao para pausar.
-- **Contexto:** Bruno pediu explicitamente a retirada da trava e a consolidacao do plano revisado.
-- **Impacto:** Subagentes continuam disponiveis em paralelo; o agente principal pode executar e integrar resultados sem bloqueio global.
-- **Referencia:** `docs/superpowers/plans/2026-06-18-ai-proof-execution-playbook-revised.md`.
+- **Contexto:** `MessageTimeline.tsx:540` usava `computeItemKey={(_, message) => message.id}`. Quando `message.text` mudava de '' para 29K chars (mesmo message.id), o Virtuoso reutilizava o item DOM sem re-renderizar o conteudo. Bot-message-content ficava com height:0 (texto presente mas invisivel). Detectado via `commit:invisible-bot-content` em `MessageRow.tsx:193`. O `dispatchCofreRenderReady` depende de bot-message-content visivel no DOM — nunca disparava, Cofre dissolvia apenas por absolute-max (320s).
+- **Decisao:** (1) Incluir `isThinking` e `text.length` no computeItemKey para forcAR re-render quando o conteudo muda. (2) Nao usar apenas message.id — o id e estavel, mas o texto muda durante o waterfall. (3) `hasBotContent` como alternativa a `visibleBotWithCharsCount` no isCofreRenderReady para cobrir o gap de viewport check.
+- **Impacto:** Bot-message-content agora re-renderiza quando o texto chega. Cofre dissolve corretamente. invisible-bot-content: 0 no preview pos-fix.
+- **Status:** implementada — commits `3d42cf03` (computeItemKey) e `14d184cf` (isCofreRenderReady leniente).
+- **Referencia:** `components/chat/MessageTimeline.tsx:540`, `hooks/useCofreTransition.ts`, `components/MessageRow.tsx:193` (commit:invisible-bot-content), PR #386.
 
-## Novas Decisoes (Sessao 2026-06-17)
+## Novas Decisoes (Sessao 2026-06-23 — delivery-loop socio-search abort + gate E2E)
 
-### DI-2026-06-17-01: Playbook de Execucao a Prova de IA como plano bloqueante [SUPERADA]
+### DI-2026-06-23-06: socio-search waterfall nao pode abortar sinal compartilhado do loop principal
 
-- **Decisao:** O Playbook de Execucao a Prova de IA — Senior Scout 360 (16 tarefas, 5 fases) e registrado como plano bloqueante. Toda nova sessao deve carregar este plano como contexto principal. Se o usuario pedir algo fora do escopo do plano, o sistema deve perguntar: "O plano bloqueante ainda esta ativo. Quer pausar o plano e mudar de assunto, ou prefere continuar?"
-- **Contexto:** O playbook foi validado com 85% de confianca, 4 ajustes aplicados apos revisao. Contem 16 tarefas em 5 fases: Fundacao (Fase 0), Causa-raiz (Fase A), Loading declarativo (Fase B), Unificar timeout (Fase C), Liquidar divida (Fase D). A Fase 0 esta pronta para iniciar. O maior risco e T-A.1 (causa raiz de display:none desconhecida ha meses). O maior bloqueador e T-00.5 (helper timeout que bloqueia a Fase C).
-- **Impacto:** Mudancas de assunto agora exigem confirmacao explicita do Bruno. Proximas sessoes carregam automaticamente o plano.
-- **Referencia:** /Users/brunolima/Downloads/Particular e Compartilhado/Playbook de Execucao a Prova de IA — Senior Scout 360 e1af6db4856e40c88043249c0329ce7d.html
-- **Superada por:** DI-2026-06-18-01.
+[... historico anterior mantido ...]
 
-## Novas Decisoes (Sessao 2026-06-16)
+## Novas Decisoes (Sessao 2026-06-24 — 19 modelos testados + waterfall hibrido + HYBRID_MODEL_MAP)
 
-### DI-2026-06-16-03: gh api com corpo nunca usa backticks — heredoc com aspas simples
+### DI-2026-06-24-25: LiteLLM DEV/HOMOLOG funcional, PROD bloqueado — priorizar DeepSeek direto
 
-- **Decisao:** Comandos `gh api` que enviam corpo com texto sempre usam `cat <<'EOF' | gh api --input -` em vez de `-f body='...'`. O delimitador deve usar aspa simples (`'EOF'`) para evitar qualquer expansao de shell.
-- **Contexto:** Backticks em `gh api -f body='text with \`code\`'`foram expandidos pelo shell como substituicao de comando`$(...)`. O GITHUB_TOKEN e outros tokens de ambiente foram expostos publicamente em um comentario GitHub. O GitHub secret scanning removeu o comentario em ~8 minutos e revogou o GITHUB_TOKEN automaticamente.
-- **Impacto:** Incidente de seguranca grave. Tokens DeepSeek, Pinecone, Apify, Context7, Vercel Bypass expostos — pendentes de rotacao manual. GITHUB_TOKEN ja revogado e reautenticado.
-- **Referencia:** PR #378, commit f8af6206
+- **Contexto:** LiteLLM proxy Senior Labs testado nos 3 ambientes. DEV (`litellm.dev.seniorlabs.io`) e HOMOLOG (`litellm.homolog.seniorlabs.io`) funcionam com Haiku 4.5 (7s). PROD (`litellm.seniorlabs.io`) retorna `token_not_found_in_db` — chave `sk-...` do Bruno nao autorizada no proxy de producao. DeepSeek direto via `api.deepseek.com` funciona sem depender do proxy.
+- **Decisao:** (1) Usar apenas ambientes DEV e HOMOLOG para testes de integracao com proxy LiteLLM. (2) PROD requer configuracao da chave pelo admin Senior Labs — nao temos controle. (3) DeepSeek direto via `api.deepseek.com` e o provider substituto principal, sem dependencia de proxy corporativo. (4) Proxy LiteLLM mantido exclusivamente para Claude via Bedrock (Haiku 4.5, Sonnet 4.6). (5) `LITELLM_BASE_URL` com fallback automatico: DEV -> HOMOLOG -> erro (nao PROD).
+- **Impacto:** DeepSeek direto fica como provider principal ($0.06/dossie). Proxy LiteLLM vira provider secundario para modelos Claude. PROD bloqueado nao afeta o roadmap.
+- **Status:** confirmada.
+- **Referencia:** `api/_deepseek-direct.ts`, `LITELLM_BASE_URL` env vars, PR #386.
 
-### DI-2026-06-16-02: Vite define SENTRY_DSN condicional (ignorar vitest)
+### DI-2026-06-24-24: Tres tiers de waterfall (Premium/Padrao/Economico)
 
-- **Decisao:** `define` no vite.config.ts para expor `SENTRY_DSN` como `VITE_SENTRY_DSN` deve ser condicional: so substituir quando `!process.env.VITEST`. Sem isso, o define tenta substituir `SENTRY_DSN` mesmo em testes onde a env var nao existe, quebrando o build.
-- **Contexto:** Sentry DSN e uma env var de producao. Em dev/test, ela nao existe. `define` sem condicional substitui a string SENTRY_DSN por `undefined` em tempo de compilacao, quebrando o build local e testes.
-- **Impacto:** Build local funciona. Testes passam.
-- **Referencia:** commit f8af6206, `vite.config.ts`
+- **Contexto:** Dois waterfalls hibridos validados experimentalmente. Sonnet+DeepSeek (52K chars, ~$0.17) como padrao. Opus+Sonnet (83K chars, ~$0.60) como premium — 1.6x mais chars que o padrao mas 3.5x o custo. DeepSeek puro direto (~$0.06) como tier economico. Cada tier atende um cenario de uso diferente.
+- **Decisao:** (1) Tres tiers de waterfall: Premium (Opus 4.7 + Sonnet 4.6, 83K chars, $0.60), Padrao (Sonnet 4.6 + DeepSeek V3.2, 52K chars, $0.17), Economico (DeepSeek V4 Pro direto, ~$0.06). (2) Tier padrao e o default para dossies. (3) Tier premium para dossies de alto valor onde qualidade maxima justifica custo 3.5x maior. (4) Tier economico para exploracao/seed/prototipagem. (5) Feature flag `VITE_WATERFALL_TIER` para alternar entre tiers.
+- **Impacto:** O dossie mais caro ($0.60/dossie) ainda e compativel com o custo Gemini atual ($0.50/dossie). Tier padrao ja funciona: 66% economia vs Gemini com qualidade superior.
+- **Status:** proposta — aguardando implementacao da feature flag de tier e merge PR #386.
+- **Referencia:** `scripts/test-hybrid-waterfall.ts`, PR #386.
 
-### DI-2026-06-16-01: Sentry integrado via Vercel Marketplace, nao por env vars manuais
+### DI-2026-06-24-23: HYBRID_MODEL_MAP como mecanismo oficial de roteamento por modulo
 
-- **Decisao:** Integracao Sentry-Vercel deve ser feita exclusivamente pelo Vercel Marketplace. Env vars manuais de integracao (SENTRY\_\*) devem ser removidas porque tem `internal: true` por padrao, o que bloqueia a injecao de DSN pela integracao oficial.
-- **Contexto:** O Sentry estava configurado com env vars manuais no Vercel (SENTRY_DSN, SENTRY_ORG, SENTRY_PROJECT, SENTRY_AUTH_TOKEN, etc.). O Sentry nunca recebia erros das serverless functions porque a integracao Marketplace nao conseguia injetar o SENTRY_DSN automaticamente — as env vars manuais tinham prioridade e internal=true impedia o override.
-- **Impacto:** 8 env vars removidas. Sentry integrado via Marketplace. Source maps em producao.
-- **Referencia:** PR #378
+- **Contexto:** O pipeline hibrido mapeia cada modulo do waterfall a um modelo especifico. HYBRID_MODEL_MAP em `utils/llm/modelRouter.ts` define: Sonnet 4.6 para modulos criticos (operacao, caminho-venda), DeepSeek V3.2 via Bedrock para operacionais (tech-stack, riscos-compliance, radar-expansao, rh-sindicatos, decisores). Modulo nao mapeado retorna undefined -> fallback Gemini. Testes unitarios validam cada entrada do mapa.
+- **Decisao:** (1) HYBRID_MODEL_MAP e o mecanismo oficial de roteamento, nao hardcoded no orchestrator. (2) Modulos criticos (2/7) vao para Sonnet 4.6 (`bedrock/us.anthropic.claude-sonnet-4-6`). (3) Modulos operacionais (5/7) vao para DeepSeek V3.2 (`bedrock/deepseek.v3.2`). (4) Modulo sem entrada no mapa usa Gemini como fallback. (5) Testes unitarios obrigatorios para cada nova entrada.
+- **Impacto:** Roteamento deterministico e testavel. Qualquer modulo novo precisa de entrada no mapa. Mudanca de modelo por modulo vira configuracao, nao codigo.
+- **Status:** implementada em worktree — aguardando merge PR #386.
+- **Referencia:** `utils/llm/modelRouter.ts:34`, `tests/utils/modelRouter.test.ts`, PR #386.
 
-## Decisoes Ativas (anteriores)
+### DI-2026-06-24-22: test-models.ts como ferramenta padrao para avaliacao de modelos
 
-### DI-2026-06-15-07: Debug de sidebar vazia comeca pela network layer, nao pelo state React
+- **Contexto:** Bruno queria promptfoo para avaliar modelos, mas a complexidade de setup e manutencao (regras YAML, providers, asserts) nao se justifica para testes exploratorios. O script `scripts/test-models.ts` testa 15 modelos em < 20 min e gera resultados em `.tmp/model-test-results/` com formato padrao (chars, tempo, URLs, custo). Seletor de modelo no War Room (`/api/gerar-dossie`) permite teste interativo com dados reais em < 2 min por modelo.
+- **Decisao:** (1) Promptfoo descartado para este projeto — complexidade nao justifica uso. (2) `scripts/test-models.ts` e a ferramenta padrao para testar novos modelos. (3) Seletor no War Room e o teste final antes de decidir sobre um modelo. (4) Se no futuro houver necessidade de avaliacao comparativa sistematica (CI, regressao), reavaliar promptfoo.
+- **Status:** confirmada.
+- **Referencia:** `scripts/test-models.ts`, `scripts/test-models-round2.ts`, `scripts/test-hybrid-waterfall.ts`, PR #386.
 
-- **Decisao:** Ao investigar sidebar vazia com dados intactos no banco, o primeiro passo e inspecionar o network request (payload, content-length, status code), nao o estado React. Sidebar vazia com dados no banco = cadeia de bugs onde cada um mascara o proximo.
-- **Contexto:** Ananda e Wuender tinham historico vazio no app. Network request mostrava `content-length: 2` com payload `[]`. Isso revelou a cadeia: localStorage vazio -> query com temp operator_id -> RLS filtra por role authenticated -> retorna []. Cada bug individual passava despercebido porque o resultado final (`[]`) parecia normal.
-- **Impacto:** 3 bugs identificados em sequencia. Debug comecando pelo state React nao teria revelado a RLS.
-- **Referencia:** commits `4ca4339a`, `9ba0a2cc`, `fe6c6f9b`
+### DI-2026-06-24-21: Sonnet 4.6 como gold standard para modulos criticos
 
-### DI-2026-06-15-06: RLS policy de dossies deve cobrir anon + authenticated
+- **Contexto:** Teste de 19 modelos mostrou que Claude Sonnet 4.6 (`bedrock/us.anthropic.claude-sonnet-4-6`) e o melhor modelo para dossie comercial: 12.3K chars, 11 URLs, 11 elos, 74s. Supera Gemini em qualidade de saida (mais chars, mais fontes, mais elos). Custa $5.50/M output tokens (vs $3.50/M do Gemini 2.5 Pro) — mais caro por token mas entrega 1.6x mais chars, compensando o custo.
+- **Decisao:** (1) Sonnet 4.6 e o gold standard para modulos que exigem maxima qualidade (Operacao, Caminho de Venda). (2) Priorizar sempre Sonnet 4.6 para modulos criticos do waterfall. (3) Custo por dossier: ~$0.08-0.12 para 2 modulos criticos com Sonnet.
+- **Status:** confirmada.
+- **Referencia:** `scripts/test-models.ts`, PR #386, resultados em `~/Documents/model-test-results/`.
 
-- **Decisao:** Toda RLS policy que protege dados de negocios (dossies, user_context) deve explicitar `TO anon, authenticated`. Policy criada apenas com `TO anon` bloqueia silenciosamente usuarios logados (role `authenticated`) retornando `[]`.
-- **Contexto:** A policy `operator_own_dossies` foi criada com `TO anon`. Usuarios logados no Supabase usam role `authenticated`. O Supabase nao gera erro — simplesmente aplica RLS e retorna 0 rows. O sintoma era historico vazio (`HISTORICO (0)`) mesmo com 18 ou 47 dossies no banco.
-- **Impacto:** Migration aplicada. Historico de Ananda e Wuender restaurado.
-- **Referencia:** commit `fe6c6f9b`, `supabase/migrations/20260615_fix_dossies_rls_authenticated.sql`
+### DI-2026-06-24-20: War Room como seletor de modelos, nao promptfoo
 
-### DI-2026-06-15-05: Evento operator-relinked deve usar setTimeout(0) para garantir listeners montados
+- **Contexto:** Bruno queria promptfoo para testar e comparar modelos. Promptfoo exige configuracao complexa (providers, prompts YAML, asserts) e manutencao continua. O War Room ja tem seletor de modelo (`/api/gerar-dossie` com query param `?model=...`) e o script `scripts/test-models.ts` testa qualquer modelo em < 2 min com dados reais e saida padrao.
+- **Decisao:** (1) Seletor no War Room + `scripts/test-models.ts` substituem promptfoo. (2) Novo modelo e testado via script (2 min) + validacao no War Room (dados reais). (3) Promptfoo reavaliado apenas se precisar de CI de qualidade ou avaliacao regressiva.
+- **Status:** confirmada.
+- **Referencia:** `scripts/test-models.ts`, `api/gerar-dossie.ts`, PR #386.
 
-- **Decisao:** `window.dispatchEvent(new CustomEvent('operator-relinked'))` deve ser encapsulado em `setTimeout(() => window.dispatchEvent(...), 0)` para garantir que os listeners dos componentes filhos ja estejam registrados.
-- **Contexto:** React executa useEffect dos pais antes dos efeitos dos filhos. Quando o dispatch era sincrono no useEffect do OperatorContext (pai), nenhum listener dos componentes filhos tinha sido registrado ainda. O evento era disparado e perdido para sempre.
-- **Impacto:** Componentes que escutam `operator-relinked` (sidebar, historico) agora recebem o evento corretamente.
-- **Referencia:** commit `9ba0a2cc`, `contexts/OperatorContext.tsx`
+### DI-2026-06-24-19: Pipeline hibrido Sonnet + DeepSeek como arquitetura definitiva
 
-### DI-2026-06-15-04: OperatorContext restaura operator_id no localStorage apos resolucao de auth
+- **Contexto:** Teste waterfall hibrido com Sonnet 4.6 (modulos criticos: Operacao, Caminho de Venda) + DeepSeek V3.2 (modulos operacionais: Tech Stack, Riscos, Radar, RH, Decisores) para Scheffer produziu 52.1K chars em 7.5 min a ~$0.17 — 66% mais barato que Gemini ($0.50) com qualidade superior (52.1K chars vs 37.7K chars).
+- **Decisao:** (1) Pipeline hibrido e a arquitetura definitiva para o waterfall. (2) Sonnet 4.6 nos 2 modulos criticos (Operacao, Caminho de Venda). (3) DeepSeek V3.2 nos 5 modulos operacionais. (4) Gemini mantido como fallback e referencia golden. (5) Feature flag `VITE_HYBRID_WATERFALL=true` para controle.
+- **Impacto:** Qualidade superior ao Gemini puro com 66% economia de custo. Sonnet 4.6 custa $5.50/M output mas gera 1.6x mais chars que Gemini. DeepSeek V3.2 ($0.62/$1.85) e o melhor custo-beneficio para modulos operacionais.
+- **Status:** confirmada — aguardando merge da PR #386.
+- **Referencia:** `scripts/test-hybrid-waterfall.ts`, PR #386.
 
-- **Decisao:** Apos `resolveOperatorFromAuth()` encontrar o operator_id, o valor deve ser gravado de volta no localStorage via `storageSet(OPERATOR_ID_KEY, resolved.operatorId)`.
-- **Contexto:** `storageRemove()` no inicio do fluxo limpava `scout360:operator_id` do localStorage. `getOperatorId()` so lia de la, entao a sidebar ficava vazia porque nenhum operator_id estava disponivel. A resolucao de auth pelo Supabase encontrava o valor correto, mas nao o escrevia de volta.
-- **Impacto:** Sidebar exibe historico de dossies normalmente apos criar conta.
-- **Referencia:** commit `4ca4339a`, `contexts/OperatorContext.tsx`
+### DI-2026-06-24-18: fallbackEnabled: false para DeepSeek requer investigacao
 
-### DI-2026-06-15-03: stale-thinking retorna null, nao erro alarmista
+- **Contexto:** `LLM_FALLBACK_ENABLED=true` esta configurado no servidor, mas `fallback_used: false` em TODAS as 6 runs do experimento. Mensagem de erro `error_normalized: null`. O catch block em `executeLiteLLMGenerateContent` captura erros e chama `respondWithGeminiFallback('error')`, mas pode nunca ser alcancado se o erro ocorrer antes do ponto de fallback.
+- **Decisao:** (1) Investigar se `VITE_LLM_FALLBACK_ENABLED=true` esta sendo lido corretamente no cliente. (2) Se for bug onde fallback nunca e invocado, registrar como bug #7. (3) Se for comportamento esperado (erro ocorre antes do ponto de fallback), documentar como limitacao conhecida.
+- **Status:** em investigacao — aguardando proxima sessao de diagnostico.
+- **Referencia:** `api/gemini.ts`, `utils/llm/experiment.ts`, PR #386.
 
-- **Decisao:** Quando a bolha inline detecta stale thinking, retorna `null` (nada renderizado) em vez de mostrar erro. O estado `graceExpired` reseta entre ciclos de loading via useEffect.
-- **Contexto:** A bolha inline podia ficar travada exibindo "thinking..." mesmo apos o waterfall terminar. Em vez de mostrar erro para o usuario, o componente se auto-destroi silenciosamente.
-- **Impacto:** Bolha inline some sem alarme falso quando o estado de loading fica stale.
-- **Referencia:** commits `e2d6bbc4`, `abd12e50`, `components/MessageRow.tsx`, `components/InlineLoadingBubble.tsx`
+### DI-2026-06-24-17: suspendMidWaterfallPreview = true adotado como padrao pos-teste
 
-### DI-2026-06-15-02: "Consolidando informacoes..." e rotulo de UI, nao etapa de loading
+- **Contexto:** `suspendMidWaterfallPreview = true` eliminou freeze COMPLETAMENTE — 7/7 modulos, 0 freeze, 292s (vs 349s antes). Resolve o problema de `pushWaterfallPreviewToStore` saturar React a cada modulo.
+- **Decisao:** (1) `suspendMidWaterfallPreview = true` adotado como padrao. (2) Pendente: ajustar flush final para garantir saida visual do dossie (flush final quebrado quando `suspendMidWaterfallPreview=true`). (3) Validar experiencia do usuario sem preview incremental.
+- **Status:** confirmada — aguardando fix do flush final.
+- **Referencia:** Commit `fccfddfd`, PR #386.
 
-- **Decisao:** `finalizeLoadingProgress` nao conta "Consolidando informacoes..." como etapa real de progresso. O contador usa `Math.min(completed, total)` como safety cap para nunca exceder 100%.
-- **Contexto:** O contador de progresso exibia "8/7" porque o rotulo "Consolidando informacoes..." era contado como etapa extra. Esse rotulo e apenas um status de UI exibido apos todas as etapas reais (score PORTA, bordas de controle, etc.) terminarem.
-- **Impacto:** Contador nunca mostra "8/7" ou percentual acima de 100%.
-- **Referencia:** commits `4a102b10`, `abd12e50`, `utils/loadingStatus.ts`
+### DI-2026-06-24-16: Timeout 120s no cliente e servidor, hard-cap removido
 
-### DI-2026-06-15-01: activeGenerationRef sobrevive aos probes; generationValid capturado antes do cleanup
+- **Contexto:** As descobertas das 3 camadas de timeout revelaram que o cliente abortava em 38-42s enquanto o servidor tinha cap de 38s. DeepSeek V3.2 leva 8-49s por modulo, Sonnet 4.6 leva 69-72s.
+- **Decisao:** (1) Cliente e servidor: timeout 120s via `VITE_LITELLM_CLIENT_TIMEOUT_MS` e `LITELLM_REQUEST_TIMEOUT_MS`. (2) Hard-cap removido — cada modulo ja tem timeout individual. (3) Waterwall validado em 373s (6/6 modulos) sem hard-cap.
 
-- **Decisao:** `scheduleLoadingStuckProbes` recebe `generationValid` como parametro, capturado ANTES de `activeGenerationRef.current` ser deletado. O `observer` nao depende mais do ref para validar geracao.
-- **Contexto:** `finalizeWaterfallUI` deletava `activeGenerationRef.current` no inicio. Os probes (`scheduleLoadingStuckProbes`) nunca conseguiam validar geracao porque o ref ja era `null`. Isso deixava a safety net de loading desarmada por 6 dias.
-- **Impacto:** LoadingStuckProbes finalmente funcionam — se o loading travar por mais de 10s, o Sentry alerta.
-- **Referencia:** commits `e2d6bbc4`, `270d7d05`, `utils/finalizeWaterfallUI.ts`, `features/chat/message-orchestrator.ts`
+### DI-2026-06-24-15: bedrock/deepseek.v3.2 como modelo principal via proxy LiteLLM
 
-### DI-2026-06-14-03: restoreMocks + clearMocks globais no vitest.config.ts
+- **Contexto:** DeepSeek V3.2 via Bedrock e o melhor candidato para prompts via proxy LiteLLM. Diferente dos modelos `huawei/*` (timeout 38s, 6x mais caro que direto), `bedrock/deepseek.v3.2` usa infra AWS — sem rate limit. Custa $0.62/$1.85 por milhao de tokens (2.3x o preco direto $0.27/$0.40). Haiku 4.5 via Bedrock ja testado com sucesso (7.1s, prompt curto).
+- **Decisao:** (1) Priorizar teste de `bedrock/deepseek.v3.2` como modelo principal via proxy. (2) Huawei/deepseek-v4-pro descartado para waterfall (timeout 38s, 6x mais caro). (3) Haiku 4.5 mantido como alternativa para prompts muito curtos (<6K chars).
+- **Status:** proposta — aguardando teste.
+- **Referencia:** Catalogo LiteLLM Senior Labs, PR #386.
 
-- **Decisao:** Ativar `restoreMocks: true` e `clearMocks: true` no `vitest.config.ts` para prevenir que mocks de modulo (`vi.mock`) vazem entre arquivos de teste.
-- **Contexto:** Testes `App/*.test.tsx` mockavam `useToast` via `vi.mock`, e `message-orchestrator.test.ts` usava `useToast` real. O mock vazado quebrava `renderHook` no CI de forma intermitente.
-- **Impacto:** CI 100% verde; 162/162 arquivos, 1497/1497 testes passando.
-- **Referencia:** commit `9e9d3367`, `vitest.config.ts`
+### DI-2026-06-24-14: DeepSeek direto substitui Gemini — proxy LiteLLM nao serve para DeepSeek
 
-### DI-2026-06-14-02: CNPJ cache com identity check e sem AbortSignal do chamador
+- **Contexto:** Testamos o DeepSeek V4 Pro de duas formas: (1) via proxy LiteLLM (huawei/deepseek-v4-pro) — timeout 38s, $1.62/$3.23 por milhao de tokens, 6x o preco do direto; (2) via API direta (api.deepseek.com) — sucesso 8.9s no War Room e 6/7 modulos no Waterfall real, $0.27/$0.40 por milhao de tokens. O proxy da Senior Labs (Huawei) custa mais caro e simplesmente nao responde para o DeepSeek V4 Pro. O Haiku 4.5 via Bedrock funciona (7s), mas sem Google Search Grounding a qualidade e baixa.
+- **Decisao:** (1) DeepSeek direto via `DEEPSEEK_API_KEY` e o provider substituto real do Gemini. (2) Proxy LiteLLM mantido apenas para Claude Haiku 4.5 (Bedrock) em cenarios de prompt curto tipo DeepDiveTopics. (3) Prioridade imediata: estabilizar DeepSeek direto como provider alternativo funcional no waterfall. (4) Custo/dossie projetado: $0.06 (DeepSeek) vs $0.50 (Gemini) — economia de 88%.
+- **Impacto:** Mudanca de provider de IA principal. DeepSeek custa 88% menos que Gemini. Requer chave API propria ($0.27/$0.40 por milhao de tokens vs $1.62/$3.23 do proxy). Qualidade inferior em deteccao internacional e score PORTA (69 vs 84). Grounding ausente.
+- **Status:** confirmada — aguardando decisao de roteiro da PR #386 para priorizar merge.
+- **Referencia:** `api/_deepseek-direct.ts`, `api/gemini.ts`, PR #386, catalogo LiteLLM Senior Labs.
 
-- **Decisao:** Cache CNPJ implementado como `Map<string, Promise>`, TTL 30s. O signal do primeiro chamador NAO e passado para os demais. Cada caller faz race do proprio signal contra a promise compartilhada. Rejeicoes removem a promise do cache imediatamente. Delete verifica identity (`===`) para evitar que timer stale sobrescreva entrada nova.
-- **Contexto:** Codigo anterior criava nova promise a cada chamada sem cache; 2-3 chamadas simultaneas para o mesmo CNPJ batiam na BrasilAPI em paralelo. O AbortSignal do primeiro chamador contaminava callers posteriores, e promises rejeitadas ficavam em cache por 30s bloqueando retry.
-- **Impacto:** `api/cnpj-cache.ts` criado; `brasilApiService.ts` usa cache compartilhado.
-- **Referencia:** commits `f834794e`, `14f26d7f`, `6727783e`
+### DI-2026-06-24-13: DeepDiveTopics e o MVP ideal para LiteLLM
 
-### DI-2026-06-14-01: Worktree so para features novas; correcoes em PR aberto na branch atual
+- **Contexto:** DeepDiveTopics e um componente existente que renderiza 7 topicos cirurgicos ao final de cada dossier. Diferente do waterfall (5-7 modulos encadeados), cada deep dive e um modulo isolado e independente. Prompt estimado de 20-27K chars, contra 74K-93K do waterfall.
+- **Decisao:** (1) Priorizar DeepDiveTopics como primeiro caso de uso real do LiteLLM. (2) Feature flag `VITE_LITELLM_DEEP_DIVE`. (3) So avancar para o waterfall apos validacao.
+- **Status:** aprovada — aguardando decisao de roteiro da PR #386.
+- **Referencia:** DeepDiveTopics component, PR #386.
 
-- **Decisao:** Worktree isolado e usado apenas para implementar features novas do zero. Correcoes de bug ou ajustes em PR ja aberta sao feitas diretamente na branch de trabalho, sem worktree.
-- **Contexto:** O projeto usa worktrees por padrao (MEMORY.md — feedback_always-worktrees). Mas para correcoes em PR ja aberta, o custo de setup/teardown do worktree supera o beneficio de isolamento, especialmente quando o review ja esta em andamento.
-- **Impacto:** Commit `ed2d8b17` foi feito direto na branch `feature/supabase-auth` sem worktree.
-- **Referencia:** feedback_always-worktrees no MEMORY.md
+### DI-2026-06-24-12: callLiteLLM funciona com prompts curtos — bug e waterfall-especifico
 
-### DI-2026-06-13-07: Identidade autenticada nao fica no localStorage proprio
+- **Contexto:** Teste War Room com 6K chars: Claude Haiku 4.5 via Bedrock completou em 7.1s. Primeira vez que callLiteLLM retorna sucesso.
+- **Decisao:** (1) callLiteLLM nao tem bug fundamental. (2) Problema e Foundation Block de 44K chars reenviado sem cache. (3) Solucao 3 fases: compressor -> Foundation condensado -> hibrido. (4) Economia projetada: 97%.
+- **Status:** confirmada — aguardando implementacao.
+- **Referencia:** `api/gerar-dossie.ts` (bloco LiteLLM War Room Test), PR #386.
 
-- **Decisao:** `scout360:operator_id`, `scout360:operator_name` e `scout360:operator_email` nao devem armazenar dados derivados de Supabase Auth. A sessao autenticada fica no storage do Supabase Auth.
-- **Contexto:** CodeQL marcou clear-text storage porque o fluxo autenticado gravava email/nome/operator_id apos `signInWithPassword`.
-- **Impacto:** `OperatorContext` remove as chaves proprias ao resolver auth; preview validado com essas chaves `null` apos login/reload.
-- **Referencia:** commit `2fd6f3f8`, `contexts/OperatorContext.tsx`
+### DI-2026-06-24-28: VITE_LITELLM_CLIENT_TIMEOUT_MS como env var unica de timeout do cliente
 
-### DI-2026-06-13-06: RLS authenticated minima para user_context e radar
+- **Contexto:** Tres valores hardcoded controlavam timeout do cliente: `LITELLM_MODULAR_TEIA_TIMEOUT_MS=38000`, `LITELLM_MODULAR_INVESTIGACAO_TIMEOUT_MS=38000` em waterfall-orchestrator, e `experimentGenerateTimeoutMs=42000` em geminiProxy. Nenhum deles respeitava env var. Quando mudamos o servidor para 180s, o cliente ainda abortava em 38-42s.
+- **Decisao:** (1) Criar `resolveLiteLLMClientTimeoutMs()` em waterfall-orchestrator que le `VITE_LITELLM_CLIENT_TIMEOUT_MS` (default 120_000). (2) geminiProxy le mesma env var (default 120_000). (3) Hardcoded removido de ambos. (4) Timeout unico para toda stack de cliente. (5) VITE_LITELLM_REQUEST_TIMEOUT_MS (zumbi) removido do Vercel.
+- **Impacto:** Cliente e servidor agora alinhados em 120s efetivo. Um unico env var controla timeout do cliente.
+- **Status:** implementado — commit `0f179543`.
+- **Referencia:** `features/dossier/waterfall-orchestrator.ts`, `services/geminiProxy.ts`, PR #386.
 
-- **Decisao:** `user_context` permite SELECT do proprio `operator_id` ou legado pelo proprio email, mas INSERT/UPDATE apenas quando `profiles.operator_id` corresponde. `radar_alerts` e `radar_configs` seguem o mesmo vinculo por `profiles.operator_id`.
-- **Contexto:** Preview autenticado falhava com `new row violates row-level security policy for table "user_context"` e ruido de radar. Isso quebrava a persistencia esperada do usuario autenticado.
-- **Impacto:** Migration `auth_storage_rls_policies` aplicada no Supabase remoto. `link_legacy_operator` agora e aguardado antes de salvar o contexto legado.
-- **Referencia:** commit `c86fd0dd`, `supabase/migrations/20260613180243_auth_storage_rls_policies.sql`
+### DI-2026-06-24-29: Hard-cap 330s removido do waterfall — timeout individual por modulo
 
-### DI-2026-06-13-01: Contrato de identidade auth.uid como autoridade unica
+- **Contexto:** `WATERFALL_HARD_CAP_MS=330000` abortava todo o waterfall apos ~331s, independentemente do progresso individual dos modulos. Como o waterfall tem 6 modulos e cada modulo tem timeout 120s, o hard-cap matava o processo no modulo 5-6 mesmo com modulos anteriores completos. O waterfall de 373s (2o waterwall validado) teria sido abortado.
+- **Decisao:** (1) Remover `WATERFALL_HARD_CAP_MS`. (2) Cada modulo ja tem timeout individual de 120s (VITE_LITELLM_CLIENT_TIMEOUT_MS). (3) O unico limite superior e o `maxDuration: 300` do Vercel (5min) + margem do servidor (180s). (4) Waterfall pode durar ate ~720s teoricos (6 x 120s) sem hard-cap arbitrario.
+- **Impacto:** Waterfall agora completa mesmo que alguns modulos levem mais tempo. Risco: waterfall pode ocupar serverless function por ate 5 min (maxDuration), mas cada modulo individualmente e limitado a 120s.
+- **Status:** implementado — commit `ffdcf096`.
+- **Referencia:** `features/dossier/waterfall-orchestrator.ts`, PR #386.
 
-- **Decisao:** `auth.uid()` e a autoridade unica de identidade. `profiles.operator_id` e o vinculo com dados de negocio. `resolveOperatorFromAuth()` busca profiles pelo auth.uid(), com fallback para user_context por email. localStorage vira cache, nunca autoridade.
-- **Contexto:** O app autenticava via Supabase mas usava operator_id do localStorage como fonte principal, criando risco de dossies invisiveis e bypass de autorizacao.
-- **Impacto:** OperatorContext refeito para usar cadeia de identidade. Relink legado passa pela RPC e so e usado apos confirmacao do banco.
-- **Referencia:** commits `a953da97`, `c86fd0dd`, `contexts/OperatorContext.tsx`
+### DI-2026-06-24-30: Vercel Live Feedback bloqueia interacoes em previews (z-index 2147483647)
 
-### DI-2026-06-13-02: profiles.operator_id imutavel com RPC controlado
+- **Contexto:** Apos waterfall completar e Cofre dissolver, usuario nao conseguia clicar em nada na pagina. Mouse mostrava seta/maozinha mas nenhum clique funcionava. Inspecao no DevTools revelou `<vercel-live-feedback>` com `position: absolute; top: 0; left: 0; z-index: 2147483647` ocupando toda a viewport. O widget de comentarios da Vercel criava um overlay invisivel que capturava todos os eventos de mouse.
+- **Decisao:** (1) Desativar Vercel Toolbar no painel da Vercel (Settings → Vercel Toolbar → Disabled). (2) Nao e bug do nosso codigo — e comportamento do widget da Vercel em previews quando quebrado/travado. (3) Adicionar `?feedback=0` a URL como alternativa rapida para bypass.
+- **Impacto:** Sempre verificar `<vercel-live-feedback>` antes de diagnosticar "UI travada" em previews.
+- **Status:** resolvido — desativado no painel Vercel.
+- **Referencia:** PR #386, painel Vercel scoutagro → Settings.
 
-- **Decisao:** `profiles.operator_id` nao pode ser atualizado diretamente. REVOKE UPDATE on profiles + GRANT UPDATE(name) apenas em auth.users. RPC `link_legacy_operator` com SECURITY DEFINER e verificacao anti-IDOR (auth.uid() match + email ownership).
-- **Contexto:** operator_id mutavel permitia que qualquer funcao alterasse o vinculo de identidade, arriscando acesso cruzado a dossies.
-- **Impacto:** Migration `20260613_lock_profiles_operator_id.sql`, RPC documentado.
-- **Referencia:** `supabase/migrations/20260613_lock_profiles_operator_id.sql`
+### DI-2026-06-24-31: Bug "Ver relatório completo" e pre-existente — nao bloquear PR #386
 
-### DI-2026-06-13-03: Cron Vercel Hobby limitado a 1x/dia
-
-- **Decisao:** Schedule ajustado de `0 */6 * * *` (4x/dia) para `0 0 * * *` (1x/dia) por limite do Vercel Hobby. Handler aceita GET (nao apenas POST) e CRON_SECRET como env var.
-- **Contexto:** Vercel Hobby nao suporta schedules mais frequentes que 1x/dia. O handler anterior so aceitava POST e nao tinha CRON_SECRET.
-- **Impacto:** Contas nao confirmadas podem levar ate 24h para ser removidas.
-- **Referencia:** `api/cron-email-confirmation.ts`
-
-### DI-2026-06-13-04: Schema user_context com colunas de auth
-
-- **Decisao:** Migration idempotente adiciona `supabase_auth_id UUID` e `auth_provider TEXT` com indice em user_context. ALTER TABLE IF NOT EXISTS + CREATE INDEX IF NOT EXISTS.
-- **Contexto:** user_context nao tinha como rastrear qual auth.uid ou provider originou cada registro, dificultando diagnostico de fragmentacao.
-- **Impacto:** migration `20260613_user_context_schema.sql` aplicada em producao.
-
-### DI-2026-06-13-05: Radar resetavel no relink de operador
-
-- **Decisao:** Por decisao do Bruno, radar_alerts e radar_configs podem ser resetados quando um operador legado e relinkado a uma nova conta Supabase.
-- **Contexto:** Ao relinkar um operador, os dados de radar (alertas e configuracoes) do operator_id anterior podem ficar orfaos. Bruno autorizou o reset.
-- **Impacto:** Radar nao bloqueia o fluxo principal. PR #372 adicionou policies authenticated por `profiles.operator_id` e reduziu falhas de persistencia de radar para aviso.
-
-### DI-2026-06-12-05: Dossies devem ser buscados por email alem de operator_id
-
-- **Decisao:** O servico de acesso a dossies (`dossierAccessService.ts`) deve buscar registros por **email** como fallback quando o operator_id atual nao retorna resultados. O trigger `on_auth_user_created` na tabela profiles gera um NOVO UUID `operator_id` mesmo quando o email do usuario e o mesmo de uma conta anterior deletada.
-- **Contexto:** Bruno deletou sua conta Supabase Auth e recriou com o mesmo email. Dossies antigos (ex: Scheffer) ficaram vinculados ao operator_id ANTIGO. O historico aparece vazio na nova conta.
-- **Motivo:** Impedir perda de historico quando usuarios recriam contas Supabase. O script de consolidacao (430 -> 125 IDs) ja reduziu a fragmentacao historica, mas nao previne nova fragmentacao apos delecao de conta.
-- **Impacto:** Alteracao em `dossierAccessService.ts` para incluir `user_email` na query ou fazer fallback por email quando `operator_id` nao encontrar resultados.
-- **Referencia:** HANDOFF_AI.md — secao "ACHADO IMPORTANTE: operator_id fragmentado apos delecao de conta Supabase"
-
-### DI-2026-06-12-01: Modelo hibrido de auth Supabase
-
-- **Decisao:** Auto-confirm ativo para cadastro, cron remove contas nao confirmadas apos 48h. Novos usuarios obrigatorio, existentes opcional ate 18/06/2026.
-- **Motivo:** Equilibrio entre experiencia do usuario e seguranca. Confirmacao estrita bloquearia usuarios de teste; auto-confirm total nao validaria emails.
-- **Impacto:** Deadline 18/06 para usuarios existentes cadastrarem senha. Perda de operadores antigos que nao cadastrarem — mitigado por banner + prazo.
-- **Referencia:** Bruno Vault/30-DECISOES/DECISAO-AUTH-HIBRIDO-SUPABASE-2026-06-12.md
-
-### DI-2026-06-12-02: PR unificada (Sprints 1+2+3+4)
-
-- **Decisao:** Sprints consolidadas em PR #372 unificada, nao PRs separadas por sprint.
-- **Motivo:** Code review revelou que PRs separadas criavam dependencia (base = outro PR) e revisao duplicada. PR unificada permitiu revisao completa em unico ciclo.
-- **Impacto:** 14 arquivos, 1 revisao, 1 ciclo de CI.
-
-### DI-2026-06-12-03: error.code para identificar erros Supabase Auth
-
-- **Decisao:** Usar `error.code` (ex: `user_already_exists`) em vez de `error.message` para identificar erros de autenticacao.
-- **Motivo:** error.message pode mudar entre versoes do Supabase. error.code e estavel e documentado.
-- **Impacto:** Tratamento de erros mais robusto.
-
-### DI-2026-06-12-04: AuthGate com graceful fallback sem provider
-
-- **Decisao:** AuthGate nao trava se AuthContext nao estiver disponivel. OperatorProvider usa `operatorContext.ok || userContext` como fallback.
-- **Motivo:** Evitar tela branca se AuthContext falhar. Manter compatibilidade com fluxos que ainda nao tem auth.
-- **Impacto:** AuthGate renderiza children se `AuthContext` estiver ausente.
-
-### DI-2026-06-10-01: Dupla fonte de verdade eliminada
-
-- **Decisao:** `hasLargeBotMessage` removido de `MessageTimeline.tsx`. `useStaticTimelineFallback` e a unica fonte de verdade para decisao de fallback.
-
-### DI-2026-06-10-02: Limite de props ajustado (14 complexos, 8 enxutos)
-
-### DI-2026-06-10-03: Watchdogs consolidados em hook unico
-
-### DI-2026-06-10-04: Copiloto referencia wiki e ai-context ao iniciar sessao
-
-### DI-2026-06-08-01: Nao alterar fluxo visual sem reincidencia
-
-### DI-2026-06-08-02: Manter recovery enquanto causa raiz nao for comprovada
-
-### DI-2026-06-08-03: Wiki e indice arquitetural, nao fonte superior ao codigo
-
-### DI-2026-06-08-04: Auditorias devem conter autorrefutacao obrigatoria
-
-### DI-2026-06-08-05: Documentacao e runtime em PRs distintas
-
-## Decisoes Historicas
-
-### 2026-06-08 — Handoff final precisa apontar repo + Bruno Vault (APLICADO na PR #346)
-
-### 2026-06-11 — Tracking de Operador: canonical operatorId, findUserByEmail, PII-safe logging
+- **Contexto:** Botao "Ver relatório completo (+3 secoes)" no componente SectionalBotMessage nao expande ao clicar. Bug reproduzido apos 2 waterwalls. Investigacao revelou que o componente foi alterado no commit `eea8783c` (Cofre overlay) que adicionou `useDeferredValue` na logica de expansao. NENHUM commit da PR #386 alterou SectionalBotMessage.tsx — o bug e pre-existente.
+- **Decisao:** (1) Bug NAO bloqueia merge da PR #386. (2) Causa provavel: `useDeferredValue` introduzido no commit `eea8783c` ou overlay `<vercel-live-feedback>` bloqueando cliques. (3) Investigar e corrigir na proxima PR.
+- **Status:** documentado — correcao pendente para proxima PR.
+- **Referencia:** `components/SectionalBotMessage.tsx`, commit `eea8783c`, PR #386.

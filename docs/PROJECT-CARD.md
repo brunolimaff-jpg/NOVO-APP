@@ -21,7 +21,7 @@ Este projeto participa da biblioteca Obsidian central:
 - `.agents/memory/activeContext.md`
 - `.agents/memory/progress.md`
 - `.agents/memory/decisions.md`
-- `docs/ai-context/refactor/*`
+- `docs/archive/refactor-program/` (arquivado)
 - `docs/obsidian/00-MASTER.md` apenas como navegacao visual local
 
 ## Regras de fechamento

@@ -85,6 +85,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
     hasDossierContent,
     panelState,
     expectedBotCharsMax,
+    hasBotThinkingPlaceholder,
   } = usePanelState({
     messages,
     currentSession,
@@ -132,7 +133,12 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
 
   const theme = useChatTheme(isDarkMode);
 
-  const { shouldSuspendVirtualizedListForTimeline, recoveryKey } = useStaticTimelineFallback({
+  const {
+    shouldSuspendVirtualizedListForTimeline,
+    effectiveStaticTimelineFallback,
+    setForceStaticTimelineFallback,
+    recoveryKey,
+  } = useStaticTimelineFallback({
     currentSession,
     isLoading,
     showInitialHome,
@@ -145,6 +151,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
     hasActiveSession,
     hasDossierContent,
     showOperatorGate,
+    hasBotThinkingPlaceholder,
   });
   // ── Instrumentação: safeMessages vazio com sessão ativa ──
   const prevSafeLenRef = useRef(safeMessages.length);
@@ -239,6 +246,8 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
                 showOperatorGate={showOperatorGate}
                 showInitialHome={showInitialHome}
                 shouldSuspendVirtualizedList={shouldSuspendVirtualizedListForTimeline}
+                forceStaticTimelineFallback={effectiveStaticTimelineFallback}
+                onRequestStaticFallback={() => setForceStaticTimelineFallback(true)}
                 recoveryKey={recoveryKey}
                 onConfirmOperatorName={(name, email, existingOperatorId) => {
                   if (existingOperatorId) {

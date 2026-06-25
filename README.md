@@ -1,8 +1,8 @@
 # Senior Scout 360
 
-Senior Scout 360 is a React 19 + TypeScript + Vite web app for commercial intelligence in agribusiness. The product helps Senior sellers investigate prospects, build dossier-style analysis, qualify accounts with Score PORTA, and support follow-up through CRM and radar workflows.
+Senior Scout 360 é um app web React 19 + TypeScript + Vite para inteligência comercial no agronegócio. O produto ajuda vendedores Senior a investigar prospects, construir análises estilo dossiê, qualificar contas com Score PORTA e dar suporte ao follow-up através de fluxos de CRM e radar.
 
-## Quick start
+## Início rápido
 
 ```bash
 npm install
@@ -10,7 +10,7 @@ cp .env.example .env
 npm run dev
 ```
 
-Main commands:
+Comandos principais:
 
 ```bash
 npm run test
@@ -19,25 +19,25 @@ npm run build
 npm run lint
 ```
 
-## Project shape
+## Estrutura do projeto
 
-- `App.tsx`: main app orchestrator
-- `components/`: UI and view composition
-- `services/`: AI, data, and backend-facing logic
-- `prompts/`: prompt assets and prompt builders
-- `api/`: Vercel serverless handlers
-- `tests/` and `tests-e2e/`: automated validation
+- `App.tsx`: orquestrador principal do app
+- `components/`: composição de UI e visual
+- `services/`: lógica de IA, dados e backend
+- `prompts/`: assets e builders de prompt
+- `api/`: handlers serverless Vercel
+- `tests/` e `tests-e2e/`: validação automatizada
 
-## AI operating model
+## Modelo operacional de IA
 
-This repo intentionally uses a minimal AI setup:
+Este repo usa intencionalmente uma configuração mínima de IA:
 
-- `GitHub` is the primary external integration.
-- Repo-local skills are curated and versioned under `.agents/skills/`.
-- Global `~/.codex/skills` content must not be required to operate the repo.
-- No extra MCP servers are configured as part of the standard project setup.
+- `GitHub` é a integração externa principal.
+- Skills locais do repo são curadas e versionadas sob `.agents/skills/`.
+- Conteúdo global `~/.codex/skills` não deve ser necessário para operar o repo.
+- Nenhum MCP server extra é configurado como parte do setup padrão.
 
-The canonical skill policy lives in [`docs/SKILLS-GOVERNANCE.md`](./docs/SKILLS-GOVERNANCE.md).
+A política canônica de skills está em [`docs/SKILLS-GOVERNANCE.md`](./docs/SKILLS-GOVERNANCE.md).
 
 ## Documentação técnica
 
@@ -89,29 +89,29 @@ O incidente histórico de `display:none` no fallback estático está mitigado pe
 9. [docs/wiki/pages/24-testes-e-gates.md](docs/wiki/pages/24-testes-e-gates.md) — testes e gates
 10. [docs/wiki/pages/26-observabilidade-e-diagnosticos.md](docs/wiki/pages/26-observabilidade-e-diagnosticos.md) — observabilidade e diagnósticos
 
-## Obsidian repo graph
+## Grafo Obsidian do repositório
 
-The repo now includes a versioned Obsidian documentation layer under [`docs/obsidian/`](./docs/obsidian/).
+O repo agora inclui uma camada de documentação Obsidian versionada em [`docs/obsidian/`](./docs/obsidian/).
 
-- Start from [`docs/obsidian/00-MASTER.md`](./docs/obsidian/00-MASTER.md) for the architecture + roadmap graph entrypoint.
-- Treat it as a navigation layer. The canonical live status still lives in `HANDOFF_AI.md`, `.agents/memory/*`, and `docs/ai-context/refactor/*`.
-- Validate the graph contract with `npm run docs:obsidian:check`.
+- Comece por [`docs/obsidian/00-MASTER.md`](./docs/obsidian/00-MASTER.md) para o ponto de entrada do grafo de arquitetura + roadmap.
+- Trate como camada de navegação. O status vivo canônico continua em `HANDOFF_AI.md`, `.agents/memory/*` e `docs/archive/refactor-program/`.
+- Valide o contrato do grafo com `npm run docs:obsidian:check`.
 
-## Core docs
+## Documentação principal
 
-| Document                                                                           | Purpose                                              |
-| ---------------------------------------------------------------------------------- | ---------------------------------------------------- |
-| [`AGENTS.md`](./AGENTS.md)                                                         | Primary repo instructions                            |
-| [`docs/GUIA-INICIANTE.md`](./docs/GUIA-INICIANTE.md)                               | Fast onboarding                                      |
-| [`docs/SKILLS-GOVERNANCE.md`](./docs/SKILLS-GOVERNANCE.md)                         | Allowed skills and environment policy                |
-| [`docs/obsidian/00-MASTER.md`](./docs/obsidian/00-MASTER.md)                       | Obsidian graph entrypoint for architecture + roadmap |
-| [`docs/obsidian/OBSIDIAN-README.md`](./docs/obsidian/OBSIDIAN-README.md)           | Vault usage and maintenance contract                 |
-| [`HANDOFF_AI.md`](./HANDOFF_AI.md)                                                 | Stable entrypoint for AI handoff                     |
-| [`ARQUITETURA.md`](./ARQUITETURA.md)                                               | Technical architecture                               |
-| [`docs/ai-context/refactor/00-README.md`](./docs/ai-context/refactor/00-README.md) | Refactor program context                             |
+| Documento                                                                            | Propósito                                            |
+| ------------------------------------------------------------------------------------ | ---------------------------------------------------- |
+| [`AGENTS.md`](./AGENTS.md)                                                           | Instruções principais do repositório                 |
+| [`docs/GUIA-INICIANTE.md`](./docs/GUIA-INICIANTE.md)                                 | Onboarding rápido                                    |
+| [`docs/SKILLS-GOVERNANCE.md`](./docs/SKILLS-GOVERNANCE.md)                           | Política de skills e ambiente                        |
+| [`docs/obsidian/00-MASTER.md`](./docs/obsidian/00-MASTER.md)                         | Ponto de entrada do grafo Obsidian                   |
+| [`docs/obsidian/OBSIDIAN-README.md`](./docs/obsidian/OBSIDIAN-README.md)             | Uso do vault e contrato de manutenção                |
+| [`HANDOFF_AI.md`](./HANDOFF_AI.md)                                                   | Ponto de entrada estável para handoff de IA          |
+| [`ARQUITETURA.md`](./ARQUITETURA.md)                                                 | Arquitetura técnica                                  |
+| [`docs/archive/refactor-program/00-README.md`](./docs/archive/refactor-program/00-README.md) | Contexto do programa de refatoração (arquivado) |
 
-## CI and delivery
+## CI e entrega
 
-- CI checks live in `.github/workflows/ci.yml`.
-- `main` should remain the protected production branch.
-- Prefer merging only after `test`, `typecheck`, and `build` are green.
+- Checks de CI estão em `.github/workflows/ci.yml`.
+- `main` deve permanecer a branch de produção protegida.
+- Prefira merge apenas depois de `test`, `typecheck` e `build` verdes.

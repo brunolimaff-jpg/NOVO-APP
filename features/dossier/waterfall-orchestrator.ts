@@ -3,6 +3,7 @@ import * as Sentry from '@sentry/react';
 import { v4 as uuidv4 } from 'uuid';
 import { registerWaterfallStart, registerWaterfallEnd } from './waterfall-guard';
 import { MODULAR_DOSSIER_CONSOLIDATION_STAGE, MODULAR_DOSSIER_STAGES } from '../../constants/loadingStages';
+import { APP_VERSION } from '../../constants';
 import {
   PROMPT_CAMINHO_DE_VENDA,
   PROMPT_RADAR_EXPANSAO_GOD_MODE,
@@ -11,6 +12,7 @@ import {
   PROMPT_TECH_STACK_GOD_MODE_ATAQUE,
   PROMPT_TEIA_IDENTITY_MODULE,
   PROMPT_TEIA_DEEP_MODULE,
+  PROMPT_VERSION,
   SHARED_FOUNDATION_BLOCK,
 } from '../../prompts/megaPrompts';
 import { generateContinuityQuestion, generateDossierModule } from '../../services/geminiService';
@@ -60,6 +62,15 @@ import {
   type DossierWaterfallModule,
   type RunWaterfallModule,
 } from './porta-reconciliation';
+import { createExperimentRun, finalizeExperimentRun } from '../../utils/llm/experiment';
+import { resolveLiteLLMExperimentGate } from '../../utils/llm/experimentGate';
+import { setPreviewOperatorEmail } from '../../services/geminiProxy';
+import { getExperimentConfig, selectExperimentModel } from '../../utils/llm/modelRouter';
+import { enrichDossierWithWebSearch } from '../../utils/llm/webSearchService';
+import { buildWaterfallSocioSearchContext } from './waterfall-socio-search';
+import { checkReportQuality } from '../../utils/llm/reportQuality';
+import { calculateCost, estimateTokensFromChars } from '../../utils/llm/cost';
+import type { ExperimentSelection } from '../../utils/llm/types';
 
 interface ResetLoadingProgressOptions {
   incremental?: boolean;
@@ -67,9 +78,25 @@ interface ResetLoadingProgressOptions {
 }
 
 const MODULAR_DOSSIER_TOTAL_STAGES = 7;
-const MODULAR_REQUIRED_STEP_TIMEOUT_MS = 90000;
+const MODULAR_REQUIRED_STEP_TIMEOUT_MS = 150_000;
 const MODULAR_OPTIONAL_STEP_TIMEOUT_MS = 60000;
+/** LiteLLM: timeout alinhado com servidor (MAX_LITELLM_REQUEST_TIMEOUT_MS=180s, efetivo=120s).
+ *  Env var VITE_LITELLM_CLIENT_TIMEOUT_MS permite ajuste sem redeploy. */
+const resolveLiteLLMClientTimeoutMs = (): number => {
+  const raw = import.meta.env.VITE_LITELLM_CLIENT_TIMEOUT_MS;
+  const parsed = Number(raw);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 120_000;
+};
+const LITELLM_MODULAR_REQUIRED_STEP_TIMEOUT_MS = resolveLiteLLMClientTimeoutMs();
+const LITELLM_MODULAR_OPTIONAL_STEP_TIMEOUT_MS = resolveLiteLLMClientTimeoutMs();
 const WATERFALL_CONTEXT_WINDOW_CHARS = 12000;
+/** Preview incremental — espelhado em usePanelState / App.tsx */
+export const WATERFALL_PREVIEW_MIN_CHARS = 200;
+/** Throttle store updates durante Cofre para não bloquear main thread */
+const WATERFALL_PREVIEW_PUSH_MS = 2_000;
+const WATERFALL_PREVIEW_MIN_CHAR_DELTA = 800;
+/** Hard-cap removido — cada módulo tem timeout individual de 120s (VITE_LITELLM_CLIENT_TIMEOUT_MS). */
+/** Socio-search no contexto teia: cap agregado 100s em waterfall-socio-search.ts (evita ~312s em 12 sócios). */
 const MAX_INLINE_SOURCES_TO_VALIDATE = 8;
 const FIRST_MODULE_INDEX = 0;
 
@@ -142,20 +169,30 @@ async function buildTeiaResearchContext(params: {
   company: string;
   sessionCnpjDigits?: string | null;
   signal: AbortSignal;
+  operatorId?: string;
+  liteLLMExperiment?: boolean;
 }): Promise<TeiaResearchContext> {
-  const { company, sessionCnpjDigits, signal } = params;
+  const { company, sessionCnpjDigits, signal, operatorId, liteLLMExperiment } = params;
   const blocks: string[] = [];
   let qsaCount = 0;
   let hasHolding = false;
   let stateHint = '';
   const knownCnpjs = new Set<string>();
+  let qsaPartners: Array<{ name: string }> = [];
+  let rootCompanyName = company;
+  let rootCnpjDigits = '';
 
   const normalizedCnpj = normalizeCnpj(sessionCnpjDigits || '');
   if (normalizedCnpj.length === 14) {
     try {
       const companyData = await fetchCompanyByCnpj(normalizedCnpj, signal);
       knownCnpjs.add(normalizeCnpj(companyData.cnpj));
+      rootCompanyName = companyData.companyName || company;
+      rootCnpjDigits = normalizeCnpj(companyData.cnpj);
       qsaCount = companyData.qsa?.length || 0;
+      qsaPartners = (companyData.qsa || [])
+        .map(partner => ({ name: (partner.name || '').trim() }))
+        .filter(partner => partner.name.length > 0);
       stateHint = companyData.state || '';
       const qsaLines = (companyData.qsa || []).map(partner => {
         const partnerDoc = partner.document ? normalizeCnpj(partner.document) : '';
@@ -210,6 +247,34 @@ async function buildTeiaResearchContext(params: {
     });
   }
 
+  if (qsaPartners.length > 0 && rootCompanyName.trim()) {
+    try {
+      const socioSearchContext = await buildWaterfallSocioSearchContext({
+        partners: qsaPartners,
+        rootCompanyName,
+        rootCnpj: rootCnpjDigits || normalizedCnpj,
+        operatorId,
+        signal,
+        liteLLMExperiment,
+      });
+      if (socioSearchContext.text) {
+        blocks.push(socioSearchContext.text);
+      }
+      for (const cnpj of socioSearchContext.discoveredCnpjs) {
+        knownCnpjs.add(cnpj);
+      }
+    } catch (error) {
+      if (isAbortLikeError(error) && signal.aborted) throw error;
+      if (isAbortLikeError(error) && !liteLLMExperiment) throw error;
+      scoutDiag.warn('TeiaSocietaria', 'falha ao montar socio-search no contexto do waterfall', {
+        company,
+        rootCompanyName,
+        partnersCount: qsaPartners.length,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
   const combined = blocks.join('\n\n');
   for (const cnpj of combined.match(/\b\d{2}\.?\d{3}\.?\d{3}\/?\d{4}-?\d{2}\b/g) || []) {
     const normalized = normalizeCnpj(cnpj);
@@ -229,8 +294,17 @@ async function buildTeiaResearchContext(params: {
   };
 }
 
-const VALIDATE_INLINE_TOTAL_TIMEOUT_MS = 5_000;
-const VALIDATE_INLINE_BODY_READ_TIMEOUT_MS = 3_000;
+const VALIDATE_INLINE_TOTAL_TIMEOUT_MS = 12_000;
+const VALIDATE_INLINE_BODY_READ_TIMEOUT_MS = 4_000;
+
+function createInlineValidationSignal(totalMs: number): AbortSignal {
+  if (typeof AbortSignal.timeout === 'function') {
+    return AbortSignal.timeout(totalMs);
+  }
+  const controller = new AbortController();
+  setTimeout(() => controller.abort(), totalMs);
+  return controller.signal;
+}
 
 function withInlineValidationBudget<T>(
   promise: Promise<T>,
@@ -252,6 +326,29 @@ function withInlineValidationBudget<T>(
 }
 
 export async function validateInlineSourcesForPromotion(
+  text: string,
+  existingSources: VerifiedSource[],
+): Promise<VerifiedSource[]> {
+  const HARD_CAP_MS = VALIDATE_INLINE_TOTAL_TIMEOUT_MS + 2_000;
+  let hardCapTimeoutId: ReturnType<typeof setTimeout> | undefined;
+  const hardCapPromise = new Promise<VerifiedSource[]>(resolve => {
+    hardCapTimeoutId = setTimeout(() => {
+      scoutDiag.info('FreezeDiag', 'inline-validation:hard-cap', {
+        budgetMs: HARD_CAP_MS,
+        reason: 'waterfall-non-blocking-fallback',
+      });
+      resolve([]);
+    }, HARD_CAP_MS);
+  });
+
+  try {
+    return await Promise.race([validateInlineSourcesForPromotionCore(text, existingSources), hardCapPromise]);
+  } finally {
+    if (hardCapTimeoutId) clearTimeout(hardCapTimeoutId);
+  }
+}
+
+async function validateInlineSourcesForPromotionCore(
   text: string,
   existingSources: VerifiedSource[],
 ): Promise<VerifiedSource[]> {
@@ -281,10 +378,11 @@ export async function validateInlineSourcesForPromotion(
   }
 
   // ── Fase 2: Validação HTTP com timeout explícito ──
-  // AbortController próprio cobre fetch + leitura do body.
-  // Timeout separado para leitura do body como safety net contra
-  // streams que nunca terminam (ex: Vercel function interrompida).
   const controller = new AbortController();
+  const validationSignal = createInlineValidationSignal(VALIDATE_INLINE_TOTAL_TIMEOUT_MS);
+  const relayValidationAbort = () => controller.abort();
+  validationSignal.addEventListener('abort', relayValidationAbort, { once: true });
+
   const totalTimeoutId = setTimeout(() => {
     scoutDiag.info('FreezeDiag', 'inline-validation:timeout', {
       durationMs: Math.round(performance.now() - opStart),
@@ -299,6 +397,7 @@ export async function validateInlineSourcesForPromotion(
     scoutDiag.info('FreezeDiag', 'inline-validation:fetch:start', {
       urlCount: candidates.length,
       timestamp: Date.now(),
+      budgetMs: VALIDATE_INLINE_TOTAL_TIMEOUT_MS,
     });
 
     const fetchPromise = fetch('/api/link-status', {
@@ -308,7 +407,6 @@ export async function validateInlineSourcesForPromotion(
       signal: controller.signal,
     });
 
-    // Prevent unhandled rejection when Promise.race discards this promise
     fetchPromise.catch((err: unknown) => {
       scoutDiag.warn('FreezeDiag', 'inline-validation:fetch:race-discarded', {
         reason: err instanceof Error ? err.message : String(err),
@@ -378,6 +476,7 @@ export async function validateInlineSourcesForPromotion(
     }
 
     clearTimeout(totalTimeoutId);
+    validationSignal.removeEventListener('abort', relayValidationAbort);
     const results = data?.results || {};
     const valid = candidates.filter(source => results[source.url]?.status === 'valid');
 
@@ -392,6 +491,7 @@ export async function validateInlineSourcesForPromotion(
     return valid;
   } catch (err) {
     clearTimeout(totalTimeoutId);
+    validationSignal.removeEventListener('abort', relayValidationAbort);
     const errorDuration = performance.now() - opStart;
     const timedOut = err instanceof Error && /timeout|aborted|abort/i.test(`${err.name || ''} ${err.message || ''}`);
     scoutDiag.info('FreezeDiag', 'inline-validation:error', {
@@ -575,8 +675,81 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
       let waterfallEndStatus: 'completed' | 'failed' = 'failed';
       let foundationCacheName: string | undefined;
       let sessionToPersist: ChatSession | null = null;
+      let experimentSelection: ExperimentSelection | null = null;
+      let experimentRunId: string | null = null;
+      let experimentRunToken: string | null = null;
+      let experimentRunAuthHeaders: Record<string, string> | null = null;
+      let experimentReportText = '';
+      let experimentQualityText = '';
+      let experimentSourcesCount = 0;
+      let experimentValidSourcesCount = 0;
+      let experimentPortaScore: number | null = null;
+      let experimentFallbackUsed = false;
+      let experimentInputTokens = 0;
+      let experimentOutputTokens = 0;
+      let experimentModulesGenerated = 0;
+      const waterfallStartedAt = Date.now();
+      let relayParentWaterfallAbort: (() => void) | undefined;
+
+      const experimentGate = await resolveLiteLLMExperimentGate(waterfallOperatorEmail);
+      const llmEnabled = experimentGate.llmEnabled;
+      const experimentOperatorEmail = experimentGate.operatorEmail;
+      if (!llmEnabled && experimentGate.reason) {
+        scoutDiag.info('ModularDossier', 'LiteLLM experiment gate fechado', {
+          reason: experimentGate.reason,
+          hasSupabaseSession: experimentGate.hasSupabaseSession,
+          operatorEmail: experimentOperatorEmail,
+        });
+      }
+      if (llmEnabled) {
+        scoutDiag.info('ModularDossier', 'LiteLLM experiment gate aberto', {
+          authMode: experimentGate.authMode ?? 'supabase',
+          operatorEmail: experimentOperatorEmail,
+        });
+        setPreviewOperatorEmail(experimentOperatorEmail);
+      }
+      // Foundation cache acelera fallback Gemini server-side quando LiteLLM falha/timeout.
+      const effectiveFoundationCacheEnabled = isFoundationCacheEnabled();
+      const experimentConfig = getExperimentConfig();
+
+      if (llmEnabled) {
+        experimentSelection = selectExperimentModel({ config: experimentConfig, seed: Date.now() });
+        if (experimentSelection) {
+          try {
+            const experimentRun = await createExperimentRun({
+              experimentId: experimentSelection.experimentId,
+              variant: experimentSelection.variant,
+              selectedModel: experimentSelection.model,
+              provider: experimentSelection.provider,
+              litellmBaseUrl: experimentConfig.litellmBaseUrl || undefined,
+              environment: import.meta.env.PROD ? 'production' : 'preview',
+              runId: waterfallRunId,
+              sessionId,
+              operatorId: waterfallOperatorId,
+              operatorEmail: experimentOperatorEmail ?? undefined,
+              companyName: normalizedCompany || hintedCompany || undefined,
+              promptVersion: PROMPT_VERSION,
+              codeVersion: APP_VERSION,
+            });
+            experimentRunId = experimentRun.id;
+            experimentRunToken = experimentRun.runToken;
+            experimentRunAuthHeaders = experimentRun.authHeaders;
+          } catch (error) {
+            scoutDiag.warn('ModularDossier', 'falha ao criar llm_experiment_run; continuando waterfall', {
+              sessionId,
+              waterfallRunId,
+              error: error instanceof Error ? error.message : String(error),
+            });
+          }
+        }
+      }
 
       try {
+        const waterfallAbort = new AbortController();
+        relayParentWaterfallAbort = () => waterfallAbort.abort();
+        signal.addEventListener('abort', relayParentWaterfallAbort, { once: true });
+        const activeSignal = waterfallAbort.signal;
+
         let accumulatedText = '';
         let previousStageCompleted = false;
         const optionalStepFailures = new Set<string>();
@@ -633,14 +806,14 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
         };
 
         const assertNotAborted = () => {
-          if (signal.aborted) {
+          if (activeSignal.aborted) {
             throw new DOMException('The operation was aborted', 'AbortError');
           }
         };
 
         if (lookupTarget) {
           try {
-            const clienteData = await withAbortSignal(lookupCliente(lookupTarget), signal);
+            const clienteData = await withAbortSignal(lookupCliente(lookupTarget), activeSignal);
             waterfallLookupContext = formatarParaPrompt(clienteData);
             waterfallClienteSeniorData = extractClienteSeniorData(clienteData);
           } catch (error) {
@@ -660,7 +833,14 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
         const teiaResearchContext = await buildTeiaResearchContext({
           company: resolvedMegaCompany || waterfallClienteSeniorData?.grupo || 'empresa analisada',
           sessionCnpjDigits,
-          signal,
+          signal: activeSignal,
+          operatorId: waterfallOperatorId,
+          liteLLMExperiment: llmEnabled,
+        });
+        console.error('[TRACE] post-teia', {
+          llmEnabled,
+          teiaChars: teiaResearchContext.text.length,
+          signalAborted: activeSignal.aborted,
         });
         assertNotAborted();
 
@@ -671,12 +851,12 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
           teiaResearchText: teiaResearchContext.text,
         });
 
-        if (isFoundationCacheEnabled()) {
+        if (effectiveFoundationCacheEnabled) {
           try {
             foundationCacheName = await createWaterfallFoundationCache({
               foundationBlock: SHARED_FOUNDATION_BLOCK,
               staticContext: staticDossierContext,
-              signal,
+              signal: activeSignal,
             });
             assertNotAborted();
           } catch (error) {
@@ -704,7 +884,20 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
           useGrounding: true as const,
           onGroundingSources: appendGroundingSources,
           onVerificationStatus: rememberVerificationStatus,
+          onLlmMetadata: (metadata: {
+            provider?: 'gemini' | 'litellm';
+            fallbackUsed: boolean;
+            usage?: { promptTokenCount?: number; candidatesTokenCount?: number };
+          }) => {
+            experimentFallbackUsed ||= metadata.fallbackUsed;
+            experimentModulesGenerated += 1;
+            if (metadata.provider === 'litellm' && !metadata.fallbackUsed) {
+              experimentInputTokens += metadata.usage?.promptTokenCount ?? 0;
+              experimentOutputTokens += metadata.usage?.candidatesTokenCount ?? 0;
+            }
+          },
           ...(foundationCacheName ? { foundationCacheName } : {}),
+          ...(experimentSelection ? { selectedModel: experimentSelection.model } : {}),
           // Cost tracking (via message-orchestrator args + sessionStorage fallback)
           operatorId: waterfallOperatorId,
           operatorEmail: waterfallOperatorEmail,
@@ -716,12 +909,151 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
           sessionId,
           companyCnpj: sessionCnpjDigits || undefined,
           companyName: resolvedMegaCompany || undefined,
+          groundingContextBlock: undefined as string | undefined,
+        };
+        const moduleFoundationBlock = SHARED_FOUNDATION_BLOCK;
+
+        let webSearchGroundingBlock = '';
+        if (llmEnabled) {
+          try {
+            const empresaParaBusca =
+              resolvedMegaCompany ||
+              waterfallClienteSeniorData?.grupo ||
+              hintedCompany ||
+              normalizedCompany ||
+              'empresa';
+            console.error('[TRACE] pre-websearch', {
+              llmEnabled,
+              signalAborted: activeSignal.aborted,
+            });
+            const webResults = await enrichDossierWithWebSearch(empresaParaBusca);
+            webSearchGroundingBlock = webResults.groundingBlock;
+            scoutDiag.info('ModularDossier', 'web search injetada no grounding', {
+              empresa: empresaParaBusca,
+              blockChars: webSearchGroundingBlock.length,
+            });
+          } catch (error) {
+            scoutDiag.warn('ModularDossier', 'web search falhou; continuando sem enriquecimento', {
+              error: error instanceof Error ? error.message : String(error),
+            });
+          }
+        }
+        const effectiveGroundingBlock = webSearchGroundingBlock;
+        if (webSearchGroundingBlock) {
+          sharedDossierModuleOptions.groundingContextBlock = webSearchGroundingBlock;
+        }
+
+        let lastPreviewPushAt = 0;
+        let lastPreviewPushChars = 0;
+        let pendingPreviewText: string | null = null;
+        let previewFlushKind: 'none' | 'timeout' | 'idle' = 'none';
+        let previewFlushHandle: ReturnType<typeof setTimeout> | number | null = null;
+
+        const cancelScheduledPreviewFlush = () => {
+          if (previewFlushKind === 'timeout' && previewFlushHandle !== null) {
+            clearTimeout(previewFlushHandle as ReturnType<typeof setTimeout>);
+          } else if (
+            previewFlushKind === 'idle' &&
+            previewFlushHandle !== null &&
+            typeof cancelIdleCallback !== 'undefined'
+          ) {
+            cancelIdleCallback(previewFlushHandle as number);
+          }
+          previewFlushKind = 'none';
+          previewFlushHandle = null;
         };
 
+        const flushWaterfallPreviewToStore = (previewText: string) => {
+          const trimmed = previewText.trim();
+          if (trimmed.length < WATERFALL_PREVIEW_MIN_CHARS) return;
+          lastPreviewPushAt = Date.now();
+          lastPreviewPushChars = trimmed.length;
+          pendingPreviewText = null;
+          updateSessionById(sessionId, session => ({
+            ...session,
+            messages: session.messages.map(message =>
+              message.id === botMessageId
+                ? {
+                    ...message,
+                    text: trimmed,
+                    isThinking: true,
+                    loadingVariant: message.loadingVariant ?? 'inline',
+                  }
+                : message,
+            ),
+          }));
+        };
+
+        const runPendingPreviewFlush = () => {
+          previewFlushKind = 'none';
+          previewFlushHandle = null;
+          const text = pendingPreviewText;
+          if (!text) return;
+          flushWaterfallPreviewToStore(text);
+        };
+
+        const scheduleDeferredPreviewFlush = () => {
+          if (previewFlushKind !== 'none') return;
+          if (typeof requestIdleCallback !== 'undefined') {
+            previewFlushKind = 'idle';
+            previewFlushHandle = requestIdleCallback(runPendingPreviewFlush, { timeout: 2_500 });
+          } else {
+            previewFlushKind = 'timeout';
+            previewFlushHandle = setTimeout(runPendingPreviewFlush, 0);
+          }
+        };
+
+        const pushWaterfallPreviewToStore = (previewText: string, force = false) => {
+          const trimmed = previewText.trim();
+          if (trimmed.length < WATERFALL_PREVIEW_MIN_CHARS && !force) return;
+          pendingPreviewText = trimmed;
+
+          if (force) {
+            cancelScheduledPreviewFlush();
+            runPendingPreviewFlush();
+            return;
+          }
+
+          const now = Date.now();
+          const charDelta = trimmed.length - lastPreviewPushChars;
+          if (now - lastPreviewPushAt < WATERFALL_PREVIEW_PUSH_MS && charDelta < WATERFALL_PREVIEW_MIN_CHAR_DELTA) {
+            if (previewFlushKind === 'none') {
+              previewFlushKind = 'timeout';
+              const delayMs = Math.max(WATERFALL_PREVIEW_PUSH_MS - (now - lastPreviewPushAt), 50);
+              previewFlushHandle = setTimeout(runPendingPreviewFlush, delayMs);
+            }
+            return;
+          }
+
+          scheduleDeferredPreviewFlush();
+        };
+
+        // BLOQUEIO TEMPORÁRIO: não fazer flush preview durante módulos.
+        // Cada pushWaterfallPreviewToStore causa React re-render + react-markdown
+        // em DOM crescente (7K→14K→20K→25K→30K), saturando main thread e
+        // congelando UI. Apenas o flush final (force=true, linha ~1474) é mantido.
+        // Lição: "Nao fazer flushWaterfallPreview por modulo no waterfall"
+        // (CALIBER_LEARNINGS:153).
+        let suspendMidWaterfallPreview = false;
         const appendWaterfallChunk = (chunk: string) => {
           const normalizedChunk = chunk.trim();
           if (!normalizedChunk) return;
           accumulatedText += (accumulatedText ? '\n\n---\n\n' : '') + normalizedChunk;
+          if (!suspendMidWaterfallPreview) {
+            pushWaterfallPreviewToStore(accumulatedText);
+          }
+        };
+
+        // Mapeia nome do módulo → chave do HYBRID_MODEL_MAP
+        const resolveModuleName = (moduleName: string): string | undefined => {
+          const map: Record<string, string> = {
+            'Porte / Teia Societária': 'teia-societaria',
+            'Operação / Cadeia de Valor': 'operacao',
+            'Bordas de Controle': 'riscos-compliance',
+            'Riscos & Compliance': 'riscos-compliance',
+            'Caminho de Venda': 'caminho-venda',
+          };
+          return map[moduleName];
         };
 
         const modules: DossierWaterfallModule[] = [
@@ -762,40 +1094,64 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
           },
         ];
 
+        if (llmEnabled) {
+          for (const module of modules) {
+            module.timeoutMs = module.optional
+              ? LITELLM_MODULAR_OPTIONAL_STEP_TIMEOUT_MS
+              : LITELLM_MODULAR_REQUIRED_STEP_TIMEOUT_MS;
+          }
+          scoutDiag.info('ModularDossier', 'timeouts LiteLLM aplicados aos módulos', {
+            sessionId,
+            requiredMs: LITELLM_MODULAR_REQUIRED_STEP_TIMEOUT_MS,
+            optionalMs: LITELLM_MODULAR_OPTIONAL_STEP_TIMEOUT_MS,
+          });
+        }
+
         const modulesByName = new Map(modules.map(module => [module.name, module]));
         const runWaterfallModule: RunWaterfallModule = async (
           module,
           accumulatedTextSnapshot,
           contextHint = '',
           timeoutMs = module.timeoutMs,
-        ) =>
-          generateDossierModule(
+        ) => {
+          // Pipeline híbrido: seleciona modelo por módulo
+          const moduleKey = resolveModuleName(module.name);
+          const moduleSelection = moduleKey
+            ? selectExperimentModel({ config: experimentConfig, seed: Date.now(), moduleName: moduleKey })
+            : experimentSelection;
+
+          return generateDossierModule(
             module.name,
             resolvedMegaCompany || 'Empresa',
-            SHARED_FOUNDATION_BLOCK,
+            moduleFoundationBlock,
             module.prompt,
             buildModuleExtraContext(accumulatedTextSnapshot, contextHint),
             {
-              signal,
+              signal: activeSignal,
               timeoutMs,
               ...sharedDossierModuleOptions,
+              ...(moduleSelection ? { selectedModel: moduleSelection.model } : {}),
             },
           );
+        };
 
         const runTeiaSocietariaOrchestration = async (): Promise<string> => {
           let identityResult: string;
+          const teiaRequiredTimeoutMs = llmEnabled
+            ? LITELLM_MODULAR_REQUIRED_STEP_TIMEOUT_MS
+            : MODULAR_REQUIRED_STEP_TIMEOUT_MS;
 
           try {
             const identityStart = performance.now();
             identityResult = await generateDossierModule(
               'Teia Societaria — Identidade',
               resolvedMegaCompany || 'Empresa',
-              SHARED_FOUNDATION_BLOCK,
+              moduleFoundationBlock,
               PROMPT_TEIA_IDENTITY_MODULE,
               buildModuleExtraContext(accumulatedText),
               {
-                signal,
-                timeoutMs: MODULAR_REQUIRED_STEP_TIMEOUT_MS,
+                signal: activeSignal,
+                timeoutMs: teiaRequiredTimeoutMs,
                 temperature: 0.1,
                 ...sharedDossierModuleOptions,
               },
@@ -874,12 +1230,12 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
               const deepResult = await generateDossierModule(
                 'Teia Societaria — Profundidade',
                 resolvedMegaCompany || 'Empresa',
-                SHARED_FOUNDATION_BLOCK,
+                moduleFoundationBlock,
                 PROMPT_TEIA_DEEP_MODULE,
                 buildModuleExtraContext(combinedTeiaText),
                 {
-                  signal,
-                  timeoutMs: MODULAR_REQUIRED_STEP_TIMEOUT_MS,
+                  signal: activeSignal,
+                  timeoutMs: teiaRequiredTimeoutMs,
                   temperature: 0.1,
                   ...sharedDossierModuleOptions,
                 },
@@ -934,6 +1290,13 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
           });
         }
 
+        console.error('[TRACE] pre-module-loop', {
+          llmEnabled,
+          moduleCount: modules.length,
+          experimentModel: experimentSelection?.model ?? null,
+          signalAborted: activeSignal.aborted,
+        });
+        suspendMidWaterfallPreview = true; // TESTE: evitar re-renders durante módulos
         for (let index = 0; index < modules.length; index += 1) {
           assertNotAborted();
 
@@ -991,7 +1354,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
         const benchmarkCompleted = await runDossierBenchmarkStage({
           sessionId,
           company: resolvedMegaCompany,
-          signal,
+          signal: activeSignal,
           appendWaterfallChunk,
           optionalStepFailures,
           setFailureCount,
@@ -1019,7 +1382,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
           const result = await Promise.race([
             reconcileWaterfallPorta({
               sessionId,
-              signal,
+              signal: activeSignal,
               resolvedMegaCompany,
               sessionCnpjDigits,
               dossierSeedContext,
@@ -1045,7 +1408,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
           waterfallPortaResolution = result.resolution;
           portaIntegrityHold = result.portaIntegrityHold;
         } catch (error) {
-          if (signal?.aborted) throw error;
+          if (activeSignal.aborted) throw error;
           scoutDiag.warn(
             'ModularDossier',
             'reconcileWaterfallPorta falhou ou timeout; continuando com texto acumulado',
@@ -1076,6 +1439,9 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
           portaIntegrityHold || !waterfallPortaResolution
             ? null
             : ensureWaterfallScorePorta(accumulatedText, waterfallPortaResolution);
+        experimentPortaScore = waterfallScorePorta?.score ?? null;
+        // O texto visível remove markers internos; o gate precisa auditar o bruto reconciliado.
+        experimentQualityText = accumulatedText;
         const waterfallCleanText = stripPortaMarkers(accumulatedText).trim();
         const waterfallConstrainedText = sanitizeSensitivePersonalData(
           enforceSeniorEvidenceConstraints(
@@ -1130,6 +1496,12 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
           finalized.text ||
           accumulatedText ||
           `Dossiê de ${resolvedMegaCompany || 'empresa'} não pôde ser gerado. Tente novamente.`;
+        pushWaterfallPreviewToStore(waterfallFinalText, true);
+        experimentReportText = waterfallFinalText;
+        experimentSourcesCount = waterfallGroundingSources.length;
+        experimentValidSourcesCount = waterfallGroundingSources.filter(
+          source => source.verification === 'fallback' || source.verification === 'grounding',
+        ).length;
         const hasFallbackVerified =
           Array.from(waterfallVerificationStatuses.values()).some(status => status === 'fallback_verified') ||
           waterfallGroundingSources.some(source => source.verification === 'fallback');
@@ -1160,10 +1532,10 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
           const continuityController = new AbortController();
           const forwardContinuityAbort = () => continuityController.abort();
           let continuityTimeoutId: ReturnType<typeof setTimeout> | undefined;
-          if (signal.aborted) {
+          if (activeSignal.aborted) {
             continuityController.abort();
           } else {
-            signal.addEventListener('abort', forwardContinuityAbort, { once: true });
+            activeSignal.addEventListener('abort', forwardContinuityAbort, { once: true });
           }
 
           try {
@@ -1215,10 +1587,10 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
             waterfallSuggestions = await Promise.race([continuityPromise, timeoutFallbackPromise]);
           } finally {
             if (continuityTimeoutId) clearTimeout(continuityTimeoutId);
-            signal.removeEventListener('abort', forwardContinuityAbort);
+            activeSignal.removeEventListener('abort', forwardContinuityAbort);
           }
         } catch (error) {
-          if (signal.aborted) throw error;
+          if (activeSignal.aborted) throw error;
           scoutDiag.warn('ModularDossier', 'falha ao gerar sugestões finais do waterfall', {
             sessionId,
             company: resolvedMegaCompany || null,
@@ -1480,6 +1852,138 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
 
         waterfallEndStatus = 'completed';
       } finally {
+        if (relayParentWaterfallAbort) {
+          signal.removeEventListener('abort', relayParentWaterfallAbort);
+        }
+
+        if (experimentRunId && experimentRunToken) {
+          try {
+            const quality = checkReportQuality({
+              text: experimentQualityText || experimentReportText,
+              sourcesCount: experimentSourcesCount,
+              validSourcesCount: experimentValidSourcesCount,
+              portaScore: experimentPortaScore,
+              parserSuccess: waterfallEndStatus === 'completed',
+              provider: experimentSelection?.provider,
+            });
+            const status =
+              waterfallEndStatus !== 'completed'
+                ? 'failed'
+                : experimentFallbackUsed
+                  ? 'fallback'
+                  : quality.isQualityFailure
+                    ? 'quality_failure'
+                    : 'completed';
+            const estimatedTokens = estimateTokensFromChars(experimentReportText.length);
+            const hasMeasuredUsage = experimentInputTokens > 0 || experimentOutputTokens > 0;
+            const measuredCost = experimentSelection
+              ? calculateCost(
+                  experimentSelection.model,
+                  hasMeasuredUsage
+                    ? { inputTokens: experimentInputTokens, outputTokens: experimentOutputTokens }
+                    : undefined,
+                  experimentReportText.length,
+                )
+              : null;
+
+            scoutDiag.info('ModularDossier', 'finalizando llm_experiment_run', {
+              sessionId,
+              waterfallRunId,
+              experimentRunId,
+              status,
+              fallbackUsed: experimentFallbackUsed,
+              reportChars: experimentReportText.length,
+              reusedAuthHeaders: Boolean(experimentRunAuthHeaders),
+            });
+
+            void finalizeExperimentRun(
+              {
+                id: experimentRunId,
+                runToken: experimentRunToken,
+                status,
+                operatorEmail: experimentOperatorEmail ?? undefined,
+                structuralScore: quality.structuralScore,
+                fallbackUsed: experimentFallbackUsed,
+                fallbackModel: experimentFallbackUsed ? 'gemini-3-flash-preview' : undefined,
+                modulesGenerated: experimentModulesGenerated,
+                reportChars: experimentReportText.length,
+                reportTokensEstimated: estimatedTokens,
+                inputTokens: hasMeasuredUsage ? experimentInputTokens : undefined,
+                outputTokens: hasMeasuredUsage ? experimentOutputTokens : estimatedTokens,
+                totalTokens: hasMeasuredUsage ? experimentInputTokens + experimentOutputTokens : estimatedTokens,
+                inputCostUsd: measuredCost?.inputCostUsd,
+                outputCostUsd: measuredCost?.outputCostUsd,
+                totalCostUsd: measuredCost?.totalCostUsd,
+                estimatedCost: measuredCost?.estimated ?? true,
+                costEstimationMethod: measuredCost?.method ?? 'chars',
+                inputPriceUsed: measuredCost?.inputPriceUsed,
+                outputPriceUsed: measuredCost?.outputPriceUsed,
+                sourcesCount: experimentSourcesCount,
+                validSourcesCount: experimentValidSourcesCount,
+                portaMarkersValid: quality.portaMarkersValid,
+                teiaComplexidadePresent: quality.teiaComplexidadePresent,
+                portaScorePresent: experimentPortaScore !== null,
+                portaScore: experimentPortaScore ?? undefined,
+                waterfallDurationMs: Date.now() - waterfallStartedAt,
+                totalLatencyMs: Date.now() - waterfallStartedAt,
+                renderSuccess: waterfallEndStatus === 'completed',
+                markdownBroken: quality.markdownBroken,
+                responseEmpty: !experimentReportText.trim(),
+              },
+              { authHeaders: experimentRunAuthHeaders ?? undefined },
+            )
+              .then(() => {
+                scoutDiag.info('ModularDossier', 'llm_experiment_run finalizado', {
+                  sessionId,
+                  waterfallRunId,
+                  experimentRunId,
+                  status,
+                });
+              })
+              .catch(error => {
+                scoutDiag.warn('ModularDossier', 'falha ao finalizar llm_experiment_run', {
+                  sessionId,
+                  waterfallRunId,
+                  experimentRunId,
+                  error: error instanceof Error ? error.message : String(error),
+                });
+                Sentry.captureException(error, {
+                  level: 'warning',
+                  tags: { area: 'experiment-finalize', experiment_run_id: experimentRunId },
+                  extra: { sessionId, waterfallRunId },
+                });
+              });
+          } catch (error) {
+            scoutDiag.warn('ModularDossier', 'falha ao calcular qualidade llm_experiment_run', {
+              sessionId,
+              waterfallRunId,
+              experimentRunId,
+              error: error instanceof Error ? error.message : String(error),
+            });
+            void finalizeExperimentRun(
+              {
+                id: experimentRunId,
+                runToken: experimentRunToken,
+                status: 'failed',
+                operatorEmail: experimentOperatorEmail ?? undefined,
+                fallbackUsed: experimentFallbackUsed,
+                reportChars: experimentReportText.length,
+                responseEmpty: !experimentReportText.trim(),
+                waterfallDurationMs: Date.now() - waterfallStartedAt,
+                renderSuccess: false,
+              },
+              { authHeaders: experimentRunAuthHeaders ?? undefined },
+            ).catch(finalizeError => {
+              scoutDiag.warn('ModularDossier', 'falha na finalização mínima llm_experiment_run', {
+                sessionId,
+                waterfallRunId,
+                experimentRunId,
+                error: finalizeError instanceof Error ? finalizeError.message : String(finalizeError),
+              });
+            });
+          }
+        }
+
         // Fire-and-forget: limpeza de cache não deve bloquear o retorno do waterfall.
         // Timeout de 15s com warning se a promise não resolver.
         if (foundationCacheName) {
@@ -1560,6 +2064,26 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
         // e overlay DOM. PR #334/#335 corrigiram só o overlay — persistiam
         // "Preparando investigação...", "Gerando resposta...", Interromper.
         const botMsgTextLen = typeof healthBotMsg?.text === 'string' ? healthBotMsg.text.length : -1;
+
+        if (
+          waterfallEndStatus !== 'completed' &&
+          healthBotMsg &&
+          typeof healthBotMsg.text === 'string' &&
+          healthBotMsg.text.length >= WATERFALL_PREVIEW_MIN_CHARS &&
+          healthBotMsg.isThinking
+        ) {
+          updateSessionById(sessionId, session => ({
+            ...session,
+            messages: session.messages.map(message =>
+              message.id === botMessageId ? { ...message, isThinking: false, loadingVariant: undefined } : message,
+            ),
+          }));
+          scoutDiag.info('WaterfallLifecycle', 'preview-promoted-on-failure', {
+            sessionId,
+            waterfallRunId,
+            previewChars: healthBotMsg.text.length,
+          });
+        }
 
         finalizeWaterfallUI({
           store: {

@@ -327,6 +327,10 @@ describe('useDossierWaterfallOrchestrator', () => {
     getContextoConcorrentesRegionaisMock.mockReturnValue('');
     generatePortaContextForDeepDiveMock.mockReturnValue('');
     fetchCompanyByCnpjMock.mockRejectedValue(new Error('CNPJ lookup not mocked'));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({ ok: true, json: async () => ({ companies: [], degraded: false }) }),
+    );
     generateDossierModuleMock.mockImplementation(async (moduleName: string) => `${moduleName} consolidado`);
     generateContinuityQuestionMock.mockResolvedValue(DEFAULT_SUGGESTIONS);
     isFoundationCacheEnabledMock.mockReturnValue(false);
@@ -585,6 +589,58 @@ describe('useDossierWaterfallOrchestrator', () => {
     expect(identityExtraContext).toContain('Maria Acme');
     expect(deepExtraContext).toContain('Contexto anterior consolidado');
     expect(deepExtraContext).toContain('Visão geral do grupo');
+  });
+
+  it('injeta socio-search no staticDossierContext antes dos módulos', async () => {
+    const globalFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        companies: [
+          {
+            name: 'Holding Acme Participações Ltda',
+            cnpj: '04733767000180',
+            partnerName: 'Maria Acme',
+            sourceUrl: 'https://example.com/holding',
+            sourceTitle: 'Fonte',
+            snippet: 'Participação societária',
+            confidence: 'strong',
+            evidenceType: 'registry',
+            relationshipScope: 'group_link',
+          },
+        ],
+        degraded: false,
+      }),
+    });
+    vi.stubGlobal('fetch', globalFetch);
+
+    getContextoConcorrentesRegionaisMock.mockReturnValue('Concorrentes regionais em MT');
+    generatePortaContextForDeepDiveMock.mockReturnValue('PORTA Score atual 74');
+    fetchCompanyByCnpjMock.mockResolvedValue({
+      cnpj: '12345678000190',
+      companyName: 'Acme Agro Ltda',
+      city: 'Sapezal',
+      state: 'MT',
+      qsa: [{ name: 'Maria Acme', role: 'Sócia-administradora', source: 'BrasilAPI', confidence: 'official' }],
+    });
+
+    const harness = makeHarness();
+
+    await act(async () => {
+      await harness.result.current.runMegaPromptWaterfall(makeRunArgs());
+    });
+
+    expect(globalFetch).toHaveBeenCalledWith(
+      '/api/socio-search',
+      expect.objectContaining({
+        method: 'POST',
+        body: expect.stringContaining('Maria Acme'),
+      }),
+    );
+
+    const identityExtraContext = generateDossierModuleMock.mock.calls[0][4] as string;
+    expect(identityExtraContext).toContain('[TEIA SOCIO-SEARCH]');
+    expect(identityExtraContext).toContain('Holding Acme Participações Ltda');
+    expect(identityExtraContext).toContain('04.733.767/0001-80');
   });
 
   it('executa módulo 1b quando o 1a não emite marcador mas a evidência objetiva indica complexidade média', async () => {

@@ -105,7 +105,7 @@ O `ChatInterface.tsx` foi reduzido de **811 para 331 linhas** (-59%). Seis hooks
 ## Referencias
 
 - [[ARCH-Chat-Experience]] (arquitetura do chat)
-- [[LICOES-APRENDIDAS-TELA-BRANCA-PR307]] (sessao anterior de watchdog)
+- [[LICOES-APRENDIDAS-TELA-BRANCA-PR307-2026-05-28]] (sessao anterior de watchdog)
 - `docs/wiki/pages/29-chatinterface-refactor.md`
 - `docs/wiki/pages/30-loading-stages.md`
 - `docs/ai-context/refactor/02-BOARD.md`

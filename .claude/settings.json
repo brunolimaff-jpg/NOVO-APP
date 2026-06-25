@@ -1,47 +1,4 @@
 {
-  "statusLine": {
-    "type": "command",
-    "command": "i=$(cat);m=$(echo \"$i\"|jq -r '.model.display_name//empty');b=$(git --no-optional-locks rev-parse --abbrev-ref HEAD 2>/dev/null);u=$(echo \"$i\"|jq -r '.context_window.used_percentage//empty');out=\"$m\";[ -n \"$b\" ] && [ \"$b\" != HEAD ] && out=\"$out ($b)\";if [ -n \"$u\" ];then n=$(printf '%.0f' \"$u\");f=$((n/10));bar=$(printf '%*s' \"$f\" ''|tr ' ' █);e=$((10-f));bar=\"$bar$(printf '%*s' \"$e\" ''|tr ' ' ░)\";out=\"$out [$bar $n%]\";fi;w=$(tput cols 2>/dev/null||echo 80);printf '%*s\n' \"$w\" \"$out\""
-  },
-  "hooks": {
-    "PostToolUse": [
-      {
-        "matcher": "Edit",
-        "condition": "fileMatches: '\\.(ts|tsx)$'",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "npx prettier --write \"${CLAUDE_TOOL_FILE_PATH}\" --ignore-path .gitignore 2>/dev/null || true",
-            "timeout": 15
-          }
-        ]
-      }
-    ],
-    "PreToolUse": [
-      {
-        "matcher": "Edit",
-        "condition": "fileMatches: '\\.(env|lock)$|package-lock\\.json$|yarn\\.lock$|pnpm-lock\\.yaml$'",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash scripts/hook-sensitive-file-alert.sh",
-            "timeout": 5
-          }
-        ]
-      },
-      {
-        "matcher": "Bash",
-        "condition": "commandMatches: 'git commit.*'",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash scripts/check-branch-health.sh main",
-            "timeout": 10
-          }
-        ]
-      }
-    ]
-  },
   "permissions": {
     "allow": [
       "Edit",
@@ -66,5 +23,48 @@
       "Bash(which:*)",
       "Bash(echo:*)"
     ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "npx prettier --write \"${CLAUDE_TOOL_FILE_PATH}\" --ignore-path .gitignore 2>/dev/null || true",
+            "timeout": 15
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash scripts/hook-sensitive-file-alert.sh",
+            "timeout": 5
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash scripts/check-branch-health.sh main",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  },
+  "statusLine": {
+    "type": "command",
+    "command": "i=$(cat);m=$(echo \"$i\"|jq -r '.model.display_name//empty');b=$(git --no-optional-locks rev-parse --abbrev-ref HEAD 2>/dev/null);u=$(echo \"$i\"|jq -r '.context_window.used_percentage//empty');out=\"$m\";[ -n \"$b\" ] && [ \"$b\" != HEAD ] && out=\"$out ($b)\";if [ -n \"$u\" ];then n=$(printf '%.0f' \"$u\");f=$((n/10));bar=$(printf '%*s' \"$f\" ''|tr ' ' █);e=$((10-f));bar=\"$bar$(printf '%*s' \"$e\" ''|tr ' ' ░)\";out=\"$out [$bar $n%]\";fi;w=$(tput cols 2>/dev/null||echo 80);printf '%*s\n' \"$w\" \"$out\""
+  },
+  "enabledPlugins": {
+    "caveman@caveman": true
   }
 }

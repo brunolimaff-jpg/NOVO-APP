@@ -44,7 +44,7 @@ describe('ragService', () => {
     expect(result.failed).toBe(true);
   });
 
-  it('buscarContextoDocsPinecone calls correct endpoint', async () => {
+  it('buscarContextoDocsPinecone usa /api/rag com namespace padrão de docs', async () => {
     global.fetch = vi.fn().mockResolvedValue({
       ok: true,
       json: () => Promise.resolve({ context: 'docs context' }),
@@ -53,6 +53,28 @@ describe('ragService', () => {
     const result = await buscarContextoDocsPinecone('test');
     expect(result.context).toBe('docs context');
     expect(result.failed).toBe(false);
-    expect(fetch).toHaveBeenCalledWith('/api/docs-rag', expect.anything());
+    expect(fetch).toHaveBeenCalledWith(
+      '/api/rag',
+      expect.objectContaining({
+        body: JSON.stringify({ query: 'test', namespace: 'senior-erp-docs' }),
+      }),
+    );
+  });
+
+  it('buscarContextoDocsPinecone preserva namespace explícito no /api/rag consolidado', async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ context: 'competitor context' }),
+    });
+
+    const result = await buscarContextoDocsPinecone('concorrente', 'competitor-pdfs');
+    expect(result.context).toBe('competitor context');
+    expect(result.failed).toBe(false);
+    expect(fetch).toHaveBeenCalledWith(
+      '/api/rag',
+      expect.objectContaining({
+        body: JSON.stringify({ query: 'concorrente', namespace: 'competitor-pdfs' }),
+      }),
+    );
   });
 });
