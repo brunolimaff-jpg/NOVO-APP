@@ -111,13 +111,13 @@ function pickWeightedModel(models: string[], weights: number[], seed: number): s
 
 export const HYBRID_MODEL_MAP: Record<string, string> = {
   'teia-societaria': 'bedrock/deepseek.v3.2',
-  operacao: 'bedrock/us.anthropic.claude-sonnet-4-6',
+  operacao: 'bedrock/deepseek.v3.2',
   'tech-stack': 'bedrock/deepseek.v3.2',
   'riscos-compliance': 'bedrock/deepseek.v3.2',
   'radar-expansao': 'bedrock/deepseek.v3.2',
   'rh-sindicatos': 'bedrock/deepseek.v3.2',
   decisores: 'bedrock/deepseek.v3.2',
-  'caminho-venda': 'bedrock/us.anthropic.claude-sonnet-4-6',
+  'caminho-venda': 'bedrock/deepseek.v3.2',
 };
 
 export function isHybridPipelineEnabled(env?: Environment): boolean {
