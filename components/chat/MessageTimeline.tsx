@@ -545,7 +545,7 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
               computeItemKey={(_, message) => message.id}
               itemContent={itemContent}
               initialTopMostItemIndex={initialTopMostItemIndex}
-              followOutput="auto"
+              followOutput={isLoading ? false : 'auto'}
               increaseViewportBy={{ top: virtuosoOverscan, bottom: virtuosoOverscan }}
               defaultItemHeight={96}
               rangeChanged={handleRangeChanged}
