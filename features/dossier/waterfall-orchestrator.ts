@@ -1154,6 +1154,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
                 timeoutMs: teiaRequiredTimeoutMs,
                 temperature: 0.1,
                 ...sharedDossierModuleOptions,
+                ...(experimentSelection ? { selectedModel: experimentSelection.model } : {}),
               },
             );
             const identityElapsed = performance.now() - identityStart;
@@ -1238,6 +1239,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
                   timeoutMs: teiaRequiredTimeoutMs,
                   temperature: 0.1,
                   ...sharedDossierModuleOptions,
+                  ...(experimentSelection ? { selectedModel: experimentSelection.model } : {}),
                 },
               );
               const deepElapsed = performance.now() - deepStart;
