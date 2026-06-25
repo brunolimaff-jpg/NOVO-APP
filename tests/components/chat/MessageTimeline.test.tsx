@@ -272,7 +272,7 @@ describe('MessageTimeline', () => {
     expect(props.onPrefillComposer).toHaveBeenCalledWith('prefill-0');
   });
 
-  it('usa followOutput auto quando nao esta carregando, false durante loading', async () => {
+  it('mantem followOutput auto sempre (Virtuoso gerencia scroll nativamente)', async () => {
     vi.useFakeTimers();
     // @ts-expect-error test fallback path
     global.ResizeObserver = undefined;
@@ -295,10 +295,8 @@ describe('MessageTimeline', () => {
         vi.advanceTimersByTime(200);
       });
 
-      // isLoading=false → followOutput='auto'
       expect(screen.getByTestId('messages-scroller')).toHaveAttribute('data-follow-output', 'auto');
 
-      // isLoading=true → followOutput=false
       rerender(
         <MessageTimeline
           {...buildProps({
@@ -314,7 +312,46 @@ describe('MessageTimeline', () => {
         vi.advanceTimersByTime(200);
       });
 
-      expect(screen.getByTestId('messages-scroller')).toHaveAttribute('data-follow-output', 'false');
+      expect(screen.getByTestId('messages-scroller')).toHaveAttribute('data-follow-output', 'auto');
+    } finally {
+      Element.prototype.scrollIntoView = originalScrollIntoView;
+    }
+  });
+
+  it('computeItemKey usa message.id estavel — sem sufixo :thinking', async () => {
+    vi.useFakeTimers();
+    // @ts-expect-error test fallback path
+    global.ResizeObserver = undefined;
+    window.requestAnimationFrame = vi.fn(() => 1);
+    window.cancelAnimationFrame = vi.fn();
+
+    const scrollIntoViewSpy = vi.fn();
+    const originalScrollIntoView = Element.prototype.scrollIntoView;
+    Element.prototype.scrollIntoView = scrollIntoViewSpy;
+
+    try {
+      const msg1 = buildMessage('m1', Sender.User, 'Pergunta');
+      const msg2 = { ...buildMessage('m2', Sender.Bot, ''), isThinking: true };
+      const messages = [msg1, msg2];
+      const props = buildProps({ messages, currentSession: buildSession(messages) });
+      render(<MessageTimeline {...props} />);
+
+      act(() => {
+        vi.advanceTimersByTime(200);
+      });
+
+      const scroller = screen.getByTestId('messages-scroller');
+      expect(scroller).toBeInTheDocument();
+
+      const virtuosoEl = scroller.querySelector('[data-testid="virtuoso-item-list"]');
+      if (virtuosoEl) {
+        const items = virtuosoEl.querySelectorAll('[data-item-index]');
+        const botItem = Array.from(items).find(el => {
+          const key = el.getAttribute('data-item-index');
+          return key && !key.includes(':thinking');
+        });
+        expect(botItem).toBeTruthy();
+      }
     } finally {
       Element.prototype.scrollIntoView = originalScrollIntoView;
     }
