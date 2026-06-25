@@ -272,7 +272,7 @@ describe('MessageTimeline', () => {
     expect(props.onPrefillComposer).toHaveBeenCalledWith('prefill-0');
   });
 
-  it('mantem auto-scroll desativado no chat principal mesmo com novas mensagens', async () => {
+  it('usa followOutput auto quando nao esta carregando, false durante loading', async () => {
     vi.useFakeTimers();
     // @ts-expect-error test fallback path
     global.ResizeObserver = undefined;
@@ -295,16 +295,17 @@ describe('MessageTimeline', () => {
         vi.advanceTimersByTime(200);
       });
 
-      expect(screen.getByTestId('messages-scroller')).toHaveAttribute('data-follow-output', 'false');
+      // isLoading=false → followOutput='auto'
+      expect(screen.getByTestId('messages-scroller')).toHaveAttribute('data-follow-output', 'auto');
 
-      const nextMessages = [...initialMessages, buildMessage('m3', Sender.Bot, 'Nova resposta sem auto scroll')];
-
+      // isLoading=true → followOutput=false
       rerender(
         <MessageTimeline
           {...buildProps({
             ...props,
-            messages: nextMessages,
-            currentSession: buildSession(nextMessages),
+            messages: initialMessages,
+            currentSession: buildSession(initialMessages),
+            isLoading: true,
           })}
         />,
       );
@@ -314,7 +315,6 @@ describe('MessageTimeline', () => {
       });
 
       expect(screen.getByTestId('messages-scroller')).toHaveAttribute('data-follow-output', 'false');
-      expect(scrollIntoViewSpy).not.toHaveBeenCalled();
     } finally {
       Element.prototype.scrollIntoView = originalScrollIntoView;
     }

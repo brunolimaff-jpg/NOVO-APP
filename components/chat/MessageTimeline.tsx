@@ -542,10 +542,14 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
               key={virtuosoKey}
               ref={virtuosoRef}
               data={safeMessages}
-              computeItemKey={(_, message) => message.id + (message.isThinking ? ':thinking' : '')}
+              computeItemKey={(_, message) => {
+                if (!message.isThinking) return message.id;
+                const hasText = (message.text?.length ?? 0) >= 200;
+                return hasText ? message.id : `${message.id}:thinking-placeholder`;
+              }}
               itemContent={itemContent}
               initialTopMostItemIndex={initialTopMostItemIndex}
-              followOutput={false}
+              followOutput={isLoading ? false : 'auto'}
               increaseViewportBy={{ top: virtuosoOverscan, bottom: virtuosoOverscan }}
               defaultItemHeight={96}
               rangeChanged={handleRangeChanged}
