@@ -47,6 +47,7 @@ export interface UseStaticTimelineFallbackParams {
   hasActiveSession: boolean;
   hasDossierContent: boolean;
   showOperatorGate: boolean;
+  hasBotThinkingPlaceholder?: boolean;
 }
 
 export interface UseStaticTimelineFallbackResult {
@@ -71,6 +72,7 @@ export function useStaticTimelineFallback(params: UseStaticTimelineFallbackParam
     hasActiveSession,
     hasDossierContent,
     showOperatorGate,
+    hasBotThinkingPlaceholder = false,
   } = params;
 
   const [forceStaticTimelineFallback, setForceStaticTimelineFallback] = useState(false);
@@ -166,7 +168,33 @@ export function useStaticTimelineFallback(params: UseStaticTimelineFallbackParam
     postWaterfallWatchdogLoggedRef.current = null;
   }, [currentSession?.id]);
 
-  // ── Efeito #4: Reset ao iniciar loading ──
+  // ── Efeito #3b: Fallback estático proativo durante waterfall de dossiê ──
+  // Virtuoso falha em dossiês grandes; ativar timeline estática enquanto o bot
+  // placeholder existe evita painel vazio mesmo antes do texto final na store.
+  useEffect(() => {
+    if (!currentSession?.id || showInitialHome || showOperatorGate) return;
+    if (!isLoading || !hasBotThinkingPlaceholder) return;
+    if (forceStaticTimelineFallback) return; // já ativo, evita re-disparo durante crescimento do texto
+
+    staticTimelineFallbackSessionRef.current = currentSession.id;
+    setForceStaticTimelineFallback(true);
+    scoutDiag.info('ChatInterface', 'static-fallback-proactive-dossier-loading', {
+      sessionId: currentSession.id,
+      expectedBotCharsMax,
+      safeMessagesLength,
+    } as unknown as Record<string, unknown>);
+  }, [
+    currentSession?.id,
+    expectedBotCharsMax,
+    forceStaticTimelineFallback,
+    hasBotThinkingPlaceholder,
+    isLoading,
+    safeMessagesLength,
+    showInitialHome,
+    showOperatorGate,
+  ]);
+
+  // ── Efeito #4: Reset ao iniciar loading + recovery proativo ao terminar ──
   useEffect(() => {
     const wasLoading = prevIsLoadingForStaticResetRef.current;
     prevIsLoadingForStaticResetRef.current = isLoading;
@@ -174,8 +202,43 @@ export function useStaticTimelineFallback(params: UseStaticTimelineFallbackParam
       setForceStaticTimelineFallback(false);
       staticTimelineFallbackSessionRef.current = null;
       postWaterfallWatchdogLoggedRef.current = null;
+      return;
     }
-  }, [isLoading]);
+
+    if (!wasLoading || isLoading || !currentSession?.id || expectedBotCharsMax <= 0 || showInitialHome) {
+      return;
+    }
+
+    const recoveryTimer = window.setTimeout(() => {
+      if (typeof document === 'undefined') return;
+
+      const botNode = document.querySelector('[data-testid="bot-message-content"]');
+      const botVisible = (() => {
+        if (!botNode) return false;
+        const style = window.getComputedStyle(botNode);
+        const opacity = Number(style.opacity || '1');
+        if (style.display === 'none' || style.visibility === 'hidden' || opacity <= 0.01) return false;
+        const rect = botNode.getBoundingClientRect();
+        return rect.width > 0 && rect.height > 0;
+      })();
+
+      if (botVisible) return;
+
+      setRecoveryKey(k => k + 1);
+      if (expectedBotCharsMax >= 4_000) {
+        staticTimelineFallbackSessionRef.current = currentSession.id;
+        setForceStaticTimelineFallback(true);
+      }
+
+      scoutDiag.warn('BlankPanel', 'store-text-dom-empty-recovery', {
+        sessionId: currentSession.id,
+        expectedBotCharsMax,
+        safeMessagesLength,
+      } as unknown as Record<string, unknown>);
+    }, 450);
+
+    return () => window.clearTimeout(recoveryTimer);
+  }, [currentSession?.id, expectedBotCharsMax, isLoading, safeMessagesLength, showInitialHome]);
 
   // ── Efeito #5: Watchdog pós-waterfall ──
   useEffect(() => {

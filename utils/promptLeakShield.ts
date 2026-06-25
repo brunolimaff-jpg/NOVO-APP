@@ -112,7 +112,7 @@ export function applyPromptLeakShield(
 ): PromptLeakShieldResult {
   const raw = (text || '').trim();
   const cleaned = stripInternalMarkers(raw);
-  const sample = cleaned || raw;
+  const sample = cleaned || (options.preserveInternalMarkersWhenSafe ? '' : raw);
   const detection = detectPromptLeakIndicators(sample);
 
   if (!detection.detected) {

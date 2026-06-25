@@ -151,11 +151,19 @@ const App: React.FC = () => {
     setGenerationKind(null);
   }, [setGenerationKind]);
 
+  const handleCofreForceReleaseLoading = useCallback(() => {
+    scoutDiag.warn('App', 'cofre-force-release-loading', { sessionId: currentSessionId });
+    setIsLoading(false);
+    setLoadingVariant(undefined);
+    completeLoadingProgress();
+  }, [completeLoadingProgress, currentSessionId, setIsLoading, setLoadingVariant]);
+
   const { cofrePhase } = useCofreTransition({
     generationKind,
     isLoading,
     sessionId: currentSessionId,
     onHidden: handleCofreHidden,
+    onForceReleaseLoading: handleCofreForceReleaseLoading,
   });
   const isCofreOpen = cofrePhase !== 'hidden';
   const [cofreElapsedTimeMs, setCofreElapsedTimeMs] = useState(0);

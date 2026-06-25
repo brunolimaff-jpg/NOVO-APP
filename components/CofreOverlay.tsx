@@ -299,7 +299,7 @@ const CofreOverlay: React.FC<CofreOverlayProps> = ({
   if (phase === 'hidden') return null;
 
   const elapsed = formatElapsed(elapsedTimeMs);
-  const isInteractive = phase === 'entering' || phase === 'visible' || phase === 'dissolving';
+  const isInteractive = phase === 'entering' || phase === 'visible';
   const isFullyVisible = phase === 'entering' || phase === 'visible';
 
   return (

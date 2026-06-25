@@ -8,15 +8,8 @@ interface AuthGateProps {
 }
 
 export const AuthGate: React.FC<AuthGateProps> = ({ children }) => {
-  const {
-    showAuthModal,
-    showBanner,
-    canSkip,
-    checking,
-    openAuthModal,
-    closeAuthModal,
-    continueAsGuest,
-  } = useAuthGate();
+  const { showAuthModal, showBanner, canSkip, checking, openAuthModal, closeAuthModal, continueAsGuest } =
+    useAuthGate();
 
   if (checking) {
     return (

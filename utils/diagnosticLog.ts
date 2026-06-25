@@ -160,10 +160,13 @@ function msSinceLastFlush(): number {
 function deferFlushUntilMinInterval(reason: string, force: boolean, urgent: boolean): void {
   const waitMs = DIAG_FLUSH_MIN_INTERVAL_MS - msSinceLastFlush();
   if (diagFlushTimer) return;
-  diagFlushTimer = setTimeout(() => {
-    diagFlushTimer = null;
-    void flushToServer(reason, force, urgent);
-  }, Math.max(0, waitMs));
+  diagFlushTimer = setTimeout(
+    () => {
+      diagFlushTimer = null;
+      void flushToServer(reason, force, urgent);
+    },
+    Math.max(0, waitMs),
+  );
 }
 
 async function flushToServer(_reason: string, force = false, urgent = false): Promise<void> {

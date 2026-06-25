@@ -54,7 +54,7 @@ Sentry.init({
 // ─── QW-6: Validação de ENV obrigatórias antes de montar a árvore React ─────
 const REQUIRED_ENV_VARS: Array<{ key: string; label: string }> = [];
 
-// ATENÇÃO: Pinecone é usado apenas nas serverless functions (api/rag.ts, api/docs-rag.ts)
+// ATENÇÃO: Pinecone é usado apenas na serverless function api/rag.ts
 // via PINECONE_API_KEY (sem prefixo VITE_). NUNCA usar VITE_ para chaves secretas,
 // pois o Vite inlineia todo VITE_* no bundle JavaScript, expondo-as no navegador.
 const OPTIONAL_ENV_VARS: Array<{ key: string; label: string }> = [
