@@ -13,7 +13,8 @@ export const EXPERIMENT_MODELS = [
 
 export type ExperimentModelId = (typeof EXPERIMENT_MODELS)[number];
 
-export const FALLBACK_MODEL = 'bedrock/us.anthropic.claude-haiku-4-5-20251001-v1:0';
+// Dead code — não importado por nenhum consumidor. Mantido para referência.
+export const FALLBACK_MODEL = 'gemini-3-flash-preview';
 
 export const MODEL_CATALOG: Record<string, ModelCatalogEntry> = {
   'bedrock/us.anthropic.claude-sonnet-4-6': {
