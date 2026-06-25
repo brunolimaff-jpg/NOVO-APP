@@ -16,6 +16,9 @@
     "api/extract-content.ts": {
       "maxDuration": 60
     },
+    "api/link-status.ts": {
+      "maxDuration": 15
+    },
     "api/cron-email-confirmation.ts": {
       "maxDuration": 30
     }
