@@ -45,6 +45,7 @@ npm run lint       # ESLint
 10. **Trava de acúmulo de commits**: Máximo **7 commits** locais sem push/PR. Ao atingir 5, warning automático (`scripts/check-branch-health.sh`). Ao atingir 8, commit bloqueado. Abra PR cedo — PR pequeno = review rápido. Use `BRANCH_HEALTH_SKIP=1` apenas com justificativa documentada.
 11. **Push diário obrigatório**: Ao final de cada sessão, commits devem estar pushados ou em PR aberta. Nunca encerrar sessão com +5 commits locais sem PR.
 12. **Checkpoint de branch**: A cada 5 commits, rodar `git log main..HEAD --oneline` e verificar se já não é hora de abrir PR.
+13. **Browser padrão**: `agent-browser` CLI para navegar, snapshot, fill, click e console debug. Playwright MCP apenas quando precisar de `browser_run_code_unsafe` (script multi-step) ou seletores Playwright (`:has-text()`, `getByRole()`). Nunca usar Playwright para fill/click simples — snapshots 1.2K+ linhas vs ~30 linhas do agent-browser (97% menos tokens). Ver [[browser-selection]].
 
 ## Fluxo de branches
 
@@ -62,6 +63,13 @@ npm run lint       # ESLint
 - Arquitetura → `ideator`
 - Plano → `planner`
 - Testes → `validator`
+
+## Resposta ao Bruno
+
+Toda resposta final DEVE incluir seção **"Próximos passos"** com 1-3 ações claras para o Bruno.
+Se houve execução de código: o que foi feito (1 linha) + o que fazer depois (1-3 itens).
+NUNCA encerrar resposta sem indicar o próximo passo do Bruno.
+Output de subagentes (cavecrew) é para consumo interno — traduzir para 1-3 linhas de negócio antes de mostrar ao Bruno.
 
 ## Documentação complementar
 

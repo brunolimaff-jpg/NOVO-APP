@@ -1,19 +1,47 @@
-# decisions.md — NOVO-APP
+# decisions.md — NOVO-APP (POS-AUDITORIA P0)
 
-## ARQUITETURA FINAL (consolidado Fase 5 — 2026-06-24)
+## Decisoes da Sessao 2026-06-25 (Auditoria P0 + Validacao Cruzada)
 
-### DI-2026-06-24-FINAL: Arquitetura Final Senior Scout 360 pos-experimento LiteLLM
+### DI-2026-06-25-01 (CRITICA): Auditoria externa usou base de codigo errada — 5 divergencias graves
 
-- **Provedores de IA:** Sonnet 4.6 (modulos criticos) + DeepSeek V3.2 (operacionais) via proxy LiteLLM/Bedrock. DeepSeek direto (`api.deepseek.com`) como provider economico ($0.06/dossie). Gemini ELIMINADO como provider principal.
-- **Roteamento:** HYBRID_MODEL_MAP em `utils/llm/modelRouter.ts:34`. Feature flag `VITE_WATERFALL_TIER` para alternar entre 3 tiers (Premium $0.60 / Padrao $0.17 / Economico $0.06).
-- **Fallback:** BINARIO — `respondWithGeminiFallback` REMOVIDO (commit `322b3d7f`). `isFallbackEnabled = false` hardcoded em `_llm-client.ts:79`. Pipeline hibrido nao faz fallback automatico.
-- **UI Loading:** Aspiracional — skeleton loading (DossieSkeletonLoader). Realidade atual — CofreOverlay com fixes (computeItemKey, isCofreRenderReady leniente, safety-net dissolve 3s). Skeleton em worktree separado (`feature/inline-loading-bubble`).
-- **Qualidade:** `checkReportQuality` com modo lenient para non-Gemini (implementado em `164ad5d3`). Aceita provider nao-Gemini sem bloquear renderizacao.
-- **LiteLLM Proxy:** DEV (`litellm.dev.seniorlabs.io`) e HOMOLOG funcionais. PROD (`litellm.seniorlabs.io`) bloqueado (`token_not_found_in_db`).
-- **Diferencial Gemini irreproduzivel:** Foundation Cache (~43K chars CNPJ) + Google Search Grounding nativo por modulo. LiteLLM recebe ~15K chars sem web search. Brave Search externo e substituto parcial inferior (15 CNPJs vs 35, score 69 vs 84).
-- **Causa da falha callLiteLLM ENCONTRADA:** `MAX_LITELLM_REQUEST_TIMEOUT_MS = 38_000` em `_llm-client.ts:7` — Tabbit descobriu. Corrigido para 180_000 (`a9a93d4f`). **2 waterwalls validados apos o fix** — ambos completos (6/6 modulos, 47-51K chars, $0.13-0.14). Timeout de 38s era a unica causa da falha.
-- **Causa do travamento modulo 4-5 RESOLVIDA:** `WATERFALL_HARD_CAP_MS = 330_000` em `waterfall-orchestrator.ts:99` abortava o waterfall no modulo 5-6. Removido no commit `ffdcf096`. Waterfall agora completa 6/6 modulos (~373s).
-- **Ref:** CALIBER_LEARNINGS.md secao "ARQUITETURA FINAL", HANDOFF_AI.md, decisions.md DI-24-19 a DI-24-25, PR #386.
+- **Contexto:** Auditoria read-only feita por terceiro contra ZIP do repo. Ao fazer cross-reference com codigo real em `main`, encontramos 5 funcoes/parametros que nao existem: `handleCofreForceReleaseLoading`, `handleCofreHidden`, `flushWaterfallPreviewToStore` com parametro `force`, `useDeferredValue` implementado, `console.time('parseMarkdownSections')`. Hipótese: auditor analisou worktree `feat+fase-d-ci-quality-gates`, nao `main`.
+- **Decisao:** (1) Plano original de 5 patches do auditor precisa ser ajustado — Patch 3 (handleCofreForceReleaseLoading) e inviavel. (2) Patch 1 precisa ser redirecionado para `pushWaterfallPreviewToStore` (nao `flushWaterfallPreviewToStore`). (3) Referencias de codigo do auditor devem ser validadas antes de executar qualquer patch.
+- **Impacto:** Sem essa validacao, 2 dos 5 patches quebrariam na compilacao.
+- **Status:** Validacao concluida. Plano ajustado documentado em HANDOFF_AI.md.
+
+### DI-2026-06-25-02: PR #387 fechada — era duplicata de teste
+
+- **Contexto:** PR #387 (`feat/litellm-experiment-code-review`) era copia exata da PR #386 aberta exclusivamente para testar code review automatizado. PR #386 ja estava mergeada na main.
+- **Decisao:** Fechar PR #387 com comentario explicativo. Nenhum codigo perdido — tudo ja esta em main via PR #386.
+- **Impacto:** Zero. PR era duplicata.
+- **Status:** Fechada.
+
+### DI-2026-06-25-03: Plano de correcao P0 aprovado — Fase 0 + Fase 0.5
+
+- **Contexto:** Bug P0 confirmado (UI congela apos waterfall com dossie >80KB). Plano original do auditor tinha 5 patches, mas 1 era inviavel e 1 estava mal direcionado.
+- **Decisao:** Plano ajustado para 4 patches cirurgicos em 5 arquivos, precedidos por Fase 0 (11 testes failing-first). Sem refatoracao de god components. Ordem: Fase 0 → Fase 0.5 → Fase 1-5 (original).
+- **Arquivos alterados na Fase 0.5:** waterfall-orchestrator.ts, message-orchestrator.ts, finalizeWaterfallUI.ts, SectionalBotMessage.tsx, App.tsx.
+- **Status:** Aprovado pelo reviewer. Pronto para execucao na proxima sessao.
+
+### DI-2026-06-25-04: 3 riscos identificados que nem auditor nem investigador inicial viram
+
+- **Contexto:** Reviewer encontrou 3 riscos adicionais: (1) corrida entre `updateSessionById` (isThinking:false) e `finalizeWaterfallUI` (isLoading:false) — Zustand sincrono dispara 2 re-renders independentes, React pode commitar na ordem errada; (2) Cofre depende unicamente de `generationKind === 'dossier'` para abrir — se Patch 2 resetar cedo demais, Cofre dissolve antes do dossier aparecer; (3) Duas funcoes com mesmo proposito (`isCofreRenderReady` leniente vs `isBotMessageContentVisible` estrita) — uma usada, outra ignorada.
+- **Decisao:** Patch 2 (setGenerationKind incondicional) precisa de protecao adicional: so resetar se Cofre NAO estiver visivel. Patch 3 (finalizeWaterfallUI) deve usar a funcao leniente `isCofreRenderReady` em vez da estrita `isBotMessageContentVisible`.
+- **Impacto:** Sem essas protecoes, correcao do freeze pode criar tela branca (Cofre some antes do dossier aparecer).
+- **Status:** Identificado. Ajuste incorporado ao plano.
+
+---
+
+## ARQUITETURA FINAL (Fase 5 — MERGED na main via PR #386, commit `6aa22339`)
+
+- **Provedores de IA:** Sonnet 4.6 (modulos criticos) + DeepSeek V3.2 (operacionais) via LiteLLM/Bedrock. Zero Gemini. Fallback binario.
+- **Roteamento:** HYBRID_MODEL_MAP com VITE_HYBRID_PIPELINE_ENABLED=true.
+- **Timeouts:** 120s efetivo cliente+servidor. Hard-cap 330s removido.
+- **UI:** useTransition (nao useDeferredValue). CofreOverlay com dissolve sem captura de cliques. React Compiler sempre ativo.
+- **Erro:** DossierModuleError + ModuleErrorCards.
+- **Testes:** 180/180.
+- **Todas as decisoes DI-2026-06-24-xx desta PR estao IMPLEMENTADAS e MERGED na main.**
+- **Ref:** PR #386, HANDOFF_AI.md, CALIBER_LEARNINGS.md.
 
 ### INCONSISTENCIA REGISTRADA: Decisoes DI-24-14 vs DI-24-19 nao sao conflitantes — complementares
 
@@ -230,3 +258,11 @@ DI-24-14 ("DeepSeek direto substitui Gemini") e DI-24-19 ("Pipeline hibrido Sonn
 - **Decisao:** (1) Bug NAO bloqueia merge da PR #386. (2) Causa provavel: `useDeferredValue` introduzido no commit `eea8783c` ou overlay `<vercel-live-feedback>` bloqueando cliques. (3) Investigar e corrigir na proxima PR.
 - **Status:** documentado — correcao pendente para proxima PR.
 - **Referencia:** `components/SectionalBotMessage.tsx`, commit `eea8783c`, PR #386.
+
+### DI-2026-06-25-07: agent-browser (CLI) como browser padrao — Playwright MCP so para scripts complexos
+
+- **Contexto:** Teste comparativo do mesmo fluxo (login + investigacao Scheffer) nos dois browsers. agent-browser (CLI) completou 6/6 modulos com console grepavel e snapshots compactos. Playwright (MCP) fez login com `browser_run_code_unsafe` (seletores nativos quebraram), console teve lag na atualizacao, snapshots YAML enormes (1.2K+ linhas) e custo maior de tokens.
+- **Decisao:** (1) `agent-browser` CLI e o browser padrao para todas as tarefas de automacao: navegar, snapshot, preencher forms, clicar, console debug. (2) Playwright MCP reservado exclusivamente para scripts que precisam de `browser_run_code_unsafe` (logica multi-step complexa) ou seletores Playwright (`:has-text()`, `getByRole()`). (3) Nunca usar Playwright para tarefas simples (fill + click) — o overhead de MCP round-trip e snapshots gigantes nao justifica. (4) Console do agent-browser e a ferramenta principal de debug do waterfall (grep direto, sem cache). (5) Snapshots do agent-browser sao compactos (~30 linhas) vs Playwright (1.2K+ linhas) — economia de ~97% tokens.
+- **Impacto:** Reducao de tokens em tarefas de browser. Debug mais rapido com grep nativo. Playwright mantido como fallback para cenarios complexos.
+- **Status:** confirmada.
+- **Referencia:** Teste comparativo 2026-06-25 (agente browser + playwright), PR #386.

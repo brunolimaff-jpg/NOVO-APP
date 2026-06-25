@@ -596,6 +596,7 @@ Afeta: qualquer comando `gh api`ou`gh pr` com corpo gerado dinamicamente.
 
 - **PR Gate IA e gate definitivo para app Vercel+Supabase — CI E2E localhost nao substitui** [vercel, supabase, e2e, pr-gate, ci]
   Para apps com preview Vercel + Supabase real + serverless, o gate de merge e: CI rapido verde + Playwright `critical-ux` no preview (agente) + comentario evidencia + **MERGE**. CI E2E Docker/localhost e instavel e nao representa UX real. Aprovado PR #383: 11/11 SHA `63f1c85e`. Afeta: branch protection, `AGENTS.md`, fluxo merge.
+
 # Sessao 2026-06-18 - Playbook nao bloqueante e cron fail-safe
 
 - **Roadmap de qualidade nao pode virar trava global de trabalho** [processo, agentes, planejamento]
@@ -798,8 +799,6 @@ Afeta: qualquer comando `gh api`ou`gh pr` com corpo gerado dinamicamente.
 - **Planejar tiers sem testar cada combinacao com dados reais** [tier, planejamento, teste, anti-pattern, pr386]
   O tier Premium (Opus+Sonnet) foi descoberto experimentalmente — nao estava no plano original. So foi validado porque o script `test-hybrid-waterfall.ts` permitiu testar combinacoes diferentes de modelos rapidamente. Licao: ao projetar tiers de qualidade, testar combinacoes antes de documentar. O teste real revela custos e qualidades que o planejamento nao preve. Afeta: `scripts/test-hybrid-waterfall.ts`, PR #386.
 
-
-
 ## Padroes confirmados
 
 - **Supabase + IDB como cache offline** [react, typescript, supabase, offline] ⚠️ HISTORICO
@@ -989,6 +988,7 @@ Afeta: qualquer comando `gh api`ou`gh pr` com corpo gerado dinamicamente.
 _Atualizado automaticamente pelo Caliber apos sessoes de agente._
 
 <!-- /caliber:managed:learnings -->
+
 # Sessao 2026-06-18 - Playbook nao bloqueante e cron fail-safe
 
 - **Roadmap de qualidade nao pode virar trava global de trabalho** [processo, agentes, planejamento]

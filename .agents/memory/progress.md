@@ -1,17 +1,28 @@
 # Progress
 
-### 2026-06-24 18:00 — PR #386: READY TO MERGE — 2 waterwalls validados, 20 commits
+### 2026-06-25 (tarde) — Auditoria P0 + Validacao Cruzada + Plano Aprovado
 
-- **HEAD:** `ffdcf096` (20 commits de `origin/main`, +10 desde ultimo handoff)
-- **2 waterwalls validados em producao:** 1o: 47.573 chars, $0.135, 317s, 6/6 modulos. 2o: 51.043 chars, $0.137, 373s, 6/6 modulos.
-- **HYBRID_MODEL_MAP confirmado:** Sonnet 4.6 na Operacao, DeepSeek V3.2 nos demais.
-- **2 novos commits:** `0f179543` (timeouts cliente 38s/42s -> 120s via env var) + `ffdcf096` (hard-cap 330s removido).
-- **Timeouts padronizados:** VITE_LITELLM_CLIENT_TIMEOUT_MS=120000 (cliente) + MAX_LITELLM_REQUEST_TIMEOUT_MS=180_000 (servidor) = 120s efetivo.
-- **Vercel env vars:** 2 adicionadas (HYBRID_PIPELINE_ENABLED, CLIENT_TIMEOUT_MS), 3 removidas (zumbis: REQUEST_TIMEOUT_MS, LLM_FALLBACK_ENABLED, VITE_LLM_FALLBACK_ENABLED).
-- **30 env vars LiteLLM mapeadas** em plano dedicado.
-- **Bug SectionalBotMessage** (expand) identificado — pre-existente, nao desta PR. Vercel Live Feedback desativado (bloqueava cliques).
-- **Estado:** PRONTO PARA SUBIR PR apos revisao final do Bruno.
-- **Arquivos alterados:** `waterfall-orchestrator.ts`, `geminiProxy.ts`, `HANDOFF_AI.md`, `activeContext.md`, `progress.md` (checkpoint — sem commit, sem push)
+- **PR #387 fechada** — era duplicata de teste da PR #386. PR #386 ja estava mergeada.
+- **Auditoria externa analisada:** 3 documentos (RELATORIO_AUDITORIA_NOVO_APP.md 88KB, INCIDENTE_P0_UI_PRESA.md 52KB, TESTE_PREVIEW_P0.md 38KB) + 6 screenshots + console log.
+- **P0 Bug confirmado:** UI congela apos waterfall completar (83KB markdown → render sincrono bloqueia main thread → tryDispatchCofreReady nunca dispara → generationKind preso).
+- **Validacao cruzada concluida:** 8 achados confirmados, 5 divergencias graves (auditor usou codigo de worktree, nao main).
+- **3 funcoes nao existem em main:** handleCofreForceReleaseLoading, handleCofreHidden, flushWaterfallPreviewToStore com force.
+- **Reviewer aprovou plano ajustado:** Fase 0 (11 testes) → Fase 0.5 (4 patches) → Fase 1-5 (original).
+- **3 riscos adicionais encontrados:** corrida updateSessionById vs finalizeWaterfallUI, Cofre dependency generationKind, isCofreRenderReady vs isBotMessageContentVisible.
+- **Arquivos atualizados:** HANDOFF_AI.md, activeContext.md, progress.md, decisions.md (CHECKPOINT DOCUMENTAL — sem commit, sem push).
+- **Branch:** `feat/litellm-experiment`, working tree com 18 arquivos nao commitados.
+- **Proximo:** Nova sessao — Fase 0 (11 testes failing-first).
+
+### 2026-06-25 — PR #386 MERGED na main — Pipeline Hibrido LiteLLM (Fase 5 Concluida)
+
+- **PR #386 merged** em `6aa22339` na main (2026-06-25 00:46 UTC). 5 commits finais squash de 143 originais.
+- **3 waterwalls validados:** 1o (47.573 chars, $0.135, 317s), 2o (51.043 chars, $0.137, 373s), 3o (~46K chars, score 79, 290s). Todos 6/6 modulos.
+- **Zero Gemini confirmado:** respondWithGeminiFallback removido, isFallbackEnabled=false, 180/180 testes passando.
+- **Timeouts finais:** VITE_LITELLM_CLIENT_TIMEOUT_MS=120000 (cliente), MAX_LITELLM_REQUEST_TIMEOUT_MS=180_000 (servidor), hard-cap 330s removido.
+- **5 commits pos-merge em main:** docs, 180/180 testes, React Compiler, useTransition/Cofre, pipeline hibrido.
+- **Branch `feat/litellm-experiment`** pode ser deletada.
+- **Proximos passos:** Fase 2 (Timer App, cascata, waterfall paralelo, GitGuardian).
+- **Vault:** Sessoes completas em `20-SESSOES/2026-06/`.
 
 ### 2026-06-24 (tarde/noite) — PR #386: TABBIT DESCOBRE O BUG REAL (38s cap) + 8 NOVOS COMMITS
 

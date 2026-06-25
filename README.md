@@ -99,15 +99,15 @@ O repo agora inclui uma camada de documentação Obsidian versionada em [`docs/o
 
 ## Documentação principal
 
-| Documento                                                                            | Propósito                                            |
-| ------------------------------------------------------------------------------------ | ---------------------------------------------------- |
-| [`AGENTS.md`](./AGENTS.md)                                                           | Instruções principais do repositório                 |
-| [`docs/GUIA-INICIANTE.md`](./docs/GUIA-INICIANTE.md)                                 | Onboarding rápido                                    |
-| [`docs/SKILLS-GOVERNANCE.md`](./docs/SKILLS-GOVERNANCE.md)                           | Política de skills e ambiente                        |
-| [`docs/obsidian/00-MASTER.md`](./docs/obsidian/00-MASTER.md)                         | Ponto de entrada do grafo Obsidian                   |
-| [`docs/obsidian/OBSIDIAN-README.md`](./docs/obsidian/OBSIDIAN-README.md)             | Uso do vault e contrato de manutenção                |
-| [`HANDOFF_AI.md`](./HANDOFF_AI.md)                                                   | Ponto de entrada estável para handoff de IA          |
-| [`ARQUITETURA.md`](./ARQUITETURA.md)                                                 | Arquitetura técnica                                  |
+| Documento                                                                                    | Propósito                                       |
+| -------------------------------------------------------------------------------------------- | ----------------------------------------------- |
+| [`AGENTS.md`](./AGENTS.md)                                                                   | Instruções principais do repositório            |
+| [`docs/GUIA-INICIANTE.md`](./docs/GUIA-INICIANTE.md)                                         | Onboarding rápido                               |
+| [`docs/SKILLS-GOVERNANCE.md`](./docs/SKILLS-GOVERNANCE.md)                                   | Política de skills e ambiente                   |
+| [`docs/obsidian/00-MASTER.md`](./docs/obsidian/00-MASTER.md)                                 | Ponto de entrada do grafo Obsidian              |
+| [`docs/obsidian/OBSIDIAN-README.md`](./docs/obsidian/OBSIDIAN-README.md)                     | Uso do vault e contrato de manutenção           |
+| [`HANDOFF_AI.md`](./HANDOFF_AI.md)                                                           | Ponto de entrada estável para handoff de IA     |
+| [`ARQUITETURA.md`](./ARQUITETURA.md)                                                         | Arquitetura técnica                             |
 | [`docs/archive/refactor-program/00-README.md`](./docs/archive/refactor-program/00-README.md) | Contexto do programa de refatoração (arquivado) |
 
 ## CI e entrega

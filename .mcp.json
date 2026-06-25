@@ -13,22 +13,16 @@
       "url": "https://mcp.vercel.com"
     },
     "supabase": {
-      "type": "stdio",
-      "command": "npx",
-      "args": ["-y", "@anthropic/mcp-server-supabase"],
-      "env": {
-        "SUPABASE_ACCESS_TOKEN": "${SUPABASE_ACCESS_TOKEN}"
+      "type": "http",
+      "url": "https://mcp.supabase.com/mcp?project_ref=vmqfcaoirjcfucvlnpig",
+      "headers": {
+        "Authorization": "Bearer {{SUPABASE_PUBLISHABLE_KEY}}"
       }
     },
     "playwright": {
       "type": "stdio",
       "command": "npx",
       "args": ["-y", "@playwright/mcp"]
-    },
-    "github": {
-      "type": "stdio",
-      "command": "npx",
-      "args": ["-y", "@anthropic/mcp-server-github"]
     },
     "sentry": {
       "command": "./scripts/sentry-mcp.sh",

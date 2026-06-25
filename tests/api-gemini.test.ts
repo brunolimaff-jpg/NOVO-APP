@@ -721,7 +721,9 @@ describe('api/gemini handler', () => {
     await handler(req, res);
 
     expect(res.status).toHaveBeenCalledWith(502);
-    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ _llm_error: true, _llm_error_reason: 'leak_shield_blocked' }));
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({ _llm_error: true, _llm_error_reason: 'leak_shield_blocked' }),
+    );
   });
 
   it('deleta cached content quando foundation cache está habilitado', async () => {
