@@ -89,6 +89,15 @@ export class ChatErrorBoundary extends React.Component<ChatErrorBoundaryProps, C
               Recarregar app
             </button>
           </div>
+          <p className={`mt-4 text-xs ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>
+            Erro persiste?{' '}
+            <a
+              href="mailto:bruno.ferreira@senior.com.br?subject=Erro%20Scout%20360%20-%20Chat%20crash"
+              className="underline hover:opacity-80"
+            >
+              bruno.ferreira@senior.com.br
+            </a>
+          </p>
         </div>
       </div>
     );

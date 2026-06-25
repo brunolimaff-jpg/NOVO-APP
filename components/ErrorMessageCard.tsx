@@ -161,6 +161,17 @@ const ErrorMessageCard: React.FC<ErrorMessageCardProps> = ({
               </div>
             )}
           </div>
+
+          {/* Contact link */}
+          <p className={`text-xs ${theme.textSecondary} pt-1`}>
+            Precisa de ajuda?{' '}
+            <a
+              href="mailto:bruno.ferreira@senior.com.br?subject=Erro%20Scout%20360%20-%20${encodeURIComponent(error.code || 'desconhecido')}"
+              className="underline hover:opacity-80"
+            >
+              bruno.ferreira@senior.com.br
+            </a>
+          </p>
         </div>
       </div>
     </div>

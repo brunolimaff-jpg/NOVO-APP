@@ -58,6 +58,15 @@ export function ModuleErrorCards({ errors, onCopyDiagnostic }: ModuleErrorCardsP
           </div>
         </div>
       ))}
+      <p className="text-xs text-gray-500 mt-2">
+        Erro persiste?{' '}
+        <a
+          href="mailto:bruno.ferreira@senior.com.br?subject=Erro%20Scout%20360%20-%20Módulos%20ausentes"
+          className="underline hover:text-gray-300"
+        >
+          bruno.ferreira@senior.com.br
+        </a>
+      </p>
     </div>
   );
 }
