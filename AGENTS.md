@@ -1,42 +1,41 @@
 # AGENTS.md
 
-## Overview
+## Visão Geral
 
-Senior Scout 360 is a React 19 + TypeScript + Vite web app for commercial intelligence in agribusiness.
+Senior Scout 360 é um app web React 19 + TypeScript + Vite para inteligência comercial no agronegócio.
 
-## Repo layout
+## Estrutura do Repositório
 
-- `App.tsx` is the main app orchestrator.
-- `components/`, `contexts/`, `hooks/`, `services/`, `prompts/`, `utils/`, `api/`, and `tests/` live at the repo root.
-- Do not assume a `src/` directory for application code in this repository.
-- `services/geminiService.ts` is the stable public AI façade; internal orchestration modules live under `services/gemini/`.
-- `hooks/useChat.ts` is legacy and must not gain new production consumers.
+- `App.tsx` é o orquestrador principal do app.
+- `components/`, `contexts/`, `hooks/`, `services/`, `prompts/`, `utils/`, `api/` e `tests/` vivem na raiz do repo.
+- Não assuma um diretório `src/` para código da aplicação neste repositório.
+- `services/geminiService.ts` é a fachada pública de IA estável; módulos de orquestração internos vivem em `utils/llm/` (modelRouter, modelCatalog, experiment).
 
-## Persistent memory protocol
+## Protocolo de Memória Persistente
 
-Repo-local memory is the canonical cross-session handoff for agents in this project.
+A memória local do repositório é o handoff canônico entre sessões para agentes neste projeto.
 
-## Central Obsidian library
+## Biblioteca Central Obsidian
 
-This project is indexed by Bruno's central Obsidian library:
+Este projeto é indexado pela biblioteca central Obsidian do Bruno:
 
 `~/Documents/Senior IA/docs/obsidian`
 
 - Project card: `docs/PROJECT-CARD.md`
-- Central project note: `~/Documents/Senior IA/docs/obsidian/Projects/NOVO-APP.md`
-- Ingestion contract: `~/Documents/Senior IA/docs/obsidian/Library/contrato-ingestao-multi-ia.md`
+- Nota central do projeto: `~/Documents/Senior IA/docs/obsidian/Projects/NOVO-APP.md`
+- Contrato de ingestão: `~/Documents/Senior IA/docs/obsidian/Library/contrato-ingestao-multi-ia.md`
 
-Codex, Claude Code, DeepSeek, Z.ai, and other agents must keep this repo's canonical sources current. The central library may index this repo, but it does not override `HANDOFF_AI.md`, `.agents/memory/*`, or refactor docs.
+Codex, Claude Code, DeepSeek, Z.ai e outros agentes devem manter as fontes canônicas deste repositório atualizadas. A biblioteca central pode indexar este repo, mas não sobrescreve `HANDOFF_AI.md`, `.agents/memory/*` ou documentos de refatoração.
 
-- At the start of every session, read `.agents/memory/activeContext.md` and `.agents/memory/progress.md` before diagnosing, planning, or editing.
-- Treat `.agents/memory/decisions.md` as durable project context for decisions that should survive beyond the current sprint.
-- Use `HANDOFF_AI.md` as the canonical quick-entry handoff, then follow any source-of-truth docs it references.
-- Use `docs/obsidian/00-MASTER.md` as the visual navigation layer for architecture + roadmap after reading the canonical handoff sources above. Do not treat it as a higher-priority source than `HANDOFF_AI.md`, `.agents/memory/*`, or `docs/ai-context/refactor/*`.
-- Before planning implementation work, use `plan-work` when available in the global environment.
-- At task close, update memory with what changed, what validation ran, residual risks, and the immediate next step.
-- Do not treat root `PLAN.md` as canonical unless one of the memory files or handoff docs explicitly references it.
+- No início de cada sessão, leia `.agents/memory/activeContext.md` e `.agents/memory/progress.md` antes de diagnosticar, planejar ou editar.
+- Trate `.agents/memory/decisions.md` como contexto de projeto durável para decisões que devem sobreviver além da sprint atual.
+- Use `HANDOFF_AI.md` como o handoff canônico de entrada rápida, depois siga qualquer documento fonte-de-verdade que ele referenciar.
+- Use `docs/obsidian/00-MASTER.md` como camada de navegação visual para arquitetura + roadmap, após ler as fontes canônicas acima. Não trate como fonte de prioridade maior que `HANDOFF_AI.md`, `.agents/memory/*` ou `docs/archive/refactor-program/`.
+- Antes de planejar trabalho de implementação, use `plan-work` quando disponível no ambiente global.
+- Ao fechar tarefa, atualize a memória com: o que mudou, qual validação rodou, riscos residuais e o próximo passo imediato.
+- Registros de decisão estão em `.agents/memory/decisions.md`; não existe `PLAN.md` separado na raiz.
 
-## Useful commands
+## Comandos Úteis
 
 ```bash
 npm run dev
@@ -46,26 +45,26 @@ npm run typecheck
 npm run lint
 ```
 
-## Known constraints
+## Restrições Conhecidas
 
-- Vercel serverless handlers live in `api/*.ts`.
-- Vercel is the real runtime environment for production validation; local `npm run dev` is only a frontend convenience and does not emulate all production serverless behavior.
-- Auth in this repo is local-only via `contexts/OperatorContext.tsx`; Clerk is not active in runtime.
-- No standard external AI integration is required for this repo.
-- Skill governance for this repo lives in `docs/SKILLS-GOVERNANCE.md`.
-- Do not assume any specific global skill set is available or required.
+- Handlers serverless Vercel vivem em `api/*.ts`.
+- Vercel é o ambiente de runtime real para validação em produção; `npm run dev` local é apenas uma conveniência do frontend e não emula todo o comportamento serverless de produção.
+- Auth neste repo é local apenas via `contexts/OperatorContext.tsx`; Clerk não está ativo em runtime.
+- Nenhuma integração externa de IA padrão é necessária para este repo.
+- A governança de skills deste repo está em `docs/SKILLS-GOVERNANCE.md`.
+- Não assuma que qualquer conjunto específico de skills globais está disponível ou é necessário.
 
-## Working rules
+## Regras de Trabalho
 
-- Read the current code before editing.
-- Keep prompts in `prompts/`.
-- Keep secrets out of frontend code.
-- Avoid empty catches.
-- Prefer typed solutions over `any`.
-- Do not revert unrelated local changes.
-- **Merge guard**: NEVER run `gh pr merge` or any PR merge/squash/auto-merge unless the user's message contains the word **MERGE** (case-insensitive). Push branch and open/edit PR are allowed without it. When uncertain, ask: "Confirma com MERGE se quiser mergear."
+- Leia o código atual antes de editar.
+- Mantenha prompts em `prompts/`.
+- Mantenha segredos fora do código frontend.
+- Evite catches vazios.
+- Prefira soluções tipadas em vez de `any`.
+- Não reverta mudanças locais não relacionadas.
+- **Guarda de merge:** NUNCA execute `gh pr merge` ou qualquer merge/squash/auto-merge de PR a menos que a mensagem do usuário contenha a palavra **MERGE** (case-insensitive). Push de branch e open/edit de PR são permitidos sem ela. Quando em dúvida, pergunte: "Confirma com MERGE se quiser mergear."
 
-## Learned User Preferences
+## Preferências Aprendidas do Usuário
 
 - Comunicação com o Bruno em pt-BR (chat, PRs e handoff).
 - Investigar causa raiz com evidência (código + telemetria ordenada) antes de corrigir; evitar planos só com hipóteses soltas, mitigação de sintoma sem contrato, ou watchdog sem fechar a cadeia causal.
@@ -73,23 +72,23 @@ npm run lint
 - Entregas grandes: implementar em fases, validar por fase (`validator`), e fechar com doc-handoff (`HANDOFF_AI.md`, `CALIBER_LEARNINGS.md`, Bruno Vault, `.agents/memory/*`) listando pendências para análise posterior.
 - Auditoria externa ou review em lote: reconciliar achados com `origin/main` e PRs mergeadas recentes antes de implementar P0; evita retrabalho em branches superseded.
 - Subagentes no modelo da sessão (Composer); não sugerir troca de modelo no chat.
-- PR focada: não misturar WIP local amplo (checkpoint em branch) com escopo da PR; tratar WIP em branch/PR separada e validar merge pelo diff líquido contra `main`.
-- Trabalho relacionado ao escopo aberto deve consolidar na PR canônica existente; não abrir PR paralela sem checar overlap de escopo.
-- Responder cada thread de review de PR com a tratativa aplicada antes de marcar como resolvida (fluxo `gh-resolve-pr-comments`); não deixar comentários abertos sem resposta.
-- Uso real é no preview Vercel: respostas de review e validação de UX devem citar comportamento no preview, não só localhost do CI.
-- Merge de PR exige PR Gate IA: agente roda E2E no preview Vercel — `critical-ux` 11/11 + specs Onda 1 (`second-investigation`, `loading-smart-recovery`) 5/5 = 16/16; Bruno valida UX no preview — não localhost nem CI Docker.
-- Testing Trophy no CI: vitest + coverage bloqueiam merge; E2E critical-ux (painel, cofre, Scheffer) fica fora do blocking — specs no repo para agente ou `workflow_dispatch`.
+- PR focada: escopo único na PR canônica existente; WIP amplo em branch/PR separada; validar pelo diff líquido contra `main` — não abrir PR paralela sem checar overlap.
+- Responder cada thread de review com a tratativa antes de marcar resolvida (`gh-resolve-pr-comments`); `scripts/resolve-pr-threads.py` usa GraphQL `addPullRequestReviewThreadReply` — REST `/replies` retorna 404; rodar `unset GITHUB_TOKEN` antes do `gh` para usar keyring renovado.
+- Antes de trocar modelo LiteLLM: validar separadamente se a **pesquisa** (QSA, socio-search, teia, CRM) funcionou vs qualidade/redação do relatório do modelo.
+- Uso real e validação UX no preview Vercel (desktop padrão; mobile/375px só se escopo pedir); respostas de review e validação citam comportamento no preview, não localhost do CI.
+- Pipeline PR Gate (skills `review-branch`, `pr-gate-runner`, `gh-resolve-pr-comments`): plano → gates locais → PR → CI → PR Gate IA no preview; merge só com token **MERGE** na mensagem.
+- Bruno autoriza correção de hooks globais (ex. `checkpoint-proativo.sh`) quando bloqueiam `StrReplace`/edições — pedir ou usar liberação explícita antes de alterar.
 
-## Learned Workspace Facts
+## Fatos Aprendidos do Workspace
 
-- Travamento, painel branco ou spinner pós-waterfall em produção: priorizar `scout_diagnostics` e `operator_events`; Sentry costuma não capturar freeze de main thread nesse fluxo.
+- Travamento/freeze waterfall ou consolidação: priorizar `scout_diagnostics` e `operator_events`; inline-validation — budget agregado deve exceder N × latência `/api/link-status` (hard-cap degradado retorna `[]`); Sentry costuma não capturar freeze de main thread.
 - LoadingSmart pós-waterfall: `health-check` no flush imediato pode registrar `overlay=true` com `domBodyLen` baixo (H-U3); critério de recuperação do overlay é evento `PostCompletion` em `scout_diagnostics`, não só o health-check.
 - CNPJ no browser: `fetchCompanyByCnpj` via `/api/cnpj`; não usar `lib/cnpjLookup` com fetch direto à BrasilAPI no cliente (CORS no preview/prod Vercel).
-- Contrato de loading/timeline/blank panel: `docs/ai-context/refactor/loading-panel-contract.md` (preview durante waterfall, static handoff, telemetria PostCompletion). Safety nets DOM (`App.tsx`, `finalizeWaterfallUI.ts`): não remover até 7 dias Cofre estável em produção + métricas `scout_diagnostics`; causa `display:none` permanece unknown (CALIBER T-A.1).
-- Preview Vercel é gate obrigatório para regressões de UX (PR Gate IA); smoke preview no CI não substitui validação no deploy real.
+- Contrato de loading/timeline/blank panel: ver `docs/obsidian/pages/` (playbook-status) e `CALIBER_LEARNINGS.md` para lições de loading/blank panel. Bug P1 conhecido (PR #386): expandir "ver relatório completo" após waterfall deixa painel vazio. Safety nets DOM (`App.tsx`, `finalizeWaterfallUI.ts`): não remover até 7 dias Cofre estável em produção + métricas `scout_diagnostics`; causa `display:none` permanece unknown (CALIBER T-A.1).
 - Handoff e memória canônica: `HANDOFF_AI.md`, `.agents/memory/*` e `CALIBER_LEARNINGS.md` prevalecem sobre vault Obsidian para implementação; sessões grandes também registram lições no Bruno Vault.
 - Branch com checkpoint WIP no histórico pode inflar a aba Files da PR no GitHub; o que entra em `main` é o diff líquido contra `main`, não a lista bruta de commits intermediários.
-- E2E blocking no CI removido (Fase D): `playwright install` em Ubuntu estourava timeout antes dos testes; gate de merge é PR Gate IA no preview Vercel, não Docker/localhost no CI.
-- E2E Playwright manual/preview: container `mcr.microsoft.com/playwright:v1.59.1-noble`; project `critical-ux` em `playwright.config`; `e2e-preview.yml` só `workflow_dispatch`.
-- E2E Scheffer/Cofre: helper de onboarding deve iniciar nova investigação quando houver dossiê salvo (modal "Dossiê existente"); stop via botão "Interromper" no overlay Cofre; breadcrumb truncado com match parcial; evita falha por estado duplicado no Supabase.
 - Policy pós-auditoria §9 (fluxo dossiê): sem novo `useState` loading, sem `catch {}`, sem RAF sem cleanup; persist flush usa toast+retry+`scoutDiag` (DI-2026-06-19-02 Opção B, sem cache read-only).
+- LiteLLM: preview exige `VITE_LLM_*` espelhando `LLM_*`, sessão Supabase Auth (guest → 401; client email local vs server Supabase Auth — mismatch impede rodar), allowlist email real; Grok 4.1 Fast validado; V4 Flash lento/timeout; `groundingSources: 0` esperado (sem Google Search grounding); auth 401/403 sem fallback Gemini (só pós-auth); waterfall pode registrar `fallback_used=true` (LiteLLM→Gemini); persistência `20260620_llm_experiment.sql` via `api/llm-experiment.ts` (service role, RLS `deny_anon_all`); `llm_experiment_runs` vazio = gate não passou; produção `LLM_PROVIDER=gemini`.
+- Vercel Hobby: limite 12 serverless functions — consolidar handlers em `api/`; `api/_llm-client.ts` usa fetch nativo (SDK `openai` removido do bundle serverless).
+- E2E: `critical-ux` usa stubs Gemini; LiteLLM live = `tests-e2e/litellm-live-parallel.spec.ts` (timeout 150s, 3 workers); `installCNPJStub` sem QSA invalida validação de teia — pesquisa Scheffer live = `tests-e2e/scheffer-research-validation.spec.ts` (R1/R2/R3, sem stub CNPJ, workers=1); Scheffer/Cofre — helper inicia nova investigação com dossiê salvo, stop via "Interromper"; vitest+coverage bloqueiam merge no CI; E2E critical-ux não blocking — gate = PR Gate IA no preview.
+- PR #385 mergeada (Ondas 1–3 estabilização pós-auditoria); PR #386 `feat/litellm-experiment` — adapter LiteLLM com fallback Gemini pós-auth; merge bloqueado até validar fallback real + bug P1 painel expand + critério `llm_experiment_runs`.
