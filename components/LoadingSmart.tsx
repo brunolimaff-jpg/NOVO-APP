@@ -22,7 +22,7 @@ const INSIGHT_CYCLE_MS = 12000;
 const STEP_REVEAL_DELAY_MS = 1200;
 const STEP_REVEAL_MIN_MS = 800;
 const OVERLAY_STUCK_SAFETY_MS = 5_000;
-const MAX_LOADING_DURATION_MS = 180_000;
+const MAX_LOADING_DURATION_MS = 120_000;
 const SOURCE_LINKS: Record<string, string> = {
   ibge: 'https://www.ibge.gov.br/',
   conab: 'https://www.conab.gov.br/',

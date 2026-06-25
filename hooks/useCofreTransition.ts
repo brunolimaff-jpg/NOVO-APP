@@ -8,8 +8,6 @@ interface UseCofreTransitionParams {
   isLoading: boolean;
   sessionId: string | null;
   onHidden?: () => void;
-  /** Chamado no absolute-max para destravar UI quando waterfall não zera isLoading. */
-  onForceReleaseLoading?: () => void;
 }
 
 interface UseCofreTransitionResult {
@@ -18,11 +16,8 @@ interface UseCofreTransitionResult {
 
 const ENTER_DURATION_MS = 200;
 const DISSOLVE_DURATION_MS = 350;
-const POST_API_SAFETY_TIMEOUT_MS = 10_000;
+const POST_API_SAFETY_TIMEOUT_MS = 8_000;
 const DOM_READY_POLL_MAX_ATTEMPTS = 80;
-/** Hard-cap absoluto do Cofre durante dossiê — evita overlay preso se isLoading não zerar. */
-const COFRE_ABSOLUTE_MAX_MS = 320_000;
-const COFRE_ABSOLUTE_POLL_MS = 2_000;
 
 function isBotContentVisibleInDom(): boolean {
   if (typeof document === 'undefined') return false;
@@ -41,14 +36,12 @@ export function useCofreTransition({
   isLoading,
   sessionId,
   onHidden,
-  onForceReleaseLoading,
 }: UseCofreTransitionParams): UseCofreTransitionResult {
   const [cofrePhase, setCofrePhase] = useState<CofrePhase>('hidden');
   const phaseRef = useRef<CofrePhase>('hidden');
   const lifecycleSessionRef = useRef<string | null>(null);
-  /** Evita reabrir Cofre após safety/absolute timeout enquanto isLoading ainda true. */
+  /** Evita reabrir Cofre após safety timeout enquanto isLoading ainda true. */
   const cofreReleasedRef = useRef(false);
-  const cofreOpenedAtRef = useRef<number | null>(null);
 
   const commitPhase = useCallback((nextPhase: CofrePhase) => {
     phaseRef.current = nextPhase;
@@ -77,7 +70,6 @@ export function useCofreTransition({
 
   useEffect(() => {
     cofreReleasedRef.current = false;
-    cofreOpenedAtRef.current = null;
   }, [sessionId]);
 
   useLayoutEffect(() => {
@@ -90,9 +82,6 @@ export function useCofreTransition({
     if (cofreReleasedRef.current) return;
     if (generationKind !== 'dossier' || !isLoading || !sessionId) return;
     lifecycleSessionRef.current = sessionId;
-    if (cofreOpenedAtRef.current === null) {
-      cofreOpenedAtRef.current = Date.now();
-    }
     commitPhase('entering');
     scoutDiag.info('Cofre', 'entering', { sessionId });
   }, [commitPhase, generationKind, isLoading, sessionId]);
@@ -159,46 +148,17 @@ export function useCofreTransition({
       pollWithTimeout();
     }, 2000);
 
-    // Safety net: dissolve incondicional após 3s. Se RAF e setTimeout polling
-    // nao encontraram o DOM (React ainda nao commitou), garante que o Cofre
-    // nao fique preso por 320s. Nao depende de isBotContentVisibleInDom().
-    const safetyTimer = window.setTimeout(() => {
-      if (cancelled) return;
-      console.log('⏱️ [Cofre] safety-net dissolve após 3s (DOM polling esgotado)');
-      startDissolve('safety-timeout');
-    }, 3000);
-
+    // Ultimo recurso: se React nao renderizou em 10s, dissolve o Cofre.
+    // Sem safety net de 3s — deixa o React renderizar no seu tempo.
+    // Se quebrar, o usuario VE o erro (Cofre travado), nao some misteriosamente.
     const timer = window.setTimeout(() => startDissolve('safety-timeout'), POST_API_SAFETY_TIMEOUT_MS);
     return () => {
       cancelled = true;
       if (rafHandle) cancelAnimationFrame(rafHandle);
       window.clearTimeout(timer);
       window.clearTimeout(fallbackTimer);
-      window.clearTimeout(safetyTimer);
     };
   }, [cofrePhase, generationKind, isLoading, startDissolve]);
-
-  useEffect(() => {
-    if (generationKind !== 'dossier' || cofrePhase === 'hidden' || cofrePhase === 'dissolving') return;
-    const openedAt = cofreOpenedAtRef.current;
-    if (!openedAt) return;
-
-    const interval = window.setInterval(() => {
-      if (phaseRef.current === 'hidden' || phaseRef.current === 'dissolving') return;
-      const elapsedMs = Date.now() - openedAt;
-      if (elapsedMs < COFRE_ABSOLUTE_MAX_MS) return;
-      scoutDiag.warn('Cofre', 'absolute-max-timeout', {
-        sessionId: lifecycleSessionRef.current,
-        phase: phaseRef.current,
-        isLoading,
-        elapsedMs,
-      });
-      onForceReleaseLoading?.();
-      startDissolve('safety-timeout');
-    }, COFRE_ABSOLUTE_POLL_MS);
-
-    return () => window.clearInterval(interval);
-  }, [cofrePhase, generationKind, isLoading, onForceReleaseLoading, sessionId, startDissolve]);
 
   useEffect(() => {
     if (cofrePhase !== 'dissolving') return;
