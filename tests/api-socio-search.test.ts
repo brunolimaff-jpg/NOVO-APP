@@ -1605,4 +1605,36 @@ describe('api/socio-search', () => {
       }),
     });
   });
+
+  it('degrada com HTTP 200 quando runSearch excede deadline do handler', async () => {
+    vi.useFakeTimers();
+    performWebSearchMock.mockImplementation(() => new Promise(() => undefined));
+
+    const { default: handler } = await import('../api/socio-search');
+    const response = makeResponse();
+
+    const handlerPromise = handler(
+      {
+        method: 'POST',
+        body: {
+          socioName: 'Guilherme M. Scheffer',
+          rootCompanyName: 'Scheffer & Cia Ltda',
+          rootCnpj: '04733767000180',
+        },
+      } as VercelRequest,
+      response.res,
+    );
+
+    await vi.advanceTimersByTimeAsync(53_000);
+    await handlerPromise;
+
+    expect(response.statusCode).toBe(200);
+    expect(response.payload).toMatchObject({
+      companies: [],
+      degraded: true,
+      detail: 'Busca societaria indisponivel no momento.',
+    });
+
+    vi.useRealTimers();
+  });
 });

@@ -58,6 +58,13 @@ describe('textCleaners security hardening', () => {
     expect(shielded.text).toContain('[[PORTA_FEED_O:7:ELOS:Plantio,Armazenagem]]');
   });
 
+  it('não bloqueia resposta composta somente por markers no modo seguro interno', () => {
+    const raw = '[[PORTA_FEED_A:6:A1:6:A2:6:GERACAO:NA]]';
+    const shielded = applyPromptLeakShield(raw, { preserveInternalMarkersWhenSafe: true });
+    expect(shielded.blocked).toBe(false);
+    expect(shielded.text).toBe(raw);
+  });
+
   it('continua removendo markers por padrão em texto não bloqueado', () => {
     const raw = 'Conclusão.\n[[PORTA_FEED_O:7:ELOS:Plantio,Armazenagem]]';
     const shielded = applyPromptLeakShield(raw);

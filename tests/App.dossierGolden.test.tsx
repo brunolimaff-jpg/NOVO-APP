@@ -6,7 +6,12 @@ import App from '../App';
 import { ChatStoreProvider } from '../stores/chatStore';
 import { DossierStoreProvider } from '../stores/dossierStore';
 import type { ChatSession } from '../types';
-import { loadJsonFixture } from './helpers/dossierGolden';
+import {
+  evaluateDossierGolden,
+  loadJsonFixture,
+  type DossierGoldenCase,
+  withSchefferGoldenRubric,
+} from './helpers/dossierGolden';
 
 const fixtureRoot = resolve(process.cwd(), 'tests', 'fixtures', 'dossier', 'scheffer-04733767000180');
 
@@ -33,7 +38,12 @@ const {
 vi.mock('../components/ChatInterface', () => ({
   default: (props: {
     messages: Array<{ sender: string; text: string }>;
-    onSendMessage?: (text: string, displayText?: string, hintedCompanyOverride?: string | null) => Promise<void>;
+    onSendMessage?: (
+      text: string,
+      displayText?: string,
+      hintedCompanyOverride?: string | null,
+      options?: { cnpj?: string | null },
+    ) => Promise<void>;
     onExportConversation?: (format: 'md' | 'pdf' | 'doc', reportType: 'executive' | 'full' | 'tech') => Promise<void>;
   }) => {
     const lastBotMessage = [...props.messages].reverse().find(message => message.sender === 'bot');
@@ -46,6 +56,7 @@ vi.mock('../components/ChatInterface', () => ({
               'Dossiê completo de [Scheffer & CIA LTDA]. Protocolo de investigação forense especializada:\n\nContexto cadastral obrigatório: CNPJ 04.733.767/0001-80',
               'Dossiê completo: Scheffer & CIA LTDA',
               'Scheffer & CIA LTDA',
+              { cnpj: '04.733.767/0001-80' },
             );
           }}
         >
@@ -275,6 +286,21 @@ describe('App dossier markdown golden flow', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     sessionStateRef.current = [];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (...args: Parameters<typeof fetch>) => {
+        const [input, init] = args;
+        if (String(input) !== '/api/link-status') {
+          throw new Error(`Unexpected fetch in dossier golden test: ${String(input)}`);
+        }
+        const body = JSON.parse(String(init?.body ?? '{}')) as { urls?: string[] };
+        const results = Object.fromEntries((body.urls ?? []).map(url => [url, { status: 'valid' }]));
+        return new Response(JSON.stringify({ results }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }),
+    );
 
     const moduleFixtures = loadModuleFixtures();
     const lookupFixture = loadJsonFixture<Record<string, unknown>>(resolve(fixtureRoot, 'lookup.json'));
@@ -332,12 +358,13 @@ describe('App dossier markdown golden flow', () => {
       'text/markdown;charset=utf-8',
     );
 
-    // Golden validation desativada temporariamente — formato do dossiê refatorado.
-    // O expected-dossier.md e case.json precisam ser regenerados com o novo formato.
-    // TODO: rodar o fluxo completo, validar o output e atualizar as fixtures.
     const exportedMarkdown = downloadFileMock.mock.calls[0][1] as string;
-    expect(exportedMarkdown.length).toBeGreaterThan(1000);
-    expect(exportedMarkdown).not.toContain('Erro no processamento');
-    expect(exportedMarkdown).not.toContain('Falha técnica');
+    const expectedMarkdown = readFixture('expected-dossier.md');
+    const dossierCase = withSchefferGoldenRubric(loadJsonFixture<DossierGoldenCase>(resolve(fixtureRoot, 'case.json')));
+    const rubric = await evaluateDossierGolden(exportedMarkdown, expectedMarkdown, dossierCase);
+
+    expect(rubric.errors, JSON.stringify(rubric, null, 2)).toEqual([]);
+    expect(rubric.passed).toBe(true);
+    expect(exportedMarkdown).toContain('> **CNPJ analisado:** 04.733.767/0001-80');
   });
 });

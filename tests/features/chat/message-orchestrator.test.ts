@@ -170,6 +170,8 @@ function makeHarness(
     systemInstruction: 'SYSTEM',
     mode: 'investigacao',
     resolvedOperatorName: 'Bruno Lima',
+    operatorId: 'op-test-1',
+    email: 'bruno.ferreira@senior.com.br',
     canUseLookup: true,
     requestKind: state.requestKind,
     setRequestKind,
@@ -421,6 +423,8 @@ describe('useChatMessageOrchestrator', () => {
         sessionId: 'session-new',
         text: 'DOSSIÊ COMPLETO de Acme Agro',
         botMessageId: 'message-bot',
+        operatorId: 'op-test-1',
+        operatorEmail: 'bruno.ferreira@senior.com.br',
       }),
     );
     expect(sendMessageToGeminiMock).not.toHaveBeenCalled();

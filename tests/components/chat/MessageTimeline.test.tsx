@@ -369,6 +369,28 @@ describe('MessageTimeline', () => {
     vi.useRealTimers();
   });
 
+  it('renderiza timeline estática quando forceStaticTimelineFallback=true', () => {
+    const largeText = 'D'.repeat(4_001);
+    const messages = [
+      buildMessage('m1', Sender.User, 'Investigar Scheffer'),
+      buildMessage('m2', Sender.Bot, largeText),
+    ];
+
+    render(
+      <MessageTimeline
+        {...buildProps({
+          messages,
+          currentSession: buildSession(messages),
+          forceStaticTimelineFallback: true,
+        })}
+      />,
+    );
+
+    expect(screen.getByTestId('messages-static-fallback')).toBeInTheDocument();
+    expect(screen.queryByTestId('messages-scroller')).not.toBeInTheDocument();
+    expect(screen.getByTestId('message-row-1')).toHaveTextContent(largeText);
+  });
+
   it('Virtuoso renderiza com dossiê grande (>4000 chars)', async () => {
     const originalResizeObserver = global.ResizeObserver;
     const originalRaf = window.requestAnimationFrame;
