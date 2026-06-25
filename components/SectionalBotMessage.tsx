@@ -476,7 +476,6 @@ const SectionalBotMessage: React.FC<SectionalBotMessageProps> = ({
             key={section.key}
             data-section-kind={sellerSectionKind}
             className={`section-block group relative ${framedClass}`}
-            style={{ contentVisibility: 'auto' }}
           >
             {isPrimaryModule && (
               <div

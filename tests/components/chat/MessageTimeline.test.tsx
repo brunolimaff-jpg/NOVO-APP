@@ -295,7 +295,7 @@ describe('MessageTimeline', () => {
         vi.advanceTimersByTime(200);
       });
 
-      expect(screen.getByTestId('messages-scroller')).toHaveAttribute('data-follow-output', 'false');
+      expect(screen.getByTestId('messages-scroller')).toHaveAttribute('data-follow-output', 'auto');
 
       const nextMessages = [...initialMessages, buildMessage('m3', Sender.Bot, 'Nova resposta sem auto scroll')];
 
@@ -313,7 +313,7 @@ describe('MessageTimeline', () => {
         vi.advanceTimersByTime(200);
       });
 
-      expect(screen.getByTestId('messages-scroller')).toHaveAttribute('data-follow-output', 'false');
+      expect(screen.getByTestId('messages-scroller')).toHaveAttribute('data-follow-output', 'auto');
       expect(scrollIntoViewSpy).not.toHaveBeenCalled();
     } finally {
       Element.prototype.scrollIntoView = originalScrollIntoView;
