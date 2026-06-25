@@ -272,7 +272,7 @@ describe('MessageTimeline', () => {
     expect(props.onPrefillComposer).toHaveBeenCalledWith('prefill-0');
   });
 
-  it('mantem followOutput auto sempre (Virtuoso gerencia scroll nativamente)', async () => {
+  it('followOutput condicional: false durante loading, auto quando concluído', async () => {
     vi.useFakeTimers();
     // @ts-expect-error test fallback path
     global.ResizeObserver = undefined;
@@ -295,6 +295,7 @@ describe('MessageTimeline', () => {
         vi.advanceTimersByTime(200);
       });
 
+      // Sem loading → auto
       expect(screen.getByTestId('messages-scroller')).toHaveAttribute('data-follow-output', 'auto');
 
       rerender(
@@ -312,7 +313,8 @@ describe('MessageTimeline', () => {
         vi.advanceTimersByTime(200);
       });
 
-      expect(screen.getByTestId('messages-scroller')).toHaveAttribute('data-follow-output', 'auto');
+      // Com loading → false (evita scroll durante waterfall streaming)
+      expect(screen.getByTestId('messages-scroller')).toHaveAttribute('data-follow-output', 'false');
     } finally {
       Element.prototype.scrollIntoView = originalScrollIntoView;
     }
