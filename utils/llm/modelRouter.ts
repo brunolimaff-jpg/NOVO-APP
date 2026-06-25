@@ -105,18 +105,18 @@ function pickWeightedModel(models: string[], weights: number[], seed: number): s
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // HYBRID_MODEL_MAP — Pipeline híbrido por módulo
-// Todos os módulos → DeepSeek V3.2 (Bedrock)
+// Todos os módulos → Haiku 4.5 (custo mínimo, alta velocidade)
 // ═══════════════════════════════════════════════════════════════════════════════
 
 export const HYBRID_MODEL_MAP: Record<string, string> = {
-  'teia-societaria': 'bedrock/deepseek.v3.2',
-  operacao: 'bedrock/deepseek.v3.2',
-  'tech-stack': 'bedrock/deepseek.v3.2',
-  'riscos-compliance': 'bedrock/deepseek.v3.2',
-  'radar-expansao': 'bedrock/deepseek.v3.2',
-  'rh-sindicatos': 'bedrock/deepseek.v3.2',
-  decisores: 'bedrock/deepseek.v3.2',
-  'caminho-venda': 'bedrock/deepseek.v3.2',
+  'teia-societaria': 'bedrock/us.anthropic.claude-haiku-4-5-20251001-v1:0',
+  operacao: 'bedrock/us.anthropic.claude-haiku-4-5-20251001-v1:0',
+  'tech-stack': 'bedrock/us.anthropic.claude-haiku-4-5-20251001-v1:0',
+  'riscos-compliance': 'bedrock/us.anthropic.claude-haiku-4-5-20251001-v1:0',
+  'radar-expansao': 'bedrock/us.anthropic.claude-haiku-4-5-20251001-v1:0',
+  'rh-sindicatos': 'bedrock/us.anthropic.claude-haiku-4-5-20251001-v1:0',
+  decisores: 'bedrock/us.anthropic.claude-haiku-4-5-20251001-v1:0',
+  'caminho-venda': 'bedrock/us.anthropic.claude-haiku-4-5-20251001-v1:0',
 };
 
 export function isHybridPipelineEnabled(env?: Environment): boolean {
