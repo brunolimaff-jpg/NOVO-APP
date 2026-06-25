@@ -17,7 +17,7 @@ import { useUpdateNotification } from './hooks/useUpdateNotification';
 import ToastContainer from './components/ToastContainer';
 import ChatInterface from './components/ChatInterface';
 import { loadWithChunkRetry } from './utils/chunkRetry';
-import { shouldShowHeroLoadingOverlay } from './utils/loadingVariant';
+import { resolveEffectiveLoadingVariant, shouldShowHeroLoadingOverlay } from './utils/loadingVariant';
 import { AuthGate } from './components/AuthGate';
 import CofreOverlay, { type CofreStage } from './components/CofreOverlay';
 import { useCofreTransition } from './hooks/useCofreTransition';
@@ -335,7 +335,7 @@ const App: React.FC = () => {
     setInvestigationLogged(false);
     resetLoadingProgress();
     setRequestKind('default');
-    setLoadingVariant('hero');
+    setLoadingVariant(resolveEffectiveLoadingVariant({ requestKind: 'default' }));
     setLoadingPinnedLabel(null);
     lastActionRef.current = null;
     setLastQuery('');
