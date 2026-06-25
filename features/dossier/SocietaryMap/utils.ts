@@ -12,6 +12,11 @@ import {
 
 export type LoadState = 'idle' | 'loading' | 'ready' | 'empty' | 'error';
 
+/** Cliente: margem abaixo do maxDuration (60s) do handler Vercel. */
+export const SOCIO_SEARCH_CLIENT_TIMEOUT_MS = 52_000;
+/** Paralelismo máximo por lote — evita saturar conexões HTTP no preview. */
+export const SOCIO_SEARCH_BATCH_SIZE = 2;
+
 export interface SocioSearchResponse {
   companies?: SocietaryCompanyInput[];
   rejected?: RejectedSocioSearchResult[];
