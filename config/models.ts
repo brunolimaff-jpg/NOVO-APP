@@ -1,4 +1,4 @@
-const DEFAULT_GEMINI_MODEL_ID = 'gemini-3-flash-preview';
+const DEFAULT_GEMINI_MODEL_ID = 'bedrock/us.anthropic.claude-haiku-4-5-20251001-v1:0';
 
 export const MODEL_IDS = {
   router: DEFAULT_GEMINI_MODEL_ID,

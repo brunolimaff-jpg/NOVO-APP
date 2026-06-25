@@ -13,7 +13,7 @@ export const EXPERIMENT_MODELS = [
 
 export type ExperimentModelId = (typeof EXPERIMENT_MODELS)[number];
 
-export const FALLBACK_MODEL = 'gemini-3-flash-preview';
+export const FALLBACK_MODEL = 'bedrock/us.anthropic.claude-haiku-4-5-20251001-v1:0';
 
 export const MODEL_CATALOG: Record<string, ModelCatalogEntry> = {
   'bedrock/us.anthropic.claude-sonnet-4-6': {
@@ -118,14 +118,6 @@ export const MODEL_CATALOG: Record<string, ModelCatalogEntry> = {
     displayName: 'Claude Haiku 4.5',
     inputPricePerMillion: 1.1,
     outputPricePerMillion: 5.5,
-    reasoning: false,
-  },
-  [FALLBACK_MODEL]: {
-    id: FALLBACK_MODEL,
-    variant: 'fallback',
-    displayName: 'Gemini Flash Preview',
-    inputPricePerMillion: 0,
-    outputPricePerMillion: 0,
     reasoning: false,
   },
 };
