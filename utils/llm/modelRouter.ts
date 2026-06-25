@@ -105,8 +105,7 @@ function pickWeightedModel(models: string[], weights: number[], seed: number): s
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // HYBRID_MODEL_MAP — Pipeline híbrido por módulo
-// Módulos críticos (Operação, Caminho de Venda) → Sonnet 4.6
-// Módulos operacionais (demais) → DeepSeek V3.2
+// Todos os módulos → DeepSeek V3.2 (Bedrock)
 // ═══════════════════════════════════════════════════════════════════════════════
 
 export const HYBRID_MODEL_MAP: Record<string, string> = {
