@@ -2,8 +2,8 @@
 
 Este documento descreve o desenho arquitetural atual do Senior Scout 360 apos a migracao para pipeline hibrido com LiteLLM, experimentacao de modelos e eliminacao do offline-first.
 
-> Ultima atualizacao: 2026-06-24
-> Fase 5 — Pipeline hibrido com LiteLLM + DeepSeek + Claude Sonnet
+> Ultima atualizacao: 2026-06-25
+> Fase 5 — Pipeline LiteLLM com Haiku 4.5 (custo otimizado) + inline loading
 
 ## 1. Contexto
 
@@ -121,16 +121,11 @@ A fachada `api/_llm-client.ts` implementa o cliente LiteLLM com:
 
 Definido em `utils/llm/modelRouter.ts`. Mapeia nome do modulo de dossie para modelo especifico:
 
-| Modulo            | Modelo            | Justificativa                              |
-| ----------------- | ----------------- | ------------------------------------------ |
-| operacao          | Claude Sonnet 4.6 | Critico — analise financeira e operacional |
-| caminho-venda     | Claude Sonnet 4.6 | Critico — recomendacao de acao             |
-| teia-societaria   | DeepSeek V3.2     | Operacional — estrutura societaria         |
-| tech-stack        | DeepSeek V3.2     | Operacional — tecnologia                   |
-| riscos-compliance | DeepSeek V3.2     | Operacional — conformidade                 |
-| radar-expansao    | DeepSeek V3.2     | Operacional — expansao                     |
-| rh-sindicatos     | DeepSeep V3.2     | Operacional — RH                           |
-| decisores         | DeepSeek V3.2     | Operacional — tomada de decisao            |
+| Modulo      | Modelo            | Justificativa                                          |
+| ----------- | ----------------- | ------------------------------------------------------ |
+| todos       | Claude Haiku 4.5  | Melhor custo-beneficio — score medio 72, ~$0.38/dossie |
+| _(reserva)_ | Claude Sonnet 4.6 | Premium — analise financeira e operacional             |
+| _(reserva)_ | DeepSeek V3.2     | Operacional — estrutura, tecnologia, compliance        |
 
 Ativado por `HYBRID_PIPELINE_ENABLED=true`. Quando ativo, o `selectExperimentModel()` retorna o modelo do mapa em vez de usar o mecanismo de experimento.
 
@@ -152,15 +147,15 @@ Modelos em uso ativo no pipeline hibrido:
 
 ### Tres Tiers Conceituais
 
-O sistema opera com tres niveis de capacidade, embora o roteamento atual seja binario (Sonnet vs DeepSeek):
+Roteamento atual: **100% Haiku 4.5**. Sonnet 4.6 e DeepSeek V3.2 disponiveis como reserva.
 
-| Tier         | Modelo                            | Uso                                        |
-| ------------ | --------------------------------- | ------------------------------------------ |
-| **Standard** | DeepSeek V4 Flash                 | Modulos operacionais de baixa complexidade |
-| **Premium**  | Claude Sonnet 4.6 / DeepSeek V3.2 | Modulos criticos e analise profunda        |
-| **Max**      | Claude Fable 5 (planejado)        | Cenarios futuros de maxima qualidade       |
+| Tier        | Modelo                      | Uso                                        |
+| ----------- | --------------------------- | ------------------------------------------ |
+| **Atual**   | Claude Haiku 4.5            | Todos os modulos (~$0.38/dossie, score 72) |
+| **Premium** | Claude Sonnet 4.6 (reserva) | Modulos criticos quando necessario         |
+| **Max**     | Claude Fable 5 (planejado)  | Cenarios futuros de maxima qualidade       |
 
-A diferenciacao atual acontece via `HYBRID_MODEL_MAP`. A expansao para 3 tiers completos esta no backlog.
+Haiku 4.5 validado como melhor custo-beneficio: score 72 vs Sonnet 20, custo $0.38 vs $0.61.
 
 ## 4. Pipeline principal de mensagem
 
@@ -186,7 +181,8 @@ Usuario envia pergunta
 Usuario solicita dossie
   -> components/DossierPanel.tsx
   -> features/dossier/waterfall-orchestrator.ts
-     orquestra N modulos em paralelo (ate 8 modulos, 120s cada)
+     orquestra N modulos sequencialmente (ate 8 modulos, 120s cada)
+     (execucao paralela planejada como P4 — requer remover dependencia de accumulatedText)
   -> Para cada modulo:
      selectExperimentModel({ moduleName }) -> HYBRID_MODEL_MAP ou experimento
      api/gemini.ts -> callLiteLLM() -> LiteLLM proxy
@@ -404,7 +400,7 @@ Cada run de experimento e registrada em:
 
 **Decisao (2026-06)**: Remover o hard-cap de 330s no waterfall e adotar timeout de 120s por modulo.
 
-**Motivacao**: Modulos independentes executam em paralelo; o timeout por modulo e suficiente para evitar espera infinita. O hard-cap geral cortava prematuremente modulos que ainda estavam processando.
+**Motivacao**: Modulos executam sequencialmente (nao paralelo — documentado como P4); o timeout por modulo e suficiente para evitar espera infinita. O hard-cap geral cortava prematuremente modulos que ainda estavam processando.
 
 ### Rollout gradual
 
