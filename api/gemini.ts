@@ -271,7 +271,25 @@ async function executeGeminiAction(ai: GoogleGenAI, body: ParsedBody, res: Verce
           msgs.push({ role: 'user', content: userContent });
           const resolvedModel = model && !model.includes('gemini') ? model : 'bedrock/deepseek.v3.2';
           const temperature = cfg && typeof cfg.temperature === 'number' ? cfg.temperature : undefined;
-          const text = await callLiteLLM({ model: resolvedModel, messages: msgs, temperature: temperature });
+          const maxTokens = cfg && typeof cfg.maxOutputTokens === 'number' ? cfg.maxOutputTokens : undefined;
+          // Foundation cache: conteudo cacheado do Gemini nao tem equivalente direto no
+          // LiteLLM. Repassamos como prefixo do system message para nao perder contexto.
+          const cachedContent = cfg && typeof cfg.cachedContent === 'string' ? cfg.cachedContent : undefined;
+          const effectiveSystem = cachedContent
+            ? sysInstr
+              ? sysInstr + '\n\n' + cachedContent
+              : cachedContent
+            : sysInstr;
+          const finalMsgs = effectiveSystem
+            ? [{ role: 'system' as const, content: effectiveSystem }, ...msgs.filter(m => m.role !== 'system')]
+            : msgs;
+          // tools (grounding) nao suportado via LiteLLM — sera tratado em sprint futura
+          const text = await callLiteLLM({
+            model: resolvedModel,
+            messages: finalMsgs,
+            temperature: temperature,
+            maxTokens: maxTokens,
+          });
           return res.status(200).json({ text });
         } catch (err) {
           console.error('LiteLLM call failed:', err);

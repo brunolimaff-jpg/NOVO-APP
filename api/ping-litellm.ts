@@ -15,9 +15,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
       status: 'disabled',
       enabled: false,
       provider: process.env.LLM_PROVIDER ?? null,
-      hasBaseUrl: Boolean(process.env.LITELLM_BASE_URL),
-      hasKey: Boolean(process.env.LITELLM_API_KEY),
     });
+    return;
+  }
+
+  // Requer auth basica (query param) para nao expor infra em preview publico
+  const token = req.query?.token;
+  if (typeof token !== 'string' || !process.env.CRON_SECRET || token !== process.env.CRON_SECRET) {
+    res.status(401).json({ error: 'Unauthorized' });
     return;
   }
 
@@ -32,14 +37,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     res.status(200).json({
       status: 'ok',
       enabled: true,
-      baseUrl: process.env.LITELLM_BASE_URL ?? null,
       responseLength: text.length,
     });
   } catch (err: unknown) {
     res.status(500).json({
       status: 'error',
       enabled: true,
-      baseUrl: process.env.LITELLM_BASE_URL ?? null,
       error: err instanceof Error ? err.message : 'Unknown error',
     });
   }
