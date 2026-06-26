@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { insertDiagnosticsBatch, MAX_EVENTS_PER_BATCH } from '../utils/serverDiagnostics.js';
 import { isQuotaExhausted, isBillingOrPermissionDenied } from './_gemini-key-utils.js';
 import { applyCors } from './_cors-headers.js';
+import { isLiteLLMEnabled, callLiteLLM } from './_llm-client';
 
 const HistoryItemSchema = z.object({
   role: z.enum(['user', 'model']),
@@ -231,6 +232,30 @@ async function executeGeminiAction(ai: GoogleGenAI, body: ParsedBody, res: Verce
     }
 
     case 'generateContent': {
+      // ── LiteLLM branch ──
+      if (isLiteLLMEnabled()) {
+        try {
+          const bodyRaw = body as unknown as Record<string, unknown>;
+          const model = typeof bodyRaw.model === 'string' ? bodyRaw.model : undefined;
+          const contents = bodyRaw.contents;
+          const cfg = bodyRaw.config as Record<string, unknown> | undefined;
+          const sysInstr = cfg && typeof cfg.systemInstruction === 'string' ? cfg.systemInstruction : undefined;
+          const msgs: Array<{ role: string; content: string }> = [];
+          if (sysInstr) msgs.push({ role: 'system', content: sysInstr });
+          const userContent = typeof contents === 'string' ? contents : JSON.stringify(contents);
+          msgs.push({ role: 'user', content: userContent });
+          const resolvedModel = model && !model.includes('gemini') ? model : 'bedrock/deepseek.v3.2';
+          const temperature = cfg && typeof cfg.temperature === 'number' ? cfg.temperature : undefined;
+          const text = await callLiteLLM({ model: resolvedModel, messages: msgs, temperature: temperature });
+          return res.status(200).json({ text });
+        } catch (err) {
+          console.error('LiteLLM call failed:', err);
+          return res
+            .status(500)
+            .json({ error: 'LLM call failed', message: err instanceof Error ? err.message : 'Unknown' });
+        }
+      }
+
       const model = body.model ?? DEFAULT_GEMINI_MODEL;
       const contents = body.contents;
 

@@ -30,7 +30,8 @@ import {
   resetPortaState,
   setBaseScore,
 } from '../portaStateService';
-import { STABLE_RESEARCH_MODEL_ID, TACTICAL_MODEL_ID, selectMainChatModelId } from './config';
+import { TACTICAL_MODEL_ID, selectMainChatModelId } from './config';
+import { selectModelForModule } from '../../utils/llm/modelRouter';
 import type { DossierModuleOptions, GeminiRequestOptions, SendMessageToGeminiResult } from './contracts';
 import { parsePortaFeeds } from './porta';
 import { debugRecovery, looksLikeMissedOpenQuestionAnswer, trackOpenQuestionRecoveryAttempt } from './recovery';
@@ -581,7 +582,7 @@ export async function generateDossierModule(
     stepSignal =>
       proxyGenerateContent(
         {
-          model: STABLE_RESEARCH_MODEL_ID,
+          model: selectModelForModule(moduleName),
           contents,
           config: usesFoundationCache
             ? {
