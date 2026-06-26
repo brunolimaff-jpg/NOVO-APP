@@ -785,15 +785,12 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
         // PR #349: probes de estado real + RAF safety net contra loading preso.
         // Captura validade ANTES de deletar a ref — probes são assíncronos
         // (setTimeout/RAF) e não podem depender da ref viva.
+        // PR #349: probes de estado real + RAF safety net contra loading preso.
+        // generationValid é snapshot booleano; isCurrentGeneration() (usado
+        // internamente pelos probes) depende da ref viva para check dinâmico.
         const generationValid = activeGenerationRef.current[sessionId] === botMessageId;
-        if (activeGenerationRef.current[sessionId] === botMessageId) {
-          delete activeGenerationRef.current[sessionId];
-        }
         const cleanupProbes = scheduleLoadingStuckProbes(sessionId, generationValid);
 
-        // Só limpa activeGenerationRef DEPOIS dos probes agendados.
-        // Os probes usam isCurrentGeneration() que depende dessa ref —
-        // deletar antes tornaria todos os probes no-ops silenciosos.
         if (activeGenerationRef.current[sessionId] === botMessageId) {
           delete activeGenerationRef.current[sessionId];
         }
