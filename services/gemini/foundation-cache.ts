@@ -14,6 +14,10 @@ export interface StaticDossierContextInput {
 }
 
 export function isFoundationCacheEnabled(): boolean {
+  // Foundation cache é otimização exclusiva Gemini (cached tokens = 25% custo).
+  // Com pipeline híbrido LiteLLM ativo, cache deve ser desligado — o branch
+  // LiteLLM em api/gemini.ts não suporta cachedContent (recurso Gemini, não texto).
+  if (import.meta.env.VITE_HYBRID_PIPELINE_ENABLED === '1') return false;
   return import.meta.env.VITE_GEMINI_FOUNDATION_CACHE_ENABLED === '1';
 }
 
