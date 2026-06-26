@@ -178,37 +178,6 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
     messages.length,
   ]);
 
-  // ── Instrumentação: safeMessages vazio com sessão ativa ──
-  const prevSafeLenRef = useRef(safeMessages.length);
-  useEffect(() => {
-    const prev = prevSafeLenRef.current;
-    const curr = safeMessages.length;
-    prevSafeLenRef.current = curr;
-
-    if (prev > 0 && curr === 0 && currentSession?.id && !isLoading) {
-      console.error(
-        '[Scout360][ChatInterface] ⚠ safeMessages ZEROU com sessão ativa',
-        JSON.stringify({
-          sessionId: currentSession.id,
-          allMessagesLen: messages.length,
-          completedDossier: Boolean(completedDossier),
-          hasDossierContent,
-          panelState,
-          loadingVariant,
-        }),
-      );
-    }
-  }, [
-    safeMessages.length,
-    currentSession?.id,
-    isLoading,
-    completedDossier,
-    hasDossierContent,
-    panelState,
-    loadingVariant,
-    messages.length,
-  ]);
-
   const showEmptyStateFallback = panelState === 'empty' && hasActiveSession && !showInitialHome;
 
   if (showEmptyStateFallback) {
