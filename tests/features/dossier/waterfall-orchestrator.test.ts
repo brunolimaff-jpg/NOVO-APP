@@ -388,7 +388,7 @@ describe('useDossierWaterfallOrchestrator', () => {
       expect.any(String),
       expect.any(String),
       expect.any(String),
-      expect.objectContaining({ useGrounding: true }),
+      expect.objectContaining({ useGrounding: false }),
     );
     expect(generateDossierModuleMock.mock.calls[0][2]).toContain('CONTRATO VISÍVEL V2');
     expect(generateDossierModuleMock.mock.calls[0][2]).toContain('Não gere seção "Brief de Reunião"');
