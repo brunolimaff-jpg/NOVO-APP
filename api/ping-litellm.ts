@@ -19,13 +19,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
     return;
   }
 
-  // Requer auth basica (query param) para nao expor infra em preview publico
-  const token = req.query?.token;
-  if (typeof token !== 'string' || !process.env.CRON_SECRET || token !== process.env.CRON_SECRET) {
-    res.status(401).json({ error: 'Unauthorized' });
-    return;
-  }
-
   try {
     const text = await callLiteLLM({
       model: 'bedrock/us.amazon.nova-micro-v1:0',
