@@ -244,16 +244,21 @@ async function executeGeminiAction(ai: GoogleGenAI, body: ParsedBody, res: Verce
           : Array.isArray(contents)
             ? (contents as Array<{ text?: string }>).map(c => c?.text || '').join(' ')
             : '';
-      const srvModuleMatch = contentsStr.match(/bloco de ([^.\n]+)/i);
+      const srvModuleMatch = contentsStr.match(/bloco de (.+?) com extrema/i);
       const srvModuleName = srvModuleMatch?.[1]?.trim() || null;
 
       const hasCachedContent = typeof cfg.cachedContent === 'string';
       const hasSystemInstr = typeof cfg.systemInstruction === 'string';
+      const hasGrounding =
+        Array.isArray(cfg.tools) &&
+        cfg.tools.some((t: unknown) => t && typeof t === 'object' && 'googleSearch' in (t as Record<string, unknown>));
 
       // ── LiteLLM branch ──
       // cachedContent sem systemInstruction = foundation cache ativo (recurso Gemini,
-      // nao texto). LiteLLM nao suporta — delegamos ao Gemini nesse caso.
-      if (isLiteLLMEnabled() && !(hasCachedContent && !hasSystemInstr)) {
+      // nao texto). LiteLLM nao suporta — delegamos ao Gemini.
+      // tools com googleSearch = grounding pedido. LiteLLM nao suporta googleSearch
+      // nativo — delegamos ao Gemini.
+      if (isLiteLLMEnabled() && !(hasCachedContent && !hasSystemInstr) && !hasGrounding) {
         try {
           const sysInstr = hasSystemInstr ? (cfg.systemInstruction as string) : undefined;
           const msgs: Array<{ role: string; content: string }> = [];
