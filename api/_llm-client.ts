@@ -95,7 +95,10 @@ export async function callLiteLLM(params: LiteLLMParams): Promise<string> {
       return content;
     } catch (err: unknown) {
       lastError = err instanceof Error ? err : new Error(String(err));
-      const isRetryable = (lastError as unknown as Record<string, unknown>).isRetryable ?? true;
+      const isRetryable =
+        lastError instanceof DOMException && lastError.name === 'AbortError'
+          ? false
+          : ((lastError as unknown as Record<string, unknown>).isRetryable ?? true);
 
       if (attempt < maxAttempts && isRetryable) {
         await sleep(backoffMs);
