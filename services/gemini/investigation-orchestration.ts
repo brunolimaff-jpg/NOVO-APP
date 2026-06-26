@@ -32,8 +32,6 @@ import {
 } from '../portaStateService';
 import { TACTICAL_MODEL_ID, selectMainChatModelId } from './config';
 import { STABLE_RESEARCH_MODEL_ID } from '../../config/models';
-import { selectModelForModule } from '../../utils/llm/modelRouter';
-import { isLiteLLMEnabled } from '../../api/_llm-client';
 import type { DossierModuleOptions, GeminiRequestOptions, SendMessageToGeminiResult } from './contracts';
 import { parsePortaFeeds } from './porta';
 import { debugRecovery, looksLikeMissedOpenQuestionAnswer, trackOpenQuestionRecoveryAttempt } from './recovery';
@@ -584,7 +582,7 @@ export async function generateDossierModule(
     stepSignal =>
       proxyGenerateContent(
         {
-          model: isLiteLLMEnabled() ? selectModelForModule(moduleName) : STABLE_RESEARCH_MODEL_ID,
+          model: STABLE_RESEARCH_MODEL_ID,
           contents,
           config: usesFoundationCache
             ? {

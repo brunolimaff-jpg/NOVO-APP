@@ -6,6 +6,7 @@ import { insertDiagnosticsBatch, MAX_EVENTS_PER_BATCH } from '../utils/serverDia
 import { isQuotaExhausted, isBillingOrPermissionDenied } from './_gemini-key-utils.js';
 import { applyCors } from './_cors-headers.js';
 import { isLiteLLMEnabled, callLiteLLM } from './_llm-client.js';
+import { selectModelForModule } from '../utils/llm/modelRouter.js';
 
 const HistoryItemSchema = z.object({
   role: z.enum(['user', 'model']),
@@ -232,16 +233,32 @@ async function executeGeminiAction(ai: GoogleGenAI, body: ParsedBody, res: Verce
     }
 
     case 'generateContent': {
+      const modelFromClient = typeof body.model === 'string' ? body.model : undefined;
+      const contents = body.contents;
+      const cfg = (body.config ?? {}) as Record<string, unknown>;
+
+      // Extrai nome do modulo das contents para roteamento server-side
+      const contentsStr =
+        typeof contents === 'string'
+          ? contents
+          : Array.isArray(contents)
+            ? (contents as Array<{ text?: string }>).map(c => c?.text || '').join(' ')
+            : '';
+      const srvModuleMatch = contentsStr.match(/bloco de ([^.\n]+)/i);
+      const srvModuleName = srvModuleMatch?.[1]?.trim() || null;
+
+      const hasCachedContent = typeof cfg.cachedContent === 'string';
+      const hasSystemInstr = typeof cfg.systemInstruction === 'string';
+
       // ── LiteLLM branch ──
-      if (isLiteLLMEnabled()) {
+      // cachedContent sem systemInstruction = foundation cache ativo (recurso Gemini,
+      // nao texto). LiteLLM nao suporta — delegamos ao Gemini nesse caso.
+      if (isLiteLLMEnabled() && !(hasCachedContent && !hasSystemInstr)) {
         try {
-          const bodyRaw = body as unknown as Record<string, unknown>;
-          const model = typeof bodyRaw.model === 'string' ? bodyRaw.model : undefined;
-          const contents = bodyRaw.contents;
-          const cfg = bodyRaw.config as Record<string, unknown> | undefined;
-          const sysInstr = cfg && typeof cfg.systemInstruction === 'string' ? cfg.systemInstruction : undefined;
+          const sysInstr = hasSystemInstr ? (cfg.systemInstruction as string) : undefined;
           const msgs: Array<{ role: string; content: string }> = [];
           if (sysInstr) msgs.push({ role: 'system', content: sysInstr });
+
           const userContent =
             typeof contents === 'string'
               ? contents
@@ -269,24 +286,15 @@ async function executeGeminiAction(ai: GoogleGenAI, body: ParsedBody, res: Verce
                     .join('\n')
                 : JSON.stringify(contents);
           msgs.push({ role: 'user', content: userContent });
-          const resolvedModel = model && !model.includes('gemini') ? model : 'bedrock/deepseek.v3.2';
-          const temperature = cfg && typeof cfg.temperature === 'number' ? cfg.temperature : undefined;
-          const maxTokens = cfg && typeof cfg.maxOutputTokens === 'number' ? cfg.maxOutputTokens : undefined;
-          // Foundation cache: conteudo cacheado do Gemini nao tem equivalente direto no
-          // LiteLLM. Repassamos como prefixo do system message para nao perder contexto.
-          const cachedContent = cfg && typeof cfg.cachedContent === 'string' ? cfg.cachedContent : undefined;
-          const effectiveSystem = cachedContent
-            ? sysInstr
-              ? sysInstr + '\n\n' + cachedContent
-              : cachedContent
-            : sysInstr;
-          const finalMsgs = effectiveSystem
-            ? [{ role: 'system' as const, content: effectiveSystem }, ...msgs.filter(m => m.role !== 'system')]
-            : msgs;
-          // tools (grounding) nao suportado via LiteLLM — sera tratado em sprint futura
+
+          const resolvedModel = selectModelForModule(srvModuleName || '');
+          const temperature = typeof cfg.temperature === 'number' ? cfg.temperature : undefined;
+          const maxTokens = typeof cfg.maxOutputTokens === 'number' ? cfg.maxOutputTokens : undefined;
+          // tools (grounding) nao suportado via LiteLLM — sprint futura
+
           const text = await callLiteLLM({
             model: resolvedModel,
-            messages: finalMsgs,
+            messages: msgs,
             temperature: temperature,
             maxTokens: maxTokens,
           });
@@ -299,18 +307,7 @@ async function executeGeminiAction(ai: GoogleGenAI, body: ParsedBody, res: Verce
         }
       }
 
-      const model = body.model ?? DEFAULT_GEMINI_MODEL;
-      const contents = body.contents;
-
-      // ── Server-side watermark: extrai nome do modulo das contents ──
-      const contentsStr =
-        typeof contents === 'string'
-          ? contents
-          : Array.isArray(contents)
-            ? (contents as Array<{ text?: string }>).map(c => c?.text || '').join(' ')
-            : '';
-      const srvModuleMatch = contentsStr.match(/bloco de ([^.\n]+)/i);
-      const srvModuleName = srvModuleMatch?.[1]?.trim() || null;
+      const model = modelFromClient ?? DEFAULT_GEMINI_MODEL;
       const srvRunId = `srv-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
 
       if (srvModuleName) {
