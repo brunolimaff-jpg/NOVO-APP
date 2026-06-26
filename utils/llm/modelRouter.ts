@@ -6,6 +6,7 @@ export const HYBRID_MODEL_MAP: Record<string, string> = {
   'Bordas de Controle': 'bedrock/deepseek.v3.2',
   'Riscos & Compliance': 'bedrock/deepseek.v3.2',
   'Caminho de Venda': 'bedrock/us.anthropic.claude-sonnet-4-6',
+  'Reconciliação PORTA': 'bedrock/deepseek.v3.2',
 };
 export const DEFAULT_MODEL = 'bedrock/deepseek.v3.2';
 export const CRITICAL_MODEL = 'bedrock/us.anthropic.claude-sonnet-4-6';
