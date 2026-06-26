@@ -180,7 +180,8 @@ export async function performGeminiSearch(query: string, apiKey: string): Promis
  */
 export async function performWebSearch(query: string, _options: { count?: number } = {}): Promise<string | null> {
   // Tenta Gemini com grounding primeiro (mais preciso, com fontes verificadas)
-  const apiKey = typeof process !== 'undefined' && process.env ? process.env.GEMINI_API_KEY : undefined;
+  const apiKey =
+    typeof process !== 'undefined' && process.env ? process.env.LLM_API_KEY || process.env.GEMINI_API_KEY : undefined;
   if (apiKey) {
     const result = await performGeminiSearch(query, apiKey);
     if (result) return result;

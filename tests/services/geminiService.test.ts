@@ -1,5 +1,5 @@
 /**
- * Testes para geminiService.ts
+ * Testes para llmService.ts
  * Foco nas funções exportadas: parsePortaFeeds, cleanPortaFeedMarkers, parseMarkers, sendMessageToGemini
  *
  * NOTA: resetChatSession e generateNewSuggestions não existem no módulo
@@ -16,7 +16,7 @@ const lookupClienteMock = vi.hoisted(() => vi.fn());
 const benchmarkClientesMock = vi.hoisted(() => vi.fn());
 const isConcorrenteOuPropriaMock = vi.hoisted(() => vi.fn());
 
-vi.mock('../../services/geminiProxy', () => ({
+vi.mock('../../services/llmProxy', () => ({
   proxyGenerateContent: proxyGenerateContentMock,
   proxyChatSendMessage: proxyChatSendMessageMock,
 }));
@@ -65,7 +65,7 @@ import {
   parseMarkers,
   sendMessageToGemini,
   generateContinuityQuestion,
-} from '../../services/geminiService';
+} from '../../services/llmService';
 import { Sender } from '../../types';
 
 function expectStrongContinuitySet(result: string[]) {
@@ -402,7 +402,7 @@ describe('sendMessageToGemini — cenários de erro', () => {
     const controller = new AbortController();
     controller.abort();
 
-    // geminiService lança DOMException com name='AbortError'
+    // llmService lança DOMException com name='AbortError'
     await expect(
       sendMessageToGemini('Analise a Fazenda X', [], 'system instruction', {
         signal: controller.signal,
@@ -414,7 +414,7 @@ describe('sendMessageToGemini — cenários de erro', () => {
 
   it('propaga erro de rede quando o proxy falha', async () => {
     // withAutoRetry está mockado para executar apenas uma vez (sem delay)
-    // geminiService relança o erro original (TypeError) — normalização é feita no consumidor
+    // llmService relança o erro original (TypeError) — normalização é feita no consumidor
     const networkError = new TypeError('fetch failed');
     proxyChatSendMessageMock.mockRejectedValue(networkError);
     proxyGenerateContentMock.mockRejectedValue(networkError);

@@ -1,33 +1,56 @@
 # Progress
 
-Last updated: 2026-06-26 — Sprint 2 validada: infraestrutura LiteLLM
+Last updated: 2026-06-26 — Marathon session closeout: Sprint 1 + Sprint 2 concluidos
 
 ## Timeline
 
-### 2026-06-26 (Sprint 2 — Plano de Profissionalizacao: infraestrutura LiteLLM)
+### 2026-06-26 (Marathon Closeout — Sprint 1 + Sprint 2 concluidos)
 
-- **Branch:** `refac/litellm-clean` — commit `ba6e0a0c`
+- **Marathon session completa:** Plano de Profissionalizacao Caminho C, Sprints 1 e 2 finalizados
+- **Origens:** Branch inicial `stabilize/fe6c6f9-cherry-picks` -> PR #389 -> merge + tag `fase-1-done`
+  - Branch `refac/litellm-clean` -> PR #390 -> merge + tag `fase-2-done`
+- **Sprint 1 entregue (PR #389):**
+  - 3/5 cherry-picks aplicados com sucesso: PR #379 (Cron), PR #380 (QSA knownCnpjs), Sentry
+  - 2 abortados por conflito massivo: MCP config, PR #383
+  - Limpeza: ChatInterface.tsx restaurado, scar tissue confirmado como parte de fe6c6f9
+  - 11 threads resolvidas (Gemini Code Assist + Cursor)
+- **Sprint 2 entregue (PR #390):**
+  - 4 novos arquivos, 5 modificados
+  - 64 threads resolvidas (Gemini Code Assist + 7 rodadas Cursor + 1 security review Cursor)
+  - 10 bugs corrigidos: 2 P0 (Rules of Hooks, Foundation cache), 4 P1, 1 P5 + 3 infra
+  - 13 commits, squash merged, tag `fase-2-done`
+- **Decisoes:** 6 novas (DI-2026-06-26-01 a DI-2026-06-26-06)
+- **Validacao final:** typecheck verde, build verde, 1489/13 testes, ping-litellm ok, dossie Scheffer 47KB sem freeze
+- **Vault:** [[2026-06-26T21-30-00-marathon-sprint1-sprint2]], [[LICOES-APRENDIDAS-MARATHON-SPRINT1-SPRINT2-2026-06-26]]
+- **Proximo:** Sprint 3 — MCP config + CI gates + refinamentos
+
+### 2026-06-26 (Sprint 2 — Closeout: pipeline hibrido LiteLLM)
+
+- **Branch:** `refac/litellm-clean` — commit `8ee5a2b7`
 - **Base:** `stabilize/from-production-fe6c6f9`
-- **PR:** https://github.com/brunolimaff-jpg/NOVO-APP/pull/390 — **MERGEABLE**, 24/24 threads resolvidas
-- **Preview Vercel:** https://scoutagro-ngx18jvgf-brunolimaff-3629s-projects.vercel.app
+- **PR #390:** https://github.com/brunolimaff-jpg/NOVO-APP/pull/390 — **MERGEABLE**, 56/56 threads resolvidas
+- **Preview Vercel:** https://scoutagro-git-refac-litellm-clean-brunolimaff-3629s-projects.vercel.app
 - **Novos arquivos (4):**
   - `api/_llm-client.ts` — client LiteLLM com retry seletivo, timeout, auth Bearer
   - `utils/llm/modelRouter.ts` — roteamento Sonnet 4.6 + DeepSeek V3.2 por modulo
   - `utils/llm/types.ts` — tipos LLMProvider, LLMRequest, LLMResponse
   - `api/ping-litellm.ts` — endpoint diagnostico (usa DEFAULT_MODEL)
-- **Arquivos modificados (2):**
-  - `api/gemini.ts` — branch LiteLLM no handler generateContent (roteamento 100% server-side)
+- **Arquivos modificados (5):**
+  - `api/gemini.ts` — branch LiteLLM no handler generateContent (roteamento 100% server-side via regex)
   - `services/gemini/investigation-orchestration.ts` — STABLE_RESEARCH_MODEL_ID fixo, useGrounding false
-- **Patches de estabilizacao (2):**
-  - `useDeferredValue` em SectionalBotMessage.tsx (>30KB = deferred render com skeleton)
-  - `useGrounding` removido (false), Score PORTA recalibrado depois
-- **Correcoes pos-review:** 8 commits, 24 threads (Gemini: 5+1, Cursor: 10+4)
-- **Validacao:** typecheck verde, build verde, 1488/14 testes, ping ok, CNPJ ok, dossie completo, Score 82
-- **Decisoes:**
+  - `features/dossier/waterfall-orchestrator.ts` — useGrounding false no waterfall
+  - `services/gemini/foundation-cache.ts` — desliga com VITE_HYBRID_PIPELINE_ENABLED=1
+  - `components/SectionalBotMessage.tsx` — useDeferredValue para >30KB
+- **Correcoes pos-review:** 13 commits, 56 threads (Gemini Code Assist + Cursor)
+- **Validacao:** typecheck verde, build verde, 1489/13 testes, ping ok, CNPJ ok, dossie 32KB sem freeze, Score 82
+- **Decisoes novas:**
   - DI-2026-06-26-03: Roteamento 100% server-side
   - DI-2026-06-26-04: useGrounding removido, Score recalibrado
   - DI-2026-06-26-05: LiteLLM gate unico (LLM_PROVIDER flag)
-- **Pendente para Sprint 3:** Recalibrar Score PORTA, ativar HOMOLOG, dossie hibrido, testes unitarios, remover CodeRabbit
+  - DI-2026-06-26-06: Foundation cache desliga com pipeline hibrido
+- **Vault:** [[2026-06-26T20-30-00-sprint2-closeout-handoff.md]] em `20-SESSOES/2026-06/`
+- **Status:** Sprint 2 concluida. **Aguardando validacao manual** do pipeline hibrido (Bruno verificando model=bedrock/... no Network).
+- **Proximo:** Se validado → merge PR #390 e iniciar Sprint 3
 
 ### 2026-06-26 (Sprint 1 — Plano de Profissionalizacao: cherry-picks sobre fe6c6f9)
 

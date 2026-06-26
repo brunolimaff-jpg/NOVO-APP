@@ -1,7 +1,7 @@
 import type { Dispatch, SetStateAction } from 'react';
 import { SHARED_FOUNDATION_BLOCK } from '../../prompts/megaPrompts';
-import { generateDossierModule } from '../../services/geminiService';
-import { joinDossierExtraContext } from '../../services/gemini/foundation-cache';
+import { generateDossierModule } from '../../services/llmService';
+import { joinDossierExtraContext } from '../../services/llm/foundation-cache';
 import { type PortaDimension, type ScorePortaData } from '../../types';
 import { scoutDiag } from '../../utils/diagnosticLog';
 import { resolvePortaScore, type PortaScoreResolution } from '../../utils/porta';

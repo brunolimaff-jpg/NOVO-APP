@@ -11,7 +11,7 @@ vi.mock('uuid', () => ({
   v4: uuidv4Mock,
 }));
 
-vi.mock('../../../services/geminiService', () => ({
+vi.mock('../../../services/llmService', () => ({
   sendMessageToGemini: sendMessageToGeminiMock,
 }));
 

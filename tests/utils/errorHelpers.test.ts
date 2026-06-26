@@ -100,11 +100,11 @@ describe('normalizeAppError', () => {
       friendlyMessage: 'Sem internet',
       retryable: true,
       transient: true,
-      source: 'GEMINI' as const,
+      source: 'LLM' as const,
     };
     const result = normalizeAppError(original);
     expect(result.code).toBe('NETWORK');
-    expect(result.source).toBe('GEMINI');
+    expect(result.source).toBe('LLM');
   });
 
   it('aplica source UNKNOWN se AppError tiver source UNKNOWN', () => {
@@ -116,8 +116,8 @@ describe('normalizeAppError', () => {
       transient: true,
       source: 'UNKNOWN' as const,
     };
-    const result = normalizeAppError(original, 'GEMINI');
-    expect(result.source).toBe('GEMINI');
+    const result = normalizeAppError(original, 'LLM');
+    expect(result.source).toBe('LLM');
   });
 
   it('nunca retenta erro de "input body is disturbed"', () => {

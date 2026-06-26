@@ -238,7 +238,7 @@ vi.mock('../utils/featureAccess', () => ({
   }),
 }));
 
-vi.mock('../services/geminiService', () => ({
+vi.mock('../services/llmService', () => ({
   sendMessageToGemini: sendMessageToGeminiMock,
   generateContinuityQuestion: vi.fn(),
   generateDossierModule: generateDossierModuleMock,

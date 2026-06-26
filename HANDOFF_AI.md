@@ -1,86 +1,123 @@
-# Handoff Sprint 2 — LiteLLM Infrastructure Validated
+# Handoff Marathon — Sprint 1 + Sprint 2 Concluidas
 
-> **Estado:** Sprint 2 do plano de profissionalizacao (Caminho C) concluida e validada.
-> **Branch:** `refac/litellm-clean` — commit `ba6e0a0c`
-> **Base:** `stabilize/from-production-fe6c6f9`
-> **PR:** https://github.com/brunolimaff-jpg/NOVO-APP/pull/390 — **MERGEABLE**, 24/24 threads resolvidas
-> **Preview Vercel:** https://scoutagro-ngx18jvgf-brunolimaff-3629s-projects.vercel.app
+> **Estado:** Plano de Profissionalizacao (Caminho C) — Sprint 1 e Sprint 2 finalizados e mergeados. Tags `fase-1-done` e `fase-2-done` criadas.
+> **Branch atual:** `refac/litellm-clean` (Sprint 2 — branch de trabalho, pode ser removida)
+> **Base:** `origin/stabilize/from-production-fe6c6f9` — contem Sprints 1 + 2
+> **PRs:** [#389](https://github.com/brunolimaff-jpg/NOVO-APP/pull/389) (Sprint 1), [#390](https://github.com/brunolimaff-jpg/NOVO-APP/pull/390) (Sprint 2) — ambos squash merged
+> **Tags:** `fase-1-done`, `fase-2-done`
 
 ---
 
 ## Resumo da Sessao
 
-| #   | Tarefa                                                                            | Status |
-| --- | --------------------------------------------------------------------------------- | ------ |
-| 1   | Infraestrutura LiteLLM com 1 gate (nao 5): client, modelRouter, ping              | ✅     |
-| 2   | api/gemini.ts branch LiteLLM no handler generateContent                           | ✅     |
-| 3   | investigation-orchestration: STABLE_RESEARCH_MODEL_ID fixo, useGrounding removido | ✅     |
-| 4   | useDeferredValue em SectionalBotMessage.tsx (>30KB)                               | ✅     |
-| 5   | Correcoes pos-review (8 commits, 24 threads) — Gemini + Cursor                    | ✅     |
-| 6   | Validacao preview Vercel: typecheck, build, testes, ping, CNPJ, dossie, score     | ✅     |
+| #   | Tarefa                                                                                              | Status |
+| --- | --------------------------------------------------------------------------------------------------- | ------ |
+| 1   | Sprint 1 — 3/5 cherry-picks aplicados (Cron, QSA knownCnpjs, Sentry), 2 abortados                   | ✅     |
+| 2   | PR #389 — 11 threads resolvidas, squash merged, tag fase-1-done                                     | ✅     |
+| 3   | Sprint 2 — Infra LiteLLM: 4 novos arquivos, 5 modificados                                           | ✅     |
+| 4   | PR #390 — 64 threads resolvidas (Gemini + Cursor), squash merged, tag fase-2-done                   | ✅     |
+| 5   | Validacao final: typecheck, build, 1489/13 testes, ping-litellm ok, dossie Scheffer 47KB sem freeze | ✅     |
+| 6   | Env vars configuradas no Vercel Preview                                                             | ✅     |
+| 7   | Score PORTA null — recalibracao pendente na Fase 5                                                  | ⚠️     |
 
 ## Correcoes aplicadas
 
-| Correcao                                               | Origem              | Onde                                    |
-| ------------------------------------------------------ | ------------------- | --------------------------------------- |
-| modelRouter normalize provider                         | Gemini Code Assist  | utils/llm/modelRouter.ts                |
-| Retry config duplicado removido                        | Cursor              | api/\_llm-client.ts                     |
-| Timeout inconsistente homogeneizado                    | Cursor              | api/\_llm-client.ts                     |
-| Roteamento 100% server-side (selectModelForModule)     | Cursor              | api/gemini.ts                           |
-| useGrounding removido (false)                          | Bruno/Cursor        | investigation-orchestration.ts          |
-| useDeferredValue em SectionalBotMessage >30KB          | Diagnostico proprio | components/chat/SectionalBotMessage.tsx |
-| 4 intencionais mantidos (cache, fallback, retry, ping) | Revisao             | —                                       |
+| Correcao                                                                                             | Origem              |
+| ---------------------------------------------------------------------------------------------------- | ------------------- |
+| ChatInterface.tsx restaurado para baseline fe6c6f9 (completedDossier inexistente)                    | Diagnostico proprio |
+| Scar tissue: useStaticTimelineFallback.ts e blankPanelTelemetry.ts confirmados como parte de fe6c6f9 | Diagnostico proprio |
+| P0 Rules of Hooks — useDeferredValue movido para depois do early return                              | Cursor              |
+| P0 Foundation cache bloqueava LiteLLM — gate VITE_HYBRID_PIPELINE_ENABLED adicionado                 | Bruno/Cursor        |
+| P1 Nomes de modulo errados no modelRouter — acentos corrigidos                                       | Gemini Code Assist  |
+| P1 cachedContent ID enviado como texto ao LiteLLM — delegado ao Gemini                               | Cursor              |
+| P1 Grounding sem fallback — removido, chat restaurado default true                                   | Bruno/Cursor        |
+| P1 Roteamento hibrido inoperante — movido 100% server-side com regex                                 | Cursor              |
+| P5 useDeferredValue em dossies >30KB — anti-freeze                                                   | Diagnostico proprio |
+| ESM .js extensions faltando — adicionadas para runtime Vercel                                        | Cursor              |
+| Retry seletivo (4xx nao retenta, 429/5xx retenta)                                                    | Cursor              |
+| extractContent com guard contra null                                                                 | Gemini Code Assist  |
 
-## Arquivos alterados
+## Arquivos alterados (Sprint 2)
 
-| Arquivo                                        | Mudanca                                                 | Status |
-| ---------------------------------------------- | ------------------------------------------------------- | ------ |
-| api/\_llm-client.ts                            | Novo — client LiteLLM com retry, timeout, auth Bearer   | ✅     |
-| utils/llm/modelRouter.ts                       | Novo — roteamento Sonnet 4.6 + DeepSeek V3.2 por modulo | ✅     |
-| utils/llm/types.ts                             | Novo — tipos LLMProvider, LLMRequest, LLMResponse       | ✅     |
-| api/ping-litellm.ts                            | Novo — endpoint diagnostico (usa DEFAULT_MODEL)         | ✅     |
-| api/gemini.ts                                  | Branch LiteLLM no handler generateContent               | ✅     |
-| services/gemini/investigation-orchestration.ts | STABLE_RESEARCH_MODEL_ID fixo, useGrounding false       | ✅     |
-| components/chat/SectionalBotMessage.tsx        | useDeferredValue para >30KB                             | ✅     |
+| Arquivo                                                 | Mudanca                                                            | Status |
+| ------------------------------------------------------- | ------------------------------------------------------------------ | ------ |
+| `api/_llm-client.ts`                                    | **Novo** — client LiteLLM com retry seletivo, timeout, auth Bearer | ✅     |
+| `utils/llm/modelRouter.ts`                              | **Novo** — roteamento Sonnet 4.6 + DeepSeek V3.2 por modulo        | ✅     |
+| `utils/llm/types.ts`                                    | **Novo** — tipos LLMProvider, LLMRequest, LLMResponse              | ✅     |
+| `api/ping-litellm.ts`                                   | **Novo** — endpoint diagnostico (usa DEFAULT_MODEL)                | ✅     |
+| `api/gemini.ts`                                         | Branch LiteLLM com roteamento server-side via regex                | ✅     |
+| `services/gemini/investigation-orchestration.ts`        | STABLE_RESEARCH_MODEL_ID fixo, useGrounding false                  | ✅     |
+| `features/dossier/waterfall-orchestrator.ts`            | useGrounding false no waterfall                                    | ✅     |
+| `services/gemini/foundation-cache.ts`                   | Desliga cache com VITE_HYBRID_PIPELINE_ENABLED=1                   | ✅     |
+| `components/SectionalBotMessage.tsx`                    | useDeferredValue para >30KB                                        | ✅     |
+| `tests/features/dossier/waterfall-orchestrator.test.ts` | Expect useGrounding false                                          | ✅     |
 
-## Validacao final (26/06/2026)
+## Validacao Final (26/06/2026)
 
-| Gate            | Status                                   |
-| --------------- | ---------------------------------------- |
-| Typecheck       | Verde                                    |
-| Build           | Verde                                    |
-| Testes          | 1488 pass / 14 fail (baseline fe6c6f9)   |
-| Ping LiteLLM    | `status: ok`                             |
-| CNPJ API        | Scheffer, 6 socios                       |
-| Dossie Scheffer | Completo, sem freeze                     |
-| Score PORTA     | 82                                       |
-| Supabase        | ID: 5d45cc3b-b598-462f-a074-6f0d8213ca07 |
-| Grounding       | Timeout ignorado → DuckDuckGo fallback   |
+| Gate                         | Status                                                               |
+| ---------------------------- | -------------------------------------------------------------------- |
+| Typecheck                    | Verde                                                                |
+| Build                        | Verde                                                                |
+| Testes                       | 1489 pass / 13 fail (baseline fe6c6f9 — MIGRATION_DEADLINE expirado) |
+| ping-litellm                 | `status: ok`                                                         |
+| VITE_HYBRID_PIPELINE_ENABLED | Confirmado "1" no bundle JS                                          |
+| Dossie Scheffer              | 47.631 chars, Supabase ID 2bcd2079, sem freeze                       |
+| Score PORTA                  | null (recalibracao Fase 5)                                           |
+| Freeze UI                    | Sem raf-safety-net-fired                                             |
+| Merge                        | Squash merged em origin/stabilize/from-production-fe6c6f9            |
 
 ## Decisoes desta sessao
 
-- **DI-2026-06-26-03:** Roteamento de LLM e 100% server-side via `api/gemini.ts` (`selectModelForModule`). Client-side (`investigation-orchestration.ts`) mantem `STABLE_RESEARCH_MODEL_ID` fixo. Nao ha roteamento no frontend.
-- **DI-2026-06-26-04:** `useGrounding` removido (default false). Score PORTA recalibrado apos — benchmark esperado 68-75 (vs 82 atual). Sprint 3 recalibrara metricas.
-- **DI-2026-06-26-05:** LiteLLm gate unico (nao 5 gates como planejado originalmente). Flag `LLM_PROVIDER` controla: `gemini` = direto (default), `litellm` = via proxy. Ambiente ativo: DEV apenas.
+- **DI-2026-06-26-01:** Cherry-pick inviavel para commits com dependencias cross-cutting (>25 arquivos), reimplementacao manual
+- **DI-2026-06-26-02:** useStaticTimelineFallback.ts e blankPanelTelemetry.ts sao parte de fe6c6f9, nao scar tissue
+- **DI-2026-06-26-03:** Roteamento 100% server-side via `selectModelForModule` em api/gemini.ts
+- **DI-2026-06-26-04:** useGrounding removido (default false), Score PORTA recalibrado — benchmark esperado 68-75
+- **DI-2026-06-26-05:** LiteLLM gate unico (LLM_PROVIDER): `gemini` (default) ou `litellm`
+- **DI-2026-06-26-06:** isFoundationCacheEnabled() retorna false quando VITE_HYBRID_PIPELINE_ENABLED=1
 
-## Lições aprendidas
+## CI failures documentados (debito fe6c6f9)
 
-| #   | Licao                                                                                | Anti-padrao / o que evitar                | Onde aplicar        |
-| --- | ------------------------------------------------------------------------------------ | ----------------------------------------- | ------------------- |
-| 1   | Revisao por multiplos bots (Gemini + Cursor) capturou mais bugs que um unico revisor | Depender de 1 bot de review               | Fluxo de PR         |
-| 2   | Roteamento server-side e mais seguro que client-side para LLM                        | Roteamento no frontend (expõe provedores) | api/gemini.ts       |
-| 3   | `useDeferredValue` resolve freeze com >30KB de conteudo sem sacrificar UX            | Renderizar blocos grandes sincronamente   | SectionalBotMessage |
+- Dossier Golden: MIGRATION_DEADLINE expirado
+- Tests: AuthGate.test.tsx migration banner
+- E2E Critical Browser: onboarding.ts login CI
 
-## Pendentes para Sprint 3
+## Env vars configuradas (Vite e Vercel Preview)
 
-| Pendencia                                                                 | Risco                        |
-| ------------------------------------------------------------------------- | ---------------------------- |
-| Recalibrar metricas Score PORTA (sem grounding, benchmark 68-75)          | Medio — score superestimado  |
-| Ativar LiteLLM em HOMOLOG (LLM_PROVIDER=litellm) com foundation cache off | Alto — primeiro contato real |
-| Validar dossie real com pipeline hibrido Sonnet + DeepSeek                | Alto — pipeline novo         |
-| Testes unitarios modelRouter + LiteLLM gate                               | Medio — sem cobertura        |
-| Remover CodeRabbit do repo                                                | Baixo — processo             |
+- `LLM_PROVIDER=litellm`
+- `LITELLM_API_KEY=sk-...`
+- `LITELLM_BASE_URL=https://litellm.homolog.seniorlabs.io`
+- `VITE_HYBRID_PIPELINE_ENABLED=1`
+
+## Licoes aprendidas
+
+| #   | Licao                                                                            | Anti-padrao                                 | Onde aplicar        |
+| --- | -------------------------------------------------------------------------------- | ------------------------------------------- | ------------------- |
+| 1   | Revisao por multiplos bots capturou mais bugs que 1 revisor                      | Depender de 1 bot de review                 | Fluxo de PR         |
+| 2   | Roteamento server-side e mais seguro para LLM                                    | Roteamento frontend expoe provedores        | api/gemini.ts       |
+| 3   | `useDeferredValue` resolve freeze >30KB sem sacrificar UX                        | Renderizar blocos grandes sincronamente     | SectionalBotMessage |
+| 4   | Foundation cache incompativel com proxy LiteLLM                                  | Assumir compatibilidade cache/proxy         | foundation-cache.ts |
+| 5   | Cherry-pick inviavel para commits >5 arquivos com cross-cutting                  | Tentar cherry-pick de diff massivo          | Fluxo de merge      |
+| 6   | Revisao multi-bot (Gemini + Cursor + humano) quadruplicou cobertura vs 1 revisor | Confiar em unico bot de review              | Fluxo de PR         |
+| 7   | `LLM_PROVIDER` como gate unico simplifica operacao contra 5 gates planejados     | Multiplas flags com interdependencia oculta | foundation-cache.ts |
+
+## Pendentes para Sprint 3 / Fase 5
+
+| Pendencia                                                  | Risco                             |
+| ---------------------------------------------------------- | --------------------------------- |
+| Recalibrar Score PORTA sem grounding                       | Medio — score superestimado       |
+| Fallback Gemini em erro LiteLLM                            | Alto — sem fallback = tela branca |
+| Unificar flags VITE_HYBRID_PIPELINE_ENABLED + LLM_PROVIDER | Baixo — duplicidade               |
+| Testes unitarios modelRouter + LiteLLM gate                | Medio — sem cobertura             |
+| Remover CodeRabbit do repo                                 | Baixo — processo                  |
+| 13 testes fail + 8 erros lint (debito fe6c6f9)             | Medio — pre-existente             |
+| MIGRATION_DEADLINE (debito fe6c6f9)                        | Medio — teste golden quebrado     |
+| Ativar LiteLLM em HOMOLOG                                  | Alto — primeiro contato real      |
+
+## Links Vault
+
+- Sessao: [[2026-06-26T21-30-00-marathon-sprint1-sprint2|Marathon Sprint 1 + Sprint 2 completas]]
+- Licoes: [[LICOES-APRENDIDAS-MARATHON-SPRINT1-SPRINT2-2026-06-26]]
 
 ## Proximo passo
 
-Sprint 3: Recalibrar Score PORTA + ativar LiteLLM em HOMOLOG + validar dossie real com pipeline hibrido.
+Iniciar Sprint 3 do plano de profissionalizacao — MCP config + CI gates + refinamentos. A infraestrutura LiteLLM esta deployada em stabilize, pronta para ativacao em HOMOLOG.

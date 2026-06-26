@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { cleanPortaFeedMarkers, parseMarkers, parsePortaFeeds } from '../../services/geminiService';
+import { cleanPortaFeedMarkers, parseMarkers, parsePortaFeeds } from '../../services/llmService';
 
 describe('parseMarkers — PORTA', () => {
   it('parses v2 marker with AGI segment and no flags', () => {

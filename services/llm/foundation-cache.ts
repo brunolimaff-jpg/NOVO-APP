@@ -1,5 +1,5 @@
 import { STABLE_RESEARCH_MODEL_ID } from './config';
-import { proxyCreateCachedContent, proxyDeleteCachedContent } from '../geminiProxy';
+import { proxyCreateCachedContent, proxyDeleteCachedContent } from '../llmProxy';
 import { scoutDiag } from '../../utils/diagnosticLog';
 
 export const WATERFALL_FOUNDATION_CACHE_TTL = '600s';

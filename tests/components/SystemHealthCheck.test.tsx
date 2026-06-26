@@ -20,7 +20,7 @@ vi.mock('../../services/clientLookupService', () => ({
   lookupCliente: lookupClienteMock,
 }));
 
-vi.mock('../../services/geminiProxy', () => ({
+vi.mock('../../services/llmProxy', () => ({
   proxyGeminiHealth: proxyGeminiHealthMock,
 }));
 

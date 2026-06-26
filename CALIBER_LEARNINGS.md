@@ -494,3 +494,29 @@ _Atualizado automaticamente pelo Caliber apos sessoes de agente._
 
 - **Cron destrutivo deve iniciar em dry-run** [vercel, cron, auth, seguranca operacional]
   Configurar apenas o segredo de autenticacao pode ativar uma versao que exclui dados imediatamente. Primeiro publicar `dry-run` como padrao, revisar candidatos e so depois habilitar uma flag destrutiva separada.
+
+## Marathon Sprint 1 + Sprint 2 — licoes consolidadas (2026-06-26)
+
+- **Multiplos revisores IA capturam significativamente mais bugs que 1 revisor sozinho** [code-review, qualidade, multi-agent]
+  Na Sprint 1, revisao por 1 bot (Gemini Code Assist) capturou 11 issues. Na Sprint 2, revisao por 2 bots (Gemini + 7 rodadas Cursor + 1 security Cursor) capturou 64 threads e 10 bugs, incluindo 2 P0 que 1 revisor sozinho nao teria pego (Rules of Hooks, Foundation cache). Cada revisor IA tem pontos cegos diferentes. Rodar multiplos revisores em paralelo antes do merge e barato e eficaz.
+
+- **Roteamento de LLM 100% server-side evita exposicao de provedores no bundle** [seguranca, litellm, api, bundle]
+  Roteamento client-side de LLM providers expoe nomes de modelo, provedores e endpoints no bundle JS — visivel no Network do browser e no source maps. `selectModelForModule()` em `api/gemini.ts` mantem a logica de roteamento no backend. O frontend envia request generico e o backend decide qual modelo usar. Nenhum provider exposto.
+
+- **`useDeferredValue` do React 19 resolve freeze de renderizacao em blocos >30KB** [react, performance, freeze]
+  Quando o dossie do bot tem >30KB de texto, o React bloqueia a main thread por segundos ao renderizar o SectionalBotMessage. `useDeferredValue` com fallback visual permite que a UI continue responsiva enquanto o React renderiza em background. Nao precisa de virtualization workaround ou chunking manual.
+
+- **Cherry-pick inviavel para commits com >5 arquivos e dependencias cross-cutting** [git, merge, workflow]
+  Commits que tocam 25+ arquivos com dependencias de componentes que nao existem no baseline (ex: CofreOverlay, LiteLLM) geram conflito massivo modify/delete. Cherry-pick funciona apenas para commits focados (<5 arquivos, sem dependencias de componentes inexistentes). Para diffs grandes com cross-cutting, reimplementar manualmente e mais rapido que resolver conflito.
+
+- **Gate unico de feature reduz complexidade operacional vs multiplas flags** [arquitetura, config, feature-flag]
+  5 gates planejados no design original (feature flag, env var, runtime, modulo, A/B) foram substituidos por 1 gate `LLM_PROVIDER`. Cada gate adicional e um ponto de falha e uma combinacao de estado inconsistente. Um unico gate com valores mutuamente exclusivos (`gemini` | `litellm`) simplifica rollback (remover env var) e debugging.
+
+- **Verificar existencia na branch alvo ANTES de remover "scar tissue"** [cleanup, git, workflow]
+  `blankPanelTelemetry.ts` e `useStaticTimelineFallback.ts` foram identificados como possivel scar tissue de refatoracao, mas ambos existem no baseline fe6c6f9 e sao referenciados em producao. A verificacao correta: `git show <baseline>:relative/path/to/file` para confirmar que o arquivo existe na branch alvo antes de remove-lo ou modifica-lo.
+
+- **Retry seletivo: 4xx nunca, 429/5xx sempre** [api, retry, resiliencia]
+  Erros 4xx (Bad Request, Forbidden, Not Found) indicam problema do cliente — retentar e inutil e pode agravar rate limit. Erros 429 (Too Many Requests) e 5xx (Server Error) sao transitorios e devem ser retentados com backoff. Implementado em `api/_llm-client.ts` com `shouldRetry()`.
+
+- **ESM no runtime Vercel exige `.js` extension em imports locais** [vercel, esm, deploy, runtime]
+  O runtime serverless da Vercel para funcoes TypeScript usa resolucao ESM estrita. Imports de arquivos locais sem extensao `.js` (ex: `from './utils'` em vez de `from './utils.js'`) falham em producao — `ERR_MODULE_NOT_FOUND`. O tipo do erro nao deixa claro que a extensao esta faltando. Sempre adicionar `.js` em imports de arquivos locais em `api/*.ts`.

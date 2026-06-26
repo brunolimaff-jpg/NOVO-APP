@@ -1,5 +1,5 @@
 import { scoutDiag } from '../../utils/diagnosticLog';
-import { proxyGenerateContent } from '../geminiProxy';
+import { proxyGenerateContent } from '../llmProxy';
 import { RECOVERY_DEBUG_FLAG_KEY, ROUTER_MODEL_ID, OPEN_QUESTION_RECOVERY_METRIC_KEY } from './config';
 
 const RECOVERY_MODULE = 'Recovery';
