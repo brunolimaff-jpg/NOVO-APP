@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { isLiteLLMEnabled, callLiteLLM } from './_llm-client.js';
+import { DEFAULT_MODEL } from '../utils/llm/modelRouter.js';
 
 export const config = { runtime: 'nodejs' };
 export const maxDuration = 30;
@@ -21,7 +22,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse): 
 
   try {
     const text = await callLiteLLM({
-      model: 'bedrock/us.amazon.nova-micro-v1:0',
+      model: DEFAULT_MODEL,
       messages: [{ role: 'user', content: 'ping' }],
       maxTokens: 10,
       timeoutMs: 10_000,
