@@ -1,8 +1,28 @@
 # Progress
 
-Last updated: 2026-06-15 — sessao de encerramento: merge final, push, cleanup
+Last updated: 2026-06-26 — Sprint 1 concluida: cherry-picks sobre fe6c6f9
 
 ## Timeline
+
+### 2026-06-26 (Sprint 1 — Plano de Profissionalizacao: cherry-picks sobre fe6c6f9)
+
+- **Branch alvo:** `stabilize/from-production-fe6c6f9` (commit `fe6c6f9ba59fb7063356a5f0adcc51c411db3c4a`)
+- **Branch de trabalho:** `stabilize/fe6c6f9-cherry-picks`
+- **3/5 cherry-picks aplicados com sucesso:**
+  - PR #379 (Cron + playbook P0) — 6 SHAs
+  - PR #380 (CNPJ QSA knownCnpjs fix) — 2 SHAs
+  - Sentry DSN + error monitoring — 6 SHAs
+- **2/5 ABORTADOS por conflito massivo:**
+  - MCP config (`.mcp.json`) — 25+ arquivos em conflito, trouxe Cofre/LiteLLM que nao existem em fe6c6f9
+  - PR #383 (CI gates + auth lockout) — 10 arquivos em conflito, dependia de useCofreTransition deletado
+- **Limpeza pos-abortos:** ChatInterface.tsx restaurado para baseline fe6c6f9
+- **Validacao:** typecheck verde, build 18.6s, preview Vercel OK, API CNPJ OK
+- **PR criada:** #389 (draft)
+- **Branch mergeada:** `stabilize/fe6c6f9-cherry-picks` → `origin/stabilize/from-production-fe6c6f9`
+- **Decisoes:**
+  - DI-2026-06-26-01: Cherry-pick de 25+ arquivos com cross-cutting inviavel, reimplementar manual
+  - DI-2026-06-26-02: useStaticTimelineFallback.ts e blankPanelTelemetry.ts sao parte de fe6c6f9
+- **Pendente para Sprint 2:** MCP config, CI gates, LiteLLM core
 
 ### 2026-06-15 (Sessao de encerramento — feature/supabase-auth cleanup)
 

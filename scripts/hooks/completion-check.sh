@@ -2,7 +2,7 @@
 set -u
 
 # Stop hook nao bloqueante: registra pendencias e as devolve como contexto.
-INPUT=$(cat 2>/dev/null || printf '{}')
+if [ -t 0 ]; then INPUT="{}"; else INPUT=$(cat 2>/dev/null || printf "{}"); fi
 START_DIR=$PWD
 HAS_JQ=false
 REQUESTED_CWD=
