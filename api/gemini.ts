@@ -342,15 +342,15 @@ async function executeGeminiAction(ai: GoogleGenAI, body: ParsedBody, res: Verce
       if (typeof configIn.cachedContent === 'string') {
         genConfig.cachedContent = configIn.cachedContent;
         if (configIn.systemInstruction !== undefined) {
-          console.warn('[GeminiProxy] cachedContent ignorou systemInstruction no generateContent');
+          console.warn('[LlmProxy] cachedContent ignorou systemInstruction no generateContent');
         }
         if (Array.isArray(configIn.tools) && configIn.tools.length > 0) {
           console.warn(
-            '[GeminiProxy] cachedContent ignorou tools no generateContent; use tools em createCachedContent',
+            '[LlmProxy] cachedContent ignorou tools no generateContent; use tools em createCachedContent',
           );
         }
         if (configIn.toolConfig !== undefined) {
-          console.warn('[GeminiProxy] cachedContent ignorou toolConfig no generateContent');
+          console.warn('[LlmProxy] cachedContent ignorou toolConfig no generateContent');
         }
       } else {
         if (typeof configIn.systemInstruction === 'string') {
@@ -556,7 +556,7 @@ async function executeGeminiAction(ai: GoogleGenAI, body: ParsedBody, res: Verce
         }
       } catch (primaryError) {
         if (!useGrounding) throw primaryError;
-        console.warn('[GeminiProxy] Falha no Grounding/Tool, acionando fallback:', primaryError);
+        console.warn('[LlmProxy] Falha no Grounding/Tool, acionando fallback:', primaryError);
         groundingActivated = false;
         const fallbackData = await runChat(false);
         response = fallbackData.response;
@@ -651,7 +651,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       } catch (error: unknown) {
         const hasNextKey = i < keys.length - 1;
         if ((isQuotaExhausted(error) || isBillingOrPermissionDenied(error)) && hasNextKey) {
-          console.warn(`[GeminiProxy] Chave ${i + 1} com erro (quota/billing), tentando fallback...`);
+          console.warn(`[LlmProxy] Chave ${i + 1} com erro (quota/billing), tentando fallback...`);
           lastError = error;
           continue;
         }

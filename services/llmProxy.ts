@@ -182,7 +182,7 @@ async function callGeminiApi<TResponse>(
   let responseText: string;
   try {
     try {
-      scoutDiag.info('GeminiProxy', 'request:start', { endpoint, action, requestClass, timeoutMs });
+      scoutDiag.info('LlmProxy', 'request:start', { endpoint, action, requestClass, timeoutMs });
 
       response = await fetch(endpoint, {
         method: 'POST',
@@ -194,7 +194,7 @@ async function callGeminiApi<TResponse>(
       responseText = await readResponseText(response, controller.signal);
     } catch (error: unknown) {
       if (timedOut) {
-        scoutDiag.error('GeminiProxy', 'timeout no proxy', {
+        scoutDiag.error('LlmProxy', 'timeout no proxy', {
           timeoutMs,
           endpoint,
           action,
@@ -208,7 +208,7 @@ async function callGeminiApi<TResponse>(
           { cause: error },
         );
       }
-      scoutDiag.error('GeminiProxy', 'falha de rede, abort ou leitura do body', {
+      scoutDiag.error('LlmProxy', 'falha de rede, abort ou leitura do body', {
         endpoint,
         action,
         requestClass,
@@ -218,7 +218,7 @@ async function callGeminiApi<TResponse>(
       throw error;
     }
 
-    scoutDiag.info('GeminiProxy', 'response:body-read', {
+    scoutDiag.info('LlmProxy', 'response:body-read', {
       endpoint,
       action,
       requestClass,
@@ -227,7 +227,7 @@ async function callGeminiApi<TResponse>(
     });
 
     if (!response.ok) {
-      scoutDiag.error('GeminiProxy', 'resposta HTTP nao OK', {
+      scoutDiag.error('LlmProxy', 'resposta HTTP nao OK', {
         status: response.status,
         endpoint,
         action,
@@ -243,7 +243,7 @@ async function callGeminiApi<TResponse>(
     try {
       return JSON.parse(trimmedBody) as TResponse;
     } catch (error: unknown) {
-      scoutDiag.error('GeminiProxy', 'JSON invalido na resposta do proxy', {
+      scoutDiag.error('LlmProxy', 'JSON invalido na resposta do proxy', {
         endpoint,
         action,
         requestClass,
