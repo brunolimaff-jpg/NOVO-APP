@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { isLiteLLMEnabled, callLiteLLM } from './_llm-client';
+import { isLiteLLMEnabled, callLiteLLM } from './_llm-client.js';
 
 export const config = { runtime: 'nodejs' };
 export const maxDuration = 30;

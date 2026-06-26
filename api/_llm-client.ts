@@ -78,7 +78,10 @@ export async function callLiteLLM(params: LiteLLMParams): Promise<string> {
 
       if (!response.ok) {
         const errorText = await response.text().catch(() => '');
-        throw new Error(`LiteLLM request failed [${response.status}]: ${errorText || response.statusText}`);
+        const isRetryable = response.status === 429 || response.status >= 500;
+        const err = new Error(`LiteLLM request failed [${response.status}]: ${errorText || response.statusText}`);
+        (err as unknown as Record<string, unknown>).isRetryable = isRetryable;
+        throw err;
       }
 
       const data: unknown = await response.json();
@@ -92,9 +95,12 @@ export async function callLiteLLM(params: LiteLLMParams): Promise<string> {
       return content;
     } catch (err: unknown) {
       lastError = err instanceof Error ? err : new Error(String(err));
+      const isRetryable = (lastError as unknown as Record<string, unknown>).isRetryable ?? true;
 
-      if (attempt < maxAttempts) {
+      if (attempt < maxAttempts && isRetryable) {
         await sleep(backoffMs);
+      } else {
+        break;
       }
     } finally {
       clearTimeout(timer);
@@ -111,20 +117,19 @@ export async function callLiteLLM(params: LiteLLMParams): Promise<string> {
 /* ------------------------------------------------------------------ */
 
 function extractContent(data: unknown): string | undefined {
-  try {
-    const obj = data as Record<string, unknown>;
-    const choices = obj.choices as Array<Record<string, unknown>> | undefined;
-    if (!choices || !Array.isArray(choices) || choices.length === 0) {
-      return undefined;
-    }
-    const message = choices[0]?.message as Record<string, unknown> | undefined;
-    if (!message || typeof message.content !== 'string') {
-      return undefined;
-    }
-    return message.content;
-  } catch {
+  if (!data || typeof data !== 'object') {
     return undefined;
   }
+  const obj = data as Record<string, unknown>;
+  const choices = obj.choices;
+  if (!Array.isArray(choices) || choices.length === 0) {
+    return undefined;
+  }
+  const message = choices[0]?.message;
+  if (!message || typeof message !== 'object' || typeof (message as Record<string, unknown>).content !== 'string') {
+    return undefined;
+  }
+  return (message as Record<string, unknown>).content as string;
 }
 
 function sleep(ms: number): Promise<void> {

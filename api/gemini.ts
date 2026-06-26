@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { insertDiagnosticsBatch, MAX_EVENTS_PER_BATCH } from '../utils/serverDiagnostics.js';
 import { isQuotaExhausted, isBillingOrPermissionDenied } from './_gemini-key-utils.js';
 import { applyCors } from './_cors-headers.js';
-import { isLiteLLMEnabled, callLiteLLM } from './_llm-client';
+import { isLiteLLMEnabled, callLiteLLM } from './_llm-client.js';
 
 const HistoryItemSchema = z.object({
   role: z.enum(['user', 'model']),
@@ -242,7 +242,32 @@ async function executeGeminiAction(ai: GoogleGenAI, body: ParsedBody, res: Verce
           const sysInstr = cfg && typeof cfg.systemInstruction === 'string' ? cfg.systemInstruction : undefined;
           const msgs: Array<{ role: string; content: string }> = [];
           if (sysInstr) msgs.push({ role: 'system', content: sysInstr });
-          const userContent = typeof contents === 'string' ? contents : JSON.stringify(contents);
+          const userContent =
+            typeof contents === 'string'
+              ? contents
+              : Array.isArray(contents)
+                ? contents
+                    .map(c => {
+                      if (typeof c === 'string') return c;
+                      if (c && typeof c === 'object') {
+                        if (typeof (c as Record<string, unknown>).text === 'string')
+                          return (c as Record<string, unknown>).text;
+                        const parts = (c as Record<string, unknown>).parts;
+                        if (Array.isArray(parts)) {
+                          return parts
+                            .map(p =>
+                              p && typeof p === 'object' && typeof (p as Record<string, unknown>).text === 'string'
+                                ? (p as Record<string, unknown>).text
+                                : '',
+                            )
+                            .filter(Boolean)
+                            .join('\n');
+                        }
+                      }
+                      return JSON.stringify(c);
+                    })
+                    .join('\n')
+                : JSON.stringify(contents);
           msgs.push({ role: 'user', content: userContent });
           const resolvedModel = model && !model.includes('gemini') ? model : 'bedrock/deepseek.v3.2';
           const temperature = cfg && typeof cfg.temperature === 'number' ? cfg.temperature : undefined;
