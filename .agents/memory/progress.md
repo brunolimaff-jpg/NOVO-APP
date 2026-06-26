@@ -1,8 +1,33 @@
 # Progress
 
-Last updated: 2026-06-26 — Sprint 1 concluida: cherry-picks sobre fe6c6f9
+Last updated: 2026-06-26 — Sprint 2 validada: infraestrutura LiteLLM
 
 ## Timeline
+
+### 2026-06-26 (Sprint 2 — Plano de Profissionalizacao: infraestrutura LiteLLM)
+
+- **Branch:** `refac/litellm-clean` — commit `ba6e0a0c`
+- **Base:** `stabilize/from-production-fe6c6f9`
+- **PR:** https://github.com/brunolimaff-jpg/NOVO-APP/pull/390 — **MERGEABLE**, 24/24 threads resolvidas
+- **Preview Vercel:** https://scoutagro-ngx18jvgf-brunolimaff-3629s-projects.vercel.app
+- **Novos arquivos (4):**
+  - `api/_llm-client.ts` — client LiteLLM com retry seletivo, timeout, auth Bearer
+  - `utils/llm/modelRouter.ts` — roteamento Sonnet 4.6 + DeepSeek V3.2 por modulo
+  - `utils/llm/types.ts` — tipos LLMProvider, LLMRequest, LLMResponse
+  - `api/ping-litellm.ts` — endpoint diagnostico (usa DEFAULT_MODEL)
+- **Arquivos modificados (2):**
+  - `api/gemini.ts` — branch LiteLLM no handler generateContent (roteamento 100% server-side)
+  - `services/gemini/investigation-orchestration.ts` — STABLE_RESEARCH_MODEL_ID fixo, useGrounding false
+- **Patches de estabilizacao (2):**
+  - `useDeferredValue` em SectionalBotMessage.tsx (>30KB = deferred render com skeleton)
+  - `useGrounding` removido (false), Score PORTA recalibrado depois
+- **Correcoes pos-review:** 8 commits, 24 threads (Gemini: 5+1, Cursor: 10+4)
+- **Validacao:** typecheck verde, build verde, 1488/14 testes, ping ok, CNPJ ok, dossie completo, Score 82
+- **Decisoes:**
+  - DI-2026-06-26-03: Roteamento 100% server-side
+  - DI-2026-06-26-04: useGrounding removido, Score recalibrado
+  - DI-2026-06-26-05: LiteLLM gate unico (LLM_PROVIDER flag)
+- **Pendente para Sprint 3:** Recalibrar Score PORTA, ativar HOMOLOG, dossie hibrido, testes unitarios, remover CodeRabbit
 
 ### 2026-06-26 (Sprint 1 — Plano de Profissionalizacao: cherry-picks sobre fe6c6f9)
 

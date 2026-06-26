@@ -5,6 +5,8 @@ import { z } from 'zod';
 import { insertDiagnosticsBatch, MAX_EVENTS_PER_BATCH } from '../utils/serverDiagnostics.js';
 import { isQuotaExhausted, isBillingOrPermissionDenied } from './_gemini-key-utils.js';
 import { applyCors } from './_cors-headers.js';
+import { isLiteLLMEnabled, callLiteLLM } from './_llm-client.js';
+import { selectModelForModule } from '../utils/llm/modelRouter.js';
 
 const HistoryItemSchema = z.object({
   role: z.enum(['user', 'model']),
@@ -231,18 +233,85 @@ async function executeGeminiAction(ai: GoogleGenAI, body: ParsedBody, res: Verce
     }
 
     case 'generateContent': {
-      const model = body.model ?? DEFAULT_GEMINI_MODEL;
+      const modelFromClient = typeof body.model === 'string' ? body.model : undefined;
       const contents = body.contents;
+      const cfg = (body.config ?? {}) as Record<string, unknown>;
 
-      // ── Server-side watermark: extrai nome do modulo das contents ──
+      // Extrai nome do modulo das contents para roteamento server-side
       const contentsStr =
         typeof contents === 'string'
           ? contents
           : Array.isArray(contents)
             ? (contents as Array<{ text?: string }>).map(c => c?.text || '').join(' ')
             : '';
-      const srvModuleMatch = contentsStr.match(/bloco de ([^.\n]+)/i);
+      const srvModuleMatch = contentsStr.match(/bloco de (.+?) com extrema/i);
       const srvModuleName = srvModuleMatch?.[1]?.trim() || null;
+
+      const hasCachedContent = typeof cfg.cachedContent === 'string';
+      const hasSystemInstr = typeof cfg.systemInstruction === 'string';
+      const hasGrounding =
+        Array.isArray(cfg.tools) &&
+        cfg.tools.some((t: unknown) => t && typeof t === 'object' && 'googleSearch' in (t as Record<string, unknown>));
+
+      // ── LiteLLM branch ──
+      // cachedContent sem systemInstruction = foundation cache ativo (recurso Gemini).
+      // tools com googleSearch = chat usa grounding (restaurado default true). LiteLLM
+      // nao suporta googleSearch nativo — delegamos ao Gemini.
+      if (isLiteLLMEnabled() && !(hasCachedContent && !hasSystemInstr) && !hasGrounding) {
+        try {
+          const sysInstr = hasSystemInstr ? (cfg.systemInstruction as string) : undefined;
+          const msgs: Array<{ role: string; content: string }> = [];
+          if (sysInstr) msgs.push({ role: 'system', content: sysInstr });
+
+          const userContent =
+            typeof contents === 'string'
+              ? contents
+              : Array.isArray(contents)
+                ? contents
+                    .map(c => {
+                      if (typeof c === 'string') return c;
+                      if (c && typeof c === 'object') {
+                        if (typeof (c as Record<string, unknown>).text === 'string')
+                          return (c as Record<string, unknown>).text;
+                        const parts = (c as Record<string, unknown>).parts;
+                        if (Array.isArray(parts)) {
+                          return parts
+                            .map(p =>
+                              p && typeof p === 'object' && typeof (p as Record<string, unknown>).text === 'string'
+                                ? (p as Record<string, unknown>).text
+                                : '',
+                            )
+                            .filter(Boolean)
+                            .join('\n');
+                        }
+                      }
+                      return JSON.stringify(c);
+                    })
+                    .join('\n')
+                : JSON.stringify(contents);
+          msgs.push({ role: 'user', content: userContent });
+
+          const resolvedModel = selectModelForModule(srvModuleName || '');
+          const temperature = typeof cfg.temperature === 'number' ? cfg.temperature : undefined;
+          const maxTokens = typeof cfg.maxOutputTokens === 'number' ? cfg.maxOutputTokens : undefined;
+          // tools (grounding) nao suportado via LiteLLM — sprint futura
+
+          const text = await callLiteLLM({
+            model: resolvedModel,
+            messages: msgs,
+            temperature: temperature,
+            maxTokens: maxTokens,
+          });
+          return res.status(200).json({ text });
+        } catch (err) {
+          console.error('LiteLLM call failed:', err);
+          return res
+            .status(500)
+            .json({ error: 'LLM call failed', message: err instanceof Error ? err.message : 'Unknown' });
+        }
+      }
+
+      const model = modelFromClient ?? DEFAULT_GEMINI_MODEL;
       const srvRunId = `srv-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
 
       if (srvModuleName) {
