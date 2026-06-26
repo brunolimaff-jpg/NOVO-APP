@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { proxyGenerateContent, resolveGeminiApiEndpoint } from '../../services/geminiProxy';
+import { proxyGenerateContent, resolveGeminiApiEndpoint } from '../../services/llmProxy';
 
 const originalFetch = globalThis.fetch;
 

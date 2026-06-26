@@ -5,7 +5,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { getLoadingBackoffMessage, resolveActiveLoadingStageLabel } from '../../utils/loadingBackoff';
 import { getLoadingStageIdentity, LOADING_STAGE_ORDER_BY_KEY } from '../../utils/loadingSmartViewModel';
 import { stripInternalMarkers } from '../../utils/textCleaners';
-import { generateLoadingCuriosities } from '../../services/geminiService';
+import { generateLoadingCuriosities } from '../../services/llmService';
 import { buildLoadingCuriositiesFallback } from '../../utils/loadingCuriosities';
 
 const STEP_REVEAL_DELAY_MS = 1200;

@@ -1,7 +1,7 @@
 import { buildLoadingCuriositiesFallback, parseLoadingCuriosities } from '../../utils/loadingCuriosities';
 import { sanitizeLoadingContextText } from '../../utils/textCleaners';
 import { scoutDiag } from '../../utils/diagnosticLog';
-import { proxyGenerateContent } from '../geminiProxy';
+import { proxyGenerateContent } from '../llmProxy';
 import { LOADING_CURIOSITY_MODEL_ID, ROUTER_MODEL_ID } from './config';
 
 export async function generateLoadingCuriosities(

@@ -2,6 +2,13 @@
 
 ## Novas Decisoes (Sessao 2026-06-26 — Sprint 2: infraestrutura LiteLLM)
 
+### DI-2026-06-26-06: Foundation cache desliga com pipeline hibrido ativo
+
+- **Decisao:** `isFoundationCacheEnabled()` retorna `false` quando `VITE_HYBRID_PIPELINE_ENABLED=1`. Foundation cache e incompativel com proxy LiteLLM — ferramentas de grounding sao descartadas pelo proxy desde maio/2026.
+- **Contexto:** O foundation cache do Gemini usa ferramentas de grounding (Google Search). O proxy LiteLLM (versao atual homolog) descarta ferramentas nao-suportadas silenciosamente. Com o cache ativo, o Gemini respondia sem grounding mesmo quando `useGrounding=true`. A solucao foi desligar o foundation cache automaticamente quando o pipeline hibrido esta ativo.
+- **Impacto:** Perda de performance de cache quando pipeline hibrido ativo. Mas evita resposta sem grounding silenciosamente. Quando o proxy LiteLLM suportar grounding, esta decisao pode ser revista.
+- **Referencia:** `services/gemini/foundation-cache.ts`, PR #390, DI-2026-06-26-04
+
 ### DI-2026-06-26-05: LiteLLM gate unico controlado por LLM_PROVIDER
 
 - **Decisao:** LiteLLM possui um unico gate (nao 5 como planejado originalmente). A flag `LLM_PROVIDER` (env var) controla o provider ativo: `gemini` (default, direto) ou `litellm` (via proxy). Ambiente DEV configurado com `LLM_PROVIDER=gemini`. HOMOLOG e PROD usarao Gemini direto ate ativacao explicita.

@@ -7,7 +7,7 @@ const scoutDiagMock = vi.hoisted(() => ({
   info: vi.fn(),
 }));
 
-vi.mock('../../../services/geminiProxy', () => ({
+vi.mock('../../../services/llmProxy', () => ({
   proxyCreateCachedContent: proxyCreateCachedContentMock,
   proxyDeleteCachedContent: proxyDeleteCachedContentMock,
 }));
@@ -25,7 +25,7 @@ import {
   joinDossierExtraContext,
   WATERFALL_FOUNDATION_CACHE_TTL,
   WATERFALL_FOUNDATION_CACHE_TOOLS,
-} from '../../../services/gemini/foundation-cache';
+} from '../../../services/llm/foundation-cache';
 
 describe('foundation-cache', () => {
   beforeEach(() => {

@@ -1,5 +1,5 @@
 import type { Dispatch, SetStateAction } from 'react';
-import { getIsolatedBenchmark } from '../../services/geminiService';
+import { getIsolatedBenchmark } from '../../services/llmService';
 import { scoutDiag } from '../../utils/diagnosticLog';
 import { isAbortLikeError } from '../../utils/abortHelpers';
 

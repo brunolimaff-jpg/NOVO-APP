@@ -14,7 +14,7 @@ vi.mock('react-dom', () => ({
   createPortal: (node: React.ReactNode) => node,
 }));
 
-vi.mock('../../services/geminiService', () => ({
+vi.mock('../../services/llmService', () => ({
   generateLoadingCuriosities: generateLoadingCuriositiesMock,
 }));
 

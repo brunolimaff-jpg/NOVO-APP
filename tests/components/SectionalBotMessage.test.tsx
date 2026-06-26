@@ -18,14 +18,14 @@ vi.mock('../../features/dossier/SocietaryMap', () => ({
   default: ({
     cnpj,
     empresaAlvo,
-    geminiCnpjs,
+    llmCnpjs,
   }: {
     cnpj?: string | null;
     empresaAlvo?: string | null;
-    geminiCnpjs?: Array<{ name: string }>;
+    llmCnpjs?: Array<{ name: string }>;
   }) => (
     <div data-testid="societary-map">
-      {cnpj}::{empresaAlvo}::{geminiCnpjs?.map(company => company.name).join('|') || 'sem-gemini'}
+      {cnpj}::{empresaAlvo}::{llmCnpjs?.map(company => company.name).join('|') || 'sem-gemini'}
     </div>
   ),
 }));

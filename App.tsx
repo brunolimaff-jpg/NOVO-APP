@@ -52,7 +52,7 @@ import InstallPrompt from './components/InstallPrompt';
 import { useOperator } from './contexts/OperatorContext';
 import { useMode } from './contexts/ModeContext';
 import { ExportFormat, ReportType, Sender } from './types';
-import { generateContinuityQuestion } from './services/geminiService';
+import { generateContinuityQuestion } from './services/llmService';
 
 import { APP_NAME } from './constants';
 import { cleanTitle } from './utils/textCleaners';

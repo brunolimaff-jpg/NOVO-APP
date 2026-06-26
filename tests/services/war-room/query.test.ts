@@ -27,7 +27,7 @@ vi.mock('../../../utils/errorHelpers', () => ({
   normalizeAppError: normalizeAppErrorMock,
 }));
 
-vi.mock('../../../services/geminiProxy', () => ({
+vi.mock('../../../services/llmProxy', () => ({
   proxyGerarDossie: proxyGerarDossieMock,
 }));
 

@@ -12,7 +12,7 @@
  *
  * DIAGNÓSTICO PERSISTENTE (Supabase):
  *   Ativar: VITE_SCOUT_DIAGNOSTICS_ENABLED=true ou localStorage.SCOUT_DIAG_ENABLED='1'
- *   Cada evento do scoutDiag é enviado em batch para /api/gemini (action: recordDiagnostics) → Supabase scout_diagnostics.
+ *   Cada evento do scoutDiag é enviado em batch para /api/gemini endpoint (action: recordDiagnostics) → Supabase scout_diagnostics.
  *   Se a API falhar, eventos são salvos em localStorage para retry.
  */
 

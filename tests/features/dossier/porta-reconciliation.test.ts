@@ -7,7 +7,7 @@ const scoutDiagMock = vi.hoisted(() => ({
   info: vi.fn(),
 }));
 
-vi.mock('../../../services/geminiService', () => ({
+vi.mock('../../../services/llmService', () => ({
   generateDossierModule: generateDossierModuleMock,
 }));
 

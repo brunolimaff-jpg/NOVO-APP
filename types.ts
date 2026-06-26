@@ -37,7 +37,7 @@ export type ErrorCode =
   | 'ABORTED'
   | 'BLOCKED_CONTENT';
 
-export type ErrorSource = 'GEMINI' | 'BRASIL_API' | 'APPS_SCRIPT' | 'EXPORT' | 'PARSER' | 'UI' | 'GUARD' | 'UNKNOWN';
+export type ErrorSource = 'LLM' | 'BRASIL_API' | 'APPS_SCRIPT' | 'EXPORT' | 'PARSER' | 'UI' | 'GUARD' | 'UNKNOWN';
 
 export interface AppError {
   code: ErrorCode;

@@ -55,7 +55,7 @@ export const maxDuration = 300;
 
 const CHAT_TIMEOUT_MS = 55_000;
 const LONG_CHAT_TIMEOUT_MS = 180_000;
-const DEFAULT_GEMINI_MODEL = 'gemini-3-flash-preview';
+const DEFAULT_LLM_MODEL = 'gemini-3-flash-preview';
 const INTERNAL_MARKER_REGEX = /\[\[\s*[A-Z_]+\s*:[\s\S]*?\]\]/gi;
 const INTERNAL_MARKER_OPEN_TAIL_REGEX = /\[\[\s*[A-Z_]+\s*:[\s\S]*$/i;
 const HARD_PROMPT_LEAK_PATTERNS: RegExp[] = [
@@ -223,7 +223,7 @@ async function executeGeminiAction(ai: GoogleGenAI, body: ParsedBody, res: Verce
   switch (body.action) {
     case 'health': {
       const response = await ai.models.generateContent({
-        model: DEFAULT_GEMINI_MODEL,
+        model: DEFAULT_LLM_MODEL,
         contents: 'Responda apenas: OK',
         config: { temperature: 0, maxOutputTokens: 10 },
       });
@@ -311,7 +311,7 @@ async function executeGeminiAction(ai: GoogleGenAI, body: ParsedBody, res: Verce
         }
       }
 
-      const model = modelFromClient ?? DEFAULT_GEMINI_MODEL;
+      const model = modelFromClient ?? DEFAULT_LLM_MODEL;
       const srvRunId = `srv-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
 
       if (srvModuleName) {
@@ -392,7 +392,7 @@ async function executeGeminiAction(ai: GoogleGenAI, body: ParsedBody, res: Verce
         return res.status(403).json({ error: 'Foundation cache disabled' });
       }
 
-      const model = body.model ?? DEFAULT_GEMINI_MODEL;
+      const model = body.model ?? DEFAULT_LLM_MODEL;
       const cacheConfig: Record<string, unknown> = {
         displayName: body.displayName ?? 'scout360-waterfall-foundation',
         systemInstruction: body.systemInstruction,
@@ -423,7 +423,7 @@ async function executeGeminiAction(ai: GoogleGenAI, body: ParsedBody, res: Verce
     }
 
     case 'chatSendMessage': {
-      const model = body.model ?? DEFAULT_GEMINI_MODEL;
+      const model = body.model ?? DEFAULT_LLM_MODEL;
       const systemInstruction = body.systemInstruction ?? '';
       const history = normalizeHistory(body.history);
       const message = body.message;

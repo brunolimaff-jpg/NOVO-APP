@@ -1,5 +1,5 @@
 import { STABLE_RESEARCH_MODEL_ID } from './config';
-import { proxyCreateCachedContent, proxyDeleteCachedContent } from '../geminiProxy';
+import { proxyCreateCachedContent, proxyDeleteCachedContent } from '../llmProxy';
 import { scoutDiag } from '../../utils/diagnosticLog';
 
 export const WATERFALL_FOUNDATION_CACHE_TTL = '600s';
@@ -18,7 +18,7 @@ export function isFoundationCacheEnabled(): boolean {
   // Com pipeline híbrido LiteLLM ativo, cache deve ser desligado — o branch
   // LiteLLM em api/gemini.ts não suporta cachedContent (recurso Gemini, não texto).
   if (import.meta.env.VITE_HYBRID_PIPELINE_ENABLED === '1') return false;
-  return import.meta.env.VITE_GEMINI_FOUNDATION_CACHE_ENABLED === '1';
+  return import.meta.env.VITE_FOUNDATION_CACHE_ENABLED === '1';
 }
 
 export function buildStaticDossierContext(input: StaticDossierContextInput): string {

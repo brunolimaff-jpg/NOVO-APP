@@ -112,7 +112,7 @@ export default defineConfig(({ mode }) => {
               id.includes('/constants.ts') ||
               id.includes('/types.ts') ||
               id.includes('/services/investigationStore.ts') ||
-              id.includes('/services/geminiProxy.ts')
+              id.includes('/services/llmProxy.ts')
             )
               return 'app-core';
           },

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import ReactDOM from 'react-dom';
 import { ChatMode } from '../constants';
-import { generateLoadingCuriosities } from '../services/geminiService';
+import { generateLoadingCuriosities } from '../services/llmService';
 import { buildLoadingCuriositiesFallback } from '../utils/loadingCuriosities';
 import {
   buildLoadingSmartViewModel,

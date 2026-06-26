@@ -767,7 +767,7 @@ describe('SocietaryMap', () => {
         cnpj="04733767000180"
         empresaAlvo="Scheffer & Cia"
         isDarkMode={false}
-        geminiCnpjs={[
+        llmCnpjs={[
           {
             name: 'Agropecuaria Scheffer Ltda',
             cnpj: '00.111.222/0001-81',

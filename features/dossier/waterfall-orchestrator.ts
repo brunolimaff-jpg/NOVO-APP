@@ -13,7 +13,7 @@ import {
   PROMPT_TEIA_DEEP_MODULE,
   SHARED_FOUNDATION_BLOCK,
 } from '../../prompts/megaPrompts';
-import { generateContinuityQuestion, generateDossierModule } from '../../services/geminiService';
+import { generateContinuityQuestion, generateDossierModule } from '../../services/llmService';
 import {
   buildDynamicDossierContext,
   buildStaticDossierContext,
@@ -21,7 +21,7 @@ import {
   deleteWaterfallFoundationCache,
   isFoundationCacheEnabled,
   joinDossierExtraContext,
-} from '../../services/gemini/foundation-cache';
+} from '../../services/llm/foundation-cache';
 import { formatarParaPrompt, lookupCliente } from '../../services/clientLookupService';
 import { getContextoConcorrentesRegionais } from '../../services/competitorService';
 import { generatePortaContextForDeepDive } from '../../services/portaStateService';

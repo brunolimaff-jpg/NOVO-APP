@@ -4,7 +4,7 @@ import { parsePortaMarkerV2 } from '../../utils/porta';
 import { enforceSeniorEvidenceConstraints, extractClienteSeniorData } from '../../utils/seniorEvidence';
 import { applyPromptLeakShield } from '../../utils/textCleaners';
 import { withAutoRetry } from '../../utils/retry';
-import { proxyChatSendMessage, proxyGenerateContent } from '../geminiProxy';
+import { proxyChatSendMessage, proxyGenerateContent } from '../llmProxy';
 import {
   benchmarkClientes,
   formatarBenchmarkParaPrompt,

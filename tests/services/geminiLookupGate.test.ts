@@ -31,7 +31,7 @@ vi.mock('../../utils/porta', () => ({
   stripPortaMarkers: (input: string) => input,
 }));
 
-vi.mock('../../services/geminiProxy', () => ({
+vi.mock('../../services/llmProxy', () => ({
   proxyGenerateContent: proxyGenerateContentMock,
   proxyChatSendMessage: proxyChatSendMessageMock,
 }));
@@ -88,7 +88,7 @@ describe('sendMessageToGemini lookup gate', () => {
   });
 
   it('does not call lookup and benchmark when canUseLookup=false', async () => {
-    const { sendMessageToGemini } = await import('../../services/geminiService');
+    const { sendMessageToGemini } = await import('../../services/llmService');
     const result = await sendMessageToGemini(
       'Dossiê completo da conta em andamento',
       [],
@@ -103,7 +103,7 @@ describe('sendMessageToGemini lookup gate', () => {
   });
 
   it('keeps current behavior for allowed users (canUseLookup=true)', async () => {
-    const { sendMessageToGemini } = await import('../../services/geminiService');
+    const { sendMessageToGemini } = await import('../../services/llmService');
     await sendMessageToGemini(
       'Dossiê completo da conta em andamento',
       [],
@@ -125,7 +125,7 @@ describe('sendMessageToGemini lookup gate', () => {
       }),
     });
 
-    const { sendMessageToGemini } = await import('../../services/geminiService');
+    const { sendMessageToGemini } = await import('../../services/llmService');
     const result = await sendMessageToGemini(
       'quantas pizzarias existem em cuiabá?',
       [],
@@ -171,7 +171,7 @@ describe('sendMessageToGemini lookup gate', () => {
         groundingChunks: [],
       });
 
-    const { sendMessageToGemini } = await import('../../services/geminiService');
+    const { sendMessageToGemini } = await import('../../services/llmService');
     const result = await sendMessageToGemini('onde ficam as algodoeiras?', [], 'Instrução de sistema', {}, false);
 
     expect(proxyChatSendMessageMock).toHaveBeenCalledTimes(1);
