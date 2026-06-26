@@ -1,5 +1,28 @@
 # decisions.md — NOVO-APP
 
+## Novas Decisoes (Sessao 2026-06-26 — Sprint 2: infraestrutura LiteLLM)
+
+### DI-2026-06-26-05: LiteLLM gate unico controlado por LLM_PROVIDER
+
+- **Decisao:** LiteLLM possui um unico gate (nao 5 como planejado originalmente). A flag `LLM_PROVIDER` (env var) controla o provider ativo: `gemini` (default, direto) ou `litellm` (via proxy). Ambiente DEV configurado com `LLM_PROVIDER=gemini`. HOMOLOG e PROD usarao Gemini direto ate ativacao explicita.
+- **Contexto:** O plano original previa 5 gates (feature flag, env var, runtime, modulo, A/B). Cada gate adicionava complexidade sem ganho proporcional de seguranca. Um unico gate por env var e suficiente: se `LLM_PROVIDER` nao estiver setado ou for `gemini`, o fluxo existente (Gemini direto) e usado. Se for `litellm`, o client LiteLLM e ativado.
+- **Impacto:** Reduz complexidade operacional. Rollback e simples: remover/unset `LLM_PROVIDER`. Ambiente DEV ja testado. HOMOLOG precisa de configuracao adicional (foundation cache off).
+- **Referencia:** `api/gemini.ts`, `api/_llm-client.ts`, PR #390
+
+### DI-2026-06-26-04: useGrounding removido (default false); Score PORTA recalibrado
+
+- **Decisao:** `useGrounding` removido da configuracao de modulos — default e `false` em todos os casos. Score PORTA recalibrado apos a remocao (resultado atual: 82, benchmark esperado sem grounding: 68-75). Sprint 3 recalibrara metricas formalmente.
+- **Contexto:** Grounding (Google Search) causava timeout inconsistente no proxy LiteLLM — ferramentas de grounding eram descartadas no proxy desde maio/2026. O fallback DuckDuckGo funcionava mas com qualidade inferior. A decisao foi remover o grounding por completo e depender do conhecimento do modelo para o Score PORTA.
+- **Impacto:** Score PORTA pode estar superestimado (82 vs benchmark 68-75 esperado). Recalibracao agendada para Sprint 3 antes de ativar LiteLLM em HOMOLOG.
+- **Referencia:** `services/gemini/investigation-orchestration.ts`, PR #390
+
+### DI-2026-06-26-03: Roteamento de LLM 100% server-side
+
+- **Decisao:** Roteamento entre modelos LLM (Sonnet 4.6, DeepSeek V3.2) e 100% server-side, feito exclusivamente em `api/gemini.ts` via `selectModelForModule()`. O client-side (`investigation-orchestration.ts`) mantem `STABLE_RESEARCH_MODEL_ID` fixo — nao ha roteamento no frontend.
+- **Contexto:** Durante o code review, Cursor apontou que roteamento client-side exporia os provedores LLM ao usuario final (via bundle). O padrao correto e server-side: o backend decide qual modelo usar por modulo (regex "bloco de X com extrema" para Sonnet, demais para DeepSeek), e o frontend apenas envia a requisicao.
+- **Impacto:** Nenhum provedor ou modelo exposto no bundle. Backend controla 100% da estrategia de roteamento. Flexivel para mudar sem deploy de frontend.
+- **Referencia:** `api/gemini.ts`, `utils/llm/modelRouter.ts`, PR #390
+
 ## Novas Decisoes (Sessao 2026-06-26 — Sprint 1: cherry-picks sobre fe6c6f9)
 
 ### DI-2026-06-26-02: useStaticTimelineFallback.ts e blankPanelTelemetry.ts sao parte de fe6c6f9, nao scar tissue

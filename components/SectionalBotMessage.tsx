@@ -312,19 +312,6 @@ const SectionalBotMessage: React.FC<SectionalBotMessageProps> = ({
     return parseMarkdownSections(effectiveText);
   }, [effectiveText]);
 
-  if (isDeferredPending) {
-    return (
-      <div data-testid="bot-message-content" data-deferred="true" className="flex min-w-0 flex-col gap-3 p-4">
-        <div className="animate-pulse space-y-3">
-          <div className="h-3 bg-slate-300 dark:bg-slate-700 rounded w-3/4" />
-          <div className="h-3 bg-slate-200 dark:bg-slate-800 rounded w-1/2" />
-          <div className="h-3 bg-slate-200 dark:bg-slate-800 rounded w-5/6" />
-        </div>
-        <p className="text-xs text-slate-400 dark:text-slate-500 mt-2">Carregando dossiê...</p>
-      </div>
-    );
-  }
-
   // Pré-computa as fontes de cada seção em useMemo para estabilizar as referências
   // de array passadas ao MarkdownRenderer. Sem isso, filterSourcesForSection é chamado
   // a cada render, gerando novas referências que quebram o React.memo do MarkdownRenderer
@@ -410,6 +397,21 @@ const SectionalBotMessage: React.FC<SectionalBotMessageProps> = ({
 
   // Só mostra o botão copiar se houver conteúdo substancial (dossiê real)
   const showCopyButton = displayText.length > 300;
+
+  // Skeleton enquanto deferred pendente (dossiês >30KB). Rules of Hooks: todos os
+  // hooks já rodaram — este return condicional é seguro (React vê mesma contagem).
+  if (isDeferredPending) {
+    return (
+      <div data-testid="bot-message-content" data-deferred="true" className="flex min-w-0 flex-col gap-3 p-4">
+        <div className="animate-pulse space-y-3">
+          <div className="h-3 bg-slate-300 dark:bg-slate-700 rounded w-3/4" />
+          <div className="h-3 bg-slate-200 dark:bg-slate-800 rounded w-1/2" />
+          <div className="h-3 bg-slate-200 dark:bg-slate-800 rounded w-5/6" />
+        </div>
+        <p className="text-xs text-slate-400 dark:text-slate-500 mt-2">Carregando dossiê...</p>
+      </div>
+    );
+  }
 
   if (sections.length <= 1 && !/^(#{1,3})\s+/m.test(displayText)) {
     return (
