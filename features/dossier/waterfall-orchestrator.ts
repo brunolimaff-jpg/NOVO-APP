@@ -703,7 +703,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
         };
 
         const sharedDossierModuleOptions = {
-          useGrounding: true as const,
+          useGrounding: false,
           onGroundingSources: appendGroundingSources,
           onVerificationStatus: rememberVerificationStatus,
           ...(foundationCacheName ? { foundationCacheName } : {}),

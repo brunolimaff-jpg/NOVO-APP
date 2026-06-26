@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useMemo, useRef, useState, useCallback, useDeferredValue } from 'react';
 import { Message } from '../types';
 import MarkdownRenderer from './MarkdownRenderer';
 import { getSellerSectionKind, parseMarkdownSections, type SellerSectionKind } from '../utils/sectionParser';
@@ -298,9 +298,32 @@ const SectionalBotMessage: React.FC<SectionalBotMessageProps> = ({
   const displayText = useMemo(() => {
     return stripUnsafeSocietarySections(cleanText);
   }, [cleanText]);
+
+  // Errata 5: useDeferredValue evita que parseMarkdownSections + MarkdownRenderer
+  // bloqueiem a main thread em dossiês grandes (>30KB). React 18 processa o valor
+  // deferred em render de baixa prioridade, mantendo a UI responsiva.
+  const LARGE_DOSSIER_DEFERRED_CHARS = 30_000;
+  const deferredText = useDeferredValue(displayText);
+  const isDeferredPending = deferredText !== displayText && displayText.length > LARGE_DOSSIER_DEFERRED_CHARS;
+
+  const effectiveText = isDeferredPending ? deferredText : displayText;
+
   const sections = useMemo(() => {
-    return parseMarkdownSections(displayText);
-  }, [displayText]);
+    return parseMarkdownSections(effectiveText);
+  }, [effectiveText]);
+
+  if (isDeferredPending) {
+    return (
+      <div data-testid="bot-message-content" data-deferred="true" className="flex min-w-0 flex-col gap-3 p-4">
+        <div className="animate-pulse space-y-3">
+          <div className="h-3 bg-slate-300 dark:bg-slate-700 rounded w-3/4" />
+          <div className="h-3 bg-slate-200 dark:bg-slate-800 rounded w-1/2" />
+          <div className="h-3 bg-slate-200 dark:bg-slate-800 rounded w-5/6" />
+        </div>
+        <p className="text-xs text-slate-400 dark:text-slate-500 mt-2">Carregando dossiê...</p>
+      </div>
+    );
+  }
 
   // Pré-computa as fontes de cada seção em useMemo para estabilizar as referências
   // de array passadas ao MarkdownRenderer. Sem isso, filterSourcesForSection é chamado

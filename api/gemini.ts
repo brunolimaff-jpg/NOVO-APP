@@ -249,16 +249,11 @@ async function executeGeminiAction(ai: GoogleGenAI, body: ParsedBody, res: Verce
 
       const hasCachedContent = typeof cfg.cachedContent === 'string';
       const hasSystemInstr = typeof cfg.systemInstruction === 'string';
-      const hasGrounding =
-        Array.isArray(cfg.tools) &&
-        cfg.tools.some((t: unknown) => t && typeof t === 'object' && 'googleSearch' in (t as Record<string, unknown>));
 
       // ── LiteLLM branch ──
       // cachedContent sem systemInstruction = foundation cache ativo (recurso Gemini,
       // nao texto). LiteLLM nao suporta — delegamos ao Gemini.
-      // tools com googleSearch = grounding pedido. LiteLLM nao suporta googleSearch
-      // nativo — delegamos ao Gemini.
-      if (isLiteLLMEnabled() && !(hasCachedContent && !hasSystemInstr) && !hasGrounding) {
+      if (isLiteLLMEnabled() && !(hasCachedContent && !hasSystemInstr)) {
         try {
           const sysInstr = hasSystemInstr ? (cfg.systemInstruction as string) : undefined;
           const msgs: Array<{ role: string; content: string }> = [];

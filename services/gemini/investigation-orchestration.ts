@@ -156,7 +156,7 @@ export async function sendMessageToGemini(
   canUseLookup: boolean = true,
 ): Promise<SendMessageToGeminiResult> {
   const {
-    useGrounding = true,
+    useGrounding = false,
     thinkingLevel,
     thinkingMode,
     useOpenWebSearch = false,
