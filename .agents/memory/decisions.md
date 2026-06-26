@@ -1,5 +1,21 @@
 # decisions.md — NOVO-APP
 
+## Novas Decisoes (Sessao 2026-06-26 — Sprint 1: cherry-picks sobre fe6c6f9)
+
+### DI-2026-06-26-02: useStaticTimelineFallback.ts e blankPanelTelemetry.ts sao parte de fe6c6f9, nao scar tissue
+
+- **Decisao:** `useStaticTimelineFallback.ts` e `blankPanelTelemetry.ts` nao devem ser removidos ou considerados scar tissue. Eles FAZEM parte do baseline fe6c6f9 e estao presentes em producao. Poderao ser tratados em Sprint posterior de codebase cleanup, mas apenas com validacao explicita.
+- **Contexto:** Durante a limpeza pos-cherry-pick, esses dois arquivos foram confundidos com scar tissue de refatoracao (Sprint 5-11). Na verdade, `blankPanelTelemetry.ts` e referenciado em pelo menos 3 lugares em fe6c6f9 e `useStaticTimelineFallback.ts` e usado pelo `MessageTimeline.tsx`. O que efetivamente NAO esta em fe6c6f9: `useCofreTransition.ts`, `CofreOverlay.tsx`, `api/_llm-client.ts`, `api/llm-experiment.ts`.
+- **Impacto:** Evita remocao acidental de codigo de producao. Sessao futura que quiser limpar esses arquivos deve primeiro confirmar que estao realmente mortos.
+- **Referencia:** commit `fe6c6f9ba59fb7063356a5f0adcc51c411db3c4a`, `stabilize/from-production-fe6c6f9`
+
+### DI-2026-06-26-01: Cherry-pick inviavel para commits com dependencias cross-cutting; reimplementacao manual
+
+- **Decisao:** Commits que tocam 25+ arquivos com dependencias cross-cutting (Cofre, LiteLLM, auth) devem ser reimplementados manualmente, nao cherry-picked. Cherry-pick e viavel apenas para commits focados (< 5 arquivos, sem dependencias de componentes que nao existem no baseline).
+- **Contexto:** Dois cherry-picks foram abortados por conflito massivo: MCP config (25+ arquivos em conflito, modify/delete em docs/mcp/fetch.generic.example.json) e PR #383 (10 arquivos em conflito, useCofreTransition.ts com modify/delete). Ambos dependiam de codigo que nao existe em fe6c6f9 (CofreOverlay, useCofreTransition, LiteLLM).
+- **Impacto:** Sprint 2 usara reimplementacao manual para MCP config e CI gates. Custo maior, mas sem risco de conflito ou quebra silenciosa.
+- **Referencia:** commits abortados `8670e5e7` (MCP), `62323649` (PR #383)
+
 ## Novas Decisoes (Sessao 2026-06-18)
 
 ### DI-2026-06-18-02: Cron de limpeza e dry-run por padrao

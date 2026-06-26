@@ -486,6 +486,7 @@ Afeta: qualquer comando `gh api`ou`gh pr` com corpo gerado dinamicamente.
 _Atualizado automaticamente pelo Caliber apos sessoes de agente._
 
 <!-- /caliber:managed:learnings -->
+
 # Sessao 2026-06-18 - Playbook nao bloqueante e cron fail-safe
 
 - **Roadmap de qualidade nao pode virar trava global de trabalho** [processo, agentes, planejamento]
