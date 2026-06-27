@@ -23,11 +23,13 @@ let _cachedClient: ReturnType<typeof createClient> | null = null;
 function getSupabaseClient() {
   if (_cachedClient) return _cachedClient;
 
-  const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+  const url = (process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL)?.replace(/\/+$/g, '');
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
   if (!url || !key) return null;
-  _cachedClient = createClient(url, key);
+  _cachedClient = createClient(url, key, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
   return _cachedClient;
 }
 

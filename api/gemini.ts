@@ -345,9 +345,7 @@ async function executeGeminiAction(ai: GoogleGenAI, body: ParsedBody, res: Verce
           console.warn('[LlmProxy] cachedContent ignorou systemInstruction no generateContent');
         }
         if (Array.isArray(configIn.tools) && configIn.tools.length > 0) {
-          console.warn(
-            '[LlmProxy] cachedContent ignorou tools no generateContent; use tools em createCachedContent',
-          );
+          console.warn('[LlmProxy] cachedContent ignorou tools no generateContent; use tools em createCachedContent');
         }
         if (configIn.toolConfig !== undefined) {
           console.warn('[LlmProxy] cachedContent ignorou toolConfig no generateContent');
