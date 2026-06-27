@@ -45,6 +45,7 @@ npm run lint       # ESLint
 10. **Trava de acúmulo de commits**: Máximo **7 commits** locais sem push/PR. Ao atingir 5, warning automático (`scripts/check-branch-health.sh`). Ao atingir 8, commit bloqueado. Abra PR cedo — PR pequeno = review rápido. Use `BRANCH_HEALTH_SKIP=1` apenas com justificativa documentada.
 11. **Push diário obrigatório**: Ao final de cada sessão, commits devem estar pushados ou em PR aberta. Nunca encerrar sessão com +5 commits locais sem PR.
 12. **Checkpoint de branch**: A cada 5 commits, rodar `git log main..HEAD --oneline` e verificar se já não é hora de abrir PR.
+13. **Evidência de conclusão**: Antes de declarar fase/etapa/sprint como "concluída", cruzar git log + diff com escopo planejado. Para cada artefato prometido, confirmar existência com `ls`/`grep`. Gap → não declarar concluído. Ver protocolo completo em `copiloto-proativo.md` 2.6.
 
 ## Fluxo de branches
 
