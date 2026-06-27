@@ -1326,30 +1326,44 @@ describe('api/socio-search', () => {
   it('le cache persistente antes de rodar scraping', async () => {
     vi.stubEnv('SUPABASE_URL', 'https://supabase.test');
     vi.stubEnv('SUPABASE_SERVICE_ROLE_KEY', 'secret');
-    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
-      ok: true,
-      json: async () => [
-        {
-          result: {
-            companies: [
-              {
-                name: 'Scheffer Colombia S.A.S.',
-                country: 'CO',
-                partnerName: 'Guilherme M. Scheffer',
-                sourceUrl: 'https://example.com/colombia',
-                sourceTitle: 'Fonte cache',
-                snippet: 'Scheffer & Cia Ltda e Guilherme M. Scheffer aparecem no contexto.',
-                confidence: 'strong',
-                evidenceType: 'registry',
-              },
-            ],
-            rejected: [],
-            degraded: false,
-            cached: false,
-          },
+
+    const mockMaybeSingle = vi.fn().mockResolvedValue({
+      data: {
+        result: {
+          companies: [
+            {
+              name: 'Scheffer Colombia S.A.S.',
+              country: 'CO',
+              partnerName: 'Guilherme M. Scheffer',
+              sourceUrl: 'https://example.com/colombia',
+              sourceTitle: 'Fonte cache',
+              snippet: 'Scheffer & Cia Ltda e Guilherme M. Scheffer aparecem no contexto.',
+              confidence: 'strong',
+              evidenceType: 'registry',
+            },
+          ],
+          rejected: [],
+          degraded: false,
+          cached: false,
         },
-      ],
-    } as Response);
+      },
+      error: null,
+    });
+
+    const mockUpsert = vi.fn().mockResolvedValue({ error: null });
+
+    vi.doMock('@supabase/supabase-js', () => ({
+      createClient: vi.fn(() => ({
+        from: vi.fn(() => ({
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              gt: vi.fn(() => ({ maybeSingle: mockMaybeSingle })),
+            })),
+          })),
+          upsert: mockUpsert,
+        })),
+      })),
+    }));
 
     const { default: handler } = await import('../api/socio-search');
     const response = makeResponse();
@@ -1371,23 +1385,30 @@ describe('api/socio-search', () => {
       cached: true,
       companies: [expect.objectContaining({ name: 'Scheffer Colombia S.A.S.' })],
     });
-    expect(fetchSpy).toHaveBeenCalledWith(expect.any(URL), expect.objectContaining({ method: 'GET' }));
+    expect(mockMaybeSingle).toHaveBeenCalled();
     expect(performWebSearchMock).not.toHaveBeenCalled();
   });
 
   it('grava cache persistente com expiracao de pelo menos 7 dias', async () => {
     vi.stubEnv('SUPABASE_URL', 'https://supabase.test');
     vi.stubEnv('SUPABASE_SERVICE_ROLE_KEY', 'secret');
-    const fetchSpy = vi
-      .spyOn(globalThis, 'fetch')
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => [],
-      } as Response)
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({}),
-      } as Response);
+
+    const mockMaybeSingle = vi.fn().mockResolvedValue({ data: null, error: null });
+    const mockUpsert = vi.fn().mockResolvedValue({ error: null });
+
+    vi.doMock('@supabase/supabase-js', () => ({
+      createClient: vi.fn(() => ({
+        from: vi.fn(() => ({
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              gt: vi.fn(() => ({ maybeSingle: mockMaybeSingle })),
+            })),
+          })),
+          upsert: mockUpsert,
+        })),
+      })),
+    }));
+
     performWebSearchMock.mockResolvedValue(
       [
         'Título: Scheffer Colombia S.A.S. importações',
@@ -1413,8 +1434,8 @@ describe('api/socio-search', () => {
     );
 
     expect(response.statusCode).toBe(200);
-    expect(fetchSpy).toHaveBeenCalledTimes(2);
-    const upsertBody = JSON.parse(String((fetchSpy.mock.calls[1][1] as any).body));
+    expect(mockUpsert).toHaveBeenCalled();
+    const upsertBody = mockUpsert.mock.calls[0][0];
     expect(upsertBody.id).toContain('socio-search:v7-structured-lateral-cnpj::04733767000180::guilherme m scheffer');
     expect(upsertBody.operator_id).toBe('server:socio-search');
     expect(new Date(upsertBody.expires_at).getTime()).toBeGreaterThan(Date.now() + 6 * 24 * 60 * 60 * 1000);
