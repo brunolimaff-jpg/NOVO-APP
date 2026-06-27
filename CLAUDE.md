@@ -46,6 +46,7 @@ npm run lint       # ESLint
 11. **Push diário obrigatório**: Ao final de cada sessão, commits devem estar pushados ou em PR aberta. Nunca encerrar sessão com +5 commits locais sem PR.
 12. **Checkpoint de branch**: A cada 5 commits, rodar `git log main..HEAD --oneline` e verificar se já não é hora de abrir PR.
 13. **Evidência de conclusão**: Antes de declarar fase/etapa/sprint como "concluída", cruzar git log + diff com escopo planejado. Para cada artefato prometido, confirmar existência com `ls`/`grep`. Gap → não declarar concluído. Ver protocolo completo em `copiloto-proativo.md` 2.6.
+14. **Validação de base branch**: Antes de push, verificar `git merge-base` com a baseline esperada (ex: `stabilize/from-production-fe6c6f9`). Push na base errada = preview roda código velho. Se `merge-base` ≠ HEAD da baseline → 🟠 BLOQUEAR. Rebasear antes. Ver `copiloto-proativo.md` 2.7.
 
 ## Fluxo de branches
 
