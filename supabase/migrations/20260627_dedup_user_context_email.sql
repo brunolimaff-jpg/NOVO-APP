@@ -20,7 +20,7 @@ INSERT INTO _migration_dedup_canonical (email_normalized, canonical_operator_id,
 SELECT
   email_normalized,
   (array_agg(operator_id ORDER BY created_at ASC, ctid ASC))[1] AS canonical_operator_id,
-  MIN(ctid) AS canonical_ctid
+  (array_agg(ctid ORDER BY created_at ASC, ctid ASC))[1] AS canonical_ctid
 FROM public.user_context
 WHERE email_normalized IS NOT NULL AND email_normalized != ''
 GROUP BY email_normalized;
@@ -48,18 +48,12 @@ WHERE ctid NOT IN (SELECT canonical_ctid FROM _migration_dedup_canonical)
   AND email_normalized != '';
 
 -- ============================================================================
--- PASSO 5: Adicionar unique constraint em email_normalized
+-- PASSO 5: Adicionar unique index parcial em email_normalized
+-- (partial index ignora NULLs e strings vazias, compatível com saveUserContext)
 -- ============================================================================
-DO $$ BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_constraint
-    WHERE conname = 'user_context_email_normalized_key'
-  ) THEN
-    ALTER TABLE public.user_context
-      ADD CONSTRAINT user_context_email_normalized_key
-      UNIQUE (email_normalized);
-  END IF;
-END $$;
+CREATE UNIQUE INDEX IF NOT EXISTS user_context_email_normalized_unique_idx
+  ON public.user_context (email_normalized)
+  WHERE email_normalized IS NOT NULL AND email_normalized != '';
 
 -- ============================================================================
 -- PASSO 6: Cleanup tabela de mapeamento
