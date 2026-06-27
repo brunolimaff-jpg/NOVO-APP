@@ -50,7 +50,7 @@ npm run lint       # ESLint
 
 ## Fluxo de branches
 
-- Abrir branch nova para cada mudança fechável, partindo de `origin/main`.
+- Abrir branch nova para cada mudança fechável, partindo da baseline do plano ativo (hoje `origin/stabilize/from-production-fe6c6f9`). Usar `origin/main` apenas quando o plano disser.
 - Usar prefixo por tipo: `feat/`, `fix/`, `docs/`, `refactor/`, `perf/`, `chore/` + descrição curta. Ex: `fix/cnpj-limit`.
 - Não misturar objetivos diferentes na mesma PR.
 - Correções de review da mesma PR continuam na mesma branch.
