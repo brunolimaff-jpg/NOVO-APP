@@ -300,7 +300,7 @@ const SectionalBotMessage: React.FC<SectionalBotMessageProps> = ({
   }, [cleanText]);
 
   // Errata 5: useDeferredValue evita que parseMarkdownSections + MarkdownRenderer
-  // bloqueiem a main thread em dossiês grandes (>30KB). React 18 processa o valor
+  // bloqueiem a main thread em dossiês grandes (>15KB). React 18 processa o valor
   // deferred em render de baixa prioridade, mantendo a UI responsiva.
   const LARGE_DOSSIER_DEFERRED_CHARS = 15_000;
   const deferredText = useDeferredValue(displayText);
@@ -398,7 +398,7 @@ const SectionalBotMessage: React.FC<SectionalBotMessageProps> = ({
   // Só mostra o botão copiar se houver conteúdo substancial (dossiê real)
   const showCopyButton = displayText.length > 300;
 
-  // Skeleton enquanto deferred pendente (dossiês >30KB). Rules of Hooks: todos os
+  // Skeleton enquanto deferred pendente (dossiês >15KB). Rules of Hooks: todos os
   // hooks já rodaram — este return condicional é seguro (React vê mesma contagem).
   if (isDeferredPending) {
     return (
