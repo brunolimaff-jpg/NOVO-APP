@@ -18,12 +18,17 @@ import {
 // Configuracao do cache
 // ============================================================
 
+let _cachedClient: ReturnType<typeof createClient> | null = null;
+
 function getSupabaseClient() {
+  if (_cachedClient) return _cachedClient;
+
   const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
   if (!url || !key) return null;
-  return createClient(url, key);
+  _cachedClient = createClient(url, key);
+  return _cachedClient;
 }
 
 function getSupabaseCacheConfig(): { url: string; key: string } | null {
@@ -144,7 +149,7 @@ async function writePersistentCacheRecord(
   }
 
   try {
-    const { error } = await client.from('extract_cache').upsert({
+    const { error } = await (client.from('extract_cache') as ReturnType<typeof client.from>).upsert({
       id: recordId,
       operator_id: SUPABASE_CACHE_OPERATOR_ID,
       result: { ...stripTrace(payload), cached: false },
