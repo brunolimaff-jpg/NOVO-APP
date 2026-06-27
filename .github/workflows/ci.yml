@@ -71,8 +71,4 @@ jobs:
       - run: npm ci
       - run: npx playwright install --with-deps chromium
       - name: Run critical browser regressions
-        run: >-
-          npx playwright test
-          tests-e2e/blank-center-panel-regression.spec.ts
-          tests-e2e/controlled-error-state.spec.ts
-          tests-e2e/loading-smart-recovery.spec.ts
+        run: npm run test:e2e:critical-ux
