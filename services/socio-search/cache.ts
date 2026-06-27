@@ -1,3 +1,4 @@
+import { createClient } from '@supabase/supabase-js';
 import { scoutDiag } from '../../utils/diagnosticLog.js';
 import {
   type SocioSearchResponse,
@@ -16,6 +17,14 @@ import {
 // ============================================================
 // Configuracao do cache
 // ============================================================
+
+function getSupabaseClient() {
+  const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  if (!url || !key) return null;
+  return createClient(url, key);
+}
 
 function getSupabaseCacheConfig(): { url: string; key: string } | null {
   const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
@@ -75,31 +84,23 @@ function setMemoryCached(key: string, payload: SocioSearchResponse): void {
 // ============================================================
 
 async function getPersistentCached(key: string): Promise<PersistentCacheRead> {
-  const config = getSupabaseCacheConfig();
-  if (!config) return { status: 'unavailable' };
+  const client = getSupabaseClient();
+  if (!client) return { status: 'unavailable' };
 
   try {
-    const url = new URL(`${config.url}/rest/v1/extract_cache`);
-    url.searchParams.set('select', 'result,expires_at');
-    url.searchParams.set('id', `eq.${buildPersistentCacheId(key)}`);
-    url.searchParams.set('expires_at', `gt.${new Date().toISOString()}`);
+    const { data, error } = await client
+      .from('extract_cache')
+      .select('result,expires_at')
+      .eq('id', buildPersistentCacheId(key))
+      .gt('expires_at', new Date().toISOString())
+      .maybeSingle();
 
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: {
-        apikey: config.key,
-        Authorization: `Bearer ${config.key}`,
-      },
-    });
-
-    if (!response.ok) {
-      scoutDiag.warn('SocioSearch', 'cache persistente indisponivel para leitura', { status: response.status });
+    if (error) {
+      scoutDiag.warn('SocioSearch', 'cache persistente indisponivel para leitura', { message: error.message });
       return { status: 'unavailable' };
     }
 
-    const raw = await response.json();
-    const rows = Array.isArray(raw) ? (raw as Array<{ result?: unknown }>) : [];
-    const payload = rows[0]?.result;
+    const payload = (data as { result?: unknown } | null)?.result;
     if (!payload) return { status: 'miss' };
     if (!isSocioSearchResponse(payload)) return { status: 'unavailable' };
     if (payload.degraded && payload.companies.length === 0 && payload.rejected.length === 0) {
@@ -134,8 +135,8 @@ async function writePersistentCacheRecord(
   payload: SocioSearchResponse,
   ttlMs: number,
 ): Promise<boolean> {
-  const config = getSupabaseCacheConfig();
-  if (!config) {
+  const client = getSupabaseClient();
+  if (!client) {
     if (process.env.NODE_ENV !== 'test') {
       scoutDiag.warn('SocioSearch', 'cache persistente nao configurado; usando cache local volatil');
     }
@@ -143,25 +144,16 @@ async function writePersistentCacheRecord(
   }
 
   try {
-    const response = await fetch(`${config.url}/rest/v1/extract_cache`, {
-      method: 'POST',
-      headers: {
-        apikey: config.key,
-        Authorization: `Bearer ${config.key}`,
-        'Content-Type': 'application/json',
-        Prefer: 'resolution=merge-duplicates',
-      },
-      body: JSON.stringify({
-        id: recordId,
-        operator_id: SUPABASE_CACHE_OPERATOR_ID,
-        result: { ...stripTrace(payload), cached: false },
-        expires_at: new Date(Date.now() + ttlMs).toISOString(),
-        synced_at: new Date().toISOString(),
-      }),
+    const { error } = await client.from('extract_cache').upsert({
+      id: recordId,
+      operator_id: SUPABASE_CACHE_OPERATOR_ID,
+      result: { ...stripTrace(payload), cached: false },
+      expires_at: new Date(Date.now() + ttlMs).toISOString(),
+      synced_at: new Date().toISOString(),
     });
 
-    if (!response.ok) {
-      scoutDiag.warn('SocioSearch', 'cache persistente indisponivel para gravacao', { status: response.status });
+    if (error) {
+      scoutDiag.warn('SocioSearch', 'cache persistente indisponivel para gravacao', { message: error.message });
       return false;
     }
     return true;
