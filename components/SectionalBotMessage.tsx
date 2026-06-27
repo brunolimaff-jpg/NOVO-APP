@@ -302,7 +302,7 @@ const SectionalBotMessage: React.FC<SectionalBotMessageProps> = ({
   // Errata 5: useDeferredValue evita que parseMarkdownSections + MarkdownRenderer
   // bloqueiem a main thread em dossiês grandes (>30KB). React 18 processa o valor
   // deferred em render de baixa prioridade, mantendo a UI responsiva.
-  const LARGE_DOSSIER_DEFERRED_CHARS = 30_000;
+  const LARGE_DOSSIER_DEFERRED_CHARS = 15_000;
   const deferredText = useDeferredValue(displayText);
   const isDeferredPending = deferredText !== displayText && displayText.length > LARGE_DOSSIER_DEFERRED_CHARS;
 
