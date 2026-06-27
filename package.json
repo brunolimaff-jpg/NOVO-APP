@@ -23,6 +23,7 @@
     "test:contracts": "vitest run tests/contracts/",
     "test:flow": "npm run typecheck && npm run test && npm run test:contracts && npm run test:e2e:blank",
     "validate:release": "npm run typecheck && npm run test && npm run test:contracts && npm run test:e2e",
+    "pretest:e2e:critical-ux": "npm run pretest:e2e",
     "test:e2e:critical-ux": "playwright test tests-e2e/blank-center-panel-regression.spec.ts tests-e2e/controlled-error-state.spec.ts tests-e2e/loading-smart-recovery.spec.ts",
     "validate:ci": "npm run typecheck && npm run test && npm run test:contracts && npm run test:e2e:critical-ux",
     "validate:chat:no-autoscroll": "bash scripts/validate-chat-no-autoscroll.sh",
