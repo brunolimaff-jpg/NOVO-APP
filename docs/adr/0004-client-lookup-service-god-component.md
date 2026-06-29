@@ -12,9 +12,9 @@
 
 O `services/clientLookupService.ts` é o **gateway único de consulta à base interna de
 clientes Senior** no Scout 360. Antes de qualquer geração de dossiê ou resposta de chat,
-este arquivo é consultado para responder a uma pergunta comercialmente crítica: *"A empresa
+este arquivo é consultado para responder a uma pergunta comercialmente crítica: _"A empresa
 que o usuário está analisando já é cliente da Senior? Se sim, quais módulos ela contratou?
-Quais são os gaps de cross-sell?"*. A resposta é injetada no prompt do LLM para que o
+Quais são os gaps de cross-sell?"_. A resposta é injetada no prompt do LLM para que o
 dossiê reflita a realidade cadastral em vez de alucinar informações comerciais.
 
 O arquivo expõe **6 funções públicas** (`isConcorrenteOuPropria`, `lookupCliente`,
@@ -73,27 +73,27 @@ refactor que mude a ordem do sort pode reabrir incidentes já resolvidos. Por Pr
 
 ## Responsabilidades acumuladas
 
-| # | Responsabilidade | Linhas aprox | Deveria estar em |
-|---|---|---|---|
-| 1 | Detecção de concorrente/própria por token-set (`isConcorrenteOuPropria`) — função pura, 0 I/O | 11-44 | `services/competitorService.ts` (já existe) |
-| 2 | Definição de tipos públicos (`ClienteResult`, `LookupResponse`, `BenchmarkResponse`, `ComexPromptData`) | 92-121, 647-654 | `services/types/clientLookup.ts` |
-| 3 | Fetch com timeout (15s) via AbortController (`fetchWithTimeout`) | 128-147 | `utils/httpClient.ts` |
-| 4 | Fetch com retry exponencial (1s/2s/4s, 3 tentativas) (`fetchWithRetry`) | 150-189 | `utils/httpClient.ts` |
-| 5 | Helpers de diagnóstico (`describeLookupEndpoint`, `truncateForDiag`, `errorMessage`) | 79-90, 123-125 | `utils/diagnosticHelpers.ts` |
-| 6 | Normalização de texto (3 funções encadeadas: `stripLookupNoise` → `normalizeLookupBase` → `normalizeLookupText`) | 204-224 | `utils/lookupNormalize.ts` |
-| 7 | Tokenização e stopword removal (`getRelevantLookupTokens`, `isGenericLookupPrefixToken`, `LOOKUP_TOKEN_STOPWORDS`) | 226-265 | `utils/lookupTokenize.ts` |
-| 8 | Cache permanente de resultados positivos (`_lookupCache: Map<string, LookupResponse>`) | 192, 432-438, 519 | `services/lookupCache.ts` |
-| 9 | Cache TTL de 30s para resultados negativos (`_notFoundCache`) — proteção contra cold start do Apps Script | 196, 442-458, 521-524 | `services/lookupCache.ts` |
-| 10 | Algoritmo de ranking de candidatos por métricas (`getBestLookupCandidateMetrics` + `compareLookupCandidateMetrics`) | 271-355 | `services/lookupRanking.ts` |
-| 11 | Ranking de variantes de busca (`rankLookupResponse` + `compareRankedLookupResponses`) | 357-416 | `services/lookupRanking.ts` |
-| 12 | Orquestração do lookup: geração de variantes, Promise.allSettled, seleção do melhor | 418-535 | ✅ no arquivo (correto, mas ~117 linhas) |
-| 13 | Fetch individual + parse JSON + tratamento de cold start (HTML retornado) (`fetchLookup`) | 537-575 | `services/lookupFetch.ts` |
-| 14 | Formatação de CRM para prompt com 3 branches (não-encontrado / match não-exato / match exato) (`formatarParaPrompt`) | 577-644 | `services/lookupFormatters/crmFormatter.ts` |
-| 15 | Benchmark de clientes por keywords com retry de cold start (`benchmarkClientes`) | 656-700 | `services/benchmarkService.ts` |
-| 16 | Formatação de benchmark para prompt — top 5 clientes em markdown (`formatarBenchmarkParaPrompt`) | 702-723 | `services/lookupFormatters/benchmarkFormatter.ts` |
-| 17 | Formatação de Comex Stat MDIC para prompt com regras de recomendação hardcoded (`formatarComexParaPrompt`) | 726-741 | `services/lookupFormatters/comexFormatter.ts` |
-| 18 | Constantes de configuração (TIMEOUT_MS=15s, MAX_RETRIES=3, NOT_FOUND_TTL_MS=30s, COLD_START_RETRY_DELAY_MS=1.5s) | 67-77 | `config/lookupConfig.ts` |
-| 19 | Sets de domain knowledge (`_concorrentesSet`, `_genericPrefixes`, `LOOKUP_TOKEN_STOPWORDS`, `GENERIC_PREFIX_NORMALIZED`) | 11-31, 47-65, 226-247 | `config/lookupDomain.ts` |
+| #   | Responsabilidade                                                                                                         | Linhas aprox          | Deveria estar em                                  |
+| --- | ------------------------------------------------------------------------------------------------------------------------ | --------------------- | ------------------------------------------------- |
+| 1   | Detecção de concorrente/própria por token-set (`isConcorrenteOuPropria`) — função pura, 0 I/O                            | 11-44                 | `services/competitorService.ts` (já existe)       |
+| 2   | Definição de tipos públicos (`ClienteResult`, `LookupResponse`, `BenchmarkResponse`, `ComexPromptData`)                  | 92-121, 647-654       | `services/types/clientLookup.ts`                  |
+| 3   | Fetch com timeout (15s) via AbortController (`fetchWithTimeout`)                                                         | 128-147               | `utils/httpClient.ts`                             |
+| 4   | Fetch com retry exponencial (1s/2s/4s, 3 tentativas) (`fetchWithRetry`)                                                  | 150-189               | `utils/httpClient.ts`                             |
+| 5   | Helpers de diagnóstico (`describeLookupEndpoint`, `truncateForDiag`, `errorMessage`)                                     | 79-90, 123-125        | `utils/diagnosticHelpers.ts`                      |
+| 6   | Normalização de texto (3 funções encadeadas: `stripLookupNoise` → `normalizeLookupBase` → `normalizeLookupText`)         | 204-224               | `utils/lookupNormalize.ts`                        |
+| 7   | Tokenização e stopword removal (`getRelevantLookupTokens`, `isGenericLookupPrefixToken`, `LOOKUP_TOKEN_STOPWORDS`)       | 226-265               | `utils/lookupTokenize.ts`                         |
+| 8   | Cache permanente de resultados positivos (`_lookupCache: Map<string, LookupResponse>`)                                   | 192, 432-438, 519     | `services/lookupCache.ts`                         |
+| 9   | Cache TTL de 30s para resultados negativos (`_notFoundCache`) — proteção contra cold start do Apps Script                | 196, 442-458, 521-524 | `services/lookupCache.ts`                         |
+| 10  | Algoritmo de ranking de candidatos por métricas (`getBestLookupCandidateMetrics` + `compareLookupCandidateMetrics`)      | 271-355               | `services/lookupRanking.ts`                       |
+| 11  | Ranking de variantes de busca (`rankLookupResponse` + `compareRankedLookupResponses`)                                    | 357-416               | `services/lookupRanking.ts`                       |
+| 12  | Orquestração do lookup: geração de variantes, Promise.allSettled, seleção do melhor                                      | 418-535               | ✅ no arquivo (correto, mas ~117 linhas)          |
+| 13  | Fetch individual + parse JSON + tratamento de cold start (HTML retornado) (`fetchLookup`)                                | 537-575               | `services/lookupFetch.ts`                         |
+| 14  | Formatação de CRM para prompt com 3 branches (não-encontrado / match não-exato / match exato) (`formatarParaPrompt`)     | 577-644               | `services/lookupFormatters/crmFormatter.ts`       |
+| 15  | Benchmark de clientes por keywords com retry de cold start (`benchmarkClientes`)                                         | 656-700               | `services/benchmarkService.ts`                    |
+| 16  | Formatação de benchmark para prompt — top 5 clientes em markdown (`formatarBenchmarkParaPrompt`)                         | 702-723               | `services/lookupFormatters/benchmarkFormatter.ts` |
+| 17  | Formatação de Comex Stat MDIC para prompt com regras de recomendação hardcoded (`formatarComexParaPrompt`)               | 726-741               | `services/lookupFormatters/comexFormatter.ts`     |
+| 18  | Constantes de configuração (TIMEOUT_MS=15s, MAX_RETRIES=3, NOT_FOUND_TTL_MS=30s, COLD_START_RETRY_DELAY_MS=1.5s)         | 67-77                 | `config/lookupConfig.ts`                          |
+| 19  | Sets de domain knowledge (`_concorrentesSet`, `_genericPrefixes`, `LOOKUP_TOKEN_STOPWORDS`, `GENERIC_PREFIX_NORMALIZED`) | 11-31, 47-65, 226-247 | `config/lookupDomain.ts`                          |
 
 ---
 
@@ -167,7 +167,7 @@ refactor que mude a ordem do sort pode reabrir incidentes já resolvidos. Por Pr
 
 9. **Sem teste para `formatarBenchmarkParaPrompt` e `formatarComexParaPrompt`**: O suite
    de testes (411 LOC, 13 testes em `tests/services/clientLookupService.test.ts`) cobre
-   `isConcorrenteOuPropria` (4), `lookupCliente` (7 cenários de cache + erro), 
+   `isConcorrenteOuPropria` (4), `lookupCliente` (7 cenários de cache + erro),
    `formatarParaPrompt` (3) e `benchmarkClientes` (3). **Zero testes** para os 2 outros
    formatadores. Refatorar esses formatadores sem coverage é aposta.
 
@@ -191,7 +191,7 @@ refactor que mude a ordem do sort pode reabrir incidentes já resolvidos. Por Pr
 1. **`isConcorrenteOuPropria(empresa: string): boolean`** (L38-44): Função pura exportada.
    Lowercase + trim + split por whitespace/vírgula, retorna `true` se qualquer token
    estiver em `_concorrentesSet`. O set (L11-31) é populado por: `CONCORRENTES.map(c =>
-   c.id.split('_')[0])` (ex: `totvs_protheus` → `totvs`) + hardcoded Senior products
+c.id.split('_')[0])` (ex: `totvs_protheus` → `totvs`) + hardcoded Senior products
    (`sapiens`, `hcm`, `gatec`, `erpx`, etc.) + hardcoded competitor products (`protheus`,
    `microsiga`, `datasul`). Evidência: assinatura L38, implementação L39-43, set L11-31.
 
@@ -221,7 +221,7 @@ refactor que mude a ordem do sort pode reabrir incidentes já resolvidos. Por Pr
 
 5. **Cache de duas camadas**: `_lookupCache: Map<string, LookupResponse>` (L192) —
    permanente para `encontrado=true`, sobrevive a toda a sessão. `_notFoundCache:
-   Map<string, { data: LookupResponse; expiresAt: number }>` (L196) — TTL de
+Map<string, { data: LookupResponse; expiresAt: number }>` (L196) — TTL de
    `NOT_FOUND_TTL_MS = 30_000` (L74) para `encontrado=false`, protege contra cold start
    do Apps Script. Evidência: L432-438 read positivo, L442-458 read negativo com TTL,
    L518-524 write (positivo em `_lookupCache`, negativo em `_notFoundCache`).
@@ -286,11 +286,11 @@ refactor que mude a ordem do sort pode reabrir incidentes já resolvidos. Por Pr
     dois. Evidência: L214-220 strip, L204-212 base, L222-224 compose.
 
 13. **`fetchLookup(query: string): Promise<LookupResponse>`** (L537-575): Helper privado.
-   Monta URL `LOOKUP_API_URL?q=encodeURIComponent(query)`, chama `fetchWithRetry`, se
-   `!resp.ok` loga warn e retorna `{ ok: false, ... }`, senão `resp.text()` +
-   `JSON.parse`. Se JSON.parse falhar, loga warn com preview e retorna `{ ok: false }`.
-   Evidência: L537 assinatura, L538 URL, L541 fetch, L542-548 HTTP error, L550-558
-   text+parse, L559-566 parse error.
+    Monta URL `LOOKUP_API_URL?q=encodeURIComponent(query)`, chama `fetchWithRetry`, se
+    `!resp.ok` loga warn e retorna `{ ok: false, ... }`, senão `resp.text()` +
+    `JSON.parse`. Se JSON.parse falhar, loga warn com preview e retorna `{ ok: false }`.
+    Evidência: L537 assinatura, L538 URL, L541 fetch, L542-548 HTTP error, L550-558
+    text+parse, L559-566 parse error.
 
 14. **`describeLookupEndpoint(url)`** (L79-86): Helper de privacidade de logs. Extrai
     `origin + pathname` da URL — sem query string. Como a query string carrega o nome
@@ -312,7 +312,7 @@ refactor que mude a ordem do sort pode reabrir incidentes já resolvidos. Por Pr
 
 1. **`partialTokenThreshold` no `getBestLookupCandidateMetrics`** (L305-306): Fórmula
    `queryTokens.length <= 1 ? 1 : Math.min(queryTokens.length, Math.max(2,
-   Math.ceil(queryTokens.length / 2)))`. Para 2 tokens → `max(2, 1) = 2` (requer 100%
+Math.ceil(queryTokens.length / 2)))`. Para 2 tokens → `max(2, 1) = 2` (requer 100%
    match); para 3 tokens → `max(2, 2) = 2` (66%); para 4 → `max(2, 2) = 2` (50%); para
    5 → `max(2, 3) = 3` (60%); para 6 → `max(2, 3) = 3` (50%); para 7 → `max(2, 4) = 4`
    (57%). A intenção parece ser "pelo menos metade dos tokens, mínimo 2, limitado ao
@@ -383,7 +383,7 @@ refactor que mude a ordem do sort pode reabrir incidentes já resolvidos. Por Pr
    frequente, pode degradar a disponibilidade do lookup para o fluxo de dossiê.
 
 10. **`shouldLogLookupDebug` em module-load** (L70): `import.meta.env?.VITE_VERBOSE_LOGS
-    === 'true'`. Não sei se essa env var é `true` em produção, HOMOLOG, ou só local. Se
+=== 'true'`. Não sei se essa env var é `true` em produção, HOMOLOG, ou só local. Se
     for `true` em produção, este arquivo é muito verboso (scoutDiag.debug em ~10 pontos:
     L156, L164, L170, L181, L420, L434, L446, L454, L461, L552). Se for `false`, os
     logs não existem — mas aí não há observabilidade de lookup em produção. Não há
@@ -605,9 +605,9 @@ ambíguo estilo "Pampa/Pampafoods") e validar que o output é equivalente ao pr�
 
 ## Histórico de revisão
 
-| Data | Versão | Autor | Nota |
-|---|---|---|---|
-| 29/06/2026 | 1.0 | IA gestora (ADR author Task ID 7) | Autor — leu 741 LOC, grep 41 declarações top-level + 4 callers produção + 6 arquivos de teste, 10 seções, Princípio 14 aplicado (15 itens em "O que entendo" vs 13 em "O que NÃO entendo") |
-| Pendente | — | IA gestora (validação) | Cross-check com ADR-0001, ADR-0002 e ADR-0003 para consistência de estilo e clarificar relação com Ticket C / PR #397 |
-| Pendente | — | Bruno | Revisão — confirmação de que não refatorar agora é a decisão correta |
-| Pendente | — | Sênior (Fase 9) | Revisão técnica aprofundada antes de iniciar qualquer extração; atenção especial ao algoritmo de ranking (L301-416) e à composição do `_concorrentesSet` (L11-31) |
+| Data       | Versão | Autor                             | Nota                                                                                                                                                                                       |
+| ---------- | ------ | --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 29/06/2026 | 1.0    | IA gestora (ADR author Task ID 7) | Autor — leu 741 LOC, grep 41 declarações top-level + 4 callers produção + 6 arquivos de teste, 10 seções, Princípio 14 aplicado (15 itens em "O que entendo" vs 13 em "O que NÃO entendo") |
+| Pendente   | —      | IA gestora (validação)            | Cross-check com ADR-0001, ADR-0002 e ADR-0003 para consistência de estilo e clarificar relação com Ticket C / PR #397                                                                      |
+| Pendente   | —      | Bruno                             | Revisão — confirmação de que não refatorar agora é a decisão correta                                                                                                                       |
+| Pendente   | —      | Sênior (Fase 9)                   | Revisão técnica aprofundada antes de iniciar qualquer extração; atenção especial ao algoritmo de ranking (L301-416) e à composição do `_concorrentesSet` (L11-31)                          |

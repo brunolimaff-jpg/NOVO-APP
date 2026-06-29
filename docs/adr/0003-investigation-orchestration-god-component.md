@@ -52,28 +52,28 @@ Fase 7 (monitoramento) estiverem consolidadas.
 
 ## Responsabilidades acumuladas
 
-| # | Responsabilidade | Linhas aprox | Deveria estar em |
-|---|---|---|---|
-| 1 | Roteamento de chat: detecção de CNPJ, mega prompt, deep dive, follow-up cirúrgico | 196-220 | `services/llm/intent-detector.ts` |
-| 2 | Lookup cadastral (`lookupCliente`) com AbortSignal + Promise.allSettled + extração de ClienteSeniorData | 232-291 | `services/llm/cadastral-enrichment.ts` |
-| 3 | Recuperação de cliente senior do histórico quando lookup atual falha (deep dive / follow-up) | 294-302 | `services/llm/senior-evidence-recovery.ts` |
-| 4 | Composição de system prompt com follow-up guard, concorrentes regionais, porta context e extra context | 304-342 | `services/llm/system-prompt-builder.ts` |
-| 5 | Construção de conversation history + prompt budget log (chars do user/system/history, threshold 120.000) | 347-389 | `services/llm/prompt-budget.ts` |
-| 6 | Inicialização / reset de PORTA state para mega prompt e deep dive | 94-114, 363-369 | `services/portaStateService.ts` (já existe) |
-| 7 | Seleção de modelo (`selectMainChatModelId`) com branching por isDeepDive/isMegaPrompt/shouldForceDirectAnswer | 371-375 | `services/llm/config.ts` (já existe) |
-| 8 | Chamada LLM principal com retry (maxRetries 5, backoff 2s-30s) via `withAutoRetry` | 398-417 | ✅ no arquivo (correto) |
-| 9 | Fallback para TACTICAL_MODEL_ID sem grounding em erros TIMEOUT/NETWORK/MODEL_OVERLOADED/SERVER | 418-444 | `services/llm/grounding-fallback.ts` |
-| 10 | Pós-processamento: sanitizeSensitivePersonalData + enforceSeniorEvidenceConstraints + applyPromptLeakShield | 447-463 | `services/llm/response-postprocess.ts` |
-| 11 | Processamento de PORTA feeds (adjustments, flags, segments) + emissão de score consolidado | 116-149, 485-491 | `services/llm/porta-feeds-processor.ts` |
-| 12 | Detecção de concorrente na resposta final via `isConcorrenteOuPropria` | 493-504 | `services/competitorService.ts` (já existe) |
-| 13 | Recuperação de "missed open question" (`looksLikeMissedOpenQuestionAnswer` + `trackOpenQuestionRecoveryAttempt`) | 516-526 | `services/llm/recovery.ts` (já existe) |
-| 14 | Normalização de grounding sources + derivação de verification status | 528-531 | `services/llm/sources.ts` (já existe) |
-| 15 | Geração de módulo de dossiê (specialist prompt + foundation block + socioRural + cachedContent) | 545-656 | `services/llm/dossier-module-generator.ts` |
-| 16 | Benchmark isolado com retry 1x + timeout externo | 658-678 | `services/llm/benchmark-fetcher.ts` |
-| 17 | Helper `shouldEmitDeepDiveStatus` (5 labels: corporate/tech/compliance/rh/logistica) | 50-59 | `services/llm/status.ts` (já existe) |
-| 18 | Helper `buildExtraContext` (concatena clienteData + comexData + concorrentes + porta) | 72-92 | `services/llm/system-prompt-builder.ts` |
-| 19 | Constante `FOLLOW_UP_SYSTEM_INSTRUCTION` (instruction de 9 linhas em PT-BR sem acentos) | 61-70 | `services/llm/prompts/follow-up.ts` |
-| 20 | 18+ chamadas a `emitDossieStatus(onStatus, ...)` sequenciando a UI de progresso | disperso | `services/llm/status.ts` (já existe) |
+| #   | Responsabilidade                                                                                                 | Linhas aprox     | Deveria estar em                            |
+| --- | ---------------------------------------------------------------------------------------------------------------- | ---------------- | ------------------------------------------- |
+| 1   | Roteamento de chat: detecção de CNPJ, mega prompt, deep dive, follow-up cirúrgico                                | 196-220          | `services/llm/intent-detector.ts`           |
+| 2   | Lookup cadastral (`lookupCliente`) com AbortSignal + Promise.allSettled + extração de ClienteSeniorData          | 232-291          | `services/llm/cadastral-enrichment.ts`      |
+| 3   | Recuperação de cliente senior do histórico quando lookup atual falha (deep dive / follow-up)                     | 294-302          | `services/llm/senior-evidence-recovery.ts`  |
+| 4   | Composição de system prompt com follow-up guard, concorrentes regionais, porta context e extra context           | 304-342          | `services/llm/system-prompt-builder.ts`     |
+| 5   | Construção de conversation history + prompt budget log (chars do user/system/history, threshold 120.000)         | 347-389          | `services/llm/prompt-budget.ts`             |
+| 6   | Inicialização / reset de PORTA state para mega prompt e deep dive                                                | 94-114, 363-369  | `services/portaStateService.ts` (já existe) |
+| 7   | Seleção de modelo (`selectMainChatModelId`) com branching por isDeepDive/isMegaPrompt/shouldForceDirectAnswer    | 371-375          | `services/llm/config.ts` (já existe)        |
+| 8   | Chamada LLM principal com retry (maxRetries 5, backoff 2s-30s) via `withAutoRetry`                               | 398-417          | ✅ no arquivo (correto)                     |
+| 9   | Fallback para TACTICAL_MODEL_ID sem grounding em erros TIMEOUT/NETWORK/MODEL_OVERLOADED/SERVER                   | 418-444          | `services/llm/grounding-fallback.ts`        |
+| 10  | Pós-processamento: sanitizeSensitivePersonalData + enforceSeniorEvidenceConstraints + applyPromptLeakShield      | 447-463          | `services/llm/response-postprocess.ts`      |
+| 11  | Processamento de PORTA feeds (adjustments, flags, segments) + emissão de score consolidado                       | 116-149, 485-491 | `services/llm/porta-feeds-processor.ts`     |
+| 12  | Detecção de concorrente na resposta final via `isConcorrenteOuPropria`                                           | 493-504          | `services/competitorService.ts` (já existe) |
+| 13  | Recuperação de "missed open question" (`looksLikeMissedOpenQuestionAnswer` + `trackOpenQuestionRecoveryAttempt`) | 516-526          | `services/llm/recovery.ts` (já existe)      |
+| 14  | Normalização de grounding sources + derivação de verification status                                             | 528-531          | `services/llm/sources.ts` (já existe)       |
+| 15  | Geração de módulo de dossiê (specialist prompt + foundation block + socioRural + cachedContent)                  | 545-656          | `services/llm/dossier-module-generator.ts`  |
+| 16  | Benchmark isolado com retry 1x + timeout externo                                                                 | 658-678          | `services/llm/benchmark-fetcher.ts`         |
+| 17  | Helper `shouldEmitDeepDiveStatus` (5 labels: corporate/tech/compliance/rh/logistica)                             | 50-59            | `services/llm/status.ts` (já existe)        |
+| 18  | Helper `buildExtraContext` (concatena clienteData + comexData + concorrentes + porta)                            | 72-92            | `services/llm/system-prompt-builder.ts`     |
+| 19  | Constante `FOLLOW_UP_SYSTEM_INSTRUCTION` (instruction de 9 linhas em PT-BR sem acentos)                          | 61-70            | `services/llm/prompts/follow-up.ts`         |
+| 20  | 18+ chamadas a `emitDossieStatus(onStatus, ...)` sequenciando a UI de progresso                                  | disperso         | `services/llm/status.ts` (já existe)        |
 
 ---
 
@@ -95,7 +95,7 @@ Fase 7 (monitoramento) estiverem consolidadas.
    regressão silenciosa: alta.
 
 3. **Threshold mágico de 120.000 chars** (linha 383): Se `userChars + systemChars +
-   historyChars > 120000`, emite `scoutDiag.warn` mas não bloqueia nem trunca. Não está
+historyChars > 120000`, emite `scoutDiag.warn` mas não bloqueia nem trunca. Não está
    claro se esse número vem da janela de contexto do modelo ou de observação empírica.
    Se o modelo mudar (ex: troca de Gemini por DeepSeek V3.2 via LiteLLM), o threshold
    pode ficar obsoleto sem aviso.
@@ -123,9 +123,9 @@ Fase 7 (monitoramento) estiverem consolidadas.
    após `selectMainChatModelId` retornar. Code smell que indica refactor parcial.
 
 8. **18+ `emitDossieStatus` calls sequenciados na ordem da UI**: A sequência `intent →
-   complexity → context → enrichment → cadastral → concorrentes → deepResearch →
-   corporate → tech → compliance → rh → logistica → context → prompt → history → model →
-   response → validation → synthesis → scoring → consolidando → finalReview → hooks` é
+complexity → context → enrichment → cadastral → concorrentes → deepResearch →
+corporate → tech → compliance → rh → logistica → context → prompt → history → model →
+response → validation → synthesis → scoring → consolidando → finalReview → hooks` é
    hardcoded na ordem das chamadas no código. Se a ordem mudar (ex: trocar contexto e
    enrichment), a UI de progresso mostra passos fora de sequência sem erro de compilação.
 
@@ -177,7 +177,7 @@ Fase 7 (monitoramento) estiverem consolidadas.
 
 7. **Fallback para TACTICAL_MODEL_ID sem grounding** (linhas 418-444): Se a chamada
    principal falhar e o erro normalizado for um de `['TIMEOUT', 'NETWORK',
-   'MODEL_OVERLOADED', 'SERVER']`, faz segunda chamada com `model: TACTICAL_MODEL_ID`,
+'MODEL_OVERLOADED', 'SERVER']`, faz segunda chamada com `model: TACTICAL_MODEL_ID`,
    `useGrounding: false`, `maxRetries: 4`, `maxDelayMs: 20000`. Marca `usedGroundingFallback = true`.
 
 8. **Pós-processamento da resposta** (linhas 447-463): Aplica em sequência
@@ -230,7 +230,7 @@ Fase 7 (monitoramento) estiverem consolidadas.
    como um deep dive é disparado (parece vir de um botão na UI que prefixa o userMessage).
 
 2. **`selectMainChatModelId`** (linha 371): Importado de `./config`. Recebe `{ isDeepDive,
-   isMegaPromptMessage, shouldForceDirectAnswer }`. Existem 3 modelos em jogo: o principal
+isMegaPromptMessage, shouldForceDirectAnswer }`. Existem 3 modelos em jogo: o principal
    (selecionado por esta função), `TACTICAL_MODEL_ID` (fallback sem grounding, linha 432)
    e `STABLE_RESEARCH_MODEL_ID` (módulos de dossiê, linha 585). Não sei qual modelo cada
    constante aponta — presumo DeepSeek V3.2 (LiteLLM HOMOLOG em prod) e Gemini Flash
@@ -272,12 +272,12 @@ Fase 7 (monitoramento) estiverem consolidadas.
 
 9. **Interação entre `isConcorrenteOuPropria` e a UI** (linhas 493-504): Se a resposta do
    LLM mencionar um concorrente, callback `onCompetitor` é disparado com `{ encontrado: true,
-   detected: true, names: ['Concorrente Detectado'] }`. Não sei como o `message-orchestrator.ts`
+detected: true, names: ['Concorrente Detectado'] }`. Não sei como o `message-orchestrator.ts`
    reage — se mostra warning, rastreia no Sentry, bloqueia a resposta. O `names` sempre é
    `['Concorrente Detectado']` (string fixa), o que sugere perda de informação.
 
 10. **Ordem dos 18+ `emitDossieStatus`** (linhas 200-514): A sequência `intent →
-    complexity → context → enrichment → cadastral → ... → finalReview → hooks` é implícita
+complexity → context → enrichment → cadastral → ... → finalReview → hooks` é implícita
     na ordem das chamadas no código. Não sei se o consumidor (`onStatus` callback) espera
     uma ordem canônica ou se tolera reordenação. Refatorar pode mudar a ordem acidentalmente.
 
@@ -421,9 +421,9 @@ do agronegócio brasileiro e validar que o output é equivalente ao pré-refacto
 
 ## Histórico de revisão
 
-| Data | Versão | Autor | Nota |
-|---|---|---|---|
-| 29/06/2026 | 1.0 | IA gestora (ADR author Task ID 6) | Autor — leu 678 LOC, grep callers/testes, 11 seções, Princípio 14 aplicado (15 itens em "O que entendo" vs 12 em "O que NÃO entendo") |
-| Pendente | — | IA gestora (validação) | Cross-check com ADR-0001 e ADR-0002 para consistência de estilo |
-| Pendente | — | Bruno | Revisão — confirmação de que não refatorar agora é a decisão correta |
-| Pendente | — | Sênior (Fase 9) | Revisão técnica aprofundada antes de iniciar qualquer extração |
+| Data       | Versão | Autor                             | Nota                                                                                                                                  |
+| ---------- | ------ | --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| 29/06/2026 | 1.0    | IA gestora (ADR author Task ID 6) | Autor — leu 678 LOC, grep callers/testes, 11 seções, Princípio 14 aplicado (15 itens em "O que entendo" vs 12 em "O que NÃO entendo") |
+| Pendente   | —      | IA gestora (validação)            | Cross-check com ADR-0001 e ADR-0002 para consistência de estilo                                                                       |
+| Pendente   | —      | Bruno                             | Revisão — confirmação de que não refatorar agora é a decisão correta                                                                  |
+| Pendente   | —      | Sênior (Fase 9)                   | Revisão técnica aprofundada antes de iniciar qualquer extração                                                                        |

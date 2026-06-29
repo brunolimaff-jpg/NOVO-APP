@@ -9,6 +9,7 @@
 ## ✅ O QUE EU FIZ NESSA SESSÃO
 
 ### 1. Validei o handoff V2 (Princípio 6 — não aceitar claim sem grep)
+
 Clonei o repo COMPLETO (não shallow) e verifiquei TODAS as claims do handoff. **Tudo bateu**, exceto 2 pequenas imprecisões que o grep pegou (ver seção "Discrepâncias encontradas").
 
 - `origin/main` @ `61ced7bc` no topo ✅ (confirmado com `git fetch origin main && git log origin/main -5`)
@@ -20,11 +21,12 @@ Clonei o repo COMPLETO (não shallow) e verifiquei TODAS as claims do handoff. *
 - ADRs 0001 e 0002 existiam; 0003/0004/0005 não existiam (confirmado) ✅
 
 ### 2. Investiguei os "prompts duplicados" (o próximo passo que você identificou)
+
 Li **todos os 13 arquivos de prompt** (4.052 linhas) + o dossiê Scheffer gerado (1.181 linhas). **Conclusão importante: a duplicação real é muito menor do que parecia.**
 
 - **O que VOCÊ viu no dossiê** ("5× SCHEFFER & CIA LTDA", "4× Qualificação: Sócio-Administrador") **NÃO é bug de prompt** — é o template per-sócio em `teia-deep.ts` emitindo os mesmos campos para cada sócio (todos da mesma matriz). É design do template, não copy-paste.
 - **A única duplicação real** é o bloco `<inline_citation_rule>` (560 chars) copiado 8× verbatim em `specialist-prompts.ts` = 3.920 chars redundantes. **Seguro de consolidar** (com snapshot update no mesmo PR).
-- **SHARED_* blocks estão DRY** (11 blocos em `foundation.ts` corretamente importados via `builders.ts`, zero copy-paste).
+- **SHARED\_\* blocks estão DRY** (11 blocos em `foundation.ts` corretamente importados via `builders.ts`, zero copy-paste).
 - **3 cópias divergentes do prompt-leak-shield** (`textCleaners.ts` live + `promptLeakShield.ts` órfão + `api/gemini.ts` cópia local) — **NÃO mexer agora** (Princípio 4: não entendo por que 3 cópias existem; deixar para Fase 9).
 - **"Nota de escopo:" vazou no dossiê** — meta-instrução parafraseada pelo modelo que o shield não pega. Fácil de adicionar 2 patterns (risco baixo).
 
@@ -32,13 +34,13 @@ Li **todos os 13 arquivos de prompt** (4.052 linhas) + o dossiê Scheffer gerado
 
 ### 3. Concluí a Fase 6 — 3 ADRs criados (5/5 god components documentados)
 
-| ADR | Arquivo | LOC | Linhas ADR |
-|---|---|---|---|
-| 0001 | `waterfall-orchestrator.ts` | 1604 | 380 (já existia) |
-| 0002 | `App.tsx` | 702 | 193 (já existia) |
-| **0003** | `services/llm/investigation-orchestration.ts` | 678 | **429 (novo)** |
-| **0004** | `services/clientLookupService.ts` | 741 | **613 (novo)** |
-| **0005** | `api/gemini.ts` | 680 | **521 (novo)** |
+| ADR      | Arquivo                                       | LOC  | Linhas ADR       |
+| -------- | --------------------------------------------- | ---- | ---------------- |
+| 0001     | `waterfall-orchestrator.ts`                   | 1604 | 380 (já existia) |
+| 0002     | `App.tsx`                                     | 702  | 193 (já existia) |
+| **0003** | `services/llm/investigation-orchestration.ts` | 678  | **429 (novo)**   |
+| **0004** | `services/clientLookupService.ts`             | 741  | **613 (novo)**   |
+| **0005** | `api/gemini.ts`                               | 680  | **521 (novo)**   |
 
 Cada ADR segue o template do ADR-0001 (9 seções) e aplica o **Princípio 14 (honestidade)**: divide em "O que entendo que faz" vs "O que NÃO entendo completamente". Os ADRs **documentam como débito conhecido** — não refatoram (Princípio 4).
 
@@ -58,6 +60,7 @@ Ambas documentadas no ADR-0005. **Não são críticas**, mas valem a correção 
 ## 🎯 O QUE VOCÊ (BRUNO) FAZ AGORA
 
 ### Imediato (antes de qualquer edição de prompt)
+
 ```bash
 cd NOVO-APP
 git fetch origin main
@@ -67,6 +70,7 @@ git push origin pre-prompts-cleanup
 ```
 
 ### Próximos passos (em PRs separados — Princípio 3)
+
 1. **Abrir chat Z.ai novo** e pedir para a DeepSeek executar o `docs/management/prompts-cleanup-plan-2026-06-29.md`
 2. **Ordem recomendada:**
    - PR #1: deletar órfão `promptLeakShield.ts` (H1) — 5 min, risco baixo
@@ -77,24 +81,26 @@ git push origin pre-prompts-cleanup
 4. **NÃO executar H5 (3 cópias leak-shield) nem H6 (PRESSOES/PRESSAO)** nesta fase.
 
 ### Antes de cada merge (Princípio 9)
+
 Pedir resumo em português linha-a-linha para a DeepSeek. Se não conseguir explicar, não mergear.
 
 ### Após 23h (Princípio 7)
+
 PR draft, nunca merge. Merge é decisão irreversível que afeta 20 usuários reais.
 
 ---
 
 ## 📊 ESTADO DO PROJETO APÓS ESTA SESSÃO
 
-| Métrica | Antes | Depois | Meta |
-|---|---|---|---|
-| ADRs criados (Fase 6) | 2/5 | **5/5 ✅** | 5 |
-| God components documentados | 2 | **5 (todos) ✅** | 5 |
-| Plano de prompts | — | **documentado ✅** | — |
-| Progresso Plano V3 | ~75% | **~80%** | 100% |
-| Fase 7 (service-role key) | 1 arquivo | 1 arquivo | 0 |
-| Fase 8 (consolidar .md) | 157 .md | 157 .md (+2 novos de gestão) | ≤30 |
-| Fase 9 (self-audit) | pendente | pendente | docs/audit.md |
+| Métrica                     | Antes     | Depois                       | Meta          |
+| --------------------------- | --------- | ---------------------------- | ------------- |
+| ADRs criados (Fase 6)       | 2/5       | **5/5 ✅**                   | 5             |
+| God components documentados | 2         | **5 (todos) ✅**             | 5             |
+| Plano de prompts            | —         | **documentado ✅**           | —             |
+| Progresso Plano V3          | ~75%      | **~80%**                     | 100%          |
+| Fase 7 (service-role key)   | 1 arquivo | 1 arquivo                    | 0             |
+| Fase 8 (consolidar .md)     | 157 .md   | 157 .md (+2 novos de gestão) | ≤30           |
+| Fase 9 (self-audit)         | pendente  | pendente                     | docs/audit.md |
 
 **Restam ~2 semanas:** Fase 7 (1 arquivo) + Fase 8 (consolidar 157→≤30 .md) + Fase 9 (self-audit 97 itens) + execução do plano de prompts.
 

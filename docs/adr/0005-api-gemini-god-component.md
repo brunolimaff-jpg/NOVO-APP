@@ -56,30 +56,30 @@ gerado com sucesso (1181 linhas, citado no handoff) passou por este gateway.
 
 ## Responsabilidades acumuladas
 
-| # | Responsabilidade | Linhas aprox | Deveria estar em |
-|---|---|---|---|
-| 1 | Schema Zod discriminado por `action` (5 actions: health, generateContent, createCachedContent, deleteCachedContent, chatSendMessage) | 11-48 | `api/schemas/gemini-request-schema.ts` |
-| 2 | Configuração Vercel serverless (`runtime: 'nodejs'`, `maxDuration: 300`) | 50-54 | ✅ `api/gemini.ts` (correto) |
-| 3 | Constantes de timeout e modelo default (`CHAT_TIMEOUT_MS=55s`, `LONG_CHAT_TIMEOUT_MS=180s`, `DEFAULT_GEMINI_MODEL`) | 56-58 | `api/config/llm-timeouts.ts` |
-| 4 | **Cópia LOCAL do prompt-leak-shield** (4 regex constants + 3 funções: `stripInternalMarkersLocal`, `detectPromptLeakIndicatorsLocal`, `applyPromptLeakShieldLocal`) — DIVERGENTE das cópias em `utils/textCleaners.ts` e `utils/promptLeakShield.ts` | 59-115 | `utils/textCleaners.ts` (consolidar — risco alto) |
-| 5 | Gate de foundation cache (`isFoundationCacheEnabled()` lê `GEMINI_FOUNDATION_CACHE_ENABLED`) — Decisão 12 | 117-119 | `api/_foundation-cache-gate.ts` |
-| 6 | Helpers de extração de resposta (`extractUsageMetadata`, `extractGeminiText`) — lida com `response.text` direto ou `candidates[].content.parts[].text` | 121-145 | `api/_gemini-response-parser.ts` |
-| 7 | Helper de env var seguro (`getEnvVar` com try/catch para SSR) | 147-153 | `utils/serverEnv.ts` |
-| 8 | Gestão de API keys Gemini com fallback (`getApiKeys()` lê `GEMINI_API_KEY` + `GEMINI_API_KEY_FALLBACK`) | 155-165 | `api/_gemini-key-utils.ts` (parcialmente já existe) |
-| 9 | Helper `toNumberSafe` + `normalizeHistory` (converte schema chat para SDK Gemini) | 167-179 | `api/_gemini-helpers.ts` |
-| 10 | Helper `withTimeout<T>` genérico (Promise.race + setTimeout + clearTimeout no finally) | 181-192 | `utils/withTimeout.ts` (já existe em outros arquivos — duplicado) |
-| 11 | Helper `extractGeminiHttpStatus` (mapeia erro SDK → 429/5xx) | 194-204 | `api/_gemini-key-utils.ts` |
-| 12 | Resolução de thinking level (`resolveThinkingLevel` + `toSdkThinkingLevel` — converte `thinkingMode` legado para `ThinkingLevelSchema`) | 209-220 | `api/_thinking-level.ts` |
-| 13 | **`executeGeminiAction` — switch gigante de 5 cases** (health / generateContent / createCachedContent / deleteCachedContent / chatSendMessage) | 222-598 | `api/handlers/{health,generate-content,cache,chat}.ts` (5 arquivos) |
-| 14 | Dentro do case `generateContent`: **branch LiteLLM** (linha 260) — converte contents → messages, resolve modelo via `selectModelForModule`, chama `callLiteLLM`, retorna `{text, _model}` | 256-312 | `api/_llm-client.ts` (já existe, expandir) |
-| 15 | Dentro do case `generateContent`: **fallback Gemini** com 3 `console.warn` explicando por que não foi para o LiteLLM (grounding / foundation_cache / unknown) | 314-325 | `api/_llm-fallback-reason.ts` |
-| 16 | Diagnóstico server-side do waterfall (`insertDiagnosticsBatch` para `module:start` / `module:end` quando `srvModuleName` é detectado via regex `bloco de (.+?) com extrema`) | 240-248, 326-340, 378-390 | `api/_waterfall-diagnostics.ts` |
-| 17 | Dentro do case `chatSendMessage`: closure `runChat` (ativa tools googleSearch/openWebSearch, cria chat com thinkingConfig, escolhe timeout 55s vs 180s) | 462-489 | `api/_chat-runner.ts` |
-| 18 | Loop de Function Calling (max 3 iterações) — executa `performWebSearch` via fetch para `/api/open-web-search`, faz batching de `functionResponses`, fallback de timeout | 500-566 | `api/_function-call-loop.ts` |
-| 19 | Fallback de grounding (se `useGrounding=true` e chamada primária falhar, re-executa `runChat(false)` sem grounding) | 567-573 | `api/_grounding-fallback.ts` |
-| 20 | Aplicação do prompt-leak-shield local na resposta do chat (`applyPromptLeakShieldLocal` + `console.warn` se bloqueada) | 578-585 | `utils/textCleaners.ts` (consolidar) |
-| 21 | Branch `recordDiagnostics` (early return ANTES da validação Gemini — só faz insert no Supabase e retorna) | 606-646 | `api/_diagnostics-handler.ts` |
-| 22 | **`handler` export default** — entry point: CORS, validação Zod, loop de API keys com fallback em quota/billing, error handling HTTP status | 600-680 | ✅ `api/gemini.ts` (correto — mas deveria delegar mais) |
+| #   | Responsabilidade                                                                                                                                                                                                                                                             | Linhas aprox              | Deveria estar em                                                    |
+| --- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------- | ------------------------------------------------------------------- |
+| 1   | Schema Zod discriminado por `action` (5 actions: health, generateContent, createCachedContent, deleteCachedContent, chatSendMessage)                                                                                                                                         | 11-48                     | `api/schemas/gemini-request-schema.ts`                              |
+| 2   | Configuração Vercel serverless (`runtime: 'nodejs'`, `maxDuration: 300`)                                                                                                                                                                                                     | 50-54                     | ✅ `api/gemini.ts` (correto)                                        |
+| 3   | Constantes de timeout e modelo default (`CHAT_TIMEOUT_MS=55s`, `LONG_CHAT_TIMEOUT_MS=180s`, `DEFAULT_GEMINI_MODEL`)                                                                                                                                                          | 56-58                     | `api/config/llm-timeouts.ts`                                        |
+| 4   | **Cópia LOCAL do prompt-leak-shield** (4 regex constants + 3 funções: `stripInternalMarkersLocal`, `detectPromptLeakIndicatorsLocal`, `applyPromptLeakShieldLocal`) — DIVERGENTE da cópia live em `utils/textCleaners.ts` (~~`utils/promptLeakShield.ts` deletado PR #405~~) | 59-115                    | `utils/textCleaners.ts` (consolidar — risco alto)                   |
+| 5   | Gate de foundation cache (`isFoundationCacheEnabled()` lê `GEMINI_FOUNDATION_CACHE_ENABLED`) — Decisão 12                                                                                                                                                                    | 117-119                   | `api/_foundation-cache-gate.ts`                                     |
+| 6   | Helpers de extração de resposta (`extractUsageMetadata`, `extractGeminiText`) — lida com `response.text` direto ou `candidates[].content.parts[].text`                                                                                                                       | 121-145                   | `api/_gemini-response-parser.ts`                                    |
+| 7   | Helper de env var seguro (`getEnvVar` com try/catch para SSR)                                                                                                                                                                                                                | 147-153                   | `utils/serverEnv.ts`                                                |
+| 8   | Gestão de API keys Gemini com fallback (`getApiKeys()` lê `GEMINI_API_KEY` + `GEMINI_API_KEY_FALLBACK`)                                                                                                                                                                      | 155-165                   | `api/_gemini-key-utils.ts` (parcialmente já existe)                 |
+| 9   | Helper `toNumberSafe` + `normalizeHistory` (converte schema chat para SDK Gemini)                                                                                                                                                                                            | 167-179                   | `api/_gemini-helpers.ts`                                            |
+| 10  | Helper `withTimeout<T>` genérico (Promise.race + setTimeout + clearTimeout no finally)                                                                                                                                                                                       | 181-192                   | `utils/withTimeout.ts` (já existe em outros arquivos — duplicado)   |
+| 11  | Helper `extractGeminiHttpStatus` (mapeia erro SDK → 429/5xx)                                                                                                                                                                                                                 | 194-204                   | `api/_gemini-key-utils.ts`                                          |
+| 12  | Resolução de thinking level (`resolveThinkingLevel` + `toSdkThinkingLevel` — converte `thinkingMode` legado para `ThinkingLevelSchema`)                                                                                                                                      | 209-220                   | `api/_thinking-level.ts`                                            |
+| 13  | **`executeGeminiAction` — switch gigante de 5 cases** (health / generateContent / createCachedContent / deleteCachedContent / chatSendMessage)                                                                                                                               | 222-598                   | `api/handlers/{health,generate-content,cache,chat}.ts` (5 arquivos) |
+| 14  | Dentro do case `generateContent`: **branch LiteLLM** (linha 260) — converte contents → messages, resolve modelo via `selectModelForModule`, chama `callLiteLLM`, retorna `{text, _model}`                                                                                    | 256-312                   | `api/_llm-client.ts` (já existe, expandir)                          |
+| 15  | Dentro do case `generateContent`: **fallback Gemini** com 3 `console.warn` explicando por que não foi para o LiteLLM (grounding / foundation_cache / unknown)                                                                                                                | 314-325                   | `api/_llm-fallback-reason.ts`                                       |
+| 16  | Diagnóstico server-side do waterfall (`insertDiagnosticsBatch` para `module:start` / `module:end` quando `srvModuleName` é detectado via regex `bloco de (.+?) com extrema`)                                                                                                 | 240-248, 326-340, 378-390 | `api/_waterfall-diagnostics.ts`                                     |
+| 17  | Dentro do case `chatSendMessage`: closure `runChat` (ativa tools googleSearch/openWebSearch, cria chat com thinkingConfig, escolhe timeout 55s vs 180s)                                                                                                                      | 462-489                   | `api/_chat-runner.ts`                                               |
+| 18  | Loop de Function Calling (max 3 iterações) — executa `performWebSearch` via fetch para `/api/open-web-search`, faz batching de `functionResponses`, fallback de timeout                                                                                                      | 500-566                   | `api/_function-call-loop.ts`                                        |
+| 19  | Fallback de grounding (se `useGrounding=true` e chamada primária falhar, re-executa `runChat(false)` sem grounding)                                                                                                                                                          | 567-573                   | `api/_grounding-fallback.ts`                                        |
+| 20  | Aplicação do prompt-leak-shield local na resposta do chat (`applyPromptLeakShieldLocal` + `console.warn` se bloqueada)                                                                                                                                                       | 578-585                   | `utils/textCleaners.ts` (consolidar)                                |
+| 21  | Branch `recordDiagnostics` (early return ANTES da validação Gemini — só faz insert no Supabase e retorna)                                                                                                                                                                    | 606-646                   | `api/_diagnostics-handler.ts`                                       |
+| 22  | **`handler` export default** — entry point: CORS, validação Zod, loop de API keys com fallback em quota/billing, error handling HTTP status                                                                                                                                  | 600-680                   | ✅ `api/gemini.ts` (correto — mas deveria delegar mais)             |
 
 ---
 
@@ -92,9 +92,10 @@ gerado com sucesso (1181 linhas, citado no handoff) passou por este gateway.
    do frontend (ADR-0002) captura o erro visual, mas o usuário vê erro 500 sem recuperação.
    Impacto: P0 total. Probabilidade: baixa (estável desde 29/06/2026).
 
-2. **3 cópias divergentes do prompt-leak-shield** (Task ID 4 confirmou): (a) `utils/textCleaners.ts`
+2. **2 cópias divergentes do prompt-leak-shield** (PR #405 reduziu de 3 para 2): (a) `utils/textCleaners.ts`
    (live, usa `Array<{id, regex}>` com ids nomeados como `internal_marker`, `protocolo_forense`);
-   (b) `utils/promptLeakShield.ts` (orphan, 150 LOC, não importado por nenhum módulo ativo);
+   (b) cópia LOCAL neste arquivo (`api/gemini.ts:59-115`, server-side, diverge da client-side).
+   ~~(c) `utils/promptLeakShield.ts` — deletado na PR #405 (H1), era órfão.~~
    (c) `api/gemini.ts:59-115` (server-side, usa `RegExp[]` simples e indicadores posicionais
    `hard_0`, `hard_1`, `soft_0` — DIVERGENTE das outras duas). Se a versão server-side (esta)
    bloquear uma resposta que a versão client-side (textCleaners.ts) deixaria passar, ou
@@ -395,18 +396,19 @@ Todas exigem `npm run typecheck` e `npm test` passando, mais validação em prev
 
 ### Complexo (risco alto — requer Bruno + DeepSeek + Fase 7 completa)
 
-9. **Consolidar as 3 cópias do prompt-leak-shield** em `utils/textCleaners.ts` (live).
-   Deletar `utils/promptLeakShield.ts` (orphan) e remover a cópia local de `api/gemini.ts:59-115`.
+9. **Consolidar as 2 cópias do prompt-leak-shield** em `utils/textCleaners.ts` (live).
+   Remover a cópia local de `api/gemini.ts:59-115`.
+   ~~`utils/promptLeakShield.ts` já deletado na PR #405.~~
    Substituir chamada `applyPromptLeakShieldLocal` por import de `applyPromptLeakShield`
    de `utils/textCleaners.ts`. **ALTO RISCO**: a versão local divergiu (usa `RegExp[]`
    vs `Array<{id, regex}>`), então consolidar pode mudar comportamento de bloqueio.
-   Pré-requisito: alinhamento dos padrões hard/soft entre as 3 cópias + teste de
+   Pré-requisito: alinhamento dos padrões hard/soft entre as 2 cópias + teste de
    regressão com respostas reais do Scheffer. **Decisor: Bruno + DeepSeek (não IA gestora sozinha)**.
 
 10. **Extrair case `chatSendMessage` + closure `runChat` + loop de function calling**
     para `api/handlers/chat.ts` + `api/_function-call-loop.ts`. ~140 linhas. É a parte
     mais complexa do arquivo. Pré-requisito: testes E2E do fluxo de chat com grounding
-    + function calling + fallback.
+    - function calling + fallback.
 
 11. **Extrair case `generateContent`** (linhas 235-398) para `api/handlers/generate-content.ts`.
     ~165 linhas, inclui branch LiteLLM + fallback Gemini + diagnósticos server-side.
@@ -476,8 +478,8 @@ Todas exigem `npm run typecheck` e `npm test` passando, mais validação em prev
 ### Cópias do prompt-leak-shield (Task ID 4)
 
 - **Cópia #1 (live, client-side)**: `utils/textCleaners.ts:101-228` — `HARD_PROMPT_LEAK_PATTERNS` (L101), `SOFT_PROMPT_LEAK_PATTERNS` (L112), `detectPromptLeakIndicators` (L150), `stripInternalMarkers` (L176), `applyPromptLeakShield` (L192). Usa `Array<{id, regex}>` com ids nomeados.
-- **Cópia #2 (orphan, 150 LOC)**: `utils/promptLeakShield.ts:18-145` — mesma estrutura da #1, MAS não importada por nenhum módulo ativo (confirmado via grep). Dead code.
-- **Cópia #3 (este god component, server-side)**: `api/gemini.ts:59-115` — `HARD_PROMPT_LEAK_PATTERNS` (L61, `RegExp[]` simples), `SOFT_PROMPT_LEAK_PATTERNS` (L69), `stripInternalMarkersLocal` (L76), `detectPromptLeakIndicatorsLocal` (L85), `applyPromptLeakShieldLocal` (L97). **Divergente**: usa `RegExp[]` em vez de `Array<{id, regex}>`, indicadores posicionais `hard_0`/`soft_0` em vez de ids nomeados.
+- ~~**Cópia #2 (orphan, 150 LOC)**: `utils/promptLeakShield.ts:18-145` — deletado na PR #405 (H1).~~ Dead code removido.
+- **Cópia #2 (server-side, divergente)**: `api/gemini.ts:59-115` — `HARD_PROMPT_LEAK_PATTERNS` (L61, `RegExp[]` simples), `SOFT_PROMPT_LEAK_PATTERNS` (L69), `stripInternalMarkersLocal` (L76), `detectPromptLeakIndicatorsLocal` (L85), `applyPromptLeakShieldLocal` (L97). **Divergente**: usa `RegExp[]` em vez de `Array<{id, regex}>`, indicadores posicionais `hard_0`/`soft_0` em vez de ids nomeados.
 
 ### Consumidores (callers)
 
@@ -495,7 +497,7 @@ Todas exigem `npm run typecheck` e `npm test` passando, mais validação em prev
 
 - **PRINCIPLES.md**: Princípio 4 (não refatorar o que não entende), Princípio 6 (não aceitar claim sem grep), Princípio 9 (resumo em português), Princípio 14 (ADR honesto sobre limite de compreensão)
 - **Handoff `scout360-handoff-v2`**: Decisões 11-14 (LiteLLM HOMOLOG, foundation cache gate, default grounding false, residual endpoints)
-- **Task ID 4 (worklog)**: investigação de duplicação de prompts — confirmou as 3 cópias do leak-shield
+- **Task ID 4 (worklog)**: investigação de duplicação de prompts — confirmou as 2 cópias do leak-shield (reduzido de 3 após PR #405 deletar órfão)
 - **Task ID 6 (worklog)**: ADR-0003 — investigation-orchestration.ts é o principal caller deste gateway
 - **Task ID 7 (worklog)**: ADR-0004 — clientLookupService.ts alimenta prompts que chegam aqui
 
@@ -503,7 +505,7 @@ Todas exigem `npm run typecheck` e `npm test` passando, mais validação em prev
 
 - `61ced7bc` — merge: resolve conflito llmProxy com main (mantém clientModel) — **estabilização LiteLLM HOMOLOG → PROD**
 - `7fdf93df` — Merge pull request #403 from brunolimaff-jpg/worktree-migrate+litellm-no-gemini
-- `6d265136` — fix: responde feedback PR — warn condicional, _model no chat, comentário atualizado
+- `6d265136` — fix: responde feedback PR — warn condicional, \_model no chat, comentário atualizado
 - `62e01e0f` — feat: observabilidade LiteLLM + default grounding false — **Decisão 13**
 - `cfb2ac5a` — feat: inclui modelo real na resposta LiteLLM + loga no frontend
 - `6620211a` — debug: loga isLiteLLMEnabled incondicional para ver env vars reais
@@ -513,9 +515,9 @@ Todas exigem `npm run typecheck` e `npm test` passando, mais validação em prev
 
 ## Histórico de revisão
 
-| Data | Versão | Autor | Nota |
-|---|---|---|---|
-| 29/06/2026 | 1.0 | IA gestora (ADR Author) | Autor — análise de código e redação do ADR. Verificou claims do handoff com sed/grep: linha 118 ✓ (Decision 12), linha 260 ✓ (LiteLLM branch), linha 428 ✗ (offset de 12 linhas — Decision 13 está na linha 440). Flagged 2 discrepâncias (linha 428, contagem de endpoints residuais 3 vs 5). |
-| Pendente | — | Bruno | Revisão — confirmação de que não refatorar agora é a decisão correta |
-| Pendente | — | IA gestora (Coordinator) | Validar discrepâncias de handoff (linha 428, contagem 3 vs 5) e atualizar handoff v3 se necessário |
-| Pendente | — | Sênior (Fase 9) | Revisão técnica aprofundada antes de iniciar refatoração |
+| Data       | Versão | Autor                    | Nota                                                                                                                                                                                                                                                                                           |
+| ---------- | ------ | ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 29/06/2026 | 1.0    | IA gestora (ADR Author)  | Autor — análise de código e redação do ADR. Verificou claims do handoff com sed/grep: linha 118 ✓ (Decision 12), linha 260 ✓ (LiteLLM branch), linha 428 ✗ (offset de 12 linhas — Decision 13 está na linha 440). Flagged 2 discrepâncias (linha 428, contagem de endpoints residuais 3 vs 5). |
+| Pendente   | —      | Bruno                    | Revisão — confirmação de que não refatorar agora é a decisão correta                                                                                                                                                                                                                           |
+| Pendente   | —      | IA gestora (Coordinator) | Validar discrepâncias de handoff (linha 428, contagem 3 vs 5) e atualizar handoff v3 se necessário                                                                                                                                                                                             |
+| Pendente   | —      | Sênior (Fase 9)          | Revisão técnica aprofundada antes de iniciar refatoração                                                                                                                                                                                                                                       |
