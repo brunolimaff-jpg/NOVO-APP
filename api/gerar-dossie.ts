@@ -4,8 +4,6 @@ import { z } from 'zod';
 
 import { isQuotaExhausted, isBillingOrPermissionDenied } from './_gemini-key-utils.js';
 import { applyCors } from './_cors-headers.js';
-import { getSearchTelemetrySnapshot, resetSearchTelemetry } from '../utils/searchTelemetry';
-import { isDebugSearch } from '../lib/feature-flags';
 
 const DossieRequestSchema = z.object({
   model: z.string().min(1).max(200).optional(),
@@ -70,7 +68,6 @@ function extractGeminiText(response: unknown): string {
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   applyCors(req, res);
-  if (isDebugSearch()) resetSearchTelemetry();
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
@@ -109,7 +106,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(200).json({
         text: extractGeminiText(response),
         candidates: response.candidates || [],
-        ...(isDebugSearch() ? { _searchTelemetry: getSearchTelemetrySnapshot() } : {}),
       });
     } catch (error: unknown) {
       const hasNextKey = i < keys.length - 1;

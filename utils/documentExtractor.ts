@@ -170,7 +170,7 @@ export async function performGeminiSearch(query: string, apiKey: string): Promis
     trackSearchCall({
       provider: 'gemini',
       query,
-      success: true,
+      success: results.length > 0,
       durationMs: Date.now() - start,
       timestamp: new Date().toISOString(),
     });
@@ -251,7 +251,7 @@ async function performDuckDuckGoSearch(query: string): Promise<string | null> {
     trackSearchCall({
       provider: 'duckduckgo',
       query,
-      success: true,
+      success: results.length > 0,
       durationMs: Date.now() - start,
       timestamp: new Date().toISOString(),
     });
