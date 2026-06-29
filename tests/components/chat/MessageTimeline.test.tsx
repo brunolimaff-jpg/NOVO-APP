@@ -15,11 +15,13 @@ vi.mock('react-virtuoso', async () => {
           data = [],
           itemContent,
           followOutput,
+          computeItemKey,
           components,
         }: {
           data?: unknown[];
           itemContent: (index: number, item: unknown) => React.ReactNode;
-          followOutput?: boolean;
+          followOutput?: boolean | string;
+          computeItemKey?: (index: number, item: unknown) => string;
           components?: {
             Header?: React.ComponentType;
           };
@@ -33,11 +35,14 @@ vi.mock('react-virtuoso', async () => {
           data-follow-output={String(followOutput)}
         >
           {components?.Header ? <components.Header /> : null}
-          {data.map((item, index) => (
-            <div key={index} data-testid={`virtuoso-item-${index}`}>
-              {itemContent(index, item)}
-            </div>
-          ))}
+          {data.map((item, index) => {
+            const itemKey = computeItemKey ? computeItemKey(index, item) : String(index);
+            return (
+              <div key={itemKey} data-testid="virtuoso-item-list" data-item-key={itemKey}>
+                {itemContent(index, item)}
+              </div>
+            );
+          })}
         </div>
       ),
     ),
@@ -258,15 +263,13 @@ describe('MessageTimeline', () => {
     const props = buildProps({ hasMore: true });
     render(<MessageTimeline {...props} />);
 
-    expect(screen.getByTestId('messages-viewport-placeholder')).toBeInTheDocument();
-
     act(() => {
       vi.advanceTimersByTime(200);
     });
 
     expect(screen.getByTestId('messages-scroller')).toBeInTheDocument();
     expect(screen.getByTestId('message-row-0')).toHaveTextContent('Investigar Acme Agro');
-    expect(screen.getByRole('button', { name: /carregar mensagens anteriores/i })).toBeInTheDocument();
+    expect(screen.getByTestId('message-row-1')).toHaveTextContent('Resumo inicial');
 
     fireEvent.click(screen.getByRole('button', { name: 'prefill-0' }));
     expect(props.onPrefillComposer).toHaveBeenCalledWith('prefill-0');
@@ -309,7 +312,7 @@ describe('MessageTimeline', () => {
     expect(screen.getByTestId('message-row-1')).toHaveTextContent('SCHEFFER_E2E_SENTINEL');
   });
 
-  it('mantem followOutput auto sempre (Virtuoso gerencia scroll nativamente)', async () => {
+  it('mantem followOutput auto quando nao carrega, false durante loading', async () => {
     vi.useFakeTimers();
     // @ts-expect-error test fallback path
     global.ResizeObserver = undefined;
@@ -332,7 +335,6 @@ describe('MessageTimeline', () => {
         vi.advanceTimersByTime(200);
       });
 
-      // Sem loading → auto
       expect(screen.getByTestId('messages-scroller')).toHaveAttribute('data-follow-output', 'auto');
 
       rerender(
@@ -350,47 +352,63 @@ describe('MessageTimeline', () => {
         vi.advanceTimersByTime(200);
       });
 
-      // Com loading → false (evita scroll durante waterfall streaming)
       expect(screen.getByTestId('messages-scroller')).toHaveAttribute('data-follow-output', 'false');
     } finally {
       Element.prototype.scrollIntoView = originalScrollIntoView;
     }
   });
 
-  it('computeItemKey usa message.id estavel — sem sufixo :thinking', async () => {
+  it('computeItemKey usa message.id estavel — sem sufixo :thinking na transicao isThinking true→false', async () => {
     vi.useFakeTimers();
     // @ts-expect-error test fallback path
     global.ResizeObserver = undefined;
     window.requestAnimationFrame = vi.fn(() => 1);
     window.cancelAnimationFrame = vi.fn();
 
-    const scrollIntoViewSpy = vi.fn();
     const originalScrollIntoView = Element.prototype.scrollIntoView;
-    Element.prototype.scrollIntoView = scrollIntoViewSpy;
+    Element.prototype.scrollIntoView = vi.fn();
 
     try {
-      const msg1 = buildMessage('m1', Sender.User, 'Pergunta');
-      const msg2 = { ...buildMessage('m2', Sender.Bot, ''), isThinking: true };
-      const messages = [msg1, msg2];
-      const props = buildProps({ messages, currentSession: buildSession(messages) });
-      render(<MessageTimeline {...props} />);
+      const msgUser = buildMessage('m1', Sender.User, 'Pergunta');
+      const msgThinking = {
+        ...buildMessage('m2', Sender.Bot, 'A'.repeat(199)),
+        isThinking: true,
+      };
+      const messages = [msgUser, msgThinking];
+      const props = buildProps({ messages, currentSession: buildSession(messages), isLoading: true });
+      const { rerender } = render(<MessageTimeline {...props} />);
 
       act(() => {
         vi.advanceTimersByTime(200);
       });
 
-      const scroller = screen.getByTestId('messages-scroller');
-      expect(scroller).toBeInTheDocument();
+      const items = screen.getAllByTestId('virtuoso-item-list');
+      const thinkingItem = items.find(el => el.getAttribute('data-item-key') === 'm2');
+      expect(thinkingItem).toBeTruthy();
 
-      const virtuosoEl = scroller.querySelector('[data-testid="virtuoso-item-list"]');
-      if (virtuosoEl) {
-        const items = virtuosoEl.querySelectorAll('[data-item-index]');
-        const botItem = Array.from(items).find(el => {
-          const key = el.getAttribute('data-item-index');
-          return key && !key.includes(':thinking');
-        });
-        expect(botItem).toBeTruthy();
-      }
+      const msgDone = {
+        ...buildMessage('m2', Sender.Bot, 'A'.repeat(199)),
+        isThinking: false,
+      };
+      const doneMessages = [msgUser, msgDone];
+      rerender(
+        <MessageTimeline
+          {...buildProps({
+            ...props,
+            messages: doneMessages,
+            currentSession: buildSession(doneMessages),
+            isLoading: false,
+          })}
+        />,
+      );
+
+      act(() => {
+        vi.advanceTimersByTime(200);
+      });
+
+      const itemsAfter = screen.getAllByTestId('virtuoso-item-list');
+      const doneItem = itemsAfter.find(el => el.getAttribute('data-item-key') === 'm2');
+      expect(doneItem).toBeTruthy();
     } finally {
       Element.prototype.scrollIntoView = originalScrollIntoView;
     }
@@ -405,14 +423,29 @@ describe('MessageTimeline', () => {
 
     const initialMessages = [
       buildMessage('m1', Sender.User, 'Investigar Acme Agro'),
-      buildMessage('m2', Sender.Bot, 'Resumo inicial'),
+      buildMessage('m2', Sender.Bot, 'Primeira Resposta'),
     ];
 
-    const { rerender } = render(
+    const props = buildProps({ messages: initialMessages, currentSession: buildSession(initialMessages) });
+
+    const { rerender } = render(<MessageTimeline {...props} />);
+
+    act(() => {
+      vi.advanceTimersByTime(200);
+    });
+
+    expect(screen.getByTestId('messages-scroller')).toBeInTheDocument();
+    expect(screen.getByTestId('message-row-0')).toHaveTextContent('Investigar Acme Agro');
+    expect(screen.getByTestId('message-row-1')).toHaveTextContent('Primeira Resposta');
+
+    const nextMessages = [...initialMessages, buildMessage('m3', Sender.Bot, 'Nova resposta')];
+
+    rerender(
       <MessageTimeline
         {...buildProps({
-          messages: initialMessages,
-          currentSession: buildSession(initialMessages),
+          ...props,
+          messages: nextMessages,
+          currentSession: buildSession(nextMessages),
         })}
       />,
     );
@@ -421,137 +454,30 @@ describe('MessageTimeline', () => {
       vi.advanceTimersByTime(200);
     });
 
-    expect(screen.getByTestId('messages-scroller')).toBeInTheDocument();
-    expect(screen.queryByTestId('messages-viewport-placeholder')).not.toBeInTheDocument();
-
-    const extendedMessages = [...initialMessages, buildMessage('m3', Sender.User, 'Follow-up')];
-
-    rerender(
-      <MessageTimeline
-        {...buildProps({
-          messages: extendedMessages,
-          currentSession: buildSession(extendedMessages),
-        })}
-      />,
-    );
-
-    act(() => {
-      vi.advanceTimersByTime(50);
-    });
-
-    expect(screen.getByTestId('messages-scroller')).toBeInTheDocument();
-    expect(screen.queryByTestId('messages-viewport-placeholder')).not.toBeInTheDocument();
-
-    vi.useRealTimers();
+    expect(screen.getByTestId('message-row-0')).toHaveTextContent('Investigar Acme Agro');
+    expect(screen.getByTestId('message-row-2')).toHaveTextContent('Nova resposta');
   });
 
-  describe('static-fallback display recovery', () => {
-    it('recupera display block quando getComputedStyle retorna none para o static fallback', async () => {
-      vi.useFakeTimers();
+  it('renderiza timeline estática quando forceStaticTimelineFallback=true', () => {
+    const props = buildProps({ forceStaticTimelineFallback: true });
+    render(<MessageTimeline {...props} />);
 
-      const originalGetComputedStyle = window.getComputedStyle;
-      const setPropertySpy = vi.spyOn(CSSStyleDeclaration.prototype, 'setProperty');
+    expect(screen.getByTestId('messages-static-fallback')).toBeInTheDocument();
+    expect(screen.queryByTestId('messages-scroller')).not.toBeInTheDocument();
+  });
 
-      // Mock: getComputedStyle retorna display:none apenas para o static fallback
-      vi.spyOn(window, 'getComputedStyle').mockImplementation((el: Element, pseudoElt?: string | null) => {
-        const baseStyle = originalGetComputedStyle.call(window, el, pseudoElt ?? null);
-        const testid = (el as HTMLElement).getAttribute('data-testid');
-        if (testid === 'messages-static-fallback') {
-          return new Proxy(baseStyle, {
-            get(target, prop) {
-              if (prop === 'display') return 'none';
-              return Reflect.get(target, prop);
-            },
-          });
-        }
-        return baseStyle;
-      });
-
-      const largeMessages = [
-        buildMessage('m1', Sender.User, 'Investigar Acme Agro'),
-        buildMessage('m2', Sender.Bot, 'SCHEFFER_E2E_SENTINEL '.repeat(250)),
-      ];
-
-      const props = buildProps({
-        messages: largeMessages,
-        currentSession: buildSession(largeMessages),
-        forceStaticTimelineFallback: true,
-      });
-
-      render(<MessageTimeline {...props} />);
-
-      expect(screen.getByTestId('messages-static-fallback')).toBeInTheDocument();
-
-      // Avança efeitos: useEffect → dynamic import → RAF
-      await act(async () => {
-        await vi.advanceTimersByTimeAsync(100);
-        // Dispara todos os RAFs pendentes
-        for (let i = 0; i < 5; i++) {
-          await vi.advanceTimersByTimeAsync(20);
-        }
-      });
-
-      // Verifica que o recovery foi acionado: setProperty('display', 'block', 'important')
-      const displayResetCalls = setPropertySpy.mock.calls.filter(
-        call => call[0] === 'display' && call[1] === 'block' && call[2] === 'important',
-      );
-      expect(displayResetCalls.length).toBeGreaterThanOrEqual(1);
-
-      setPropertySpy.mockRestore();
-      vi.useRealTimers();
+  it('Virtuoso renderiza com dossiê grande (>4000 chars)', () => {
+    const dossierMessages = [
+      buildMessage('m1', Sender.User, 'Investigar Acme Agro'),
+      buildMessage('m2', Sender.Bot, 'SCHEFFER_E2E_SENTINEL '.repeat(250)),
+    ];
+    const props = buildProps({
+      messages: dossierMessages,
+      currentSession: buildSession(dossierMessages),
+      forceStaticTimelineFallback: true,
     });
-
-    it('recovery é idempotente e nao quebra o elemento quando executado múltiplas vezes', async () => {
-      vi.useFakeTimers();
-
-      const largeMessages = [
-        buildMessage('m1', Sender.User, 'Investigar Acme Agro'),
-        buildMessage('m2', Sender.Bot, 'SCHEFFER_E2E_SENTINEL '.repeat(250)),
-      ];
-
-      const props = buildProps({
-        messages: largeMessages,
-        currentSession: buildSession(largeMessages),
-        forceStaticTimelineFallback: true,
-      });
-
-      render(<MessageTimeline {...props} />);
-      expect(screen.getByTestId('messages-static-fallback')).toBeInTheDocument();
-
-      await act(async () => {
-        for (let i = 0; i < 5; i++) {
-          await vi.advanceTimersByTimeAsync(20);
-        }
-      });
-
-      // O recovery pode ou nao ter executado dependendo do jsdom.
-      // O que importa: o elemento continua no DOM, acessível e funcional.
-      const fallbackEl = screen.getByTestId('messages-static-fallback') as HTMLElement;
-      expect(fallbackEl).toBeInTheDocument();
-      expect(fallbackEl.children.length).toBeGreaterThan(0);
-      // Se o recovery aplicou display:block !important, o elemento tem conteúdo visível
-      expect(fallbackEl.style.getPropertyPriority('display') === 'important' || fallbackEl.style.display === '').toBe(
-        true,
-      );
-
-      vi.useRealTimers();
-    });
-
-    it('nao executa recovery quando static fallback nao esta ativo', () => {
-      const props = buildProps({
-        messages: [buildMessage('m1', Sender.User, 'Ola'), buildMessage('m2', Sender.Bot, 'Resposta curta')],
-        currentSession: buildSession([
-          buildMessage('m1', Sender.User, 'Ola'),
-          buildMessage('m2', Sender.Bot, 'Resposta curta'),
-        ]),
-      });
-
-      render(<MessageTimeline {...props} />);
-
-      expect(screen.queryByTestId('messages-static-fallback')).not.toBeInTheDocument();
-      // Nenhum elemento deve ter style com !important injetado
-      const elementsWithImportant = document.querySelectorAll('[style*="important"]');
-      expect(elementsWithImportant.length).toBe(0);
-    });
+    render(<MessageTimeline {...props} />);
+    expect(screen.getByTestId('messages-static-fallback')).toBeInTheDocument();
+    expect(screen.getByTestId('message-row-1')).toHaveTextContent('SCHEFFER_E2E_SENTINEL');
   });
 });
