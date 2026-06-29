@@ -182,7 +182,13 @@ async function callGeminiApi<TResponse>(
   let responseText: string;
   try {
     try {
-      scoutDiag.info('LlmProxy', 'request:start', { endpoint, action, requestClass, timeoutMs });
+      scoutDiag.info('LlmProxy', 'request:start', {
+        endpoint,
+        action,
+        requestClass,
+        timeoutMs,
+        model: (payload as Record<string, unknown>).model || 'unknown',
+      });
 
       response = await fetch(endpoint, {
         method: 'POST',
