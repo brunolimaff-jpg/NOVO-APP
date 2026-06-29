@@ -275,8 +275,6 @@ function stripUnsafeSocietarySections(markdown: string): string {
 }
 
 const TRUNCATION_SECTION_THRESHOLD = 3;
-/** Durante waterfall (isThinking), limita parse/render para não bloquear main thread */
-const WATERFALL_THINKING_PREVIEW_MAX_CHARS = 3_500;
 
 const SectionalBotMessage: React.FC<SectionalBotMessageProps> = ({
   message,
@@ -293,14 +291,11 @@ const SectionalBotMessage: React.FC<SectionalBotMessageProps> = ({
   isLoading = false,
 }) => {
   const content = message.text || '';
-  const isWaterfallThinkingPreview = Boolean(message.isThinking && content.trim().length >= 200);
 
   const { cleanText, options: parsedOptions } = useMemo(() => {
-    if (isWaterfallThinkingPreview) return { cleanText: content, options: [] as string[] };
     return parseSmartOptions(content);
-  }, [content, isWaterfallThinkingPreview]);
+  }, [content]);
   const displayText = useMemo(() => {
-    if (isWaterfallThinkingPreview) return content;
     return stripUnsafeSocietarySections(cleanText);
   }, [cleanText]);
 
@@ -327,7 +322,6 @@ const SectionalBotMessage: React.FC<SectionalBotMessageProps> = ({
   );
 
   const parsedTeiaData = useMemo(() => {
-    if (isWaterfallThinkingPreview) return { companies: [], warnings: [] as string[] };
     return parseTeiaText(cleanText);
   }, [cleanText]);
   const llmCnpjsForMap = useMemo(() => {
@@ -391,13 +385,6 @@ const SectionalBotMessage: React.FC<SectionalBotMessageProps> = ({
   // Evita que react-markdown bloqueie a main thread renderizando 28k+ chars
   // de markdown de uma só vez.
   const [isDossierExpanded, setIsDossierExpanded] = useState(false);
-  // Usa useTransition para evitar freeze na main thread: o React processa
-  // a renderização do dossiê completo em lower priority, mantendo a UI responsiva.
-  const [isPending, startTransition] = useTransition();
-
-  const handleExpandDossier = useCallback(() => {
-    startTransition(() => setIsDossierExpanded(true));
-  }, []);
 
   // Reseta expansão quando a mensagem muda (evita vazamento de estado entre sessões)
   useEffect(() => {
@@ -409,24 +396,7 @@ const SectionalBotMessage: React.FC<SectionalBotMessageProps> = ({
   const hiddenSectionCount = sections.length - TRUNCATION_SECTION_THRESHOLD;
 
   // Só mostra o botão copiar se houver conteúdo substancial (dossiê real)
-  const showCopyButton = displayText.length > 300 && !isWaterfallThinkingPreview;
-
-  if (isWaterfallThinkingPreview) {
-    const previewText =
-      content.length > WATERFALL_THINKING_PREVIEW_MAX_CHARS
-        ? `${content.slice(0, WATERFALL_THINKING_PREVIEW_MAX_CHARS)}\n\n…`
-        : content;
-    return (
-      <div className="flex min-w-0 flex-col gap-2" data-testid="waterfall-thinking-preview">
-        <MarkdownRenderer
-          content={previewText}
-          isDarkMode={isDarkMode}
-          groundingSources={message.groundingSources}
-          auditableSources={[]}
-        />
-      </div>
-    );
-  }
+  const showCopyButton = displayText.length > 300;
 
   // Skeleton enquanto deferred pendente (dossiês >15KB). Rules of Hooks: todos os
   // hooks já rodaram — este return condicional é seguro (React vê mesma contagem).
@@ -497,7 +467,6 @@ const SectionalBotMessage: React.FC<SectionalBotMessageProps> = ({
             key={section.key}
             data-section-kind={sellerSectionKind}
             className={`section-block group relative ${framedClass}`}
-            style={{ contentVisibility: 'auto' }}
           >
             {isPrimaryModule && (
               <div
@@ -542,7 +511,7 @@ const SectionalBotMessage: React.FC<SectionalBotMessageProps> = ({
                   </span>
                 </div>
               )}
-              {idx === societaryMapSectionIndex && !isLoading && !message.isThinking ? (
+              {idx === societaryMapSectionIndex && !isLoading ? (
                 <SocietaryMap
                   cnpj={cnpj}
                   empresaAlvo={empresaAlvo}
@@ -592,27 +561,24 @@ const SectionalBotMessage: React.FC<SectionalBotMessageProps> = ({
 
       {shouldTruncateDossier && (
         <button
-          onClick={handleExpandDossier}
-          disabled={isPending}
+          onClick={() => setIsDossierExpanded(true)}
           className={`w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl border-2 border-dashed
             font-medium text-sm transition-all duration-200
             ${
               isDarkMode
                 ? 'border-slate-600 hover:border-emerald-500/50 text-slate-400 hover:text-emerald-300 bg-slate-800/50 hover:bg-slate-800'
                 : 'border-slate-300 hover:border-emerald-400 text-slate-500 hover:text-emerald-600 bg-slate-50 hover:bg-white'
-            } ${isPending ? 'opacity-50 cursor-not-allowed' : ''}`}
+            }`}
           aria-label={`Ver relatório completo (mais ${hiddenSectionCount} seções)`}
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
           </svg>
           <span>
-            {isPending ? 'Carregando seções...' : 'Ver relatório completo'}
-            {!isPending && (
-              <span className={`ml-1 text-xs ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>
-                (+{hiddenSectionCount} seç{hiddenSectionCount > 1 ? 'ões' : 'ão'})
-              </span>
-            )}
+            Ver relatório completo
+            <span className={`ml-1 text-xs ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>
+              (+{hiddenSectionCount} seç{hiddenSectionCount > 1 ? 'ões' : 'ão'})
+            </span>
           </span>
         </button>
       )}

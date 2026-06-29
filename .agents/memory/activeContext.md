@@ -2,7 +2,7 @@
 
 Last updated: 2026-06-26 — Marathon session closeout: Sprint 1 + Sprint 2 concluidos
 
-## STATUS ATUAL: PRONTO PARA REVISAO FINAL
+## Estado Atual
 
 - **Branch atual:** `refac/litellm-clean`
 - **Base com Sprints:** `origin/stabilize/from-production-fe6c6f9` — contem ambas as Sprints
@@ -29,7 +29,7 @@ Last updated: 2026-06-26 — Marathon session closeout: Sprint 1 + Sprint 2 conc
 - 10 bugs corrigidos: 2 P0, 4 P1, 1 P5 + 3 infra
 - Validacao completa: typecheck, build, 1489/13 testes, ping, dossie, freeze
 
-## HEAD
+## Decisoes ativas
 
 - **DI-2026-06-26-01:** Cherry-pick inviavel para commits >5 arquivos com cross-cutting
 - **DI-2026-06-26-02:** useStaticTimelineFallback e blankPanelTelemetry sao parte de fe6c6f9
@@ -48,7 +48,7 @@ Last updated: 2026-06-26 — Marathon session closeout: Sprint 1 + Sprint 2 conc
 - 13 testes fail + 8 erros lint (debito fe6c6f9)
 - MIGRATION_DEADLINE (debito fe6c6f9)
 
-## Proximos passos
+## Atencao
 
 - 13 testes falham — todos pre-existentes em fe6c6f9 (MIGRATION_DEADLINE expirado)
 - Pipeline hibrido NAO esta ativo em producao (LLM_PROVIDER default = gemini)

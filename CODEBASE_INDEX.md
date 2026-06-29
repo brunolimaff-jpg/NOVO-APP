@@ -1,454 +1,1931 @@
-# CODEBASE INDEX — Senior Scout 360
+# Codebase Index
 
-> Gerado em 2026-06-24. Stack: React 19 + Vite 6 + TypeScript 5 + Tailwind 3 + LiteLLM/Bedrock/DeepSeek + Supabase + Vercel.
+> 2026-05-16 · 5395 files · ~13.1M tokens total
 >
-> Legenda: 🧊 = fachada pública congelada | 🔧 = utilitário interno | 🐛 = bug conhecido
+> **How to use:** Read this file first. Navigate to the exact file you need,
+> then read only that file. Do not read entire directories.
 
----
+## Source
 
-## Raiz — App Entry Points
+**(root)/**
 
-| Arquivo         | Linhas | Descrição                                    |
-| --------------- | ------ | -------------------------------------------- |
-| `index.tsx`     | 193    | Entry point React, monta App                 |
-| `App.tsx`       | 791    | Componente raiz: rotas, modais, auth gate    |
-| `middleware.ts` | 30     | Vercel Edge Middleware (rewrites, headers)   |
-| `types.ts`      | 406 🧊 | Tipos compartilhados (Message, Module, etc.) |
-| `constants.ts`  | 686 🧊 | Constantes globais (cores, tamanhos, enums)  |
+- `App.tsx`
+- `constants.ts` — APP_NAME, APP_VERSION, DEFAULT_MODE, NOME_VENDEDOR_PLACEHOLDER, MODE_LABELS, BASE_SYSTEM_PROMPT, ChatMode
+- `eslint.config.js`
+- `index.tsx`
+- `playwright.config.ts`
+- `postcss.config.js`
+- `tailwind.config.js`
+- `types.ts` — PORTA_WEIGHTS, PORTA_FLAG_PENALTIES, DEEP_DIVE_SOURCES, CRM_STAGE_LABELS, RADAR_CATEGORY_LABELS, RADAR_CATEGORY_ICONS, RADAR_CATEGORY_COLORS, BRASIL_UFS +2
+- `vite.config.ts`
+- `vitest.config.ts`
+
+**.agent/skills/algorithmic-art/templates/**
+
+- `generator_template.js` — ═══════════════════════════════════════════════════════════════════════════
+
+**.agent/skills/api-design-principles/assets/**
+
+- `rest-api-template.py` — http_exception_handler, list_users, create_user, get_user, update_user, delete_user, UserStatus, UserBase +2
+
+**.agent/skills/api-patterns/scripts/**
+
+- `api_validator.py` — find_api_files, check_openapi_spec, check_api_code, main
+
+**.agent/skills/app-store-optimization/**
+
+- `ab_test_planner.py` — plan_ab_test, ABTestPlanner
+- `aso_scorer.py` — calculate_aso_score, ASOScorer
+- `competitor_analyzer.py` — analyze_competitor_set, CompetitorAnalyzer
+- `keyword_analyzer.py` — analyze_keyword_set, KeywordAnalyzer
+- `launch_checklist.py` — generate_launch_checklist, LaunchChecklistGenerator
+- `localization_helper.py` — plan_localization_strategy, LocalizationHelper
+- `metadata_optimizer.py` — optimize_app_metadata, MetadataOptimizer
+- `review_analyzer.py` — analyze_reviews, ReviewAnalyzer
+
+**.agent/skills/audio-transcriber/scripts/**
+
+- `transcribe.py` — detect_cli_tool, invoke_prompt_engineer, handle_prompt_workflow, process_with_llm, transcribe_audio, save_outputs, main
+
+**.agent/skills/bin/**
+
+- `install.js`
+
+**.agent/skills/claude-d3js-skill/assets/**
+
+- `chart-template.jsx` — default:App
+- `interactive-template.jsx` — default:App
+
+**.agent/skills/content-creator/scripts/**
+
+- `brand_voice_analyzer.py` — analyze_content, BrandVoiceAnalyzer
+- `seo_optimizer.py` — optimize_content, SEOOptimizer
+
+**.agent/skills/database-design/scripts/**
+
+- `schema_validator.py` — find_schema_files, validate_prisma_schema, main
+
+**.agent/skills/docx-official/ooxml/scripts/**
+
+- `pack.py` — main, pack_document, validate_document, condense_xml
+- `unpack.py`
+- `validate.py` — main
+
+**.agent/skills/docx-official/ooxml/scripts/validation/**
+
+- `__init__.py`
+- `base.py` — BaseSchemaValidator
+- `docx.py` — DOCXSchemaValidator
+- `pptx.py` — PPTXSchemaValidator
+- `redlining.py` — RedliningValidator
+
+**.agent/skills/docx-official/scripts/**
+
+- `__init__.py`
+- `document.py` — DocxXMLEditor, Document
+- `utilities.py` — XMLEditor
+
+**.agent/skills/dotnet-backend-patterns/assets/**
+
+- `repository-template.cs`
+- `service-template.cs`
+
+**.agent/skills/geo-fundamentals/scripts/**
+
+- `geo_checker.py` — is_page_file, find_web_pages, check_page, main
+
+**.agent/skills/go-rod-master/examples/**
+
+- `basic_scrape.go`
+- `concurrent_pages.go`
+- `request_hijacking.go`
+- `stealth_page.go`
+
+**.agent/skills/i18n-localization/scripts/**
+
+- `i18n_checker.py` — find_locale_files, check_locale_completeness, flatten_keys, check_hardcoded_strings, main
+
+**.agent/skills/last30days/scripts/**
+
+- `last30days.py` — load_fixture, run_research, main, output_result
+
+**.agent/skills/last30days/scripts/lib/**
+
+- `__init__.py`
+- `cache.py` — Caching utilities for last30days skill. · ensure_cache_dir, get_cache_key, get_cache_path, is_cache_valid, load_cache, get_cache_age_hours, load_cache_with_age, save_cache +2
+- `dates.py` — Date utilities for last30days skill. · get_date_range, parse_date, timestamp_to_date, get_date_confidence, days_ago, recency_score
+- `dedupe.py` — Near-duplicate detection for last30days skill. · normalize_text, get_ngrams, jaccard_similarity, get_item_text, find_duplicates, dedupe_items, dedupe_reddit, dedupe_x
+- `env.py` — Environment and API key management for last30days skill. · load_env_file, get_config, config_exists, get_available_sources, get_missing_keys, validate_sources
+- `http.py` — HTTP utilities for last30days skill (stdlib only). · log, request, get, post, get_reddit_json, HTTPError
+- `models.py` — Model auto-selection for last30days skill. · parse_version, is_mainline_openai_model, select_openai_model, select_xai_model, get_models
+- `normalize.py` — Normalization of raw API data to canonical schema. · filter_by_date_range, normalize_reddit_items, normalize_x_items, items_to_dicts
+- `openai_reddit.py` — OpenAI Responses API client for Reddit discovery. · search_reddit, parse_reddit_response
+- `reddit_enrich.py` — Reddit thread enrichment with real engagement metrics. · extract_reddit_path, fetch_thread_data, parse_thread_data, get_top_comments, extract_comment_insights, enrich_reddit_item
+- `render.py` — Output rendering for last30days skill. · ensure_output_dir, render_compact, render_context_snippet, render_full_report, write_outputs, get_context_path
+- `schema.py` — Data schemas for last30days skill. · create_report, Engagement, Comment, SubScores, RedditItem, XItem, WebSearchItem, Report
+- `score.py` — Popularity-aware scoring for last30days skill. · log1p_safe, compute_reddit_engagement_raw, compute_x_engagement_raw, normalize_to_100, score_reddit_items, score_x_items, score_websearch_items, sort_items
+- `ui.py` — Terminal UI utilities for last30days skill. · print_phase, Colors, Spinner, ProgressDisplay
+- `websearch.py` — WebSearch module for last30days skill. · extract_date_from_url, extract_date_from_snippet, extract_date_signals, extract_domain, is_excluded_domain, parse_websearch_results, normalize_websearch_items, dedupe_websearch
+- `xai_x.py` — xAI API client for X (Twitter) discovery. · search_x, parse_x_response
+
+**.agent/skills/last30days/tests/**
+
+- `__init__.py`
+- `test_cache.py` — Tests for cache module. · TestGetCacheKey, TestCachePath, TestCacheValidity, TestModelCache
+- `test_dates.py` — Tests for dates module. · TestGetDateRange, TestParseDate, TestTimestampToDate, TestGetDateConfidence, TestDaysAgo, TestRecencyScore
+- `test_dedupe.py` — Tests for dedupe module. · TestNormalizeText, TestGetNgrams, TestJaccardSimilarity, TestFindDuplicates, TestDedupeItems
+- `test_models.py` — Tests for models module. · TestParseVersion, TestIsMainlineOpenAIModel, TestSelectOpenAIModel, TestSelectXAIModel, TestGetModels
+- `test_normalize.py` — Tests for normalize module. · TestNormalizeRedditItems, TestNormalizeXItems, TestItemsToDicts
+- `test_render.py` — Tests for render module. · TestRenderCompact, TestRenderContextSnippet, TestRenderFullReport, TestGetContextPath
+- `test_score.py` — Tests for score module. · TestLog1pSafe, TestComputeRedditEngagementRaw, TestComputeXEngagementRaw, TestNormalizeTo100, TestScoreRedditItems, TestScoreXItems, TestSortItems
+
+**.agent/skills/lib/**
+
+- `skill-utils.js`
+
+**.agent/skills/lint-and-validate/scripts/**
+
+- `lint_runner.py` — detect_project_type, run_linter, main
+- `type_coverage.py` — check_typescript_coverage, check_python_coverage, main
+
+**.agent/skills/loki-mode/benchmarks/results/2026-01-05-00-49-17/humaneval-solutions/**
+
+- `0.py` — has_close_elements
+- `1.py` — separate_paren_groups
+- `10.py` — is_palindrome, make_palindrome
+- `100.py` — make_a_pile
+- `101.py` — words_string
+- `102.py` — choose_num
+- `103.py` — rounded_avg
+- `104.py` — unique_digits
+- `105.py` — by_length
+- `106.py` — f
+- `107.py` — even_odd_palindrome
+- `108.py` — count_nums
+- `109.py` — move_one_ball
+- `11.py` — string_xor
+- `110.py` — exchange
+- `111.py` — histogram
+- `112.py` — reverse_delete
+- `113.py` — odd_count
+- `114.py` — minSubArraySum
+- `115.py` — max_fill
+- `116.py` — sort_array
+- `117.py` — select_words
+- `118.py` — get_closest_vowel
+- `119.py` — match_parens
+- `12.py` — longest
+- `120.py` — maximum
+- `121.py` — solution
+- `122.py` — add_elements
+- `123.py` — get_odd_collatz
+- `124.py` — valid_date
+- `125.py` — split_words
+- `126.py` — is_sorted
+- `127.py` — intersection
+- `128.py` — prod_signs
+- `129.py` — minPath
+- `13.py` — greatest_common_divisor
+- `130.py` — tri
+- `131.py` — digits
+- `132.py` — is_nested
+- `133.py` — sum_squares
+- `134.py` — check_if_last_char_is_a_letter
+- `135.py` — can_arrange
+- `136.py` — largest_smallest_integers
+- `137.py` — compare_one
+- `138.py` — is_equal_to_sum_even
+- `139.py` — special_factorial
+- `14.py` — all_prefixes
+- `140.py` — fix_spaces
+- `141.py` — file_name_check
+- `142.py` — sum_squares
+- `143.py` — words_in_sentence
+- `144.py` — simplify
+- `145.py` — order_by_points
+- `146.py` — specialFilter
+- `147.py` — get_max_triples
+- `148.py` — bf
+- `149.py` — sorted_list_sum
+- `15.py` — string_sequence
+- `150.py` — x_or_y
+- `151.py` — double_the_difference
+- `152.py` — compare
+- `153.py` — Strongest_Extension
+- `154.py` — cycpattern_check
+- `155.py` — even_odd_count
+- `156.py` — int_to_mini_roman
+- `157.py` — right_angle_triangle
+- `158.py` — find_max
+- `159.py` — eat
+- `16.py` — count_distinct_characters
+- `160.py` — do_algebra
+- `161.py` — solve
+- `162.py` — string_to_md5
+- `163.py` — generate_integers
+- `17.py` — parse_music
+- `18.py` — how_many_times
+- `19.py` — sort_numbers
+- `2.py` — truncate_number
+- `20.py` — find_closest_elements
+- `21.py` — rescale_to_unit
+- `22.py` — filter_integers
+- `23.py` — strlen
+- `24.py` — largest_divisor
+- `25.py` — factorize
+- `26.py` — remove_duplicates
+- `27.py` — flip_case
+- `28.py` — concatenate
+- `29.py` — filter_by_prefix
+- `3.py` — below_zero
+- `30.py` — get_positive
+- `31.py` — is_prime
+- `32.py` — poly, find_zero
+- `33.py` — sort_third
+- `34.py` — unique
+- `35.py` — max_element
+- `36.py` — fizz_buzz
+- `37.py` — sort_even
+- `38.py` — decode_cyclic
+- `39.py` — prime_fib
+- `4.py` — mean_absolute_deviation
+- `40.py` — triples_sum_to_zero
+- `41.py` — car_race_collision
+- `42.py` — incr_list
+- `43.py` — pairs_sum_to_zero
+- `44.py` — change_base
+- `45.py` — triangle_area
+- `46.py` — fib4
+- `47.py` — median
+- `48.py` — is_palindrome
+- `49.py` — modp
+- `5.py` — intersperse
+- `50.py` — encode_shift, decode_shift
+- `51.py` — remove_vowels
+- `52.py` — below_threshold
+- `53.py` — add
+- `54.py` — same_chars
+- `55.py` — fib
+- `56.py` — correct_bracketing
+- `57.py` — monotonic
+- `58.py` — common
+- `59.py` — largest_prime_factor
+- `6.py` — parse_nested_parens
+- `60.py` — sum_to_n
+- `61.py` — correct_bracketing
+- `62.py` — derivative
+- `63.py` — fibfib
+- `64.py` — vowels_count
+- `65.py` — circular_shift
+- `66.py` — digitSum
+- `67.py` — fruit_distribution
+- `68.py` — pluck
+- `69.py` — search
+- `7.py` — filter_by_substring
+- `70.py` — strange_sort_list
+- `71.py` — triangle_area
+- `72.py` — will_it_fly
+- `73.py` — smallest_change
+- `74.py` — total_match
+- `75.py` — is_multiply_prime
+- `76.py` — is_simple_power
+- `77.py` — iscube
+- `78.py` — hex_key
+- `79.py` — decimal_to_binary
+- `8.py` — sum_product
+- `80.py` — is_happy
+- `81.py` — numerical_letter_grade
+- `82.py` — prime_length
+- `83.py` — starts_one_ends
+- `84.py` — solve
+- `85.py` — add
+- `86.py` — anti_shuffle
+- `87.py` — get_row
+- `88.py` — sort_array
+- `89.py` — encrypt
+- `9.py` — rolling_max
+- `90.py` — next_smallest
+- `91.py` — is_bored
+- `92.py` — any_int
+- `93.py` — encode
+- `94.py` — skjkasdkd
+- `95.py` — check_dict_case
+- `96.py` — count_up_to
+- `97.py` — multiply
+- `98.py` — count_upper
+- `99.py` — closest_integer
+
+**.agent/skills/loki-mode/benchmarks/results/humaneval-loki-solutions/**
+
+- `0.py` — has_close_elements
+- `1.py` — separate_paren_groups
+- `10.py` — is_palindrome, make_palindrome
+- `100.py` — make_a_pile
+- `101.py` — words_string
+- `102.py` — choose_num
+- `103.py` — rounded_avg
+- `104.py` — unique_digits
+- `105.py` — by_length
+- `106.py` — f
+- `107.py` — even_odd_palindrome
+- `108.py` — count_nums
+- `109.py` — move_one_ball
+- `11.py` — string_xor
+- `110.py` — exchange
+- `111.py` — histogram
+- `112.py` — reverse_delete
+- `113.py` — odd_count
+- `114.py` — minSubArraySum
+- `115.py` — max_fill
+- `116.py` — sort_array
+- `117.py` — select_words
+- `118.py` — get_closest_vowel
+- `119.py` — match_parens
+- `12.py` — longest
+- `120.py` — maximum
+- `121.py` — solution
+- `122.py` — add_elements
+- `123.py` — get_odd_collatz
+- `124.py` — valid_date
+- `125.py` — split_words
+- `126.py` — is_sorted
+- `127.py` — intersection
+- `128.py` — prod_signs
+- `129.py` — minPath
+- `13.py` — greatest_common_divisor
+- `130.py` — tri
+- `131.py` — digits
+- `132.py` — is_nested
+- `133.py` — sum_squares
+- `134.py` — check_if_last_char_is_a_letter
+- `135.py` — can_arrange
+- `136.py` — largest_smallest_integers
+- `137.py` — compare_one
+- `138.py` — is_equal_to_sum_even
+- `139.py` — special_factorial
+- `14.py` — all_prefixes
+- `140.py` — fix_spaces
+- `141.py` — file_name_check
+- `142.py` — sum_squares
+- `143.py` — words_in_sentence
+- `144.py` — simplify
+- `145.py` — order_by_points
+- `146.py` — specialFilter
+- `147.py` — get_max_triples
+- `148.py` — bf
+- `149.py` — sorted_list_sum
+- `15.py` — string_sequence
+- `150.py` — x_or_y
+- `151.py` — double_the_difference
+- `152.py` — compare
+- `153.py` — Strongest_Extension
+- `154.py` — cycpattern_check
+- `155.py` — even_odd_count
+- `156.py` — int_to_mini_roman
+- `157.py` — right_angle_triangle
+- `158.py` — find_max
+- `159.py` — eat
+- `16.py` — count_distinct_characters
+- `160.py` — do_algebra
+- `161.py` — solve
+- `162.py` — string_to_md5
+- `163.py` — generate_integers
+- `17.py` — parse_music
+- `18.py` — how_many_times
+- `19.py` — sort_numbers
+- `2.py` — truncate_number
+- `20.py` — find_closest_elements
+- `21.py` — rescale_to_unit
+- `22.py` — filter_integers
+- `23.py` — strlen
+- `24.py` — largest_divisor
+- `25.py` — factorize
+- `26.py` — remove_duplicates
+- `27.py` — flip_case
+- `28.py` — concatenate
+- `29.py` — filter_by_prefix
+- `3.py` — below_zero
+- `30.py` — get_positive
+- `31.py` — is_prime
+- `32.py` — find_zero
+- `33.py` — sort_third
+- `34.py` — unique
+- `35.py` — max_element
+- `36.py` — fizz_buzz
+- `37.py` — sort_even
+- `38.py` — encode_cyclic, decode_cyclic
+- `39.py` — prime_fib
+- `4.py` — mean_absolute_deviation
+- `40.py` — triples_sum_to_zero
+- `41.py` — car_race_collision
+- `42.py` — incr_list
+- `43.py` — pairs_sum_to_zero
+- `44.py` — change_base
+- `45.py` — triangle_area
+- `46.py` — fib4
+- `47.py` — median
+- `48.py` — is_palindrome
+- `49.py` — modp
+- `5.py` — intersperse
+- `50.py` — decode_shift
+- `51.py` — remove_vowels
+- `52.py` — below_threshold
+- `53.py` — add
+- `54.py` — same_chars
+- `55.py` — fib
+- `56.py` — correct_bracketing
+- `57.py` — monotonic
+- `58.py` — common
+- `59.py` — largest_prime_factor
+- `6.py` — parse_nested_parens
+- `60.py` — sum_to_n
+- `61.py` — correct_bracketing
+- `62.py` — derivative
+- `63.py` — fibfib
+- `64.py` — vowels_count
+- `65.py` — circular_shift
+- `66.py` — digitSum
+- `67.py` — fruit_distribution
+- `68.py` — pluck
+- `69.py` — search
+- `7.py` — filter_by_substring
+- `70.py` — strange_sort_list
+- `71.py` — triangle_area
+- `72.py` — will_it_fly
+- `73.py` — smallest_change
+- `74.py` — total_match
+- `75.py` — is_multiply_prime
+- `76.py` — is_simple_power
+- `77.py` — iscube
+- `78.py` — hex_key
+- `79.py` — decimal_to_binary
+- `8.py` — sum_product
+- `80.py` — is_happy
+- `81.py` — numerical_letter_grade
+- `82.py` — prime_length
+- `83.py` — starts_one_ends
+- `84.py` — solve
+- `85.py` — add
+- `86.py` — anti_shuffle
+- `87.py` — get_row
+- `88.py` — sort_array
+- `89.py` — encrypt
+- `9.py` — rolling_max
+- `90.py` — next_smallest
+- `91.py` — is_bored
+- `92.py` — any_int
+- `93.py` — encode
+- `94.py` — skjkasdkd
+- `95.py` — check_dict_case
+- `96.py` — count_up_to
+- `97.py` — multiply
+- `98.py` — count_upper
+- `99.py` — closest_integer
+
+**.agent/skills/loki-mode/examples/todo-app-generated/backend/src/**
+
+- `index.ts`
+
+**.agent/skills/loki-mode/examples/todo-app-generated/backend/src/db/**
+
+- `database.ts` — getDatabase, closeDatabase
+- `db.ts` — initDatabase
+- `index.ts`
+- `migrations.ts` — runMigrations, initializeDatabase
+
+**.agent/skills/loki-mode/examples/todo-app-generated/backend/src/routes/**
+
+- `todos.ts`
+
+**.agent/skills/loki-mode/examples/todo-app-generated/backend/src/types/**
+
+- `index.ts` — Todo item types · Todo, ApiResponse, CreateTodoRequest, UpdateTodoRequest, DatabaseConfig
+
+**.agent/skills/loki-mode/examples/todo-app-generated/frontend/**
+
+- `vite.config.ts`
+
+**.agent/skills/loki-mode/examples/todo-app-generated/frontend/src/**
+
+- `App.tsx`
+- `main.tsx`
+- `vite-env.d.ts`
+
+**.agent/skills/loki-mode/examples/todo-app-generated/frontend/src/api/**
+
+- `todos.ts` — fetchTodos, createTodo, updateTodo, deleteTodo, Todo, CreateTodoRequest
+
+**.agent/skills/loki-mode/examples/todo-app-generated/frontend/src/components/**
+
+- `ConfirmDialog.tsx` — ConfirmDialog
+- `EmptyState.tsx` — EmptyState
+- `TodoForm.tsx` — TodoForm
+- `TodoItem.tsx` — TodoItem
+- `TodoList.tsx` — TodoList
+
+**.agent/skills/loki-mode/examples/todo-app-generated/frontend/src/hooks/**
+
+- `useTodos.ts` — useTodos
+
+**.agent/skills/loki-mode/scripts/**
+
+- `take-screenshots.js`
+
+**.agent/skills/mcp-builder/scripts/**
+
+- `connections.py` — Lightweight connection handling for MCP servers. · create_connection, MCPConnection, MCPConnectionStdio, MCPConnectionSSE, MCPConnectionHTTP
+- `evaluation.py` — MCP Server Evaluation Harness · parse_evaluation_file, extract_xml_content, agent_loop, evaluate_single_task, run_evaluation, parse_headers, parse_env_vars, main
+
+**.agent/skills/mobile-design/scripts/**
+
+- `mobile_audit.py` — MobileAuditor
+
+**.agent/skills/notebooklm/scripts/**
+
+- `__init__.py` — ensure_venv_and_run
+- `ask_question.py` — ask_notebooklm, main
+- `auth_manager.py` — main, AuthManager
+- `browser_session.py` — BrowserSession
+- `browser_utils.py` — BrowserFactory, StealthUtils
+- `cleanup_manager.py` — main, CleanupManager
+- `config.py`
+- `notebook_manager.py` — main, NotebookLibrary
+- `run.py` — get_venv_python, ensure_venv, main
+- `setup_environment.py` — main, SkillEnvironment
+
+**.agent/skills/oss-hunter/bin/**
+
+- `hunter.py` — run_gh_command, hunt
+
+**.agent/skills/pdf-official/scripts/**
+
+- `check_bounding_boxes_test.py` — TestGetBoundingBoxMessages
+- `check_bounding_boxes.py` — get_bounding_box_messages, RectAndField
+- `check_fillable_fields.py`
+- `convert_pdf_to_images.py` — convert
+- `create_validation_image.py` — create_validation_image
+- `extract_form_field_info.py` — get_full_annotation_field_id, make_field_dict, get_field_info, write_field_info
+- `fill_fillable_fields.py` — fill_pdf_fields, validation_error_for_field_value, monkeypatch_pydpf_method
+- `fill_pdf_form_with_annotations.py` — transform_coordinates, fill_pdf_form
+
+**.agent/skills/performance-profiling/scripts/**
+
+- `lighthouse_audit.py` — run_lighthouse, get_summary
+
+**.agent/skills/playwright-skill/**
+
+- `run.js`
+
+**.agent/skills/playwright-skill/lib/**
+
+- `helpers.js` — playwright-helpers.js
+
+**.agent/skills/pptx-official/ooxml/scripts/**
+
+- `pack.py` — main, pack_document, validate_document, condense_xml
+- `unpack.py`
+- `validate.py` — main
+
+**.agent/skills/pptx-official/ooxml/scripts/validation/**
+
+- `__init__.py`
+- `base.py` — BaseSchemaValidator
+- `docx.py` — DOCXSchemaValidator
+- `pptx.py` — PPTXSchemaValidator
+- `redlining.py` — RedliningValidator
+
+**.agent/skills/pptx-official/scripts/**
+
+- `html2pptx.js` — html2pptx - Convert HTML slide to pptxgenjs slide with positioned elements
+- `inventory.py` — main, is_valid_shape, collect_shapes_with_absolute_positions, sort_shapes_by_position, calculate_overlap, ShapeWithPosition, ParagraphData, ShapeData
+- `rearrange.py` — main, duplicate_slide, delete_slide, reorder_slides, rearrange_presentation
+- `replace.py` — clear_paragraph_bullets, apply_paragraph_properties, apply_font_properties, detect_frame_overflow, validate_replacements, check_duplicate_keys, apply_replacements, main
+- `thumbnail.py` — main, create_hidden_slide_placeholder, get_placeholder_regions, convert_to_images, create_grids, create_grid
+
+**.agent/skills/product-manager-toolkit/scripts/**
+
+- `customer_interview_analyzer.py` — aggregate_interviews, format_single_interview, main, InterviewAnalyzer
+- `rice_prioritizer.py` — format_output, load_features_from_csv, create_sample_csv, main, RICECalculator
+
+**.agent/skills/prompt-engineering-patterns/scripts/**
+
+- `optimize-prompt.py` — main, TestCase, PromptOptimizer
+
+**.agent/skills/radix-ui-design-system/examples/**
+
+- `dialog-example.tsx` — BasicDialog, ControlledDialog
+- `dropdown-example.tsx` — CompleteDropdown, ActionsMenu
+
+**.agent/skills/radix-ui-design-system/templates/**
+
+- `component-template.tsx` — Radix UI Component Template
+
+**.agent/skills/remotion-best-practices/rules/assets/**
+
+- `charts-bar-chart.tsx` — MyAnimation
+- `text-animations-typewriter.tsx` — MyAnimation
+- `text-animations-word-highlight.tsx` — MyAnimation
+
+**.agent/skills/scripts/**
+
+- `auto_categorize_skills.py` — categorize_skill, auto_categorize, main
+- `build-catalog.js`
+- `fix_dangling_links.py` — fix_dangling_links
+- `fix_skills_metadata.py` — fix_skills
+- `fix_yaml_quotes.py` — fix_yaml_quotes
+- `fix_year_2025_to_2026.py` — update_dates
+- `generate_index.py` — parse_frontmatter, generate_index
+- `generate_skills_report.py` — get_project_root, parse_frontmatter, generate_skills_report, main
+- `manage_skill_dates.py` — get_project_root, parse_frontmatter, reconstruct_frontmatter, update_skill_frontmatter, list_skills, add_missing_dates, add_all_dates, update_skill_date +1
+- `normalize-frontmatter.js`
+- `setup_web.js`
+- `skills_manager.py` — list_active, list_disabled, enable_skill, disable_skill, main
+- `sync_microsoft_skills.py` — clone_repo, cleanup_previous_sync, extract_skill_name, generate_fallback_name, find_skills_in_directory, find_plugin_skills, find_github_skills, sync_skills_flat +2
+- `update_readme.py` — update_readme
+- `validate_references.py` — collect_skill_ids, main
+- `validate_skills.py` — has_when_to_use_section, parse_frontmatter, validate_skills
+- `validate-skills.js` — Legacy / alternative validator. For CI and PR checks, use scripts/validate_skills.py.
+
+**.agent/skills/scripts/tests/**
+
+- `inspect_microsoft_repo.py` — extract_skill_name, inspect_repo
+- `test_comprehensive_coverage.py` — extract_skill_name, analyze_skill_locations
+- `test_validate_skills_headings.py`
+- `validate_skills_headings.test.js`
+
+**.agent/skills/senior-architect/scripts/**
+
+- `architecture_diagram_generator.py` — main, ArchitectureDiagramGenerator
+- `dependency_analyzer.py` — main, DependencyAnalyzer
+- `project_architect.py` — main, ProjectArchitect
+
+**.agent/skills/senior-fullstack/scripts/**
+
+- `code_quality_analyzer.py` — main, CodeQualityAnalyzer
+- `fullstack_scaffolder.py` — main, FullstackScaffolder
+- `project_scaffolder.py` — main, ProjectScaffolder
+
+**.agent/skills/seo-fundamentals/scripts/**
+
+- `seo_checker.py` — is_page_file, find_pages, check_page, main
+
+**.agent/skills/shopify-development/scripts/**
+
+- `shopify_graphql.py` — extract_id, build_gid, main, GraphQLResponse, ShopifyGraphQL
+- `shopify_init.py` — main, EnvConfig, EnvLoader, ShopifyInitializer
+
+**.agent/skills/shopify-development/scripts/tests/**
+
+- `test_shopify_init.py` — TestEnvLoader, TestShopifyInitializer, TestMain, TestEnvConfig
+
+**.agent/skills/skill-creator/scripts/**
+
+- `init_skill.py` — main, title_case_skill_name, init_skill
+- `package_skill.py` — package_skill, main
+- `quick_validate.py` — validate_skill
+
+**.agent/skills/slack-gif-creator/core/**
+
+- `easing.py` — linear, ease_in_quad, ease_out_quad, ease_in_out_quad, ease_in_cubic, ease_out_cubic, ease_in_out_cubic, ease_in_bounce +2
+- `frame_composer.py` — create_blank_frame, draw_circle, draw_text, create_gradient_background, draw_star
+- `gif_builder.py` — GIFBuilder
+- `validators.py` — validate_gif, is_slack_ready
+
+**.agent/skills/systematic-debugging/**
+
+- `condition-based-waiting-example.ts` — Complete implementation of condition-based waiting utilities · waitForEvent, waitForEventCount, waitForEventMatch
+
+**.agent/skills/typescript-expert/references/**
+
+- `utility-types.ts` — TypeScript Utility Types Library · assertNever, exhaustiveCheck, ok, err, some, none, Brand, UserId +2
+
+**.agent/skills/typescript-expert/scripts/**
+
+- `ts_diagnostic.py` — run_cmd, check_versions, check_tsconfig, check_tooling, check_monorepo, check_type_errors, check_any_usage, check_type_assertions +2
+
+**.agent/skills/ui-ux-pro-max/scripts/**
+
+- `core.py` — detect_domain, search, search_stack, BM25
+- `design_system.py` — format_ascii_box, format_markdown, generate_design_system, DesignSystemGenerator
+- `search.py` — format_output
+
+**.agent/skills/unreal-engine-cpp-pro/examples/**
+
+- `ExampleActor.cpp`
+- `ExampleActor.h`
+
+**.agent/skills/voice-ai-engine-development/examples/**
+
+- `complete_voice_engine.py` — conversation_endpoint, Transcription, AgentResponse, SynthesisResult, BaseWorker, DeepgramTranscriber, GeminiAgent, ElevenLabsSynthesizer +2
+- `gemini_agent_example.py` — example_usage, Message, GeneratedResponse, GeminiAgent
+- `interrupt_system_example.py` — example_interrupt_scenario, InterruptibleEvent, ConversationWithInterrupts, SynthesisWorkerWithInterrupts, TranscriptionWorkerWithInterrupts, MockTranscription, MockSynthesisResult
+
+**.agent/skills/voice-ai-engine-development/templates/**
+
+- `base_worker_template.py` — example_usage, BaseWorker, ExampleWorker
+- `multi_provider_factory_template.py` — example_usage, TranscriberProvider, LLMProvider, TTSProvider, VoiceComponentFactory
+
+**.agent/skills/vulnerability-scanner/scripts/**
+
+- `security_scan.py` — scan_dependencies, scan_secrets, scan_code_patterns, scan_configuration, run_full_scan, main
+
+**.agent/skills/web-app/**
+
+- `eslint.config.js`
+- `postcss.config.js`
+- `vite.config.js` — https://vite.dev/config/
+
+**.agent/skills/web-app/public/skills/algorithmic-art/templates/**
+
+- `generator_template.js` — ═══════════════════════════════════════════════════════════════════════════
+
+**.agent/skills/web-app/public/skills/api-design-principles/assets/**
+
+- `rest-api-template.py` — http_exception_handler, list_users, create_user, get_user, update_user, delete_user, UserStatus, UserBase +2
+
+**.agent/skills/web-app/public/skills/api-patterns/scripts/**
+
+- `api_validator.py` — find_api_files, check_openapi_spec, check_api_code, main
+
+**.agent/skills/web-app/public/skills/app-store-optimization/**
+
+- `ab_test_planner.py` — plan_ab_test, ABTestPlanner
+- `aso_scorer.py` — calculate_aso_score, ASOScorer
+- `competitor_analyzer.py` — analyze_competitor_set, CompetitorAnalyzer
+- `keyword_analyzer.py` — analyze_keyword_set, KeywordAnalyzer
+- `launch_checklist.py` — generate_launch_checklist, LaunchChecklistGenerator
+- `localization_helper.py` — plan_localization_strategy, LocalizationHelper
+- `metadata_optimizer.py` — optimize_app_metadata, MetadataOptimizer
+- `review_analyzer.py` — analyze_reviews, ReviewAnalyzer
+
+**.agent/skills/web-app/public/skills/audio-transcriber/scripts/**
+
+- `transcribe.py` — detect_cli_tool, invoke_prompt_engineer, handle_prompt_workflow, process_with_llm, transcribe_audio, save_outputs, main
+
+**.agent/skills/web-app/public/skills/claude-d3js-skill/assets/**
+
+- `chart-template.jsx` — default:App
+- `interactive-template.jsx` — default:App
+
+**.agent/skills/web-app/public/skills/content-creator/scripts/**
+
+- `brand_voice_analyzer.py` — analyze_content, BrandVoiceAnalyzer
+- `seo_optimizer.py` — optimize_content, SEOOptimizer
+
+**.agent/skills/web-app/public/skills/database-design/scripts/**
+
+- `schema_validator.py` — find_schema_files, validate_prisma_schema, main
+
+**.agent/skills/web-app/public/skills/docx-official/ooxml/scripts/**
+
+- `pack.py` — main, pack_document, validate_document, condense_xml
+- `unpack.py`
+- `validate.py` — main
+
+**.agent/skills/web-app/public/skills/docx-official/ooxml/scripts/validation/**
+
+- `__init__.py`
+- `base.py` — BaseSchemaValidator
+- `docx.py` — DOCXSchemaValidator
+- `pptx.py` — PPTXSchemaValidator
+- `redlining.py` — RedliningValidator
+
+**.agent/skills/web-app/public/skills/docx-official/scripts/**
+
+- `__init__.py`
+- `document.py` — DocxXMLEditor, Document
+- `utilities.py` — XMLEditor
+
+**.agent/skills/web-app/public/skills/dotnet-backend-patterns/assets/**
+
+- `repository-template.cs`
+- `service-template.cs`
+
+**.agent/skills/web-app/public/skills/geo-fundamentals/scripts/**
+
+- `geo_checker.py` — is_page_file, find_web_pages, check_page, main
+
+**.agent/skills/web-app/public/skills/go-rod-master/examples/**
+
+- `basic_scrape.go`
+- `concurrent_pages.go`
+- `request_hijacking.go`
+- `stealth_page.go`
+
+**.agent/skills/web-app/public/skills/i18n-localization/scripts/**
+
+- `i18n_checker.py` — find_locale_files, check_locale_completeness, flatten_keys, check_hardcoded_strings, main
+
+**.agent/skills/web-app/public/skills/last30days/scripts/**
+
+- `last30days.py` — load_fixture, run_research, main, output_result
+
+**.agent/skills/web-app/public/skills/last30days/scripts/lib/**
+
+- `__init__.py`
+- `cache.py` — Caching utilities for last30days skill. · ensure_cache_dir, get_cache_key, get_cache_path, is_cache_valid, load_cache, get_cache_age_hours, load_cache_with_age, save_cache +2
+- `dates.py` — Date utilities for last30days skill. · get_date_range, parse_date, timestamp_to_date, get_date_confidence, days_ago, recency_score
+- `dedupe.py` — Near-duplicate detection for last30days skill. · normalize_text, get_ngrams, jaccard_similarity, get_item_text, find_duplicates, dedupe_items, dedupe_reddit, dedupe_x
+- `env.py` — Environment and API key management for last30days skill. · load_env_file, get_config, config_exists, get_available_sources, get_missing_keys, validate_sources
+- `http.py` — HTTP utilities for last30days skill (stdlib only). · log, request, get, post, get_reddit_json, HTTPError
+- `models.py` — Model auto-selection for last30days skill. · parse_version, is_mainline_openai_model, select_openai_model, select_xai_model, get_models
+- `normalize.py` — Normalization of raw API data to canonical schema. · filter_by_date_range, normalize_reddit_items, normalize_x_items, items_to_dicts
+- `openai_reddit.py` — OpenAI Responses API client for Reddit discovery. · search_reddit, parse_reddit_response
+- `reddit_enrich.py` — Reddit thread enrichment with real engagement metrics. · extract_reddit_path, fetch_thread_data, parse_thread_data, get_top_comments, extract_comment_insights, enrich_reddit_item
+- `render.py` — Output rendering for last30days skill. · ensure_output_dir, render_compact, render_context_snippet, render_full_report, write_outputs, get_context_path
+- `schema.py` — Data schemas for last30days skill. · create_report, Engagement, Comment, SubScores, RedditItem, XItem, WebSearchItem, Report
+- `score.py` — Popularity-aware scoring for last30days skill. · log1p_safe, compute_reddit_engagement_raw, compute_x_engagement_raw, normalize_to_100, score_reddit_items, score_x_items, score_websearch_items, sort_items
+- `ui.py` — Terminal UI utilities for last30days skill. · print_phase, Colors, Spinner, ProgressDisplay
+- `websearch.py` — WebSearch module for last30days skill. · extract_date_from_url, extract_date_from_snippet, extract_date_signals, extract_domain, is_excluded_domain, parse_websearch_results, normalize_websearch_items, dedupe_websearch
+- `xai_x.py` — xAI API client for X (Twitter) discovery. · search_x, parse_x_response
+
+**.agent/skills/web-app/public/skills/last30days/tests/**
+
+- `__init__.py`
+- `test_cache.py` — Tests for cache module. · TestGetCacheKey, TestCachePath, TestCacheValidity, TestModelCache
+- `test_dates.py` — Tests for dates module. · TestGetDateRange, TestParseDate, TestTimestampToDate, TestGetDateConfidence, TestDaysAgo, TestRecencyScore
+- `test_dedupe.py` — Tests for dedupe module. · TestNormalizeText, TestGetNgrams, TestJaccardSimilarity, TestFindDuplicates, TestDedupeItems
+- `test_models.py` — Tests for models module. · TestParseVersion, TestIsMainlineOpenAIModel, TestSelectOpenAIModel, TestSelectXAIModel, TestGetModels
+- `test_normalize.py` — Tests for normalize module. · TestNormalizeRedditItems, TestNormalizeXItems, TestItemsToDicts
+- `test_render.py` — Tests for render module. · TestRenderCompact, TestRenderContextSnippet, TestRenderFullReport, TestGetContextPath
+- `test_score.py` — Tests for score module. · TestLog1pSafe, TestComputeRedditEngagementRaw, TestComputeXEngagementRaw, TestNormalizeTo100, TestScoreRedditItems, TestScoreXItems, TestSortItems
+
+**.agent/skills/web-app/public/skills/lint-and-validate/scripts/**
+
+- `lint_runner.py` — detect_project_type, run_linter, main
+- `type_coverage.py` — check_typescript_coverage, check_python_coverage, main
+
+**.agent/skills/web-app/public/skills/loki-mode/benchmarks/results/2026-01-05-00-49-17/humaneval-solutions/**
+
+- `0.py` — has_close_elements
+- `1.py` — separate_paren_groups
+- `10.py` — is_palindrome, make_palindrome
+- `100.py` — make_a_pile
+- `101.py` — words_string
+- `102.py` — choose_num
+- `103.py` — rounded_avg
+- `104.py` — unique_digits
+- `105.py` — by_length
+- `106.py` — f
+- `107.py` — even_odd_palindrome
+- `108.py` — count_nums
+- `109.py` — move_one_ball
+- `11.py` — string_xor
+- `110.py` — exchange
+- `111.py` — histogram
+- `112.py` — reverse_delete
+- `113.py` — odd_count
+- `114.py` — minSubArraySum
+- `115.py` — max_fill
+- `116.py` — sort_array
+- `117.py` — select_words
+- `118.py` — get_closest_vowel
+- `119.py` — match_parens
+- `12.py` — longest
+- `120.py` — maximum
+- `121.py` — solution
+- `122.py` — add_elements
+- `123.py` — get_odd_collatz
+- `124.py` — valid_date
+- `125.py` — split_words
+- `126.py` — is_sorted
+- `127.py` — intersection
+- `128.py` — prod_signs
+- `129.py` — minPath
+- `13.py` — greatest_common_divisor
+- `130.py` — tri
+- `131.py` — digits
+- `132.py` — is_nested
+- `133.py` — sum_squares
+- `134.py` — check_if_last_char_is_a_letter
+- `135.py` — can_arrange
+- `136.py` — largest_smallest_integers
+- `137.py` — compare_one
+- `138.py` — is_equal_to_sum_even
+- `139.py` — special_factorial
+- `14.py` — all_prefixes
+- `140.py` — fix_spaces
+- `141.py` — file_name_check
+- `142.py` — sum_squares
+- `143.py` — words_in_sentence
+- `144.py` — simplify
+- `145.py` — order_by_points
+- `146.py` — specialFilter
+- `147.py` — get_max_triples
+- `148.py` — bf
+- `149.py` — sorted_list_sum
+- `15.py` — string_sequence
+- `150.py` — x_or_y
+- `151.py` — double_the_difference
+- `152.py` — compare
+- `153.py` — Strongest_Extension
+- `154.py` — cycpattern_check
+- `155.py` — even_odd_count
+- `156.py` — int_to_mini_roman
+- `157.py` — right_angle_triangle
+- `158.py` — find_max
+- `159.py` — eat
+- `16.py` — count_distinct_characters
+- `160.py` — do_algebra
+- `161.py` — solve
+- `162.py` — string_to_md5
+- `163.py` — generate_integers
+- `17.py` — parse_music
+- `18.py` — how_many_times
+- `19.py` — sort_numbers
+- `2.py` — truncate_number
+- `20.py` — find_closest_elements
+- `21.py` — rescale_to_unit
+- `22.py` — filter_integers
+- `23.py` — strlen
+- `24.py` — largest_divisor
+- `25.py` — factorize
+- `26.py` — remove_duplicates
+- `27.py` — flip_case
+- `28.py` — concatenate
+- `29.py` — filter_by_prefix
+- `3.py` — below_zero
+- `30.py` — get_positive
+- `31.py` — is_prime
+- `32.py` — poly, find_zero
+- `33.py` — sort_third
+- `34.py` — unique
+- `35.py` — max_element
+- `36.py` — fizz_buzz
+- `37.py` — sort_even
+- `38.py` — decode_cyclic
+- `39.py` — prime_fib
+- `4.py` — mean_absolute_deviation
+- `40.py` — triples_sum_to_zero
+- `41.py` — car_race_collision
+- `42.py` — incr_list
+- `43.py` — pairs_sum_to_zero
+- `44.py` — change_base
+- `45.py` — triangle_area
+- `46.py` — fib4
+- `47.py` — median
+- `48.py` — is_palindrome
+- `49.py` — modp
+- `5.py` — intersperse
+- `50.py` — encode_shift, decode_shift
+- `51.py` — remove_vowels
+- `52.py` — below_threshold
+- `53.py` — add
+- `54.py` — same_chars
+- `55.py` — fib
+- `56.py` — correct_bracketing
+- `57.py` — monotonic
+- `58.py` — common
+- `59.py` — largest_prime_factor
+- `6.py` — parse_nested_parens
+- `60.py` — sum_to_n
+- `61.py` — correct_bracketing
+- `62.py` — derivative
+- `63.py` — fibfib
+- `64.py` — vowels_count
+- `65.py` — circular_shift
+- `66.py` — digitSum
+- `67.py` — fruit_distribution
+- `68.py` — pluck
+- `69.py` — search
+- `7.py` — filter_by_substring
+- `70.py` — strange_sort_list
+- `71.py` — triangle_area
+- `72.py` — will_it_fly
+- `73.py` — smallest_change
+- `74.py` — total_match
+- `75.py` — is_multiply_prime
+- `76.py` — is_simple_power
+- `77.py` — iscube
+- `78.py` — hex_key
+- `79.py` — decimal_to_binary
+- `8.py` — sum_product
+- `80.py` — is_happy
+- `81.py` — numerical_letter_grade
+- `82.py` — prime_length
+- `83.py` — starts_one_ends
+- `84.py` — solve
+- `85.py` — add
+- `86.py` — anti_shuffle
+- `87.py` — get_row
+- `88.py` — sort_array
+- `89.py` — encrypt
+- `9.py` — rolling_max
+- `90.py` — next_smallest
+- `91.py` — is_bored
+- `92.py` — any_int
+- `93.py` — encode
+- `94.py` — skjkasdkd
+- `95.py` — check_dict_case
+- `96.py` — count_up_to
+- `97.py` — multiply
+- `98.py` — count_upper
+- `99.py` — closest_integer
+
+**.agent/skills/web-app/public/skills/loki-mode/benchmarks/results/humaneval-loki-solutions/**
+
+- `0.py` — has_close_elements
+- `1.py` — separate_paren_groups
+- `10.py` — is_palindrome, make_palindrome
+- `100.py` — make_a_pile
+- `101.py` — words_string
+- `102.py` — choose_num
+- `103.py` — rounded_avg
+- `104.py` — unique_digits
+- `105.py` — by_length
+- `106.py` — f
+- `107.py` — even_odd_palindrome
+- `108.py` — count_nums
+- `109.py` — move_one_ball
+- `11.py` — string_xor
+- `110.py` — exchange
+- `111.py` — histogram
+- `112.py` — reverse_delete
+- `113.py` — odd_count
+- `114.py` — minSubArraySum
+- `115.py` — max_fill
+- `116.py` — sort_array
+- `117.py` — select_words
+- `118.py` — get_closest_vowel
+- `119.py` — match_parens
+- `12.py` — longest
+- `120.py` — maximum
+- `121.py` — solution
+- `122.py` — add_elements
+- `123.py` — get_odd_collatz
+- `124.py` — valid_date
+- `125.py` — split_words
+- `126.py` — is_sorted
+- `127.py` — intersection
+- `128.py` — prod_signs
+- `129.py` — minPath
+- `13.py` — greatest_common_divisor
+- `130.py` — tri
+- `131.py` — digits
+- `132.py` — is_nested
+- `133.py` — sum_squares
+- `134.py` — check_if_last_char_is_a_letter
+- `135.py` — can_arrange
+- `136.py` — largest_smallest_integers
+- `137.py` — compare_one
+- `138.py` — is_equal_to_sum_even
+- `139.py` — special_factorial
+- `14.py` — all_prefixes
+- `140.py` — fix_spaces
+- `141.py` — file_name_check
+- `142.py` — sum_squares
+- `143.py` — words_in_sentence
+- `144.py` — simplify
+- `145.py` — order_by_points
+- `146.py` — specialFilter
+- `147.py` — get_max_triples
+- `148.py` — bf
+- `149.py` — sorted_list_sum
+- `15.py` — string_sequence
+- `150.py` — x_or_y
+- `151.py` — double_the_difference
+- `152.py` — compare
+- `153.py` — Strongest_Extension
+- `154.py` — cycpattern_check
+- `155.py` — even_odd_count
+- `156.py` — int_to_mini_roman
+- `157.py` — right_angle_triangle
+- `158.py` — find_max
+- `159.py` — eat
+- `16.py` — count_distinct_characters
+- `160.py` — do_algebra
+- `161.py` — solve
+- `162.py` — string_to_md5
+- `163.py` — generate_integers
+- `17.py` — parse_music
+- `18.py` — how_many_times
+- `19.py` — sort_numbers
+- `2.py` — truncate_number
+- `20.py` — find_closest_elements
+- `21.py` — rescale_to_unit
+- `22.py` — filter_integers
+- `23.py` — strlen
+- `24.py` — largest_divisor
+- `25.py` — factorize
+- `26.py` — remove_duplicates
+- `27.py` — flip_case
+- `28.py` — concatenate
+- `29.py` — filter_by_prefix
+- `3.py` — below_zero
+- `30.py` — get_positive
+- `31.py` — is_prime
+- `32.py` — find_zero
+- `33.py` — sort_third
+- `34.py` — unique
+- `35.py` — max_element
+- `36.py` — fizz_buzz
+- `37.py` — sort_even
+- `38.py` — encode_cyclic, decode_cyclic
+- `39.py` — prime_fib
+- `4.py` — mean_absolute_deviation
+- `40.py` — triples_sum_to_zero
+- `41.py` — car_race_collision
+- `42.py` — incr_list
+- `43.py` — pairs_sum_to_zero
+- `44.py` — change_base
+- `45.py` — triangle_area
+- `46.py` — fib4
+- `47.py` — median
+- `48.py` — is_palindrome
+- `49.py` — modp
+- `5.py` — intersperse
+- `50.py` — decode_shift
+- `51.py` — remove_vowels
+- `52.py` — below_threshold
+- `53.py` — add
+- `54.py` — same_chars
+- `55.py` — fib
+- `56.py` — correct_bracketing
+- `57.py` — monotonic
+- `58.py` — common
+- `59.py` — largest_prime_factor
+- `6.py` — parse_nested_parens
+- `60.py` — sum_to_n
+- `61.py` — correct_bracketing
+- `62.py` — derivative
+- `63.py` — fibfib
+- `64.py` — vowels_count
+- `65.py` — circular_shift
+- `66.py` — digitSum
+- `67.py` — fruit_distribution
+- `68.py` — pluck
+- `69.py` — search
+- `7.py` — filter_by_substring
+- `70.py` — strange_sort_list
+- `71.py` — triangle_area
+- `72.py` — will_it_fly
+- `73.py` — smallest_change
+- `74.py` — total_match
+- `75.py` — is_multiply_prime
+- `76.py` — is_simple_power
+- `77.py` — iscube
+- `78.py` — hex_key
+- `79.py` — decimal_to_binary
+- `8.py` — sum_product
+- `80.py` — is_happy
+- `81.py` — numerical_letter_grade
+- `82.py` — prime_length
+- `83.py` — starts_one_ends
+- `84.py` — solve
+- `85.py` — add
+- `86.py` — anti_shuffle
+- `87.py` — get_row
+- `88.py` — sort_array
+- `89.py` — encrypt
+- `9.py` — rolling_max
+- `90.py` — next_smallest
+- `91.py` — is_bored
+- `92.py` — any_int
+- `93.py` — encode
+- `94.py` — skjkasdkd
+- `95.py` — check_dict_case
+- `96.py` — count_up_to
+- `97.py` — multiply
+- `98.py` — count_upper
+- `99.py` — closest_integer
+
+**.agent/skills/web-app/public/skills/loki-mode/examples/todo-app-generated/backend/src/**
+
+- `index.ts`
+
+**.agent/skills/web-app/public/skills/loki-mode/examples/todo-app-generated/backend/src/db/**
+
+- `database.ts` — getDatabase, closeDatabase
+- `db.ts` — initDatabase
+- `index.ts`
+- `migrations.ts` — runMigrations, initializeDatabase
+
+**.agent/skills/web-app/public/skills/loki-mode/examples/todo-app-generated/backend/src/routes/**
+
+- `todos.ts`
+
+**.agent/skills/web-app/public/skills/loki-mode/examples/todo-app-generated/backend/src/types/**
+
+- `index.ts` — Todo item types · Todo, ApiResponse, CreateTodoRequest, UpdateTodoRequest, DatabaseConfig
+
+**.agent/skills/web-app/public/skills/loki-mode/examples/todo-app-generated/frontend/**
+
+- `vite.config.ts`
+
+**.agent/skills/web-app/public/skills/loki-mode/examples/todo-app-generated/frontend/src/**
+
+- `App.tsx`
+- `main.tsx`
+- `vite-env.d.ts`
+
+**.agent/skills/web-app/public/skills/loki-mode/examples/todo-app-generated/frontend/src/api/**
+
+- `todos.ts` — fetchTodos, createTodo, updateTodo, deleteTodo, Todo, CreateTodoRequest
+
+**.agent/skills/web-app/public/skills/loki-mode/examples/todo-app-generated/frontend/src/components/**
+
+- `ConfirmDialog.tsx` — ConfirmDialog
+- `EmptyState.tsx` — EmptyState
+- `TodoForm.tsx` — TodoForm
+- `TodoItem.tsx` — TodoItem
+- `TodoList.tsx` — TodoList
+
+**.agent/skills/web-app/public/skills/loki-mode/examples/todo-app-generated/frontend/src/hooks/**
+
+- `useTodos.ts` — useTodos
+
+**.agent/skills/web-app/public/skills/loki-mode/scripts/**
+
+- `take-screenshots.js`
+
+**.agent/skills/web-app/public/skills/mcp-builder/scripts/**
+
+- `connections.py` — Lightweight connection handling for MCP servers. · create_connection, MCPConnection, MCPConnectionStdio, MCPConnectionSSE, MCPConnectionHTTP
+- `evaluation.py` — MCP Server Evaluation Harness · parse_evaluation_file, extract_xml_content, agent_loop, evaluate_single_task, run_evaluation, parse_headers, parse_env_vars, main
+
+**.agent/skills/web-app/public/skills/mobile-design/scripts/**
+
+- `mobile_audit.py` — MobileAuditor
+
+**.agent/skills/web-app/public/skills/notebooklm/scripts/**
+
+- `__init__.py` — ensure_venv_and_run
+- `ask_question.py` — ask_notebooklm, main
+- `auth_manager.py` — main, AuthManager
+- `browser_session.py` — BrowserSession
+- `browser_utils.py` — BrowserFactory, StealthUtils
+- `cleanup_manager.py` — main, CleanupManager
+- `config.py`
+- `notebook_manager.py` — main, NotebookLibrary
+- `run.py` — get_venv_python, ensure_venv, main
+- `setup_environment.py` — main, SkillEnvironment
+
+**.agent/skills/web-app/public/skills/oss-hunter/bin/**
+
+- `hunter.py` — run_gh_command, hunt
+
+**.agent/skills/web-app/public/skills/pdf-official/scripts/**
+
+- `check_bounding_boxes_test.py` — TestGetBoundingBoxMessages
+- `check_bounding_boxes.py` — get_bounding_box_messages, RectAndField
+- `check_fillable_fields.py`
+- `convert_pdf_to_images.py` — convert
+- `create_validation_image.py` — create_validation_image
+- `extract_form_field_info.py` — get_full_annotation_field_id, make_field_dict, get_field_info, write_field_info
+- `fill_fillable_fields.py` — fill_pdf_fields, validation_error_for_field_value, monkeypatch_pydpf_method
+- `fill_pdf_form_with_annotations.py` — transform_coordinates, fill_pdf_form
+
+**.agent/skills/web-app/public/skills/performance-profiling/scripts/**
+
+- `lighthouse_audit.py` — run_lighthouse, get_summary
+
+**.agent/skills/web-app/public/skills/playwright-skill/**
+
+- `run.js`
+
+**.agent/skills/web-app/public/skills/playwright-skill/lib/**
+
+- `helpers.js` — playwright-helpers.js
+
+**.agent/skills/web-app/public/skills/pptx-official/ooxml/scripts/**
+
+- `pack.py` — main, pack_document, validate_document, condense_xml
+- `unpack.py`
+- `validate.py` — main
+
+**.agent/skills/web-app/public/skills/pptx-official/ooxml/scripts/validation/**
+
+- `__init__.py`
+- `base.py` — BaseSchemaValidator
+- `docx.py` — DOCXSchemaValidator
+- `pptx.py` — PPTXSchemaValidator
+- `redlining.py` — RedliningValidator
+
+**.agent/skills/web-app/public/skills/pptx-official/scripts/**
+
+- `html2pptx.js` — html2pptx - Convert HTML slide to pptxgenjs slide with positioned elements
+- `inventory.py` — main, is_valid_shape, collect_shapes_with_absolute_positions, sort_shapes_by_position, calculate_overlap, ShapeWithPosition, ParagraphData, ShapeData
+- `rearrange.py` — main, duplicate_slide, delete_slide, reorder_slides, rearrange_presentation
+- `replace.py` — clear_paragraph_bullets, apply_paragraph_properties, apply_font_properties, detect_frame_overflow, validate_replacements, check_duplicate_keys, apply_replacements, main
+- `thumbnail.py` — main, create_hidden_slide_placeholder, get_placeholder_regions, convert_to_images, create_grids, create_grid
+
+**.agent/skills/web-app/public/skills/product-manager-toolkit/scripts/**
+
+- `customer_interview_analyzer.py` — aggregate_interviews, format_single_interview, main, InterviewAnalyzer
+- `rice_prioritizer.py` — format_output, load_features_from_csv, create_sample_csv, main, RICECalculator
+
+**.agent/skills/web-app/public/skills/prompt-engineering-patterns/scripts/**
+
+- `optimize-prompt.py` — main, TestCase, PromptOptimizer
+
+**.agent/skills/web-app/public/skills/radix-ui-design-system/examples/**
+
+- `dialog-example.tsx` — BasicDialog, ControlledDialog
+- `dropdown-example.tsx` — CompleteDropdown, ActionsMenu
+
+**.agent/skills/web-app/public/skills/radix-ui-design-system/templates/**
+
+- `component-template.tsx` — Radix UI Component Template
+
+**.agent/skills/web-app/public/skills/remotion-best-practices/rules/assets/**
+
+- `charts-bar-chart.tsx` — MyAnimation
+- `text-animations-typewriter.tsx` — MyAnimation
+- `text-animations-word-highlight.tsx` — MyAnimation
+
+**.agent/skills/web-app/public/skills/senior-architect/scripts/**
+
+- `architecture_diagram_generator.py` — main, ArchitectureDiagramGenerator
+- `dependency_analyzer.py` — main, DependencyAnalyzer
+- `project_architect.py` — main, ProjectArchitect
+
+**.agent/skills/web-app/public/skills/senior-fullstack/scripts/**
+
+- `code_quality_analyzer.py` — main, CodeQualityAnalyzer
+- `fullstack_scaffolder.py` — main, FullstackScaffolder
+- `project_scaffolder.py` — main, ProjectScaffolder
+
+**.agent/skills/web-app/public/skills/seo-fundamentals/scripts/**
+
+- `seo_checker.py` — is_page_file, find_pages, check_page, main
+
+**.agent/skills/web-app/public/skills/shopify-development/scripts/**
+
+- `shopify_graphql.py` — extract_id, build_gid, main, GraphQLResponse, ShopifyGraphQL
+- `shopify_init.py` — main, EnvConfig, EnvLoader, ShopifyInitializer
+
+**.agent/skills/web-app/public/skills/shopify-development/scripts/tests/**
+
+- `test_shopify_init.py` — TestEnvLoader, TestShopifyInitializer, TestMain, TestEnvConfig
+
+**.agent/skills/web-app/public/skills/skill-creator/scripts/**
+
+- `init_skill.py` — main, title_case_skill_name, init_skill
+- `package_skill.py` — package_skill, main
+- `quick_validate.py` — validate_skill
+
+**.agent/skills/web-app/public/skills/slack-gif-creator/core/**
+
+- `easing.py` — linear, ease_in_quad, ease_out_quad, ease_in_out_quad, ease_in_cubic, ease_out_cubic, ease_in_out_cubic, ease_in_bounce +2
+- `frame_composer.py` — create_blank_frame, draw_circle, draw_text, create_gradient_background, draw_star
+- `gif_builder.py` — GIFBuilder
+- `validators.py` — validate_gif, is_slack_ready
+
+**.agent/skills/web-app/public/skills/systematic-debugging/**
+
+- `condition-based-waiting-example.ts` — Complete implementation of condition-based waiting utilities · waitForEvent, waitForEventCount, waitForEventMatch
+
+**.agent/skills/web-app/public/skills/typescript-expert/references/**
+
+- `utility-types.ts` — TypeScript Utility Types Library · assertNever, exhaustiveCheck, ok, err, some, none, Brand, UserId +2
+
+**.agent/skills/web-app/public/skills/typescript-expert/scripts/**
+
+- `ts_diagnostic.py` — run_cmd, check_versions, check_tsconfig, check_tooling, check_monorepo, check_type_errors, check_any_usage, check_type_assertions +2
+
+**.agent/skills/web-app/public/skills/ui-ux-pro-max/scripts/**
+
+- `core.py` — detect_domain, search, search_stack, BM25
+- `design_system.py` — format_ascii_box, format_markdown, generate_design_system, DesignSystemGenerator
+- `search.py` — format_output
+
+**.agent/skills/web-app/public/skills/unreal-engine-cpp-pro/examples/**
+
+- `ExampleActor.cpp`
+- `ExampleActor.h`
+
+**.agent/skills/web-app/public/skills/voice-ai-engine-development/examples/**
+
+- `complete_voice_engine.py` — conversation_endpoint, Transcription, AgentResponse, SynthesisResult, BaseWorker, DeepgramTranscriber, GeminiAgent, ElevenLabsSynthesizer +2
+- `gemini_agent_example.py` — example_usage, Message, GeneratedResponse, GeminiAgent
+- `interrupt_system_example.py` — example_interrupt_scenario, InterruptibleEvent, ConversationWithInterrupts, SynthesisWorkerWithInterrupts, TranscriptionWorkerWithInterrupts, MockTranscription, MockSynthesisResult
+
+**.agent/skills/web-app/public/skills/voice-ai-engine-development/templates/**
+
+- `base_worker_template.py` — example_usage, BaseWorker, ExampleWorker
+- `multi_provider_factory_template.py` — example_usage, TranscriberProvider, LLMProvider, TTSProvider, VoiceComponentFactory
+
+**.agent/skills/web-app/public/skills/vulnerability-scanner/scripts/**
+
+- `security_scan.py` — scan_dependencies, scan_secrets, scan_code_patterns, scan_configuration, run_full_scan, main
+
+**.agent/skills/web-app/public/skills/webapp-testing/scripts/**
+
+- `with_server.py` — is_server_ready, main
+
+**.agent/skills/web-app/public/skills/writing-skills/**
+
+- `render-graphs.js`
+
+**.agent/skills/web-app/public/skills/xlsx-official/**
+
+- `recalc.py` — setup_libreoffice_macro, recalc, main
+
+**.agent/skills/web-app/public/skills/youtube-summarizer/scripts/**
+
+- `extract-transcript.py` — extract_transcript, list_available_transcripts
+
+**.agent/skills/web-app/src/**
+
+- `App.jsx`
+- `main.jsx`
+
+**.agent/skills/web-app/src/lib/**
+
+- `supabase.js` — supabase
+
+**.agent/skills/web-app/src/pages/**
+
+- `Home.jsx` — Home
+- `SkillDetail.jsx` — SkillDetail
+
+**.agent/skills/webapp-testing/scripts/**
+
+- `with_server.py` — is_server_ready, main
+
+**.agent/skills/writing-skills/**
+
+- `render-graphs.js`
+
+**.agent/skills/xlsx-official/**
+
+- `recalc.py` — setup_libreoffice_macro, recalc, main
+
+**.agent/skills/youtube-summarizer/scripts/**
+
+- `extract-transcript.py` — extract_transcript, list_available_transcripts
+
+**.agents/skills/archive/2026-04-curation/skill-audit/scripts/**
+
+- `audit.py` — parse_frontmatter, collect_text_files, scan_skill, scan_registry, main
+
+**api/**
+
+- `cnpj.ts` — config, default:handler
+- `comex.ts` — Exemplo de faixas de valor segundo MDIC/Serpro · default:handler
+- `docs-rag.ts` — config, maxDuration, default:handler
+- `extract-content.ts` — config, maxDuration, default:handler
+- `gemini.ts` — config, maxDuration, default:handler
+- `gerar-dossie.ts` — config, maxDuration, default:handler
+- `link-status.ts` — config, default:handler
+- `open-web-search.ts` — config, maxDuration, default:handler
+- `pulse-news.ts` — config, default:handler
+- `radar-scan.ts` — =================================================================== · config, maxDuration, default:handler
+- `rag.ts` — config, maxDuration, default:handler
+
+**components/**
+
+- `AdminDash.tsx` — AdminDash
+- `ChatInterface.tsx`
+- `ClienteSeniorScore.tsx`
+- `ConfirmPopover.tsx` — ConfirmPopover — substitui window.confirm() por confirmação inline.
+- `DeepDiveTopics.tsx` — DeepDiveTopics
+- `DossieSkeletonLoader.tsx` — QW-1 — Skeleton Loader do Dossiê
+- `EmailModal.tsx` — EmailModal
+- `EmptyStateHome.tsx`
+- `ErrorBoundary.tsx`
+- `ErrorMessageCard.tsx`
+- `ErrorToast.tsx` — QW-2 — ErrorToast · ErrorToast, ErrorToastProps
+- `FeedbackSection.tsx` — FeedbackSection
+- `FollowUpModal.tsx` — FollowUpModal, FollowUpScheduleResult
+- `FooterCredits.tsx` — default:FooterCredits
+- `GhostMessageBlock.tsx`
+- `GreetingWelcomeScreen.tsx`
+- `HeaderSessionSearch.tsx` — HeaderSessionSearchProps
+- `HelpCenterFloating.tsx` — HelpCenterFloating
+- `InlineTypingResponse.tsx`
+- `InstallPrompt.tsx` — default:InstallPrompt
+- `InvestigationDashboard.tsx` — ScoreFilter, ClienteFilter, default:InvestigationDashboard
+- `LoadingSmart.tsx`
+- `MarkdownRenderer.tsx` — GroundingSource
+- `MessageActionsBar.tsx`
+- `MessageRow.tsx` — MessageRowData
+- `RadarBell.tsx`
+- `RadarPanel.tsx`
+- `RadarSettings.tsx`
+- `ScorePorta.tsx`
+- `SectionalBotMessage.tsx`
+- `SessionsSidebar.tsx`
+- `SettingsDrawer.tsx`
+- `SmartOptions.tsx` — parseSmartOptions
+- `StatusIndicator.tsx` — InvestigationProgress
+- `SuspenseWithError.tsx`
+- `SyncIndicator.tsx` — Badge de status de sincronizacao no header
+- `SystemHealthCheck.tsx`
+- `ToastContainer.tsx` — ToastContainer — exibe a fila de toasts no canto inferior direito.
+- `Tooltip.tsx` — default:Tooltip
+- `UpdateNotificationModal.tsx` — UpdateNotificationModal
+- `UserMenu.tsx` — UserMenuProps
+- `WarRoom.tsx` — default:WarRoom
+- `WelcomeScreen.tsx`
+
+**components/chat/**
+
+- `ChatPanels.tsx`
+- `ChatShell.tsx`
+- `Composer.tsx`
+- `contracts.ts` — RadarProps, ExtendedChatInterfaceProps, ChatTheme, StartInvestigationPayload
+- `MessageTimeline.tsx`
+
+**config/**
+
+- `helpCenterContent.ts` — HELP_CENTER_FAQS, HELP_CENTER_REFUSAL_MESSAGE, HelpCenterIntent, HelpCenterQuestion
+- `models.ts` — selectMainChatModelId, MODEL_IDS, ROUTER_MODEL_ID, TACTICAL_MODEL_ID, DEEP_CHAT_MODEL_ID, STABLE_RESEARCH_MODEL_ID, LOADING_CURIOSITY_MODEL_ID, GeminiModelId +1
+
+**constants/**
+
+- `loadingStages.ts` — Centralização dos marcos (milestones) e etapas de carregamento · MODULAR_DOSSIER_STAGES, STAGE_DISPLAY_LABELS, ModularDossierStage
+- `market-intelligence.ts` — =================================================================== · DOCUMENTATION_PORTALS, PARTNER_NETWORK, BUDGET_ANALYSIS, COMPETITOR_DATABASE, SENIOR_PORTFOLIO_PROMPT
+
+**contexts/**
+
+- `ModeContext.tsx` — ModeProvider, useMode, useMaybeMode
+- `OperatorContext.tsx` — OperatorProvider, useOperator, useMaybeOperator, OperatorProfile — Adicionado email + sync Supabase
+
+**features/chat/**
+
+- `ChatErrorBoundary.tsx` — ChatErrorBoundary
+- `feedback-actions.ts` — useChatFeedbackActions, UseChatFeedbackActionsOptions
+- `loading-progress.ts` — useChatLoadingProgress
+- `message-helpers.ts`
+- `message-orchestrator.ts` — useChatMessageOrchestrator, HandleSendMessageOptions, UseChatMessageOrchestratorOptions
+- `session-controller.ts` — useSessionRemoteSave, useSessionManager, UseSessionManagerOptions, UseSessionRemoteSaveOptions
+
+**features/dossier/**
+
+- `benchmark-stage.ts` — runDossierBenchmarkStage, RunDossierBenchmarkStageArgs
+- `DossierErrorBoundary.tsx` — DossierErrorBoundary
+- `porta-reconciliation.ts` — resolveModuleNamesForMissingDimensions, buildPortaReconciliationPrompt, ensureWaterfallScorePorta, shouldHoldWaterfallScoreForIntegrity, reconcileWaterfallPorta, DossierWaterfallModule, RunWaterfallModule, ReconcileWaterfallPortaArgs +1
+- `waterfall-orchestrator.ts` — useDossierWaterfallOrchestrator, UseDossierWaterfallOrchestratorOptions
+
+**features/radar/**
+
+- `index.ts`
+- `README.md`
+- `service.ts` — Contrato frontend para /api/radar-scan
+- `types.ts`
+- `useRadar.ts` — Migrado de idb-keyval para storage.ts
+
+**hooks/**
+
+- `useAdminMetrics.ts` — useAdminMetrics, VendorMetric, AdminMetrics
+- `useAppInitialization.ts` — useAppInitialization
+- `useClickBypass.ts` — useClickBypass
+- `useEmailModal.ts` — useEmailModal, EmailModalStatus
+- `useFollowUpModal.ts` — useFollowUpModal, FollowUpModalStatus
+- `useOffline.ts` — useOffline
+- `usePWA.ts` — usePWA, BeforeInstallPromptEvent
+- `useRadar.ts` — hooks/useRadar.ts · useRadar, UseRadarReturn (legado, features/radar/useRadar.ts e o ativo)
+- `useSessionManager.ts`
+- `useSessionStorage.ts` — useSessionStorage — Migrado de idb-keyval para storage.ts
+- `useTheme.ts` — useTheme
+- `useToast.ts` — useToast — sistema de notificações global leve (sem dependência externa). · useToast, ToastType, Toast
+- `useUpdateNotification.ts` — useUpdateNotification, UpdateAvailableEvent
+
+**lib/**
+
+- `cnpjLookup.ts` — lookupCnpj, CnpjNotFoundError, CnpjResult
+- `supabaseClient.ts` — Cliente Supabase browser com graceful degradation
+
+**prompts/**
+
+- `megaPrompts.ts`
+- `systemPrompts.ts` — prompts/systemPrompts.ts
+
+**prompts/mega/**
+
+- `builders.ts` — buildInvestigationHiddenPrompt, buildLegacyCompatibleHiddenPrompt, INVESTIGATION_MODE_BLOCKS, SHARED_FOUNDATION_BLOCK, PROMPT_VERSION, ALL_SPECIALIST_PROMPTS
+- `contracts.ts` — InvestigationPayload, InvestigationBuildOptions
+- `foundation.ts` — SHARED_FOUNDATION_BLOCK_V5, SHARED_ENTITY_RESOLUTION_BLOCK, SHARED_EVIDENCE_HIERARCHY_BLOCK, SHARED_ABSENCE_SEMANTICS_BLOCK, SHARED_RECENCY_POLICY_BLOCK, SHARED_CROSS_PROMPT_ARBITRATION_BLOCK, SHARED_BUSINESS_TRANSLATION_ENGINE_BLOCK, SHARED_COST_OF_DELAY_ENGINE_BLOCK
+- `specialist-prompts.ts` — PROMPT_RAIO_X_OPERACIONAL_ATAQUE, PROMPT_TECH_STACK_GOD_MODE_ATAQUE, PROMPT_RISCOS_COMPLIANCE_GOD_MODE
+
+**public/**
+
+- `sw.js` — Service Worker para PWA
+
+**scripts/**
+
+- `ingestCanonicalBanking.ts`
+- `ingestErpDocs.ts`
+- `ingestExtraDocs.ts`
+- `ingestPdfDocs.ts`
+- `smoke-preview.mjs`
+- `test-radar.ts`
+
+**scripts/obsidian/**
+
+- `check.mjs`
+
+**services/**
+
+- `apiConfig.ts` — isFakeUrl, BACKEND_URL, LOOKUP_URL, OPEN_WEB_SEARCH_ENDPOINT, FAKE_DOMAINS
+- `brasilApiService.ts` — resolveCnpjApiEndpoint, fetchCompanyByCnpj, validateCityInState, BrasilApiCompanyData, CityValidationResult, normalizeCnpj, formatCnpj, isValidCnpj
+- `clientLookupService.ts` — services/clientLookupService.ts · isConcorrenteOuPropria, lookupCliente, formatarParaPrompt, benchmarkClientes, formatarBenchmarkParaPrompt, formatarComexParaPrompt, ClienteResult, LookupResponse +1
+- `competitors.ts` — data/competitors.ts · getConcorrente, getConcorrentesPorRegiao, getRevendasPorEstado, getConcorrentesPorSegmento, listarConcorrentesParaPrompt, CONCORRENTES, NivelAmeaca, TierERP +2
+- `competitorService.ts` — services/competitorService.ts · detectCompetitorFromContext, pullCompetitorProfile, generatePricingIntel, formatarDeteccaoParaPrompt, formatarProfileParaUI, getContextoConcorrentesRegionais, CompetitorDetection, CompetitorProfile +1
+- `exportService.ts` — buildEmailSubject, buildExportConversationFile, downloadConversationExport, openDossierPrintReport, sendDossierEmail, SendDossierEmailArgs
+- `extractContentService.ts` — extractContentService — Migrado de idb-keyval para storage.ts
+- `feedbackRemoteStore.ts` — URL agora vem do apiConfig · sendFeedbackRemote, FeedbackType, RemoteFeedbackPayload
+- `feedbackService.ts` — recordFeedback, MessageFeedback
+- `geminiProxy.ts` — resolveGeminiApiEndpoint, proxyGenerateContent, proxyChatSendMessage, executeOpenWebSearchTool, proxyGeminiHealth, proxyGerarDossie, GeminiChatResponse, OpenWebSearchResponse
+- `geminiService.ts` — Public facade preserved for App.tsx, ChatInterface.tsx, LoadingSmart.tsx and tests.
+- `investigationStore.ts` — services/investigationStore.ts · addInvestigation, getInvestigations, subscribe, Investigation
+- `portaStateService.ts` — initPortaState, getPortaState, resetPortaState, setBaseScore, addFeedAdjustment, addFlagFeed, addSegmentFeed, generatePortaContextForDeepDive
+- `radarService.ts` — services/radarService.ts · buildCategoryPrompt, generateAlertId, fetchRadarAlerts, RadarScanError, RadarScanErrorCode, RadarPartialFailure, RadarCategoryStat, RadarScanResult
+- `ragService.ts` — buscarContextoPinecone, buscarContextoDocsPinecone, RagResult
+- `sessionRemoteStore.ts` — listRemoteSessions, getRemoteSession, saveRemoteSession
+- `storage.ts` — Interface unificada de storage (24+ metodos, Supabase + IDB offline)
+- `syncQueue.ts` — Fila offline com retry exponencial e persistencia IDB
+- `warRoomService.ts` — Public facade preserved for components/WarRoom.tsx and tests.
+
+**services/gemini/**
+
+- `auxiliary.ts` — generateLoadingCuriosities, generateContinuityQuestion, ContinuityQuestionOptions
+- `config.ts` — ROUTER_MODEL_ID, TACTICAL_MODEL_ID, DEEP_CHAT_MODEL_ID, STABLE_RESEARCH_MODEL_ID, LOADING_CURIOSITY_MODEL_ID, OPEN_QUESTION_RECOVERY_METRIC_KEY, RECOVERY_DEBUG_FLAG_KEY, selectMainChatModelId
+- `contracts.ts` — GeminiRequestOptions, DossierModuleOptions, SpotterExtractedData, SendMessageToGeminiResult
+- `investigation-orchestration.ts` — sendMessageToGemini, generateDossierModule, getIsolatedBenchmark
+- `porta.ts` — parsePortaFeeds, cleanPortaFeedMarkers, parseMarkers, ParsedPortaFeeds
+- `recovery.ts` — debugRecovery, looksLikeMissedOpenQuestionAnswer, shouldRecoverOpenQuestionByJudge, trackOpenQuestionRecoveryAttempt
+- `runtime.ts` — isMegaPromptRequest, isDeepDiveMessage, getDeepDiveSource, buildConversationHistory, buildTimeoutError, runWithStepTimeout, DeepDiveSource
+- `sanitization.ts` — sanitizeStreamText, sanitizeHistoryText, isValidEmpresaParaBenchmark
+- `sources.ts` — normalizeGroundingSources
+- `status.ts` — emitDossieStatus, DOSSIE_STATUS, DossieStatusKey
+
+**services/war-room/**
+
+- `config.ts` — MODEL_ID, DEFAULT_COMPETITOR_TARGET, MODEL_TIMEOUT_MS, MAX_HISTORY_TURNS, MAX_HISTORY_CHARS, MAX_USER_QUESTION_CHARS, MAX_DOCS_CHARS, DOCS_CACHE_TTL_MS +2
+- `contracts.ts` — WarRoomMode, WarRoomRoute, WarRoomMessage, WarRoomSource, WarRoomResult, WarRoomQueryOptions, WarRoomIntentFlags, WarRoomDocsContextResult +2
+- `history.ts` — trimText, buildHistorySnippet
+- `intent.ts` — isOutOfScope, isProcessoAgricolaIntent, isIntegracaoIntent, hasFercusIntent, hasTalhaoIntent, hasGatecAgricolaIntent, hasBankingIntent, isBlockedIntent +2
+- `prompting.ts` — getWarRoomSystemPrompt, buildWarRoomPrompt
+- `query.ts` — queryWarRoom
+- `retrieval.ts` — mergeDocContexts, filterDocsForProcessoAgricola, filterNoisyDocsContext, prioritizeBlocksByKeywords, loadWarRoomDocsContext
+- `sources.ts` — extractGroundingSources, enforceBankingAnchors
+
+**stores/**
+
+- `chatStore.tsx` — ChatStoreProvider, useChatStore, useMaybeChatStore, ChatStoreValue
+- `dossierStore.tsx` — DossierStoreProvider, useDossierStore, useMaybeDossierStore, ExportStatus, RemoteSaveStatus, DossierStoreValue
+
+**tests/**
+
+- `api-docs-rag.test.ts`
+- `api-extract.test.ts`
+- `api-gemini.test.ts`
+- `api-open-web-search.test.ts`
+- `App.dossierGolden.test.tsx`
+- `App.layout.test.tsx`
+- `App.loadingVariant.test.tsx`
+- `extraction.test.ts` — Mock global fetch
+- `gemini-integration.test.ts`
+- `setup.ts`
+
+**tests-e2e/**
+
+- `investigation-flow.spec.ts` — Skill: playwright-testing
+- `smoke.chat-shell.spec.ts`
+- `smoke.greeting.spec.ts`
+- `smoke.investigation-shell.spec.ts`
+- `smoke.session-persistence.spec.ts`
+
+**tests/architecture/**
+
+- `useChatImportGuard.test.ts`
+
+**tests/components/**
+
+- `ChatInterface.test.tsx`
+- `ClienteSeniorScore.test.tsx`
+- `ConfirmPopover.test.tsx` — tests/components/ConfirmPopover.test.tsx
+- `EmptyStateHome.test.tsx`
+- `ErrorBoundary.test.tsx` — tests/components/ErrorBoundary.test.tsx
+- `ErrorToast.test.tsx` — QW-2 — ErrorToast test suite
+- `FeatureGatingUI.test.tsx`
+- `FooterCredits.test.tsx`
+- `HelpCenterFloating.test.tsx`
+- `InlineTypingResponse.test.tsx`
+- `InstallPrompt.test.tsx`
+- `InvestigationDashboard.test.tsx`
+- `LoadingSmart.test.tsx`
+- `MarkdownRenderer.security.test.tsx`
+- `MarkdownRenderer.test.tsx`
+- `MessageActionsBar.test.tsx`
+- `MessageRow.test.tsx` — tests/components/MessageRow.test.tsx
+- `ScorePorta.test.tsx`
+- `SectionalBotMessage.mermaid.test.tsx`
+- `SectionalBotMessage.test.tsx`
+- `SessionsSidebar.test.tsx` — tests/components/SessionsSidebar.test.tsx
+- `SmartOptions.test.tsx` — tests/components/SmartOptions.test.tsx
+- `UxRegressionPhase5.test.tsx`
+- `warRoomTargetExtract.test.ts`
+
+**tests/components/chat/**
+
+- `ChatPanels.test.tsx`
+- `Composer.test.tsx`
+- `MessageTimeline.test.tsx`
+
+**tests/config/**
+
+- `models.test.ts`
+
+**tests/contexts/**
+
+- `CRMContext.test.tsx`
+- `ModeContext.test.tsx` — tests/contexts/ModeContext.test.tsx
+- `OperatorContext.test.tsx`
+
+**tests/features/chat/**
+
+- `ChatErrorBoundary.test.tsx`
+- `feedback-actions.test.ts`
+- `loading-progress.test.tsx`
+- `message-orchestrator.test.ts`
+- `session-controller.test.ts`
+
+**tests/features/dossier/**
+
+- `benchmark-stage.test.ts`
+- `DossierErrorBoundary.test.tsx`
+- `porta-reconciliation.test.ts`
+- `waterfall-orchestrator.test.ts`
+
+**tests/helpers/**
+
+- `dossierGolden.ts` — normalizeMarkdownForGolden, countMermaidBlocks, loadJsonFixture, loadTextFixture, validateDossierGolden, DossierGoldenCase
+
+**tests/hooks/**
+
+- `useAdminMetrics.test.ts`
+- `useAppInitialization.test.ts`
+- `useEmailModal.test.tsx`
+- `useFollowUpModal.test.tsx`
+- `useOffline.test.ts`
+- `usePWA.test.ts`
+- `useRadar.test.ts` — tests/hooks/useRadar.test.ts
+- `useSessionStorage.test.ts` — Mock idb-keyval
+- `useTheme.test.ts`
+- `useToast.test.ts`
+
+**tests/prompts/**
+
+- `constantsPromptRules.test.ts`
+- `megaPrompts.test.ts`
+
+**tests/services/**
+
+- `brasilApiService.test.ts`
+- `clientLookupService.test.ts`
+- `competitorService.test.ts`
+- `feedbackRemoteStore.test.ts`
+- `geminiLookupGate.test.ts`
+- `geminiProxy.test.ts`
+- `geminiService.test.ts` — Testes para geminiService.ts
+- `geminiSources.test.ts`
+- `investigation-orchestration.test.ts`
+- `portaParser.test.ts`
+- `portaStateService.test.ts`
+- `radarService.test.ts` — tests/services/radarService.test.ts
+- `ragService.test.ts`
+- `sessionRemoteStore.test.ts`
+- `warRoomCanary.test.ts`
+- `warRoomService.test.ts`
+
+**tests/stores/**
+
+- `chatStore.test.tsx`
+- `dossierStore.test.tsx`
+
+**tests/utils/**
+
+- `auditableSources.test.ts`
+- `chunkRetry.test.ts` — tests/utils/chunkRetry.test.ts
+- `companyNameExtractor.test.ts`
+- `constants.test.ts` — tests/utils/constants.test.ts
+- `conversationHistory.test.ts` — tests/utils/conversationHistory.test.ts
+- `diagnosticLog.test.ts` — tests/utils/diagnosticLog.test.ts
+- `documentExtractor.test.ts`
+- `downloadHelpers.test.ts` — tests/utils/downloadHelpers.test.ts
+- `errorHelpers.test.ts`
+- `featureAccess.test.ts`
+- `featureFlags.test.ts`
+- `helpCenterGuardrails.test.ts`
+- `idbStorage.test.ts` — tests/utils/idbStorage.test.ts
+- `linkFixer.test.ts` — Mock apiConfig para controlar o comportamento de isFakeUrl e findSeniorProductUrl
+- `linkValidation.test.ts` — tests/utils/linkValidation.test.ts
+- `loadingCuriosities.test.ts`
+- `loadingHelpers.test.ts` — tests/utils/loadingHelpers.test.ts
+- `loadingStatus.test.ts`
+- `loadingVariant.test.ts`
+- `markdownLinks.test.ts` — tests/utils/markdownLinks.test.ts
+- `markdownToHtml.test.ts`
+- `mermaid.test.ts`
+- `porta.test.ts`
+- `printExport.test.ts`
+- `privacy.test.ts`
+- `reportUtils.test.ts`
+- `retry.test.ts` — ─── Helpers ──────────────────────────────────────────────────────────────────
+- `sectionParser.test.ts`
+- `seniorEvidence.test.ts`
+- `seniorLinks.test.ts` — tests/utils/seniorLinks.test.ts
+- `sessionTitleHeuristics.test.ts`
+- `socioRuralResearch.test.ts`
+- `textCleaners.test.ts`
+
+**utils/**
+
+- `abortHelpers.ts` — isAbortLikeError
+- `chunkRetry.ts` — loadWithChunkRetry
+- `cnpj.ts` — normalizeCnpj, formatCnpj, isValidCnpj
+- `companyNameExtractor.ts` — "dossiê completo da X", "análise completa da X" · extractCompanyName
+- `conversationHistory.ts` — utils/conversationHistory.ts · saveConversation, getConversationHistory, searchHistory, clearHistory, deleteEntry, ConversationEntry
+- `diagnosticLog.ts` — diagnosticLog.ts — Logs estruturados do Scout360 · isScoutDiagEnabled, scoutDiag
+- `documentExtractor.ts` — isValidPublicUrl, extractHtml, extractPdf, extractDocx, performWebSearch, universalExtract, UniversalExtractResult
+- `downloadHelpers.ts` — Helper robusto para forçar o download de arquivos no navegador. · downloadFile
+- `errorBoundaryAudit.ts` — generateUiErrorId, buildUiErrorReport, persistUiErrorAudit
+- `errorHelpers.ts` — normalizeAppError, getFriendlyErrorMessage
+- `featureAccess.ts` — getFeatureAccess, UserFeatureAccess
+- `featureFlags.ts` — getFlag, FEATURE_FLAGS, FeatureFlagName
+- `friendlyErrorMessage.ts` — QW-2 — Mensagens de erro amigáveis para o vendedor · getFriendlyErrorMessage, toastErrorMessage, ErrorContext
+- `helpCenterGuardrails.ts` — normalizeHelpCenterQuestion, isHelpCenterAllowedQuestion, HelpCenterGuardrailResult
+- `idbStorage.ts` — idbStorage — wrapper seguro sobre localStorage para persistência PWA. · storageSet, storageGet, storageRemove
+- `linkFixer.ts` — linkFixer.ts - Intercepta e corrige links falsos gerados pelo Gemini · fixFakeLinks, fixFakeLinksHTML, cleanFakeSourcesBlock, extractValidLinks, extractAllSourceMentions, rewriteMarkdownLinksToGoogle, autoLinkSeniorTerms
+- `linkValidation.ts` — fetchLinkStatuses, LinkValidationState, LinkValidationResult
+- `loadingCuriosities.ts` — buildLoadingCuriositiesFallback, parseLoadingCuriosities
+- `loadingHelpers.ts` — resetShownFacts, cleanFactPrefix, getNextFact, shuffleArray, getInsightPool, getLongWaitMessages, humanizeStage, getRandomInsight +2
+- `loadingStatus.ts` — toRichStatus, isPhaseTimelineStatus, normalizeLoadingStatus, transitionLoadingProgress, finalizeLoadingProgress, startIncrementalLoadingProgress, statusKey, StatusPhaseKey +2
+- `loadingVariant.ts` — resolveLoadingVariant, resolvePlaceholderLoadingVariant, resolveDeepDiveRequestKind, RequestKind, LoadingVariant
+- `markdownLinks.ts` — rewriteMarkdownLinksToGoogle
+- `markdownToHtml.ts` — convertMarkdownToHTML, simpleMarkdownToHtml
+- `mermaid.ts` — normalizeInlineMermaidClasses, normalizeMermaidBlocks, sanitizeMermaidCode, getDisplayableMermaidCode, isMermaidRenderErrorOutput
+- `messageHelpers.ts` — isGenericCompanyLabel, pickCompanyLabel, resolveHintedCompany, ensureContinuitySuggestions
+- `PDFGenerator.ts` — PDFGenerator — renderização programática com jsPDF (sem html2canvas) · PDFGenerator
+- `porta.ts` — normalizePortaFlags, stripVisiblePortaFeedSections, getPortaCompatibility, stripPortaMarkers, calculatePortaScoreBruto, calculatePortaFlagMultiplier, buildPortaScoreFromFeeds, resolvePortaScore +2
+- `printExport.ts` — renderMarkdownForPrint, buildPrintReportHtml, openPrintReportWindow, PrintReportOptions
+- `privacy.ts` — maskCpf, sanitizeSensitivePersonalData, containsFullCpf
+- `react-dom-shim.d.ts`
+- `reportUtils.ts` — collectFullReport, buildMainDossierExecutiveIntro, generateExecutiveSummary, detectInconsistencies
+- `retry.ts` — withAutoRetry
+- `sectionParser.ts` — parseMarkdownSections, ParsedSection
+- `seniorEvidence.ts` — extractClienteSeniorData, buildSeniorEvidenceContext, appendSeniorEvidenceNote, enforceSeniorEvidenceConstraints
+- `seniorLinks.ts` — ============================================================================ · buildSeniorOrGAtecSearchUrl, findSeniorProductUrl, fixGoogleSearchLinks, fixGoogleSearchLinksHTML, autoLinkSeniorTerms, SENIOR_PRODUCT_URLS, seniorOfficialLinks
+- `sessionExport.ts` — exportSessionsAsJSON, importSessionsFromJSON, isValidBackupFile, getSessionsSize, SessionBackup
+- `socioRuralResearch.ts` — extractPotentialSocioNames, buildSocioRuralSearchQueries, classifySocioRuralEvidence, buildSocioRuralInstructionContext, SocioRuralEvidenceStatus, SocioRuralEvidence
+- `textCleaners.ts` — textCleaners.ts - Utilitários para limpeza e formatação de texto · stripMarkdown, cleanTitle, cleanSuggestionText, cleanStatusMarkers, looksLikeInternalPromptText, detectPromptLeakIndicators, buildPromptLeakFallback, stripInternalMarkers +2
+- `timeGreeting.ts` — Retorna a saudação adequada ao horário atual do dispositivo. · getTimeGreeting
+- `webVerification.ts` — normalizeVerificationStatus, extractPromotableInlineSources, hasVerifiedWebSources, deriveVerificationStatusFromSources, getVerificationLabel, VerifiedSource, ModuleVerificationUpdate
 
 ## Config
 
-| Arquivo                | Linhas | Descrição                |
-| ---------------------- | ------ | ------------------------ |
-| `vite.config.ts`       | 121    | Build, proxy, plugins    |
-| `vitest.config.ts`     | 67     | Test runner config       |
-| `playwright.config.ts` | 90     | E2E tests config         |
-| `eslint.config.js`     | 110    | Linter flat config       |
-| `tailwind.config.js`   | 44     | Tailwind design tokens   |
-| `postcss.config.js`    | 6      | CSS pipeline             |
-| `tsconfig.json`        | —      | TypeScript config        |
-| `vercel.json`          | —      | Vercel deployment config |
-| `.env.example`         | —      | Template de env vars     |
+- `.agent/skills/data/package.json`
+- `.agent/skills/data/skills_index.json`
+- `.agent/skills/data/workflows.json`
+- `.agent/skills/docs/microsoft-skills-attribution.json`
+- `.agent/skills/package.json`
+- `.agent/skills/playwright-skill/package.json`
+- `.agent/skills/postgres-best-practices/metadata.json`
+- `.agent/skills/react-best-practices/metadata.json`
+- `.agent/skills/skills_index.json`
+- `.agent/skills/web-app/package.json`
+- `.claude/settings.json`
+- `.codex/hooks.json`
+- `.github/workflows/caliber.yml`
+- `.github/workflows/ci.yml`
+- `.github/workflows/preview-smoke.yml`
+- `.mcp.json`
+- `.obsidian/core-plugins.json`
+- `.obsidian/graph.json`
+- `docs/archive/environment-curation-2026-04/mcp/fetch.generic.example.json`
+- `docs/archive/environment-curation-2026-04/mcp/playwright.generic.example.json`
+- `docs/obsidian/_meta/manifest.json`
+- `metadata.json`
+- `package.json`
+- `public/manifest.json`
+- `skills-lock.json`
+- `tests/fixtures/dossier/scheffer-04733767000180/case.json`
+- `tests/fixtures/dossier/scheffer-04733767000180/continuity-suggestions.json`
+- `tests/fixtures/dossier/scheffer-04733767000180/lookup.json`
+- `tsconfig.json`
+- `vercel.json`
+
+## Docs
+
+- `AGENTS.md`
+- `ARQUITETURA.md`
+- `CALIBER_LEARNINGS.md`
+- `CLAUDE.md`
+- `CODEBASE_INDEX.md`
+- `DEV_LOCAL_README.md`
+- `docs/GUIA-INICIANTE.md`
+- `docs/PR_WAR_ROOM_HARDENING.md`
+- `docs/SEGURANCA-API.md`
+- `docs/SKILLS-GOVERNANCE.md`
+- `docs/testing-strategy.md`
+- `HANDOFF_AI.md`
+- `PLAN.md`
+- `README.md`
+- `SKILLS_ACTIVE.md`
 
 ---
 
-## API — Serverless Functions (Vercel)
-
-### Públicas (12)
-
-| Arquivo                          | Linhas | Descrição                                            |
-| -------------------------------- | ------ | ---------------------------------------------------- |
-| `api/gemini.ts`                  | 800    | 🧊 Proxy principal LiteLLM + fallback Gemini         |
-| `api/llm-experiment.ts`          | 371    | 🔬 Experiment runner: A/B test de modelos            |
-| `api/socio-search.ts`            | 173    | 🔧 Busca societária                                  |
-| `api/gerar-dossie.ts`            | 130    | 🔧 Geração de dossiê completo                        |
-| `api/rag.ts`                     | 170    | 🔧 RAG com vetores                                   |
-| `api/radar-scan.ts`              | 531    | 🔧 Radar de mercado                                  |
-| `api/cnpj.ts`                    | 64     | 🔧 Validação de CNPJ                                 |
-| `api/extract-content.ts`         | 55     | 🔧 Extração de conteúdo de URLs                      |
-| `api/link-status.ts`             | 111    | 🔧 Verificação de links                              |
-| `api/open-web-search.ts`         | 479    | 🔧 Brave Search API (substituto do Google Grounding) |
-| `api/ping-litellm.ts`            | 72     | 🔧 Health check do proxy LiteLLM                     |
-| `api/cron-email-confirmation.ts` | 86     | 🔧 Cron job de confirmação de email                  |
-
-### Privadas/Utils (6)
-
-| Arquivo                    | Linhas | Descrição                                          |
-| -------------------------- | ------ | -------------------------------------------------- |
-| `api/_llm-client.ts`       | 347    | Cliente HTTP LiteLLM com timeouts, retry, fallback |
-| `api/_experiment-auth.ts`  | 153    | 🔬 Allowlist de operadores para experimentos       |
-| `api/_cors-headers.ts`     | 9      | Headers CORS                                       |
-| `api/_cache-headers.ts`    | 9      | Headers de cache                                   |
-| `api/_allowed-origins.ts`  | 23     | Origens permitidas                                 |
-| `api/_gemini-key-utils.ts` | 13     | Utilitários de chave Gemini                        |
-
----
-
-## Components — UI
-
-### Chat & Mensagens
-
-| Arquivo                    | Linhas | Descrição                            |
-| -------------------------- | ------ | ------------------------------------ |
-| `ChatInterface.tsx`        | 337 🧊 | Container principal do chat          |
-| `MessageRow.tsx`           | 500    | Renderiza mensagem individual        |
-| `MessageActionsBar.tsx`    | 341    | Ações de mensagem (copiar, exportar) |
-| `InlineTypingResponse.tsx` | 79     | Indicador de digitação inline        |
-| `InlineLoadingBubble.tsx`  | 350    | Bubble de loading com animação       |
-| `SectionalBotMessage.tsx`  | 613    | Mensagem bot com seções              |
-| `GhostMessageBlock.tsx`    | 70     | Placeholder de mensagem fantasma     |
-| `FollowUpModal.tsx`        | 248    | Modal de perguntas de acompanhamento |
-
-### Dossiê & Loading
-
-| Arquivo                      | Linhas | Descrição                             |
-| ---------------------------- | ------ | ------------------------------------- |
-| `CofreOverlay.tsx`           | 436    | 🐛 Overlay glassmorphism do cofre     |
-| `DossieSkeletonLoader.tsx`   | 99     | Skeleton loader do dossiê             |
-| `LoadingInsightCarousel.tsx` | 114    | Carrossel de insights durante loading |
-| `LoadingOverlayHeader.tsx`   | 101    | Header do overlay de loading          |
-| `LoadingShared.tsx`          | 52     | Componentes de loading compartilhados |
-| `LoadingSmart.tsx`           | 721    | Loading inteligente com curiosidades  |
-| `LoadingStepsList.tsx`       | 161    | Lista de passos do loading            |
-| `DuplicateDossierModal.tsx`  | 64     | Modal de dossiê duplicado             |
-
-### Score & Radar
-
-| Arquivo                  | Linhas | Descrição                     |
-| ------------------------ | ------ | ----------------------------- |
-| `ScorePorta.tsx`         | 279    | Framework PORTA (5 dimensões) |
-| `ClienteSeniorScore.tsx` | 174    | Score do cliente              |
-| `RadarPanel.tsx`         | 429    | Painel do radar               |
-| `RadarCardHome.tsx`      | 138    | Card do radar na home         |
-| `RadarSettings.tsx`      | 277    | Configurações do radar        |
-| `RadarBell.tsx`          | 72     | Sino de notificações do radar |
-
-### Financeiro & Export
-
-| Arquivo                | Linhas | Descrição                 |
-| ---------------------- | ------ | ------------------------- |
-| `MetricsDashboard.tsx` | 342    | Dashboard de métricas     |
-| `ExportDropdown.tsx`   | 330    | Dropdown de exportação    |
-| `DossierShareBar.tsx`  | 92     | Barra de compartilhamento |
-| `EmailModal.tsx`       | 69     | Modal de email            |
-
-### UX Geral
-
-| Arquivo                       | Linhas | Descrição                       |
-| ----------------------------- | ------ | ------------------------------- |
-| `AuthGate.tsx`                | 48     | Portão de autenticação          |
-| `AuthModal.tsx`               | 295    | Modal de login                  |
-| `SessionsSidebar.tsx`         | 314    | Sidebar de sessões              |
-| `SettingsDrawer.tsx`          | 525    | Gaveta de configurações         |
-| `EmptyStateHome.tsx`          | 644    | Estado vazio da home            |
-| `WelcomeScreen.tsx`           | 213    | Tela de boas-vindas             |
-| `GreetingWelcomeScreen.tsx`   | 255    | Saudação personalizada          |
-| `HeaderSessionSearch.tsx`     | 74     | Header com busca de sessão      |
-| `ErrorBoundary.tsx`           | 147    | Boundary de erro global         |
-| `ErrorMessageCard.tsx`        | 170    | Card de erro                    |
-| `ErrorToast.tsx`              | 146    | Toast de erro                   |
-| `ModuleErrorCards.tsx`        | 63     | Cards de erro por módulo        |
-| `FeedbackSection.tsx`         | 245    | Seção de feedback               |
-| `HelpCenterFloating.tsx`      | 180    | Help center flutuante           |
-| `InvestigationDashboard.tsx`  | 368    | Dashboard de investigação       |
-| `InstallPrompt.tsx`           | 38     | Prompt de instalação PWA        |
-| `MarkdownRenderer.tsx`        | 641    | Renderizador Markdown           |
-| `MigrationBanner.tsx`         | 38     | Banner de migração              |
-| `MigrationNoticeModal.tsx`    | 148    | Modal de aviso de migração      |
-| `SmartOptions.tsx`            | 97     | Opções inteligentes             |
-| `StatusIndicator.tsx`         | 128    | Indicador de status             |
-| `SuspenseWithError.tsx`       | 37     | Suspense com tratamento de erro |
-| `SyncIndicator.tsx`           | 69     | Indicador de sincronização      |
-| `SystemHealthCheck.tsx`       | 458    | Health check do sistema         |
-| `ToastContainer.tsx`          | 51     | Container de toasts             |
-| `Tooltip.tsx`                 | 63     | Tooltip                         |
-| `UpdateNotificationModal.tsx` | 194    | Modal de atualização            |
-| `UserMenu.tsx`                | 121    | Menu do usuário                 |
-| `WarRoom.tsx`                 | 292    | War Room                        |
-| `ConfirmPopover.tsx`          | 69     | Popover de confirmação          |
-| `DeepDiveTopics.tsx`          | 253    | Tópicos de deep dive            |
-| `ClienteSeniorScore.tsx`      | 174    | Score Senior                    |
-
----
-
-## Hooks
-
-| Arquivo                        | Linhas | Descrição                        |
-| ------------------------------ | ------ | -------------------------------- |
-| `useChatActions.ts`            | 21     | Ações do chat simplificadas      |
-| `useChatTheme.ts`              | 22     | Tema do chat                     |
-| `useCofreTransition.ts`        | 218    | 🐛 Transição do cofre (dissolve) |
-| `useInvestigation.ts`          | 225    | Hook de investigação             |
-| `useStaticTimelineFallback.ts` | 359    | Fallback de timeline estática    |
-| `useUpdateNotification.ts`     | 230    | Notificação de atualização       |
-| `useSessionStorage.ts`         | 197    | Armazenamento de sessão          |
-| `useAppInitialization.ts`      | 63     | Inicialização do app             |
-| `useAuthGate.ts`               | 69     | Portão de auth                   |
-| `useEmailModal.ts`             | 108    | Modal de email                   |
-| `useFollowUpModal.ts`          | 79     | Modal de follow-up               |
-| `usePanelState.ts`             | 103    | Estado de painel                 |
-| `usePWA.ts`                    | 127    | PWA install                      |
-| `useOffline.ts`                | 34     | Status offline                   |
-| `useIsMobile.ts`               | 19     | Detecção mobile                  |
-| `useToast.ts`                  | 47     | Toast notifications              |
-| `useTheme.ts`                  | 18     | Tema dark/light                  |
-| `useDebounce.ts`               | 16     | Debounce                         |
-| `useClickBypass.ts`            | 18     | Bypass de clique                 |
-| `useMigrationNotice.ts`        | 25     | Aviso de migração                |
-| `useRadar.ts`                  | 5      | Re-export do hook radar          |
-| `useSessionManager.ts`         | 2      | Re-export                        |
-
----
-
-## Contexts
-
-| Arquivo               | Linhas | Descrição                              |
-| --------------------- | ------ | -------------------------------------- |
-| `OperatorContext.tsx` | 580    | Auth local do operador (login, sessão) |
-| `ModeContext.tsx`     | 57     | Modo da aplicação (operador/admin)     |
-| `AuthContext.tsx`     | 192    | Contexto de autenticação               |
-
----
-
-## Services
-
-| Arquivo                    | Linhas | Descrição                          |
-| -------------------------- | ------ | ---------------------------------- |
-| `geminiService.ts`         | 14 🧊  | Fachada do Gemini API              |
-| `geminiProxy.ts`           | 421    | Proxy de comunicação com LiteLLM   |
-| `warRoomService.ts`        | 5 🧊   | Fachada do War Room                |
-| `clientLookupService.ts`   | 741    | Consulta de clientes               |
-| `competitors.ts`           | 459    | Competidores                       |
-| `competitorService.ts`     | 497    | Serviço de competidores            |
-| `operatorTracking.ts`      | 372    | 🐛 Rastreamento de operador        |
-| `sessionRemoteStore.ts`    | 364    | Store remota de sessões (Supabase) |
-| `portaStateService.ts`     | 231    | Estado do framework PORTA          |
-| `brasilApiService.ts`      | 239    | API Brasil (CNPJ, etc.)            |
-| `exportService.ts`         | 192    | Exportação de relatórios           |
-| `extractContentService.ts` | 100    | Extração de conteúdo               |
-| `ragService.ts`            | 94     | Serviço RAG                        |
-| `apiConfig.ts`             | 58     | Config de APIs                     |
-| `dossierAccessService.ts`  | 65     | Acesso a dossiês                   |
-| `feedbackRemoteStore.ts`   | 61     | Store remota de feedback           |
-| `feedbackService.ts`       | 35     | Serviço de feedback                |
-| `investigationStore.ts`    | 45     | Store de investigação              |
-| `radarService.ts`          | 11     | Serviço do radar                   |
-
----
-
-## Features — Módulos de Domínio
-
-### `features/chat/`
-
-| Arquivo                       | Linhas | Descrição                 |
-| ----------------------------- | ------ | ------------------------- |
-| `message-orchestrator.ts`     | 1001   | Orquestrador de mensagens |
-| `session-controller.ts`       | 328    | Controle de sessão        |
-| `loading-progress.ts`         | 172    | Progresso de loading      |
-| `loading-progress-reducer.ts` | 79     | Redutor de progresso      |
-| `loading-watchdog.ts`         | 166    | Watchdog de loading       |
-| `feedback-actions.ts`         | 174    | Ações de feedback         |
-| `ChatErrorBoundary.tsx`       | 98     | Error boundary do chat    |
-| `message-helpers.ts`          | 7      | Helpers de mensagem       |
-| `session-reuse.ts`            | 21     | Reuso de sessão           |
-
-### `features/dossier/`
-
-| Arquivo                     | Linhas | Descrição                        |
-| --------------------------- | ------ | -------------------------------- |
-| `waterfall-orchestrator.ts` | 2126   | Orquestrador do waterfall (core) |
-| `SocietaryMap.tsx`          | 644    | Mapa societário                  |
-| `societaryGraph.ts`         | 653    | Grafo societário                 |
-| `SocietaryMatrix.tsx`       | 430    | Matriz societária                |
-| `buildSocietaryMermaid.ts`  | 320    | Builder de gráfico Mermaid       |
-| `teiaTextParser.ts`         | 353    | Parser de texto da teia          |
-| `waterfall-socio-search.ts` | 333    | Busca societária no waterfall    |
-| `porta-reconciliation.ts`   | 275    | Reconciliação PORTA              |
-| `waterfall-guard.ts`        | 172    | Guard do waterfall               |
-| `societaryGraph.types.ts`   | 103    | Tipos do grafo societário        |
-| `societaryCategories.ts`    | 58     | Categorias societárias           |
-| `benchmark-stage.ts`        | 54     | Benchmark de estágio             |
-| `DossierErrorBoundary.tsx`  | 123    | Error boundary do dossiê         |
-| `SocietaryMap/utils.ts`     | 93     | Utilitários do mapa              |
-
-### `features/radar/`
-
-| Arquivo       | Linhas | Descrição        |
-| ------------- | ------ | ---------------- |
-| `service.ts`  | 250    | Serviço do radar |
-| `useRadar.ts` | 300    | Hook do radar    |
-| `index.ts`    | 8      | Re-export        |
-| `types.ts`    | 9      | Tipos            |
-
----
-
-## Utilitários — `utils/`
-
-### LLM (Pipeline de IA)
-
-| Arquivo                         | Linhas | Descrição                                |
-| ------------------------------- | ------ | ---------------------------------------- |
-| `utils/llm/modelRouter.ts`      | 167    | Roteamento de modelos (HYBRID_MODEL_MAP) |
-| `utils/llm/modelCatalog.ts`     | 139    | Catálogo de modelos                      |
-| `utils/llm/types.ts`            | 157    | Tipos do pipeline LLM                    |
-| `utils/llm/experiment.ts`       | 156    | Engine de experimentos (A/B)             |
-| `utils/llm/experimentGate.ts`   | 65     | Gate de experimentos                     |
-| `utils/llm/cost.ts`             | 102    | Cálculo de custo                         |
-| `utils/llm/webSearchService.ts` | 182    | Brave Search API                         |
-| `utils/llm/groundingHybrid.ts`  | 100    | Grounding híbrido                        |
-| `utils/llm/reportQuality.ts`    | 131    | Qualidade do relatório                   |
-
-### Diagnóstico
-
-| Arquivo                  | Linhas | Descrição                   |
-| ------------------------ | ------ | --------------------------- |
-| `diagnosticLog.ts`       | 640    | Log de diagnóstico          |
-| `serverDiagnostics.ts`   | 193    | Diagnóstico server-side     |
-| `blankPanelTelemetry.ts` | 277    | Telemetria de painel branco |
-
-### Dossiê & Conteúdo
-
-| Arquivo                    | Linhas | Descrição                 |
-| -------------------------- | ------ | ------------------------- |
-| `reportUtils.ts`           | 564    | Utilitários de relatório  |
-| `documentExtractor.ts`     | 558    | Extrator de documentos    |
-| `porta.ts`                 | 421    | Framework PORTA           |
-| `mermaid.ts`               | 288    | Renderização Mermaid      |
-| `continuitySuggestions.ts` | 268    | Sugestões de continuidade |
-| `linkFixer.ts`             | 251    | Corretor de links         |
-| `seniorEvidence.ts`        | 219    | Evidências Senior         |
-| `seniorLinks.ts`           | 205    | Links Senior              |
-| `dossierSourcePool.ts`     | 117    | Pool de fontes            |
-| `dossierLinkIntegrity.ts`  | 156    | Integridade de links      |
-| `dossierSourcesFooter.ts`  | 43     | Footer de fontes          |
-| `dossierFinalize.ts`       | 26     | Finalização               |
-| `finalizeWaterfallUI.ts`   | 203    | Finalização UI            |
-
-### UX
-
-| Arquivo                    | Linhas | Descrição                  |
-| -------------------------- | ------ | -------------------------- |
-| `loadingStatus.ts`         | 396    | Status de loading          |
-| `loadingSmartViewModel.ts` | 192    | ViewModel do loading smart |
-| `loadingHelpers.ts`        | 153    | Helpers de loading         |
-| `loadingCuriosities.ts`    | 156    | Curiosidades               |
-| `loadingBackoff.ts`        | 12     | Backoff                    |
-| `loadingVariant.ts`        | 56     | Variante                   |
-| `cofreLifecycle.ts`        | 59     | Ciclo de vida do cofre     |
-
-### Segurança & Privacidade
-
-| Arquivo               | Linhas | Descrição                           |
-| --------------------- | ------ | ----------------------------------- |
-| `promptLeakShield.ts` | 150    | Proteção contra vazamento de prompt |
-| `privacy.ts`          | 28     | Privacidade                         |
-| `featureAccess.ts`    | 63     | Acesso a features                   |
-
-### Export
-
-| Arquivo              | Linhas | Descrição                 |
-| -------------------- | ------ | ------------------------- |
-| `printExport.ts`     | 308    | Exportação para impressão |
-| `printExport.css.ts` | 391    | Estilos de impressão      |
-| `sessionExport.ts`   | 110    | Exportação de sessão      |
-
-### Helpers
-
-| Arquivo                    | Linhas | Descrição               |
-| -------------------------- | ------ | ----------------------- |
-| `textCleaners.ts`          | 630    | Limpeza de texto        |
-| `errorHelpers.ts`          | 166    | Helpers de erro         |
-| `friendlyErrorMessage.ts`  | 105    | Mensagens amigáveis     |
-| `conversationHistory.ts`   | 78     | Histórico de conversa   |
-| `markdownToHtml.ts`        | 125    | Markdown → HTML         |
-| `markdownLinks.ts`         | 43     | Links markdown          |
-| `messageHelpers.ts`        | 64     | Helpers de mensagem     |
-| `companyNameExtractor.ts`  | 64     | Extrator de nome        |
-| `socioRuralResearch.ts`    | 133    | Pesquisa rural          |
-| `cnpj.ts`                  | 32     | Validação CNPJ          |
-| `webVerification.ts`       | 144    | Verificação web         |
-| `sectionParser.ts`         | 133    | Parser de seções        |
-| `downloadHelpers.ts`       | 45     | Helpers de download     |
-| `abortHelpers.ts`          | 4      | Helpers de abort        |
-| `chunkRetry.ts`            | 36     | Retry com chunk         |
-| `retry.ts`                 | 73     | Retry genérico          |
-| `localStorage.ts`          | 33     | LocalStorage wrapper    |
-| `timeGreeting.ts`          | 14     | Saudação por horário    |
-| `teiaLegend.ts`            | 17     | Legenda da teia         |
-| `promptResolvers.ts`       | 51     | Resolutores de prompt   |
-| `featureFlags.ts`          | 56     | Feature flags           |
-| `errorBoundaryAudit.ts`    | 37     | Auditoria               |
-| `helpCenterGuardrails.ts`  | 92     | Guardrails              |
-| `renderStateClassifier.ts` | 19     | Classificador de render |
-| `expectedBotContent.ts`    | 16     | Conteúdo esperado       |
-| `react-dom-shim.d.ts`      | 22     | Shim de tipos           |
-
----
-
-## Prompts
-
-| Arquivo                              | Linhas | Descrição                  |
-| ------------------------------------ | ------ | -------------------------- |
-| `prompts/megaPrompts.ts`             | 36 🧊  | Fachada pública de prompts |
-| `prompts/systemPrompts.ts`           | 17 🧊  | Prompts de sistema         |
-| `prompts/mega/foundation.ts`         | 1008   | Prompts fundação (PORTA)   |
-| `prompts/mega/specialist-prompts.ts` | 1953   | Prompts especialistas      |
-| `prompts/mega/builders.ts`           | 331    | Builders de prompt         |
-| `prompts/mega/contracts.ts`          | 17     | Contratos                  |
-| `prompts/mega/teia-deep.ts`          | 231    | Teia deep prompt           |
-| `prompts/mega/teia-identity.ts`      | 146    | Teia identity              |
-
----
-
-## Testes
-
-| Diretório                  | Descrição          |
-| -------------------------- | ------------------ |
-| `tests/api/`               | API serverless     |
-| `tests/components/`        | Componentes        |
-| `tests/components/chat/`   | Chat               |
-| `tests/architecture/`      | Arquiteturais      |
-| `tests/config/`            | Config             |
-| `tests/contexts/`          | Contextos          |
-| `tests/contracts/`         | Contrato           |
-| `tests/features/`          | Features           |
-| `tests/features/chat/`     | Chat feature       |
-| `tests/features/dossier/`  | Dossiê             |
-| `tests/fixtures/`          | Fixtures           |
-| `tests/fixtures/dossier/`  | Fixtures de dossiê |
-| `tests/helpers/`           | Helpers            |
-| `tests/hooks/`             | Hooks              |
-| `tests/lib/`               | Lib                |
-| `tests/lib/supabase/`      | Supabase           |
-| `tests/prompts/`           | Prompts            |
-| `tests/scripts/`           | Scripts            |
-| `tests/services/`          | Serviços           |
-| `tests/services/gemini/`   | Gemini             |
-| `tests/services/war-room/` | War Room           |
-| `tests/stores/`            | Stores             |
-| `tests/utils/`             | Utils              |
-| `tests/utils/llm/`         | LLM utils          |
-
----
-
-## Scripts
-
-| Arquivo                                  | Descrição                  |
-| ---------------------------------------- | -------------------------- |
-| `scripts/check-branch-health.sh`         | Saúde da branch            |
-| `scripts/check-bundle-budget.sh`         | Orçamento de bundle        |
-| `scripts/ensure-playwright.sh`           | Garante Playwright         |
-| `scripts/validate-prompts.sh`            | Valida prompts             |
-| `scripts/validate-preview.sh`            | Valida preview             |
-| `scripts/validate-chat-no-autoscroll.sh` | Sem autoscroll             |
-| `scripts/smoke-preview.mjs`              | Smoke test                 |
-| `scripts/ship-loop-watch.sh`             | Ship loop watch            |
-| `scripts/resolve-pr-threads.py`          | Resolve threads de PR      |
-| `scripts/sentry-mcp.sh`                  | Config Sentry MCP          |
-| `scripts/hook-sensitive-file-alert.sh`   | Alerta de arquivo sensível |
-| `scripts/hooks/completion-check.sh`      | Check de completude        |
-| `scripts/crawlAndIngestSeniorDocs.ts`    | Crawl de docs              |
-| `scripts/ingestCanonicalBanking.ts`      | Ingestão banking           |
-| `scripts/ingestErpDocs.ts`               | Ingestão ERP               |
-| `scripts/ingestExtraDocs.ts`             | Ingestão extra             |
-| `scripts/ingestPdfDocs.ts`               | Ingestão PDF               |
-| `scripts/higienizarPinecone.ts`          | Limpeza Pinecone           |
-| `scripts/test-radar.ts`                  | Teste radar                |
-| `scripts/obsidian/check.mjs`             | Check Obsidian             |
-
----
-
-## Documentação
-
-| Arquivo                | Descrição             |
-| ---------------------- | --------------------- |
-| `CLAUDE.md`            | Instruções do projeto |
-| `AGENTS.md`            | Protocolo de agentes  |
-| `ARQUITETURA.md`       | Arquitetura (Fase 5)  |
-| `CALIBER_LEARNINGS.md` | Lições aprendidas     |
-| `CODEBASE_INDEX.md`    | Este arquivo          |
-| `HANDOFF_AI.md`        | Handoff entre sessões |
-| `docs/wiki/`           | Wiki (33 páginas)     |
-| `docs/obsidian/`       | Documentação Obsidian |
-| `docs/ai-context/`     | Contexto de IA        |
-| `docs/archive/`        | Documentos arquivados |
+_Index: ~21.0k tokens · Full codebase: ~13.1M tokens · Saves ~100%_

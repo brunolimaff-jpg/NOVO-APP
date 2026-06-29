@@ -59,8 +59,8 @@ if [[ "$MODE" == "full" ]]; then
 fi
 
 echo "==> Starting local dev server..."
-echo "Open: http://localhost:3000"
+echo "Open: http://localhost:5173"
 if command -v open >/dev/null 2>&1; then
-  open -a "Google Chrome" "http://localhost:3000" || true
+  open -a "Google Chrome" "http://localhost:5173" || true
 fi
 npm run dev

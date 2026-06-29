@@ -724,6 +724,121 @@ describe('ChatInterface shell regression', () => {
     }
   });
 
+  it('ativa fallback estatico quando existe bot final mas o DOM virtualizado fica branco', async () => {
+    vi.useFakeTimers();
+    reportBlankPanelIfDetectedMock.mockReturnValue({
+      sessionId: 'session-1',
+      source: 'ChatInterface:750ms',
+      route: '/',
+      messageCount: 2,
+      expectedBotCharsMax: 34,
+      isLoading: false,
+      panelState: 'content',
+      showInitialHome: false,
+      shouldSuspendVirtualizedList: false,
+      panelVisible: true,
+      mainPanelChars: 0,
+      rowCount: 0,
+      visibleRowCount: 0,
+      botNodeCount: 0,
+      visibleBotNodeCount: 0,
+      visibleBotWithCharsCount: 0,
+      botCharsMax: 0,
+      dossierNodeVisible: false,
+      controlledErrorVisible: false,
+      emptyStateVisible: false,
+      loadingOverlayVisible: false,
+      inlineBubbleVisible: false,
+      centerElementTag: 'DIV',
+      centerElementTestId: null,
+      centerElementRole: null,
+      centerElementClass: null,
+      suspendedViewportVisible: false,
+      placeholderVisible: false,
+      heroFallbackVisible: false,
+      scrollerHeight: 706,
+      scrollerScrollHeight: 706,
+      scrollerScrollTop: 0,
+      panelRect: { width: 1455, height: 706, top: 116, left: 0, inViewport: true },
+      reason: 'no-message-rows-in-panel',
+      blankDetected: true,
+    });
+
+    try {
+      const messages = [
+        buildMessage('m1', Sender.User, 'Investigar Scheffer'),
+        buildMessage('m2', Sender.Bot, '# Dossiê final disponível para Scheffer'),
+      ];
+
+      render(
+        <ChatInterface
+          {...buildProps({
+            currentSession: buildSession(messages),
+            sessions: [buildSession(messages)],
+            messages,
+            isLoading: false,
+          })}
+        />,
+      );
+
+      await act(async () => {
+        vi.advanceTimersByTime(800);
+      });
+
+      expect(screen.getByTestId('messages-static-fallback')).toBeInTheDocument();
+      expect(warnMock).toHaveBeenCalledWith(
+        'BlankPanel',
+        'static-timeline-fallback-activated',
+        expect.objectContaining({
+          reason: 'no-message-rows-in-panel',
+          delay: 750,
+        }),
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('ativa fallback estatico ao terminar loading com dossiê grande (proativo)', async () => {
+    const largeText = 'D'.repeat(5_000);
+    const loadingMessages: Message[] = [
+      buildMessage('m1', Sender.User, 'Investigar Scheffer'),
+      { ...buildMessage('m2', Sender.Bot, largeText), isThinking: true, loadingVariant: 'hero' },
+    ];
+    const finalMessages: Message[] = [
+      buildMessage('m1', Sender.User, 'Investigar Scheffer'),
+      { ...buildMessage('m2', Sender.Bot, largeText), isThinking: false },
+    ];
+
+    const { rerender } = render(
+      <ChatInterface
+        {...buildProps({
+          currentSession: buildSession(loadingMessages),
+          sessions: [buildSession(loadingMessages)],
+          messages: loadingMessages,
+          isLoading: true,
+          loadingVariant: 'hero',
+        })}
+      />,
+    );
+
+    expect(screen.queryByTestId('messages-viewport-suspended')).not.toBeInTheDocument();
+
+    rerender(
+      <ChatInterface
+        {...buildProps({
+          currentSession: buildSession(finalMessages),
+          sessions: [buildSession(finalMessages)],
+          messages: finalMessages,
+          isLoading: false,
+        })}
+      />,
+    );
+
+    expect(screen.getByTestId('messages-static-fallback')).toBeInTheDocument();
+    expect(screen.queryByTestId('messages-viewport-placeholder')).not.toBeInTheDocument();
+  });
+
   it('não suspende timeline durante hero loading quando preview >= 200 chars', async () => {
     const previewText = 'A'.repeat(201);
     const messages: Message[] = [
@@ -750,6 +865,36 @@ describe('ChatInterface shell regression', () => {
     await waitFor(() => {
       expect(screen.queryByTestId('messages-viewport-suspended')).not.toBeInTheDocument();
       expect(screen.getByTestId('message-row-1')).toBeInTheDocument();
+    });
+  });
+
+  it('mantém viewport suspensa durante hero loading mesmo com dossiê grande (fix: proativo não ativa em loading)', async () => {
+    const largeText = 'D'.repeat(5_000);
+    const messages: Message[] = [
+      buildMessage('m1', Sender.User, 'Investigar Scheffer'),
+      {
+        ...buildMessage('m2', Sender.Bot, largeText),
+        isThinking: true,
+        loadingVariant: 'hero' as const,
+      },
+    ];
+
+    render(
+      <ChatInterface
+        {...buildProps({
+          currentSession: buildSession(messages),
+          sessions: [buildSession(messages)],
+          messages,
+          isLoading: true,
+          loadingVariant: 'hero',
+        })}
+      />,
+    );
+
+    await waitFor(() => {
+      // Durante loading, proativo NÃO ativa → viewport permanece suspensa
+      // Isso evita o "pulo" visual (Virtuoso → static fallback) no meio do loading
+      expect(screen.queryByTestId('messages-static-fallback')).not.toBeInTheDocument();
     });
   });
 

@@ -448,7 +448,6 @@ export async function sendMessageToGemini(
   finalText = enforceSeniorEvidenceConstraints(finalText, empresaAlvo || hintedCompany || '', clienteSeniorData);
   const leakShieldResult = applyPromptLeakShield(finalText, {
     companyHint: empresaAlvo || hintedCompany || '',
-    preserveInternalMarkersWhenSafe: true,
   });
   if (leakShieldResult.blocked) {
     scoutDiag.warn('PromptLeakShield', 'resposta bloqueada por possível vazamento de prompt', {
@@ -553,26 +552,9 @@ export async function generateDossierModule(
 ): Promise<string> {
   const socioRuralContext = buildSocioRuralInstructionContext(empresaAlvo, extraContext);
   const usesFoundationCache = Boolean(options.foundationCacheName);
-  const modelToUse = options.selectedModel || STABLE_RESEARCH_MODEL_ID;
-  const useLiteLLM = Boolean(options.selectedModel);
-  console.error('[TRACE] module:start', { moduleName, useLiteLLM, modelToUse });
-  // LiteLLM providers (OpenAI-compatible) não têm contexto caching do Gemini.
-  // Foundation block DEVE ser incluído no prompt de cada módulo — custo extra de tokens
-  // compensado pela velocidade superior dos modelos LiteLLM (~3-8s vs ~12-25s do Gemini).
-  const effectiveUsesFoundationCache = usesFoundationCache && !useLiteLLM;
-  // OpenAI-compatible providers follow the specialist contract more reliably
-  // when it is the final instruction after the accumulated evidence.
-  const enrichedExtraContext =
-    useLiteLLM && options.groundingContextBlock
-      ? `${options.groundingContextBlock}\n\n${extraContext}`.trim()
-      : extraContext;
-  const dynamicPrompt = useLiteLLM
-    ? `${socioRuralContext}\n\n${enrichedExtraContext}\n\n${specialistPrompt}`.trim()
-    : `${specialistPrompt}\n\n${socioRuralContext}\n\n${extraContext}`.trim();
-  const finalPrompt = effectiveUsesFoundationCache ? dynamicPrompt : `${foundationBlock}\n\n${dynamicPrompt}`;
-  const promptChars = effectiveUsesFoundationCache
-    ? dynamicPrompt.length
-    : `${foundationBlock}\n\n${dynamicPrompt}`.length;
+  const dynamicPrompt = `${specialistPrompt}\n\n${socioRuralContext}\n\n${extraContext}`.trim();
+  const finalPrompt = usesFoundationCache ? dynamicPrompt : `${foundationBlock}\n\n${dynamicPrompt}`;
+  const promptChars = usesFoundationCache ? dynamicPrompt.length : `${foundationBlock}\n\n${dynamicPrompt}`.length;
   const startedAt = Date.now();
 
   scoutDiag.info?.('DossierModule', 'iniciando módulo especializado', {
@@ -592,42 +574,28 @@ export async function generateDossierModule(
     });
   }
 
-  const portaMarkerTemplates = useLiteLLM ? Array.from(new Set(specialistPrompt.match(/^\[\[PORTA.*]]$/gm) ?? [])) : [];
-  const markerReminder = useLiteLLM
-    ? `\n<instrucao_obrigatoria>\nATENÇÃO: Sua resposta DEVE terminar com os markers [[PORTA_*]] conforme o contrato abaixo. Sem esses markers, o dossiê é considerado INCOMPLETO e será rejeitado.\n\nFORMATO EXIGIDO (copie exatamente, preenchendo os valores):\n${
-        portaMarkerTemplates.length > 0
-          ? portaMarkerTemplates.join('\n')
-          : '[[PORTA:PESO:OPERACAO:RETORNO:TECNOLOGIA:ADOCAO]]'
-      }\n\nREGRAS:\n- Cada marker em uma linha separada, no FINAL da resposta\n- Sem texto adicional após o último marker\n- Valores numéricos de 1 a 100\n</instrucao_obrigatoria>`
-    : '';
-  const userTask = `Empresa alvo: ${empresaAlvo}\nGere APENAS o bloco de ${moduleName} com extrema precisão e profundidade comercial.${markerReminder}`;
-  const contents = effectiveUsesFoundationCache ? `${userTask}\n\n${dynamicPrompt}` : userTask;
+  const userTask = `Empresa alvo: ${empresaAlvo}\nGere APENAS o bloco de ${moduleName} com extrema precisão e profundidade comercial.`;
+  const contents = usesFoundationCache ? `${userTask}\n\n${dynamicPrompt}` : userTask;
 
   const response = await runWithStepTimeout(
     `DossierModule:${moduleName}`,
     stepSignal =>
       proxyGenerateContent(
         {
-          model: modelToUse,
+          model: STABLE_RESEARCH_MODEL_ID,
           contents,
-          config: effectiveUsesFoundationCache
+          config: usesFoundationCache
             ? {
                 cachedContent: options.foundationCacheName,
                 temperature: options.temperature ?? 0.2,
                 maxOutputTokens: 8192,
               }
-            : useLiteLLM
-              ? {
-                  systemInstruction: finalPrompt,
-                  temperature: options.temperature ?? 0.2,
-                  maxOutputTokens: 8192,
-                }
-              : {
-                  systemInstruction: finalPrompt,
-                  temperature: options.temperature ?? 0.2,
-                  maxOutputTokens: 8192,
-                  tools: options.useGrounding ? [{ googleSearch: {} }] : undefined,
-                },
+            : {
+                systemInstruction: finalPrompt,
+                temperature: options.temperature ?? 0.2,
+                maxOutputTokens: 8192,
+                tools: options.useGrounding ? [{ googleSearch: {} }] : undefined,
+              },
         },
         stepSignal,
       ),
@@ -648,29 +616,6 @@ export async function generateDossierModule(
     });
   }
   let finalText = sanitizeSensitivePersonalData(shieldedResult.text);
-
-  // Validação de markers PORTA pós-resposta (crítico para LiteLLM que não tem structured output nativo)
-  // TODO(fase-3): adicionar retry com prompt reforçado quando markers ausentes (1 tentativa max).
-  // O orchestration layer será refatorado na Fase 3 (B1/B2) — o retry deve ser integrado ali.
-  if (useLiteLLM) {
-    const portaParsed = parsePortaMarkerV2(finalText);
-    if (!portaParsed) {
-      scoutDiag.warn('DossierModule', 'markers PORTA ausentes na resposta LiteLLM', {
-        moduleName,
-        empresaAlvo,
-        model: modelToUse,
-        responseChars: finalText.length,
-        responseSuffix: finalText.slice(-200),
-      });
-    } else {
-      scoutDiag.info?.('DossierModule', 'markers PORTA validados', {
-        moduleName,
-        model: modelToUse,
-        score: portaParsed.score,
-      });
-    }
-  }
-
   let groundingSources = normalizeGroundingSources(response);
   let verificationStatus: WebVerificationStatus = deriveVerificationStatusFromSources(
     groundingSources,
@@ -698,23 +643,6 @@ export async function generateDossierModule(
       usageMetadata: response.usageMetadata,
     });
   }
-  const llmMetadata = {
-    provider: response._llm_provider,
-    fallbackUsed: response._llm_fallback_used === true,
-    usage: response.usageMetadata,
-  };
-  options.onLlmMetadata?.(llmMetadata, moduleName);
-  const llmLogDetails: Record<string, unknown> = {
-    module: moduleName,
-    provider: response._llm_provider ?? (useLiteLLM ? 'litellm' : 'gemini'),
-    model: modelToUse,
-    fallback_used: response._llm_fallback_used === true,
-  };
-  if (response._llm_fallback_reason) {
-    llmLogDetails.fallback_reason = response._llm_fallback_reason;
-  }
-  console.log('🦅 [Scout360][LLM] module response', llmLogDetails);
-  scoutDiag.info('LLM', 'module response', llmLogDetails);
   scoutDiag.info?.('DossierModule', 'módulo especializado concluído', {
     moduleName,
     empresaAlvo,

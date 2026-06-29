@@ -9,22 +9,10 @@ import {
   preventMigrationNotice,
 } from './helpers/onboarding';
 
-/** Erros de rede/infra + telemetria defensiva Scout360 (console.error intencional, não regressão). */
-const ALLOWED_CONSOLE_ERRORS = [
-  'Failed to load resource',
-  'net::ERR_',
-  'ResizeObserver',
-  '429',
-  '503',
-  '[Scout360]',
-  'safeMessages ZEROU',
-  'MENSAGENS DESAPARECERAM',
-];
+const ALLOWED_CONSOLE_ERRORS = ['Failed to load resource', 'net::ERR_', 'ResizeObserver', '429', '503'];
 
 test.describe('Anti-Regressão: Painel Central Branco', () => {
   test.describe.configure({ timeout: 120_000 });
-
-  test.use({ storageState: { cookies: [], origins: [] } });
 
   const consoleErrors: string[] = [];
   const pageErrors: Error[] = [];
@@ -32,7 +20,7 @@ test.describe('Anti-Regressão: Painel Central Branco', () => {
   test.beforeEach(async ({ page }) => {
     consoleErrors.length = 0;
     pageErrors.length = 0;
-    await setupE2EAuth(page, { uniqueOperator: true });
+    await setupE2EAuth(page);
     await installFastGeminiStubs(page);
 
     page.on('console', msg => {
@@ -43,7 +31,6 @@ test.describe('Anti-Regressão: Painel Central Branco', () => {
 
   async function fullOnboard(page: import('@playwright/test').Page) {
     await completeOnboarding(page);
-    await dismissMigrationNotice(page);
     await page.getByTestId('investigation-company-input').fill(e2eCompanyName());
     await page.getByTestId('investigation-city-input').fill('Cuiabá');
     await page.getByTestId('investigation-uf-input').fill('MT');

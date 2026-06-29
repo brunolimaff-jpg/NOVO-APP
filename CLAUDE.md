@@ -56,14 +56,6 @@ npm run lint       # ESLint
 - Correções de review da mesma PR continuam na mesma branch.
 - Antes de abrir PR, conferir que a branch contém só os arquivos do escopo.
 
-## Fluxo de branches
-
-- Abrir branch nova para cada mudança fechável, partindo de `origin/main`.
-- Usar prefixo por tipo: `feat/`, `fix/`, `docs/`, `refactor/`, `perf/`, `chore/` + descrição curta. Ex: `fix/cnpj-limit`.
-- Não misturar objetivos diferentes na mesma PR.
-- Correções de review da mesma PR continuam na mesma branch.
-- Antes de abrir PR, conferir que a branch contém só os arquivos do escopo.
-
 ## Agent Dispatch
 
 - Bug / erro → `debugger`

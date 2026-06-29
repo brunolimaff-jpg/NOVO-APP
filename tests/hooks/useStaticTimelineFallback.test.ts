@@ -1,6 +1,7 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 
+const LARGE_DOSSIER_STATIC_FALLBACK_CHARS = 4_000;
 const POST_WATERFALL_WATCHDOG_MS = 2_000;
 
 // ── Mocks ──
@@ -25,6 +26,14 @@ vi.mock('../../utils/diagnosticLog', () => ({
 
 vi.mock('../../utils/postWaterfallHandoff', () => ({
   POST_WATERFALL_WATCHDOG_MS: 2_000,
+  shouldApplyProactiveForceStatic: vi.fn(
+    (params: { expectedBotCharsMax: number; showInitialHome: boolean; sessionId: string | null | undefined }) =>
+      Boolean(params.sessionId) && !params.showInitialHome && params.expectedBotCharsMax >= 4_000,
+  ),
+  shouldResetForceStaticOnLoadingStart: vi.fn(
+    (ctx: { expectedBotCharsMax: number; isLoading: boolean; wasLoading: boolean }) =>
+      ctx.isLoading && !ctx.wasLoading && ctx.expectedBotCharsMax < 4_000,
+  ),
   isPostWaterfallStuckHandoff: vi.fn((snapshot: unknown) => {
     const s = snapshot as Record<string, unknown> | null;
     if (!s) return false;
@@ -38,6 +47,8 @@ vi.mock('../../utils/postWaterfallHandoff', () => ({
 }));
 
 vi.mock('../../utils/expectedBotContent', () => ({
+  LARGE_DOSSIER_STATIC_FALLBACK_CHARS: 4_000,
+  shouldPreferStaticTimelineForBotVolume: vi.fn((chars: number) => chars >= 4_000),
   maxExpectedBotChars: vi.fn(() => 0),
 }));
 
@@ -139,52 +150,96 @@ describe('Efeito #3 — Reset ao trocar de sessão', () => {
 });
 
 // ─────────────────────────────────────────────────────
-//  EFETO #3b — Fallback proativo durante waterfall
-// ─────────────────────────────────────────────────────
-
-describe('Efeito #3b — Fallback proativo durante waterfall', () => {
-  beforeEach(() => vi.resetAllMocks());
-
-  it('ativa fallback quando isLoading e bot thinking placeholder', async () => {
-    const useHook = await loadHook();
-    const { result } = renderHook(props => useHook(props), {
-      initialProps: baseParams({ isLoading: true, hasBotThinkingPlaceholder: true }),
-    });
-    expect(result.current.forceStaticTimelineFallback).toBe(true);
-  });
-
-  it('NÃO ativa sem bot thinking placeholder', async () => {
-    const useHook = await loadHook();
-    const { result } = renderHook(props => useHook(props), {
-      initialProps: baseParams({ isLoading: true, hasBotThinkingPlaceholder: false }),
-    });
-    expect(result.current.forceStaticTimelineFallback).toBe(false);
-  });
-});
-
-// ─────────────────────────────────────────────────────
 //  EFETO #4 — Reset ao iniciar loading
 // ─────────────────────────────────────────────────────
 
-describe('Efeito #4 — Reset ao iniciar loading', () => {
+describe('Efeito #4 — Reset ao iniciar loading com dossiê pequeno', () => {
   beforeEach(() => {
     vi.resetAllMocks();
     vi.useFakeTimers();
   });
   afterEach(() => vi.useRealTimers());
 
-  it('reseta fallback quando loading começa', async () => {
+  it('reseta fallback quando loading começa com dossiê pequeno', async () => {
     const useHook = await loadHook();
     const { result, rerender } = renderHook(props => useHook(props), {
-      initialProps: baseParams({ isLoading: false }),
+      initialProps: baseParams({ expectedBotCharsMax: 500, isLoading: false, forceStaticTimelineFallback: true }),
     });
 
     // Fallback está ativo
     act(() => result.current.setForceStaticTimelineFallback(true));
     expect(result.current.forceStaticTimelineFallback).toBe(true);
 
-    // Loading começa — reseta independente do tamanho do dossiê
-    rerender(baseParams({ isLoading: true }));
+    // Loading começa com dossiê pequeno (< 4000 chars)
+    rerender(baseParams({ expectedBotCharsMax: 500, isLoading: true }));
+
+    expect(result.current.forceStaticTimelineFallback).toBe(false);
+  });
+
+  it('NÃO reseta fallback quando loading começa com dossiê grande', async () => {
+    const useHook = await loadHook();
+    const { result, rerender } = renderHook(props => useHook(props), {
+      initialProps: baseParams({ expectedBotCharsMax: 5000, isLoading: false }),
+    });
+
+    // Fallback ativo
+    act(() => result.current.setForceStaticTimelineFallback(true));
+    expect(result.current.forceStaticTimelineFallback).toBe(true);
+
+    // Loading começa mas dossiê já é grande — NÃO resetar
+    rerender(baseParams({ expectedBotCharsMax: 5000, isLoading: true }));
+    expect(result.current.forceStaticTimelineFallback).toBe(true);
+  });
+});
+
+// ─────────────────────────────────────────────────────
+//  EFETO #5 — Força proativa para dossiês grandes
+// ─────────────────────────────────────────────────────
+
+describe('Efeito #5 — Força proativa para dossiês grandes', () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    vi.useFakeTimers();
+  });
+  afterEach(() => vi.useRealTimers());
+
+  it('ativa fallback proativamente quando dossiê atinge ≥4000 chars', async () => {
+    const useHook = await loadHook();
+    const { rerender } = renderHook(props => useHook(props), {
+      initialProps: baseParams({ expectedBotCharsMax: 4000, isLoading: false, showInitialHome: false }),
+    });
+
+    // Não deve ativar ainda — expectedBotCharsMax era 500 no initial render
+    // Rerender com 4000 chars
+    const { result } = renderHook(props => useHook(props), {
+      initialProps: baseParams({ expectedBotCharsMax: 5000, isLoading: false, showInitialHome: false }),
+    });
+
+    act(() => vi.advanceTimersByTime(100));
+    expect(result.current.forceStaticTimelineFallback).toBe(true);
+  });
+
+  it('NÃO ativa proativo quando está na home inicial', async () => {
+    const useHook = await loadHook();
+    const { result } = renderHook(props => useHook(props), {
+      initialProps: baseParams({ expectedBotCharsMax: 5000, isLoading: false, showInitialHome: true }),
+    });
+
+    act(() => vi.advanceTimersByTime(100));
+    expect(result.current.forceStaticTimelineFallback).toBe(false);
+  });
+
+  it('NÃO ativa proativo sem sessionId', async () => {
+    const useHook = await loadHook();
+    const { result } = renderHook(props => useHook(props), {
+      initialProps: baseParams({
+        currentSession: null as unknown as undefined,
+        expectedBotCharsMax: 5000,
+        isLoading: false,
+      }),
+    });
+
+    act(() => vi.advanceTimersByTime(100));
     expect(result.current.forceStaticTimelineFallback).toBe(false);
   });
 });
@@ -194,10 +249,13 @@ describe('Efeito #4 — Reset ao iniciar loading', () => {
 // ─────────────────────────────────────────────────────
 
 describe('Efeito #6 — Watchdog pós-waterfall', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.resetAllMocks();
     vi.useFakeTimers();
     collectBlankPanelSnapshotMock.mockReturnValue(blankSnapshot());
+    // Desativa proativo para isolar o watchdog
+    const { shouldApplyProactiveForceStatic } = await import('../../utils/postWaterfallHandoff');
+    vi.mocked(shouldApplyProactiveForceStatic).mockReturnValue(false);
   });
   afterEach(() => vi.useRealTimers());
 
@@ -228,6 +286,16 @@ describe('Efeito #6 — Watchdog pós-waterfall', () => {
     expect(result.current.forceStaticTimelineFallback).toBe(false);
   });
 
+  it('NÃO dispara se expectedBotCharsMax < 4000', async () => {
+    const useHook = await loadHook();
+    const { result } = renderHook(props => useHook(props), {
+      initialProps: baseParams({ expectedBotCharsMax: 500, isLoading: false }),
+    });
+
+    act(() => vi.advanceTimersByTime(2000));
+    expect(result.current.forceStaticTimelineFallback).toBe(false);
+  });
+
   it('NÃO dispara handoff se snapshot retornar false', async () => {
     const { isPostWaterfallStuckHandoff } = await import('../../utils/postWaterfallHandoff');
     vi.mocked(isPostWaterfallStuckHandoff).mockReturnValue(false);
@@ -249,9 +317,12 @@ describe('Efeito #6 — Watchdog pós-waterfall', () => {
 // ─────────────────────────────────────────────────────
 
 describe('Efeito #7 — Detecção de blank panel (4 delays)', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.resetAllMocks();
     vi.useFakeTimers();
+    // Desativa proativo para isolar blank panel detection
+    const { shouldApplyProactiveForceStatic } = await import('../../utils/postWaterfallHandoff');
+    vi.mocked(shouldApplyProactiveForceStatic).mockReturnValue(false);
   });
   afterEach(() => vi.useRealTimers());
 
@@ -383,13 +454,14 @@ describe('Valores derivados', () => {
   });
   afterEach(() => vi.useRealTimers());
 
-  it('effectiveStaticTimelineFallback = forceStaticTimelineFallback', async () => {
+  it('effectiveStaticTimelineFallback = force || preferStatic', async () => {
     const useHook = await loadHook();
     const { result } = renderHook(props => useHook(props), {
-      initialProps: baseParams({ isLoading: false }),
+      initialProps: baseParams({ expectedBotCharsMax: 500, isLoading: false }),
     });
 
-    // Sem força ativa → effective=false
+    // expectedBotCharsMax=500 < 4000 → preferStatic=false, force=false → effective=false
+    expect(result.current.preferStaticForLargeDossier).toBe(false);
     expect(result.current.effectiveStaticTimelineFallback).toBe(false);
 
     // Força manual
@@ -400,11 +472,13 @@ describe('Valores derivados', () => {
   it('shouldSuspendVirtualizedListForTimeline = suspend && !effective', async () => {
     const useHook = await loadHook();
     const { result } = renderHook(props => useHook(props), {
-      initialProps: baseParams({ isLoading: false, shouldSuspendVirtualizedList: true }),
+      initialProps: baseParams({ expectedBotCharsMax: 5000, isLoading: false, shouldSuspendVirtualizedList: true }),
     });
 
-    // Ativa fallback → effective=true → shouldSuspend = true && !true = false
-    act(() => result.current.setForceStaticTimelineFallback(true));
+    // preferStaticForLargeDossier=true (5000 ≥ 4000, !isLoading, !showInitialHome)
+    // → effectiveStaticTimelineFallback=true
+    // → shouldSuspendVirtualizedListForTimeline = true && !true = false
+    act(() => vi.advanceTimersByTime(100));
     expect(result.current.shouldSuspendVirtualizedListForTimeline).toBe(false);
   });
 });
@@ -419,6 +493,30 @@ describe('Interações entre efeitos', () => {
     vi.useFakeTimers();
   });
   afterEach(() => vi.useRealTimers());
+
+  it('proativo + watchdog não conflitam: proativo ativa primeiro, watchdog não duplica', async () => {
+    const { isPostWaterfallStuckHandoff } = await import('../../utils/postWaterfallHandoff');
+    vi.mocked(isPostWaterfallStuckHandoff).mockReturnValue(true);
+    collectBlankPanelSnapshotMock.mockReturnValue(blankSnapshot());
+
+    const useHook = await loadHook();
+    const { result } = renderHook(props => useHook(props), {
+      initialProps: baseParams({ expectedBotCharsMax: 5000, isLoading: false, showInitialHome: false }),
+    });
+
+    // Efeito #5 (proativo) ativa primeiro
+    act(() => vi.advanceTimersByTime(100));
+    expect(result.current.forceStaticTimelineFallback).toBe(true);
+
+    // Força reset para false
+    act(() => result.current.setForceStaticTimelineFallback(false));
+
+    // Efeito #6 (watchdog) dispara depois
+    act(() => vi.advanceTimersByTime(2000));
+    expect(result.current.forceStaticTimelineFallback).toBe(true);
+
+    // Ambos funcionam, sem race condition
+  });
 
   it('trocar de sessão cancela todos os timers pendentes', async () => {
     reportBlankPanelIfDetectedMock.mockReturnValue(blankSnapshot({ blankDetected: true }));
@@ -442,19 +540,55 @@ describe('Interações entre efeitos', () => {
     expect(reportBlankPanelIfDetectedMock).toHaveBeenCalled();
   });
 
-  it('fallback ativo impede suspensão do viewport virtualizado', async () => {
+  it('fallback proativo ativo impede suspensão do viewport virtualizado', async () => {
     const useHook = await loadHook();
     const { result } = renderHook(props => useHook(props), {
       initialProps: baseParams({
+        expectedBotCharsMax: 5000,
         isLoading: false,
         shouldSuspendVirtualizedList: true,
       }),
     });
 
-    // Ativa fallback manualmente → effective=true → shouldSuspendVirtualizedListForTimeline=false
-    act(() => result.current.setForceStaticTimelineFallback(true));
+    // preferStatic ativo → effective=true → shouldSuspendVirtualizedListForTimeline=false
+    act(() => vi.advanceTimersByTime(100));
     expect(result.current.effectiveStaticTimelineFallback).toBe(true);
     expect(result.current.shouldSuspendVirtualizedListForTimeline).toBe(false);
+  });
+});
+
+// ─────────────────────────────────────────────────────
+//  MENSAGEM GRANDE (MessageTimeline unificação)
+// ─────────────────────────────────────────────────────
+
+describe('hasLargeBotMessage — unificação MessageTimeline', () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    vi.useFakeTimers();
+  });
+  afterEach(() => vi.useRealTimers());
+
+  it('retorna true quando safeMessages tem mensagem do bot ≥4000 chars', async () => {
+    const { maxExpectedBotChars } = await import('../../utils/expectedBotContent');
+    vi.mocked(maxExpectedBotChars).mockReturnValue(5000);
+
+    const useHook = await loadHook();
+    const { result } = renderHook(props => useHook(props), { initialProps: baseParams({ expectedBotCharsMax: 5000 }) });
+
+    // expectedBotCharsMax=5000 ≥ 4000 → shouldPreferStaticTimelineForBotVolume=true → preferStatic=true
+    act(() => vi.advanceTimersByTime(100));
+    expect(result.current.preferStaticForLargeDossier).toBe(true);
+  });
+
+  it('retorna false quando dossiê é pequeno', async () => {
+    const { maxExpectedBotChars } = await import('../../utils/expectedBotContent');
+    vi.mocked(maxExpectedBotChars).mockReturnValue(500);
+
+    const useHook = await loadHook();
+    const { result } = renderHook(props => useHook(props), { initialProps: baseParams({ expectedBotCharsMax: 500 }) });
+
+    act(() => vi.advanceTimersByTime(100));
+    expect(result.current.preferStaticForLargeDossier).toBe(false);
   });
 });
 

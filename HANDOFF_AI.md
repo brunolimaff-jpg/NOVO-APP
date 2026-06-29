@@ -8,7 +8,7 @@
 
 ---
 
-## ESTADO ATUAL
+## Resumo da Sessao
 
 | #   | Tarefa                                                                                              | Status |
 | --- | --------------------------------------------------------------------------------------------------- | ------ |
@@ -20,7 +20,7 @@
 | 6   | Env vars configuradas no Vercel Preview                                                             | ✅     |
 | 7   | Score PORTA null — recalibracao pendente na Fase 5                                                  | ⚠️     |
 
-2 waterwalls validados em producao. 20 commits. Bug do timeout 38s corrigido. Cap 330s removido. Pipeline hibrido funcional.
+## Correcoes aplicadas
 
 | Correcao                                                                                             | Origem              |
 | ---------------------------------------------------------------------------------------------------- | ------------------- |
@@ -66,18 +66,7 @@
 | Freeze UI                    | Sem raf-safety-net-fired                                             |
 | Merge                        | Squash merged em origin/stabilize/from-production-fe6c6f9            |
 
-| SHA        | Descricao                                                                            |
-| ---------- | ------------------------------------------------------------------------------------ |
-| `ffdcf096` | **fix: remover hard-cap 330s do waterfall (timeout 120s por modulo ja basta)**       |
-| `0f179543` | **fix: timeouts cliente LiteLLM 38s/42s -> 120s via VITE_LITELLM_CLIENT_TIMEOUT_MS** |
-| `a9a93d4f` | fix: MAX_LITELLM_REQUEST_TIMEOUT_MS 38s -> 180s (ERA O BUG DA PR DESDE O INICIO)     |
-| `ee141323` | chore: trocar proxy LiteLLM para HOMOLOG                                             |
-| `514a0015` | chore: corrigir timeouts LiteLLM 120s cliente + servidor                             |
-| `e3cb0cad` | feat: moduleName no waterfall + HYBRID_MODEL_MAP por modulo                          |
-| `dc61c013` | feat: DossierModuleError type + ModuleErrorCards component                           |
-| `5c7c36bc` | chore: trigger redeploy com HYBRID_PIPELINE_ENABLED + LITELLM_BASE_URL               |
-| `322b3d7f` | feat: pipeline hibrido Sonnet+DeepSeek + Zero Gemini                                 |
-| `164ad5d3` | feat(llm): checkReportQuality modo lenient para providers nao-Gemini                 |
+## Decisoes desta sessao
 
 - **DI-2026-06-26-01:** Cherry-pick inviavel para commits com dependencias cross-cutting (>25 arquivos), reimplementacao manual
 - **DI-2026-06-26-02:** useStaticTimelineFallback.ts e blankPanelTelemetry.ts sao parte de fe6c6f9, nao scar tissue
@@ -129,11 +118,6 @@
 - Sessao: [[2026-06-26T21-30-00-marathon-sprint1-sprint2|Marathon Sprint 1 + Sprint 2 completas]]
 - Licoes: [[LICOES-APRENDIDAS-MARATHON-SPRINT1-SPRINT2-2026-06-26]]
 
-- **"Ver relatorio completo (+3 secoes)" nao expande ao clicar**
-- Componente: `SectionalBotMessage.tsx`, usa `useDeferredValue`
-- Nao foi causado pelas alteracoes desta PR (bug pre-existente)
-- Commit suspeito: `eea8783c` (Cofre overlay — adicionou useDeferredValue)
-- Vercel Live Feedback (`<vercel-live-feedback>` com z-index 2147483647) estava bloqueando cliques — desativado no painel Vercel
-- Tabbit acionado para debugar, resultado pendente
+## Proximo passo
 
 Iniciar Sprint 3 do plano de profissionalizacao — MCP config + CI gates + refinamentos. A infraestrutura LiteLLM esta deployada em stabilize, pronta para ativacao em HOMOLOG.

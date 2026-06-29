@@ -1,5 +1,4 @@
 import { useCallback, useRef, useState } from 'react';
-import { useToast } from './useToast';
 import { buildInvestigationHiddenPrompt, PROMPT_VERSION } from '../prompts/megaPrompts';
 import { fetchCompanyByCnpj } from '../services/brasilApiService';
 import { storage } from '../services/storage';
@@ -21,8 +20,6 @@ async function safeLogDossierAccess(dossierId: string, operatorId: string, cnpj?
   }
 }
 
-type ToastApi = { error: (message: string) => void };
-
 interface UseInvestigationParams {
   mode: unknown;
   canWarRoom: boolean;
@@ -30,19 +27,6 @@ interface UseInvestigationParams {
   radar?: RadarProps;
   operatorId: string;
   onSelectSession: (sessionId: string) => void;
-  toast?: ToastApi;
-}
-
-const SESSION_LOAD_ERROR_MESSAGE = 'Não foi possível carregar esta sessão';
-
-function notifySessionLoadFailure(
-  toast: ToastApi,
-  dossierId: string,
-  reason: string,
-  details?: Record<string, unknown>,
-): void {
-  scoutDiag.warn('Investigation', reason, { dossierId, ...details });
-  toast.error(SESSION_LOAD_ERROR_MESSAGE);
 }
 
 export function useInvestigation({
@@ -52,10 +36,7 @@ export function useInvestigation({
   radar,
   operatorId,
   onSelectSession,
-  toast: toastFromParent,
 }: UseInvestigationParams) {
-  const { toast: fallbackToast } = useToast();
-  const toast = toastFromParent ?? fallbackToast;
   const [duplicateDossier, setDuplicateDossier] = useState<ExistingDossier | null>(null);
   const pendingPayloadRef = useRef<StartInvestigationPayload | null>(null);
   const processingRef = useRef(false);
@@ -147,17 +128,9 @@ export function useInvestigation({
     try {
       let dossier = await storage.getDossier(dossierId);
       if (!dossier) {
-        if (!supabase) {
-          notifySessionLoadFailure(toast, dossierId, 'Supabase indisponível ao reabrir dossiê');
-          return;
-        }
-        const { data, error } = await supabase.from('dossies').select('content').eq('id', dossierId).maybeSingle();
-        if (error || !data?.content) {
-          notifySessionLoadFailure(toast, dossierId, 'Falha ao carregar dossiê remoto', {
-            supabaseError: error?.code ?? 'unknown',
-          });
-          return;
-        }
+        if (!supabase) return;
+        const { data } = await supabase.from('dossies').select('content').eq('id', dossierId).maybeSingle();
+        if (!data || !data.content) return;
         dossier = data.content as ChatSession;
         await storage.saveDossier(dossier!);
       }
@@ -174,7 +147,7 @@ export function useInvestigation({
     } finally {
       processingRef.current = false;
     }
-  }, [duplicateDossier, operatorId, onSelectSession, toast]);
+  }, [duplicateDossier, operatorId, onSelectSession]);
 
   const handleNewResearchOverride = useCallback(async () => {
     if (processingRef.current) return;

@@ -42,7 +42,6 @@ vi.mock('../hooks/useSessionStorage', () => ({
     setIsInitialized: vi.fn(),
     loadSessions: vi.fn(),
   }),
-  subscribeSessionPersistFailure: vi.fn(() => () => {}),
 }));
 
 vi.mock('../hooks/useUpdateNotification', () => ({

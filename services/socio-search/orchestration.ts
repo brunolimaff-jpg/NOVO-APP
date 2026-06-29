@@ -163,11 +163,6 @@ export async function runSearch(
       let enrichedAnyCnpj = false;
 
       for (const cnpj of unseenRelatedCnpjs) {
-        if (!hasSearchBudget()) {
-          if (companies.length > 0) markTruncated('deadline');
-          else degraded = true;
-          break;
-        }
         if (companies.length >= MAX_COMPANIES) {
           markTruncated('company_limit');
           break;

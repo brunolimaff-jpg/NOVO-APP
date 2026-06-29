@@ -247,42 +247,5 @@ describe('scoutDiag', () => {
 
       vi.useRealTimers();
     });
-
-    it('limita flushes não urgentes a no máximo 1 a cada 500ms', async () => {
-      vi.useFakeTimers();
-
-      const fetchMock = vi.fn<typeof fetch>().mockResolvedValue({ ok: true } as Response);
-      vi.stubGlobal('fetch', fetchMock);
-
-      scoutDiag.warn('PostCompletion', 'evento-1');
-      flushDiagnosticsNow('first');
-      await Promise.resolve();
-      expect(fetchMock).toHaveBeenCalledTimes(1);
-
-      scoutDiag.warn('PostCompletion', 'evento-2');
-      flushDiagnosticsNow('second');
-      await Promise.resolve();
-      expect(fetchMock).toHaveBeenCalledTimes(1);
-
-      await vi.advanceTimersByTimeAsync(500);
-      await Promise.resolve();
-      expect(fetchMock).toHaveBeenCalledTimes(2);
-
-      vi.useRealTimers();
-    });
-
-    it('mantém flush imediato para eventos error', async () => {
-      vi.useFakeTimers();
-
-      const fetchMock = vi.fn<typeof fetch>().mockResolvedValue({ ok: true } as Response);
-      vi.stubGlobal('fetch', fetchMock);
-
-      scoutDiag.error('GeminiService', 'falha crítica');
-      await Promise.resolve();
-
-      expect(fetchMock).toHaveBeenCalledTimes(1);
-
-      vi.useRealTimers();
-    });
   });
 });

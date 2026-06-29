@@ -2,29 +2,31 @@
 grok_wiki: true
 page_id: 'page-rag-reference'
 title: 'Referência de RAG'
-description: 'Contrato consolidado de `/api/rag`, namespaces permitidos, thresholds, sinal sem documentação, cliente `ragService` e uso no War Room.'
+description: 'Contratos de `/api/rag` e `/api/docs-rag`, namespaces permitidos, thresholds, sinal sem documentação, cliente `ragService` e uso no War Room.'
 repository: 'local/NOVO-APP'
 branch: 'default'
 generated_at: '2026-06-08T23:39:43.629Z'
 source_files:
   - 'services/ragService.ts'
   - 'api/rag.ts'
+  - 'api/docs-rag.ts'
   - 'services/war-room/retrieval.ts'
   - 'scripts/ingestPdfDocs.ts'
-  - 'tests/api-rag-docs.test.ts'
+  - 'tests/api-docs-rag.test.ts'
   - 'tests/services/ragService.test.ts'
 ---
 
-A superfície de RAG do Senior Scout 360 passa por uma Vercel Function consolidada (`/api/rag`) e por um cliente browser-safe em `services/ragService.ts`; a UI não fala direto com Pinecone nem com o provedor de embeddings.
+A superfície de RAG do Senior Scout 360 passa por duas Vercel Functions (`/api/rag` e `/api/docs-rag`) e por um cliente browser-safe em `services/ragService.ts`; a UI não fala direto com Pinecone nem com o provedor de embeddings.
 
 ## Superfície implementada
 
-| Camada          | Arquivo                          | Responsabilidade                                                                                        |
-| --------------- | -------------------------------- | ------------------------------------------------------------------------------------------------------- |
-| API consolidada | `api/rag.ts`                     | Busca contexto global sem `namespace` ou documentação indexada em namespaces permitidos.                |
-| Cliente         | `services/ragService.ts`         | Normaliza query, aplica timeout de 15s, retry em 5xx e traduz vazio/sinal sem docs para `failed: true`. |
-| War Room        | `services/war-room/retrieval.ts` | Cacheia, combina, filtra, prioriza e injeta blocos estáticos antes do prompt.                           |
-| Ingestão        | `scripts/*Ingest*.ts`            | Gera embeddings `RETRIEVAL_DOCUMENT` e faz upsert no Pinecone.                                          |
+| Camada         | Arquivo                          | Responsabilidade                                                                                        |
+| -------------- | -------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| API global     | `api/rag.ts`                     | Busca contexto amplo no Pinecone, opcionalmente dentro de `PINECONE_NAMESPACE`.                         |
+| API documental | `api/docs-rag.ts`                | Busca documentação indexada em namespaces permitidos e só retorna contexto textual evidencial.          |
+| Cliente        | `services/ragService.ts`         | Normaliza query, aplica timeout de 15s, retry em 5xx e traduz vazio/sinal sem docs para `failed: true`. |
+| War Room       | `services/war-room/retrieval.ts` | Cacheia, combina, filtra, prioriza e injeta blocos estáticos antes do prompt.                           |
+| Ingestão       | `scripts/*Ingest*.ts`            | Gera embeddings `RETRIEVAL_DOCUMENT` e faz upsert no Pinecone.                                          |
 
 <Note>
 O contrato público do frontend é o endpoint interno e o retorno `{ context, failed }`. Hoje a implementação usa Gemini embeddings e Pinecone, mas a UI fica portável se outro provedor preservar os formatos de request, response e metadata.
@@ -82,29 +84,29 @@ Erros de método retornam `405`. Body inválido retorna `400`. Falha de chave, e
 
 :::
 
-:::endpoint POST /api/rag Documentação indexada para War Room
+:::endpoint POST /api/docs-rag Documentação indexada para War Room
 
-Quando recebe `namespace`, `/api/rag` entra no modo documental e restringe a consulta à allowlist. Esse modo existe para contexto verificável, não para completar respostas com matches fracos.
+`/api/docs-rag` aceita `POST`, roda em runtime `nodejs`, usa `maxDuration = 60` e restringe a consulta a namespaces permitidos. A rota existe para contexto documental verificável, não para completar respostas com matches fracos.
 
 <ParamField body="query" type="string" required>
 Texto de busca. Deve ter entre 1 e 10000 caracteres.
 </ParamField>
 
-<ParamField body="namespace" type="string" required>
-Obrigatório no modo documental e restrito à allowlist. Quando omitido, `/api/rag` executa o modo global; não existe default documental no handler.
+<ParamField body="namespace" type="string">
+Opcional. Quando informado, sobrescreve o namespace configurado, mas precisa estar na allowlist.
 </ParamField>
 
 Namespaces aceitos:
 
-| Namespace         | Uso                                               |
-| ----------------- | ------------------------------------------------- |
-| `senior-erp-docs` | Documentação Senior, padrão enviado pelo cliente. |
-| `competitor-pdfs` | PDFs de concorrentes, usado no modo `benchmark`.  |
+| Namespace         | Uso                                              |
+| ----------------- | ------------------------------------------------ |
+| `senior-erp-docs` | Documentação Senior, padrão da rota.             |
+| `competitor-pdfs` | PDFs de concorrentes, usado no modo `benchmark`. |
 
 <RequestExample>
 
 ```bash
-curl -X POST http://localhost:3000/api/rag \
+curl -X POST http://localhost:3000/api/docs-rag \
   -H 'Content-Type: application/json' \
   -d '{"query":"ERP Banking CNAB conciliação","namespace":"senior-erp-docs"}'
 ```
@@ -118,7 +120,7 @@ Blocos textuais no formato `### <categoria>: <titulo>\n<texto>\n(Fonte: <url>)`.
 </ResponseField>
 
 <ResponseField name="matches" type="array">
-Metadata apenas dos matches com score `>= 0.6`. Itens URL-only podem aparecer para diagnóstico, mas não entram no `context` factual.
+Lista de metadata dos matches retornados pelo Pinecone. É útil para diagnóstico, mas o texto evidencial vem de `context`.
 </ResponseField>
 
 <ResponseExample>
@@ -160,16 +162,16 @@ Namespace inválido retorna `400` com a allowlist:
 
 ## Configuração
 
-| Variável                  | Usada por                             | Default/fallback                                             |
-| ------------------------- | ------------------------------------- | ------------------------------------------------------------ |
-| `GEMINI_API_KEY`          | `/api/rag`, scripts de ingestão       | Obrigatória na API.                                          |
-| `PINECONE_API_KEY`        | `/api/rag`                            | Preferida no modo global; fallback no modo documental.       |
-| `PINECONE_DOCS_KEY`       | `/api/rag`, scripts de docs           | Preferida no modo documental; fallback no modo global.       |
-| `PINECONE_INDEX`          | `/api/rag`                            | `scout-arsenal` se vazio, segredo `pcsk_*` ou nome inválido. |
-| `PINECONE_DOCS_INDEX`     | `/api/rag`, scripts de ingestão       | Preferida no modo documental; fallback `scout-arsenal`.      |
-| `PINECONE_NAMESPACE`      | `/api/rag` global                     | Namespace opcional somente para o modo global.               |
-| `PINECONE_DOCS_NAMESPACE` | `ingestPdfDocs` e scripts de ingestão | Override de ingestão; não seleciona modo docs no runtime.    |
-| `GEMINI_OCR_MODEL`        | `scripts/ingestPdfDocs.ts`            | `gemini-3-flash-preview`.                                    |
+| Variável                  | Usada por                                        | Default/fallback                                                 |
+| ------------------------- | ------------------------------------------------ | ---------------------------------------------------------------- |
+| `GEMINI_API_KEY`          | `/api/rag`, `/api/docs-rag`, scripts de ingestão | Obrigatória nas APIs.                                            |
+| `PINECONE_API_KEY`        | `/api/rag`, fallback de `/api/docs-rag`          | Obrigatória se não houver chave docs.                            |
+| `PINECONE_DOCS_KEY`       | `/api/docs-rag`, scripts de docs                 | Preferida para docs; fallback de `/api/rag`.                     |
+| `PINECONE_INDEX`          | `/api/rag`, fallback de `/api/docs-rag`          | `scout-arsenal` se vazio, segredo `pcsk_*` ou nome inválido.     |
+| `PINECONE_DOCS_INDEX`     | `/api/docs-rag`, scripts de ingestão             | `scout-arsenal`.                                                 |
+| `PINECONE_NAMESPACE`      | `/api/rag`, fallback docs                        | Opcional em `/api/rag`; fallback para docs.                      |
+| `PINECONE_DOCS_NAMESPACE` | `/api/docs-rag`, `ingestPdfDocs`                 | Default docs: `senior-erp-docs`; default PDF: `competitor-pdfs`. |
+| `GEMINI_OCR_MODEL`        | `scripts/ingestPdfDocs.ts`                       | `gemini-3-flash-preview`.                                        |
 
 <Warning>
 Não configure chaves Pinecone com prefixo `VITE_` para o fluxo de API. Os endpoints usam variáveis server-side; variáveis `VITE_*` podem entrar no bundle do frontend.
@@ -179,7 +181,7 @@ Não configure chaves Pinecone com prefixo `VITE_` para o fluxo de API. Os endpo
 
 `buscarContextoPinecone(query, empresaAlvo?)` chama `/api/rag`. Quando `empresaAlvo` existe, a query enviada vira `<empresaAlvo> <query>`.
 
-`buscarContextoDocsPinecone(query, namespace?)` chama `/api/rag` e sempre envia um namespace documental; o default é `senior-erp-docs`.
+`buscarContextoDocsPinecone(query, namespace?)` chama `/api/docs-rag`. O campo `namespace` só entra no payload quando foi passado explicitamente.
 
 Comportamento comum:
 
@@ -221,10 +223,10 @@ Se o contexto ficar vazio ou alguma consulta falhar parcialmente, `docsUnavailab
 
 ## Contrato de metadata para ingestão
 
-O modo documental de `/api/rag` só considera evidência textual quando o match contém `metadata.text` ou `metadata.content`. Metadata apenas com título/categoria/URL continua disponível para diagnóstico, mas não entra em `context`.
+`/api/docs-rag` só considera evidência textual quando o match contém `metadata.text` ou `metadata.content`. Metadata com `titulo`, `categoria` e `url`, mas sem texto indexado, não entra em `context`.
 
 <Check>
-`tests/api-rag-docs.test.ts` protege esse contrato: match forte sem texto retorna o sinal sem documentação, mesmo com score alto.
+`tests/api-docs-rag.test.ts` protege esse contrato: match forte sem texto retorna o sinal sem documentação, mesmo com score alto.
 </Check>
 
 Scripts relevantes:
@@ -259,10 +261,10 @@ Argumentos de `ingestPdfDocs.ts`:
 
 <Steps>
 <Step title="Validar contrato da rota documental">
-Rode o teste específico quando alterar o modo documental de `/api/rag`, thresholds ou metadata de ingestão.
+Rode o teste específico quando alterar `/api/docs-rag`, thresholds ou metadata de ingestão.
 
 ```bash
-npm test -- tests/api-rag-docs.test.ts
+npm test -- tests/api-docs-rag.test.ts
 ```
 
 </Step>
@@ -294,7 +296,7 @@ Sinais comuns:
 | Sinal `[SEM DOCUMENTAÇÃO ENCONTRADA...]` | Sem match, score `< 0.6` ou metadata sem texto      | Inspecionar metadata do namespace consultado.                                       |
 | `Invalid namespace`                      | Namespace fora da allowlist                         | Usar `senior-erp-docs` ou `competitor-pdfs`.                                        |
 | War Room marca Pinecone indisponível     | Todas as consultas vazias ou falha parcial          | Ver `docsUnavailable`, status callbacks e métricas `ragQueries*`.                   |
-| Localhost chama produção                 | Proxy Vite para `/api/rag`                          | Conferir `LOCAL_DEV_API_PROXY_TARGET` e bypass Vercel quando necessário.            |
+| Localhost chama produção                 | Proxy Vite para `/api/rag` e `/api/docs-rag`        | Conferir `LOCAL_DEV_API_PROXY_TARGET` e bypass Vercel quando necessário.            |
 
 ## Related pages
 
@@ -317,7 +319,8 @@ Variáveis `.env`, proxy local, Vercel e fronteiras entre frontend e serverless.
 
 - `services/ragService.ts`
 - `api/rag.ts`
+- `api/docs-rag.ts`
 - `services/war-room/retrieval.ts`
 - `scripts/ingestPdfDocs.ts`
-- `tests/api-rag-docs.test.ts`
+- `tests/api-docs-rag.test.ts`
 - `tests/services/ragService.test.ts`

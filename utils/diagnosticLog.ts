@@ -23,7 +23,6 @@ const DIAG_LOCALSTORAGE_KEY = 'scout_diag_fallback';
 const DIAG_VISIBILITY_KEY = 'scout_diag_visibility';
 const DIAG_LOCALSTORAGE_MAX_KEYS = 5;
 const DIAG_FLUSH_INTERVAL_MS = 5_000;
-const DIAG_FLUSH_MIN_INTERVAL_MS = 500;
 const DIAG_FLUSH_BATCH_SIZE = 10;
 const DIAG_FLUSH_TIMEOUT_MS = 3_000;
 
@@ -54,7 +53,6 @@ let diagSessionId: string | null = null;
 let diagFlushTimer: ReturnType<typeof setTimeout> | null = null;
 let diagFlushing = false;
 let pendingForceFlush = false;
-let lastFlushCompletedAt = 0;
 let heartbeatIntervalId: ReturnType<typeof setInterval> | null = null;
 
 function getDiagnosticsRunId(): string {
@@ -142,7 +140,7 @@ function scheduleFlush(reason: string): void {
       clearTimeout(diagFlushTimer);
       diagFlushTimer = null;
     }
-    void flushToServer(reason, false, true);
+    void flushToServer(reason);
     return;
   }
   if (diagFlushTimer) return; // already scheduled
@@ -152,24 +150,7 @@ function scheduleFlush(reason: string): void {
   }, DIAG_FLUSH_INTERVAL_MS);
 }
 
-function msSinceLastFlush(): number {
-  const elapsed = Date.now() - lastFlushCompletedAt;
-  return elapsed < 0 ? DIAG_FLUSH_MIN_INTERVAL_MS : elapsed;
-}
-
-function deferFlushUntilMinInterval(reason: string, force: boolean, urgent: boolean): void {
-  const waitMs = DIAG_FLUSH_MIN_INTERVAL_MS - msSinceLastFlush();
-  if (diagFlushTimer) return;
-  diagFlushTimer = setTimeout(
-    () => {
-      diagFlushTimer = null;
-      void flushToServer(reason, force, urgent);
-    },
-    Math.max(0, waitMs),
-  );
-}
-
-async function flushToServer(_reason: string, force = false, urgent = false): Promise<void> {
+async function flushToServer(_reason: string, force = false): Promise<void> {
   if (diagFlushing) {
     if (!force) return;
     // force=true: não inicia flush concorrente — agenda dreno pós-flush atual
@@ -178,11 +159,6 @@ async function flushToServer(_reason: string, force = false, urgent = false): Pr
   }
   const buffer = getBuffer();
   if (buffer.length === 0) return;
-
-  if (!urgent && !force && msSinceLastFlush() < DIAG_FLUSH_MIN_INTERVAL_MS) {
-    deferFlushUntilMinInterval(_reason, force, urgent);
-    return;
-  }
 
   diagFlushing = true;
   const events = buffer.splice(0, buffer.length);
@@ -216,7 +192,6 @@ async function flushToServer(_reason: string, force = false, urgent = false): Pr
     saveToLocalStorageFallback(events);
   } finally {
     diagFlushing = false;
-    lastFlushCompletedAt = Date.now();
     // Reagenda se novos eventos chegaram durante o flush
     // ou se um force flush foi solicitado (ex: PostCompletion após finally)
     const needsDrain = getBuffer().length > 0 || pendingForceFlush;
@@ -260,7 +235,7 @@ export function flushDiagnosticsNow(reason: string, force = false): void {
     clearTimeout(diagFlushTimer);
     diagFlushTimer = null;
   }
-  void flushToServer(reason, force, force);
+  void flushToServer(reason, force);
 }
 
 // ── Visibility tracking ─────────────────────────────────────────────

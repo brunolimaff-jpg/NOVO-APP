@@ -33,7 +33,6 @@ export interface UsePanelStateResult {
   hasDossierContent: boolean;
   panelState: PanelState;
   expectedBotCharsMax: number;
-  hasBotThinkingPlaceholder: boolean;
 }
 
 export function usePanelState({
@@ -79,9 +78,6 @@ export function usePanelState({
     hasError: hasErrorInMessages,
   });
   const expectedBotCharsMax = useMemo(() => maxExpectedBotChars(safeMessages), [safeMessages]);
-  const hasBotThinkingPlaceholder = safeMessages.some(
-    message => message.sender === Sender.Bot && !message.isError && Boolean(message.isThinking),
-  );
 
   return {
     safeMessages,
@@ -98,6 +94,5 @@ export function usePanelState({
     hasDossierContent,
     panelState,
     expectedBotCharsMax,
-    hasBotThinkingPlaceholder,
   };
 }

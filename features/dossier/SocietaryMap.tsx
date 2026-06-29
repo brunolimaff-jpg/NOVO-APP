@@ -19,32 +19,12 @@ import {
   countCompaniesByScope,
   describeEvidencePartner,
   describeRelationshipScope,
-  SOCIO_SEARCH_BATCH_SIZE,
-  SOCIO_SEARCH_CLIENT_TIMEOUT_MS,
 } from './SocietaryMap/utils';
 import { isValidCnpj } from '../../utils/cnpj';
 import SocietaryMatrix from './SocietaryMatrix';
 import { createScoutTraceId, isScoutTraceEnabled, scoutDiag } from '../../utils/diagnosticLog';
-import { useOperator } from '../../contexts/OperatorContext';
 
 const MAX_CNAE_LOOKUPS = 24;
-
-function mergeAbortSignals(primary: AbortSignal, timeoutMs: number): AbortSignal {
-  const merged = new AbortController();
-  const abortMerged = () => merged.abort();
-  if (primary.aborted) {
-    abortMerged();
-    return merged.signal;
-  }
-  primary.addEventListener('abort', abortMerged, { once: true });
-  if (typeof AbortSignal.timeout === 'function') {
-    const timeoutSignal = AbortSignal.timeout(timeoutMs);
-    timeoutSignal.addEventListener('abort', abortMerged, { once: true });
-  } else {
-    setTimeout(abortMerged, timeoutMs);
-  }
-  return merged.signal;
-}
 
 interface SocietaryMapProps {
   cnpj?: string | null;
@@ -63,7 +43,6 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({
   traceId,
   traceEnabled,
 }) => {
-  const { operatorId } = useOperator();
   const [state, setState] = useState<LoadState>('idle');
   const [rootData, setRootData] = useState<RootData | null>(null);
   const [companiesByPartner, setCompaniesByPartner] = useState<Record<string, SocietaryCompanyInput[]>>({});
@@ -267,7 +246,7 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({
         uiCommitStrategy: 'incremental_per_partner',
       });
 
-      const BATCH_SIZE = SOCIO_SEARCH_BATCH_SIZE;
+      const BATCH_SIZE = 5;
       const allPartners = rootData!.partners;
 
       const processPartner = async (partner: RootData['partners'][number]) => {
@@ -282,7 +261,6 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({
             partnerKey,
             partnersTotal: allPartners.length,
           });
-          const fetchSignal = mergeAbortSignals(controller.signal, SOCIO_SEARCH_CLIENT_TIMEOUT_MS);
           const response = await fetch('/api/socio-search', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -291,9 +269,8 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({
               rootCompanyName: rootName,
               rootCnpj,
               trace: traceActive || undefined,
-              operatorId,
             }),
-            signal: fetchSignal,
+            signal: controller.signal,
           });
           const payload = response.ok
             ? ((await response.json()) as SocioSearchResponse)
@@ -346,12 +323,9 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({
             }
           }
         } catch (error) {
-          const timedOut =
-            error instanceof Error && /timeout|aborted|abort/i.test(`${error.name || ''} ${error.message || ''}`);
           trace('socio-search falhou no frontend', {
             partnerName: partner.name,
             partnerKey,
-            timedOut,
             message: error instanceof Error ? error.message : String(error),
           });
           if (!cancelled) {
@@ -399,7 +373,7 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({
       cancelled = true;
       controller.abort();
     };
-  }, [rootData, trace, traceActive, operatorId]);
+  }, [rootData, trace, traceActive]);
 
   const graph = useMemo(() => {
     if (!rootData) return null;

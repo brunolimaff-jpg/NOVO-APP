@@ -53,7 +53,6 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
   onDeleteMessage,
   onDeepDive,
   radar,
-  toast,
 }) => {
   const { mode } = useMode();
   const {
@@ -85,7 +84,6 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
     hasDossierContent,
     panelState,
     expectedBotCharsMax,
-    hasBotThinkingPlaceholder,
   } = usePanelState({
     messages,
     currentSession,
@@ -115,7 +113,6 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
     radar,
     operatorId,
     onSelectSession,
-    toast,
   });
 
   const { handleCopyMarkdown, handlePrefillComposer } = useChatActions(safeMessages);
@@ -134,10 +131,10 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
   const theme = useChatTheme(isDarkMode);
 
   const {
-    shouldSuspendVirtualizedListForTimeline,
+    forceStaticTimelineFallback,
+    preferStaticForLargeDossier,
     effectiveStaticTimelineFallback,
-    setForceStaticTimelineFallback,
-    recoveryKey,
+    shouldSuspendVirtualizedListForTimeline,
   } = useStaticTimelineFallback({
     currentSession,
     isLoading,
@@ -151,7 +148,6 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
     hasActiveSession,
     hasDossierContent,
     showOperatorGate,
-    hasBotThinkingPlaceholder,
   });
   // ── Instrumentação: safeMessages vazio com sessão ativa ──
   const prevSafeLenRef = useRef(safeMessages.length);
@@ -247,8 +243,6 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
                 showInitialHome={showInitialHome}
                 shouldSuspendVirtualizedList={shouldSuspendVirtualizedListForTimeline}
                 forceStaticTimelineFallback={effectiveStaticTimelineFallback}
-                onRequestStaticFallback={() => setForceStaticTimelineFallback(true)}
-                recoveryKey={recoveryKey}
                 onConfirmOperatorName={(name, email, existingOperatorId) => {
                   if (existingOperatorId) {
                     linkToExistingOperator(existingOperatorId, name, email);

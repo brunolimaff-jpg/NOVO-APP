@@ -1,5 +1,4 @@
 import { DEEP_DIVE_SOURCES, Message, Sender } from '../../types';
-import { isAbortLikeError } from '../../utils/abortHelpers';
 import { sanitizeHistoryText } from './sanitization';
 
 export type DeepDiveSource = (typeof DEEP_DIVE_SOURCES)[keyof typeof DEEP_DIVE_SOURCES] | 'UNKNOWN';
@@ -146,14 +145,12 @@ export async function runWithStepTimeout<T>(
   }
 
   const timeoutController = new AbortController();
-  let timedOut = false;
   const relayAbort = () => timeoutController.abort();
   signal?.addEventListener('abort', relayAbort, { once: true });
 
   let timeoutHandle: ReturnType<typeof setTimeout> | null = null;
   const timeoutPromise = new Promise<never>((_, reject) => {
     timeoutHandle = setTimeout(() => {
-      timedOut = true;
       timeoutController.abort();
       reject(buildTimeoutError(label, timeoutMs));
     }, timeoutMs);
@@ -161,11 +158,6 @@ export async function runWithStepTimeout<T>(
 
   try {
     return await Promise.race([action(timeoutController.signal), timeoutPromise]);
-  } catch (error) {
-    if (timedOut && isAbortLikeError(error)) {
-      throw buildTimeoutError(label, timeoutMs);
-    }
-    throw error;
   } finally {
     if (timeoutHandle) clearTimeout(timeoutHandle);
     signal?.removeEventListener('abort', relayAbort);

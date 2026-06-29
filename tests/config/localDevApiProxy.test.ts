@@ -11,6 +11,7 @@ describe('local dev API proxy', () => {
         '/api/link-status',
         '/api/extract-content',
         '/api/rag',
+        '/api/docs-rag',
       ]),
     );
   });

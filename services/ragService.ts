@@ -3,9 +3,8 @@ import { scoutDiag } from '../utils/diagnosticLog';
 const RAG_FETCH_TIMEOUT_MS = 15000;
 const RAG_QUERY_MAX_CHARS = 9500;
 
-/** Prefixo retornado pelo modo docs de api/rag.ts quando nao ha documentacao viavel no Pinecone. */
+/** Prefixo retornado por api/docs-rag.ts quando nao ha documentacao viavel no Pinecone. */
 const NO_DOCS_SIGNAL_PREFIX = '[SEM DOCUMENTAÇÃO ENCONTRADA';
-const DEFAULT_DOCS_NAMESPACE = 'senior-erp-docs';
 
 export interface RagResult {
   context: string;
@@ -90,5 +89,5 @@ export function buscarContextoPinecone(query: string, empresaAlvo?: string): Pro
 
 export function buscarContextoDocsPinecone(query: string, namespace?: string): Promise<RagResult> {
   const label = namespace ? `RAG DOCS:${namespace}` : 'RAG DOCS';
-  return fetchRagContext('/api/rag', label, normalizeRagQuery(query), namespace ?? DEFAULT_DOCS_NAMESPACE);
+  return fetchRagContext('/api/docs-rag', label, normalizeRagQuery(query), namespace);
 }

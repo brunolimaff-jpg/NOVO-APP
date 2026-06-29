@@ -33,7 +33,7 @@ A configuração do Senior Scout 360 fica dividida entre variáveis expostas pel
 │  └─ utils/featureFlags.ts: flags VITE_FF_* com fallback hardcoded
 └─ Vercel Functions
    ├─ api/gemini.ts, api/gerar-dossie.ts, api/radar-scan.ts: GEMINI_API_KEY
-   ├─ api/rag.ts: Pinecone + Gemini embeddings, modos global e documental
+   ├─ api/rag.ts, api/docs-rag.ts: Pinecone + Gemini embeddings
    ├─ utils/serverDiagnostics.ts: scout_diagnostics via service role
    └─ services/socio-search/cache.ts: cache persistente Supabase
 ```
@@ -84,26 +84,26 @@ Toda variável com prefixo `VITE_` pode ser inlineada no JavaScript final. Chave
 
 ## Variáveis serverless e de build
 
-| Variável                          | Camada             | Uso                                                                                                     |
-| --------------------------------- | ------------------ | ------------------------------------------------------------------------------------------------------- |
-| `GEMINI_API_KEY`                  | Serverless         | Obrigatória em `/api/gemini`, `/api/gerar-dossie`, `/api/radar-scan`, `/api/rag` e scripts de ingestão. |
-| `GEMINI_API_KEY_FALLBACK`         | Serverless         | Chave reserva para `/api/gemini` e `/api/gerar-dossie` em quota, billing ou permission denied.          |
-| `GEMINI_FOUNDATION_CACHE_ENABLED` | Serverless         | `1` libera ações `createCachedContent` e `deleteCachedContent` em `/api/gemini`; sem ela retorna `403`. |
-| `PINECONE_API_KEY`                | Serverless/scripts | Chave principal de RAG.                                                                                 |
-| `PINECONE_DOCS_KEY`               | Serverless/scripts | Chave alternativa para RAG documental; tem prioridade no modo docs de `/api/rag`.                       |
-| `PINECONE_INDEX`                  | Serverless         | Índice usado por `/api/rag`; fallback para `PINECONE_DOCS_INDEX`.                                       |
-| `PINECONE_DOCS_INDEX`             | Serverless/scripts | Índice documental; default `scout-arsenal` quando ausente ou inválido.                                  |
-| `PINECONE_NAMESPACE`              | Serverless         | Namespace opcional somente do modo global de `/api/rag`.                                                |
-| `PINECONE_DOCS_NAMESPACE`         | Scripts            | Override para ingestão documental; não define namespace no runtime.                                     |
-| `SUPABASE_URL`                    | Serverless         | URL preferida para diagnostics e cache server-side; fallback aceita `VITE_SUPABASE_URL`.                |
-| `SUPABASE_SERVICE_ROLE_KEY`       | Serverless         | Necessária para `scout_diagnostics` e cache persistente de busca societária.                            |
-| `SENTRY_AUTH_TOKEN`               | Build Vite         | Habilita upload de sourcemaps pelo `@sentry/vite-plugin`.                                               |
-| `SENTRY_ORG`                      | Build Vite/scripts | Default `s-3j` no plugin e script MCP.                                                                  |
-| `SENTRY_PROJECT`                  | Build Vite/scripts | Default `scout-360`.                                                                                    |
-| `LOCAL_DEV_API_PROXY_TARGET`      | Vite dev           | Override do alvo remoto do proxy local.                                                                 |
-| `VERCEL_AUTOMATION_BYPASS_SECRET` | Vite dev/scripts   | Adiciona header `x-vercel-protection-bypass` no proxy e smoke de preview.                               |
-| `ALLOWED_ORIGIN`                  | Serverless         | Origem extra permitida por `/api/cnpj` e `/api/comex`.                                                  |
-| `VERCEL_URL`                      | Vercel runtime     | Origem de preview permitida em CORS e build metadata indireto.                                          |
+| Variável                          | Camada             | Uso                                                                                                                      |
+| --------------------------------- | ------------------ | ------------------------------------------------------------------------------------------------------------------------ |
+| `GEMINI_API_KEY`                  | Serverless         | Obrigatória em `/api/gemini`, `/api/gerar-dossie`, `/api/radar-scan`, `/api/rag`, `/api/docs-rag` e scripts de ingestão. |
+| `GEMINI_API_KEY_FALLBACK`         | Serverless         | Chave reserva para `/api/gemini` e `/api/gerar-dossie` em quota, billing ou permission denied.                           |
+| `GEMINI_FOUNDATION_CACHE_ENABLED` | Serverless         | `1` libera ações `createCachedContent` e `deleteCachedContent` em `/api/gemini`; sem ela retorna `403`.                  |
+| `PINECONE_API_KEY`                | Serverless/scripts | Chave principal de RAG.                                                                                                  |
+| `PINECONE_DOCS_KEY`               | Serverless/scripts | Chave alternativa para RAG documental; tem prioridade em `/api/docs-rag`.                                                |
+| `PINECONE_INDEX`                  | Serverless         | Índice usado por `/api/rag`; fallback para `PINECONE_DOCS_INDEX`.                                                        |
+| `PINECONE_DOCS_INDEX`             | Serverless/scripts | Índice documental; default `scout-arsenal` quando ausente ou inválido.                                                   |
+| `PINECONE_NAMESPACE`              | Serverless         | Namespace opcional de `/api/rag`; também fallback de `/api/docs-rag`.                                                    |
+| `PINECONE_DOCS_NAMESPACE`         | Serverless         | Namespace default de `/api/docs-rag`; fallback `senior-erp-docs`.                                                        |
+| `SUPABASE_URL`                    | Serverless         | URL preferida para diagnostics e cache server-side; fallback aceita `VITE_SUPABASE_URL`.                                 |
+| `SUPABASE_SERVICE_ROLE_KEY`       | Serverless         | Necessária para `scout_diagnostics` e cache persistente de busca societária.                                             |
+| `SENTRY_AUTH_TOKEN`               | Build Vite         | Habilita upload de sourcemaps pelo `@sentry/vite-plugin`.                                                                |
+| `SENTRY_ORG`                      | Build Vite/scripts | Default `s-3j` no plugin e script MCP.                                                                                   |
+| `SENTRY_PROJECT`                  | Build Vite/scripts | Default `scout-360`.                                                                                                     |
+| `LOCAL_DEV_API_PROXY_TARGET`      | Vite dev           | Override do alvo remoto do proxy local.                                                                                  |
+| `VERCEL_AUTOMATION_BYPASS_SECRET` | Vite dev/scripts   | Adiciona header `x-vercel-protection-bypass` no proxy e smoke de preview.                                                |
+| `ALLOWED_ORIGIN`                  | Serverless         | Origem extra permitida por `/api/cnpj` e `/api/comex`.                                                                   |
+| `VERCEL_URL`                      | Vercel runtime     | Origem de preview permitida em CORS e build metadata indireto.                                                           |
 
 `BRAVE_SEARCH_API_KEY` aparece no exemplo e em scripts de checagem, mas `/api/open-web-search` no código atual usa DuckDuckGo e extração direta de URL. Não trate Brave como dependência operacional da busca web sem confirmar uma mudança no handler.
 
@@ -132,6 +132,7 @@ Rotas proxadas no `npm run dev`:
 /api/link-status
 /api/extract-content
 /api/rag
+/api/docs-rag
 /api/socio-search
 ```
 
@@ -192,12 +193,12 @@ Sentry é observabilidade de erro, não prova final de saúde visual. Incidentes
 
 ## RAG e Pinecone
 
-`/api/rag` lê Pinecone apenas por `process.env`. O frontend não precisa de chave Pinecone.
+`/api/rag` e `/api/docs-rag` leem Pinecone apenas por `process.env`. O frontend não precisa de chave Pinecone.
 
-| Rota            | Chaves                                    | Índice                                                              | Namespace                              | Degradação                                                                 |
-| --------------- | ----------------------------------------- | ------------------------------------------------------------------- | -------------------------------------- | -------------------------------------------------------------------------- |
-| `/api/rag`      | `PINECONE_API_KEY` ou `PINECONE_DOCS_KEY` | `PINECONE_INDEX` ou `PINECONE_DOCS_INDEX`, fallback `scout-arsenal` | `PINECONE_NAMESPACE` opcional          | Retorna `{ context: "", degraded: true, detail }` em erro.                 |
-| `/api/rag` docs | `PINECONE_DOCS_KEY` ou `PINECONE_API_KEY` | `PINECONE_DOCS_INDEX` ou `PINECONE_INDEX`, fallback `scout-arsenal` | `senior-erp-docs` ou `competitor-pdfs` | Retorna sinal explícito de sem documentação quando não há matches válidos. |
+| Rota            | Chaves                                    | Índice                                                              | Namespace                                                                                             | Degradação                                                                 |
+| --------------- | ----------------------------------------- | ------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
+| `/api/rag`      | `PINECONE_API_KEY` ou `PINECONE_DOCS_KEY` | `PINECONE_INDEX` ou `PINECONE_DOCS_INDEX`, fallback `scout-arsenal` | `PINECONE_NAMESPACE` opcional                                                                         | Retorna `{ context: "", degraded: true, detail }` em erro.                 |
+| `/api/docs-rag` | `PINECONE_DOCS_KEY` ou `PINECONE_API_KEY` | `PINECONE_DOCS_INDEX` ou `PINECONE_INDEX`, fallback `scout-arsenal` | `PINECONE_DOCS_NAMESPACE`, `PINECONE_NAMESPACE` ou `senior-erp-docs`; aceita também `competitor-pdfs` | Retorna sinal explícito de sem documentação quando não há matches válidos. |
 
 ## Exemplo mínimo local
 

@@ -1,11 +1,4 @@
 import { scoutDiag } from '../utils/diagnosticLog';
-import { getSupabaseAuthHeaders } from '../lib/supabaseClient';
-
-let previewOperatorEmail: string | null = null;
-
-export function setPreviewOperatorEmail(email: string | null): void {
-  previewOperatorEmail = email;
-}
 
 type GeminiApiAction = 'generateContent' | 'chatSendMessage' | 'health' | 'createCachedContent' | 'deleteCachedContent';
 
@@ -58,9 +51,6 @@ interface GeminiGenerateResponse {
   text: string;
   candidates?: unknown[];
   usageMetadata?: Record<string, unknown>;
-  _llm_provider?: 'gemini' | 'litellm';
-  _llm_fallback_used?: boolean;
-  _llm_fallback_reason?: string;
 }
 
 interface GeminiCreateCachedContentRequest extends GeminiApiBaseRequest {
@@ -173,25 +163,6 @@ async function callGeminiApi<TResponse>(
   const timeoutMs = Number.isFinite(LLM_PROXY_TIMEOUT_MS) && LLM_PROXY_TIMEOUT_MS > 0 ? LLM_PROXY_TIMEOUT_MS : 90000;
   let timedOut = false;
   const action = typeof payload.action === 'string' ? payload.action : 'unknown';
-  const model =
-    typeof payload === 'object' && payload !== null && 'model' in payload
-      ? String((payload as { model?: unknown }).model ?? '')
-      : '';
-
-  if (signal?.aborted) {
-    console.error('[TRACE] callGeminiApi:signal-aborted-early', { action, model });
-    throw buildAbortError();
-  }
-
-  const controller = new AbortController();
-  const isLiteLLMExperimentRequest = action === 'generateContent' && model.length > 0 && !model.includes('gemini');
-  const experimentGenerateTimeoutMs = Number(import.meta.env.VITE_LITELLM_CLIENT_TIMEOUT_MS || 120_000);
-  const timeoutMs = isLiteLLMExperimentRequest
-    ? experimentGenerateTimeoutMs
-    : Number.isFinite(GEMINI_PROXY_TIMEOUT_MS) && GEMINI_PROXY_TIMEOUT_MS > 0
-      ? GEMINI_PROXY_TIMEOUT_MS
-      : 90000;
-  let timedOut = false;
   const requestClass =
     action === 'generateContent' || action === 'chatSendMessage'
       ? 'ai'
@@ -213,23 +184,9 @@ async function callGeminiApi<TResponse>(
     try {
       scoutDiag.info('LlmProxy', 'request:start', { endpoint, action, requestClass, timeoutMs });
 
-      const authHeaders = await getSupabaseAuthHeaders();
-      const hasAuth = Boolean(authHeaders.Authorization ?? authHeaders.authorization);
-      console.error('[TRACE] pre-fetch', {
-        action,
-        model,
-        hasAuth,
-        signalAborted: signal?.aborted ?? false,
-      });
-
-      if (previewOperatorEmail) {
-        authHeaders['x-experiment-operator-email'] = previewOperatorEmail;
-      }
-
-      console.error('[TRACE] fetch-disparado', { endpoint, action, model });
       response = await fetch(endpoint, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...authHeaders },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
         signal: controller.signal,
       });
@@ -281,16 +238,7 @@ async function callGeminiApi<TResponse>(
     }
 
     const trimmedBody = responseText.trim();
-    if (!trimmedBody) {
-      scoutDiag.warn('GeminiProxy', 'resposta vazia do proxy — possível tela branca', {
-        endpoint,
-        action,
-        requestClass,
-        status: response.status,
-        headers: Object.fromEntries(response.headers.entries()),
-      });
-      return {} as TResponse;
-    }
+    if (!trimmedBody) return {} as TResponse;
 
     try {
       return JSON.parse(trimmedBody) as TResponse;
@@ -314,11 +262,7 @@ export async function proxyGenerateContent(
   params: Omit<GeminiGenerateRequest, 'action'>,
   signal?: AbortSignal,
 ): Promise<GeminiGenerateResponse> {
-  console.error('[TRACE] proxyGenerateContent:entry', {
-    model: params.model,
-    signalAborted: signal?.aborted ?? false,
-    module: params.module ?? null,
-  });
+  // endpoint resolvido lazy — sem const de módulo
   return callGeminiApi<GeminiGenerateResponse>(
     resolveGeminiApiEndpoint(),
     { action: 'generateContent', ...params },

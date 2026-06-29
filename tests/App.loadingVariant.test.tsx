@@ -161,7 +161,6 @@ vi.mock('../hooks/useSessionStorage', () => ({
     setIsInitialized: vi.fn(),
     loadSessions: vi.fn(),
   }),
-  subscribeSessionPersistFailure: vi.fn(() => () => {}),
 }));
 
 vi.mock('../hooks/useUpdateNotification', () => ({
@@ -288,7 +287,6 @@ describe('App loading variant regression', () => {
       expect(screen.getByTestId('chat-loading-variant')).toHaveTextContent('inline');
       expect(screen.getByTestId('chat-pinned-label')).toHaveTextContent('Deep Dive em andamento: Tech Stack');
       expect(screen.queryByTestId('loading-smart')).not.toBeInTheDocument();
-      expect(screen.queryByTestId('cofre-overlay')).not.toBeInTheDocument();
     });
 
     expect(generateDossierModuleMock).not.toHaveBeenCalled();
@@ -307,8 +305,6 @@ describe('App loading variant regression', () => {
       expect(screen.getByTestId('chat-loading-variant')).toHaveTextContent('inline');
       expect(screen.getByTestId('chat-pinned-label')).toHaveTextContent('none');
       expect(screen.queryByTestId('loading-smart')).not.toBeInTheDocument();
-      expect(screen.getByTestId('cofre-overlay')).toHaveAttribute('data-cofre-phase', 'entering');
-      expect(screen.getByTestId('app-shell')).toHaveAttribute('inert');
     });
 
     expect(generateDossierModuleMock).toHaveBeenCalled();

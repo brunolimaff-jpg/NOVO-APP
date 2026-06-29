@@ -70,7 +70,7 @@ export default defineConfig(({ mode }) => {
       generateVersionPlugin(),
       react({
         babel: {
-          plugins: [ReactCompilerPlugin],
+          plugins: mode !== 'production' ? [ReactCompilerPlugin] : [],
         },
       }),
       // PWA/Service Worker removido (PR #334).

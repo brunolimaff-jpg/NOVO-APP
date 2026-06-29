@@ -1,12 +1,8 @@
-console.error('BUILD_TS_20260623_1840_gemini_v3_FORCE_CACHE_MISS');
-
 import { GoogleGenAI, ThinkingLevel as GeminiSdkThinkingLevel } from '@google/genai';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { z } from 'zod';
 
 import { insertDiagnosticsBatch, MAX_EVENTS_PER_BATCH } from '../utils/serverDiagnostics.js';
-import { scoutDiag } from '../utils/diagnosticLog.js';
-import { callLiteLLM, isFallbackEnabled, isLiteLLMEnabled } from './_llm-client.js';
 import { isQuotaExhausted, isBillingOrPermissionDenied } from './_gemini-key-utils.js';
 import { applyCors } from './_cors-headers.js';
 import { isLiteLLMEnabled, callLiteLLM } from './_llm-client.js';
@@ -62,8 +58,6 @@ const LONG_CHAT_TIMEOUT_MS = 180_000;
 const DEFAULT_GEMINI_MODEL = 'gemini-3-flash-preview';
 const INTERNAL_MARKER_REGEX = /\[\[\s*[A-Z_]+\s*:[\s\S]*?\]\]/gi;
 const INTERNAL_MARKER_OPEN_TAIL_REGEX = /\[\[\s*[A-Z_]+\s*:[\s\S]*$/i;
-const SAFE_MACHINE_MARKER_REGEX = /^\[\[\s*(?:PORTA(?:_[A-Z_]+)?|TEIA_COMPLEXIDADE)\s*:/i;
-const SAFE_MACHINE_MARKER_GLOBAL_REGEX = /\[\[\s*(?:PORTA(?:_[A-Z_]+)?|TEIA_COMPLEXIDADE)\s*:[\s\S]*?\]\]/gi;
 const HARD_PROMPT_LEAK_PATTERNS: RegExp[] = [
   /\[\[\s*[A-Z_]+\s*:[\s\S]*?\]\]/i,
   /investigacao_completa_integrada/i,
@@ -79,20 +73,10 @@ const SOFT_PROMPT_LEAK_PATTERNS: RegExp[] = [
   /priorize objetividade.*fontes audit[aá]veis/i,
 ];
 
-function stripInternalMarkersLocal(text: string, preserveSafeMarkers = false): string {
-  if (!preserveSafeMarkers) {
-    return (text || '')
-      .replace(INTERNAL_MARKER_REGEX, '')
-      .replace(INTERNAL_MARKER_OPEN_TAIL_REGEX, '')
-      .replace(/\n{3,}/g, '\n\n')
-      .replace(/^\s*\]\s*$/gm, '')
-      .trim();
-  }
+function stripInternalMarkersLocal(text: string): string {
   return (text || '')
-    .replace(INTERNAL_MARKER_REGEX, marker => (SAFE_MACHINE_MARKER_REGEX.test(marker) ? marker : ''))
-    .replace(INTERNAL_MARKER_OPEN_TAIL_REGEX, marker =>
-      SAFE_MACHINE_MARKER_REGEX.test(marker) && marker.trimEnd().endsWith(']]') ? marker : '',
-    )
+    .replace(INTERNAL_MARKER_REGEX, '')
+    .replace(INTERNAL_MARKER_OPEN_TAIL_REGEX, '')
     .replace(/\n{3,}/g, '\n\n')
     .replace(/^\s*\]\s*$/gm, '')
     .trim();
@@ -110,18 +94,14 @@ function detectPromptLeakIndicatorsLocal(text: string): { detected: boolean; ind
   };
 }
 
-function applyPromptLeakShieldLocal(
-  text: string,
-  preserveSafeMarkers = false,
-): {
+function applyPromptLeakShieldLocal(text: string): {
   text: string;
   blocked: boolean;
   indicators: string[];
 } {
-  const cleaned = stripInternalMarkersLocal(text || '', preserveSafeMarkers);
+  const cleaned = stripInternalMarkersLocal(text || '');
   const sample = cleaned || (text || '').trim();
-  const detectionSample = preserveSafeMarkers ? sample.replace(SAFE_MACHINE_MARKER_GLOBAL_REGEX, '').trim() : sample;
-  const detection = detectPromptLeakIndicatorsLocal(detectionSample);
+  const detection = detectPromptLeakIndicatorsLocal(sample);
 
   if (!detection.detected) {
     return { text: sample, blocked: false, indicators: [] };
@@ -224,186 +204,7 @@ function extractGeminiHttpStatus(error: unknown): number {
 }
 
 type ParsedBody = z.infer<typeof GeminiRequestSchema>;
-type GenerateContentBody = Extract<ParsedBody, { action: 'generateContent' }>;
 type ThinkingLevelInput = z.infer<typeof ThinkingLevelSchema>;
-
-function contentsToUserText(contents: unknown): string {
-  if (typeof contents === 'string') return contents;
-  if (Array.isArray(contents)) {
-    return (contents as Array<{ text?: string }>)
-      .map(part => part?.text || '')
-      .filter(Boolean)
-      .join('\n');
-  }
-  return '';
-}
-
-function extractGenerateContentWatermark(contents: unknown): {
-  contentsStr: string;
-  srvModuleName: string | null;
-  srvRunId: string;
-} {
-  const contentsStr = contentsToUserText(contents);
-  const srvModuleMatch = contentsStr.match(/bloco de ([^.\n]+)/i);
-  return {
-    contentsStr,
-    srvModuleName: srvModuleMatch?.[1]?.trim() || null,
-    srvRunId: `srv-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`,
-  };
-}
-
-async function logGenerateContentModuleEnd(
-  srvModuleName: string | null,
-  srvRunId: string,
-  model: string,
-): Promise<void> {
-  if (!srvModuleName) return;
-  void insertDiagnosticsBatch({ runId: srvRunId, route: '/api/gemini', events: [] }, [
-    {
-      at: new Date().toISOString(),
-      t: Date.now(),
-      runId: srvRunId,
-      area: 'ServerWaterfall',
-      event: 'module:end',
-      severity: 'info',
-      payload: { module: srvModuleName, model },
-    },
-  ]);
-}
-
-async function runGeminiGenerateContent(
-  ai: GoogleGenAI,
-  body: GenerateContentBody,
-): Promise<{ text: string; candidates: unknown[]; usageMetadata?: Record<string, unknown> }> {
-  const model = body.model ?? DEFAULT_GEMINI_MODEL;
-  const contents = body.contents;
-  const configIn = (body.config ?? {}) as Record<string, unknown>;
-  const genConfig: Record<string, unknown> = {
-    temperature: toNumberSafe(configIn.temperature, 0.2),
-    maxOutputTokens: toNumberSafe(configIn.maxOutputTokens, 65536),
-  };
-
-  if (typeof configIn.responseMimeType === 'string') genConfig.responseMimeType = configIn.responseMimeType;
-  if (typeof configIn.cachedContent === 'string') {
-    genConfig.cachedContent = configIn.cachedContent;
-    if (configIn.systemInstruction !== undefined) {
-      console.warn('[GeminiProxy] cachedContent ignorou systemInstruction no generateContent');
-    }
-    if (Array.isArray(configIn.tools) && configIn.tools.length > 0) {
-      console.warn('[GeminiProxy] cachedContent ignorou tools no generateContent; use tools em createCachedContent');
-    }
-    if (configIn.toolConfig !== undefined) {
-      console.warn('[GeminiProxy] cachedContent ignorou toolConfig no generateContent');
-    }
-  } else {
-    if (typeof configIn.systemInstruction === 'string') {
-      genConfig.systemInstruction = configIn.systemInstruction;
-    }
-    if (Array.isArray(configIn.tools)) genConfig.tools = configIn.tools;
-    if (configIn.toolConfig !== undefined) genConfig.toolConfig = configIn.toolConfig;
-  }
-
-  const response = await ai.models.generateContent({
-    model,
-    contents: contents as Parameters<typeof ai.models.generateContent>[0]['contents'],
-    config: genConfig,
-  });
-
-  return {
-    text: extractGeminiText(response),
-    candidates: response.candidates || [],
-    usageMetadata: extractUsageMetadata(response),
-  };
-}
-
-async function executeLiteLLMGenerateContent(
-  ai: GoogleGenAI,
-  body: GenerateContentBody,
-  res: VercelResponse,
-  signal?: AbortSignal,
-): Promise<VercelResponse> {
-  const model = body.model ?? DEFAULT_GEMINI_MODEL;
-  const contents = body.contents;
-  const { srvModuleName, srvRunId } = extractGenerateContentWatermark(contents);
-
-  if (!contents) {
-    return res.status(400).json({ error: 'Missing contents' });
-  }
-
-  const configIn = (body.config ?? {}) as Record<string, unknown>;
-  const temperature = toNumberSafe(configIn.temperature, 0.2);
-  const maxOutputTokens = toNumberSafe(configIn.maxOutputTokens, 8192);
-  const systemInstruction = typeof configIn.systemInstruction === 'string' ? configIn.systemInstruction : undefined;
-  const userContent = contentsToUserText(contents);
-
-  const respondWithError = (reason: string, modelId: string, errorDetail: string) => {
-    console.error(`[GeminiProxy] ❌ LiteLLM falhou sem fallback (${reason})`, { model: modelId, error: errorDetail });
-    return res.status(502).json({
-      text: '',
-      _llm_provider: 'litellm',
-      _llm_error: true,
-      _llm_error_reason: reason,
-      _llm_error_model: modelId,
-      _llm_error_detail: errorDetail.slice(0, 500),
-      _llm_error_timestamp: new Date().toISOString(),
-    });
-  };
-
-  try {
-    const litellmResult = await callLiteLLM({
-      model,
-      systemInstruction,
-      userContent,
-      temperature,
-      maxOutputTokens,
-      signal,
-    });
-
-    const leakShieldResult = applyPromptLeakShieldLocal(litellmResult.text, true);
-    if (leakShieldResult.blocked) {
-      console.warn('[PromptLeakShield][api/gemini] resposta LiteLLM bloqueada', {
-        action: body.action,
-        model,
-        indicators: leakShieldResult.indicators,
-      });
-      return respondWithError('leak_shield_blocked', model, 'Conteúdo bloqueado pelo leak shield');
-    }
-
-    const finalText = leakShieldResult.blocked ? '' : leakShieldResult.text.trim();
-    if (!finalText) {
-      await logGenerateContentModuleEnd(srvModuleName, srvRunId, model);
-      return respondWithError('empty_response', model, 'LiteLLM returned an empty or blocked response');
-    }
-
-    await logGenerateContentModuleEnd(srvModuleName, srvRunId, model);
-    return res.status(200).json({
-      text: finalText,
-      candidates: [],
-      usageMetadata: litellmResult.usage,
-      groundingChunks: [],
-      _llm_provider: 'litellm',
-    });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : 'Unknown LiteLLM error';
-    const stack = error instanceof Error ? error.stack : undefined;
-    const cause = error instanceof Error ? (error as Error & { cause?: unknown }).cause : undefined;
-    console.error('[GeminiProxy] LiteLLM generateContent FALHOU', {
-      message,
-      model,
-      hasBaseUrl: !!process.env.LITELLM_BASE_URL,
-      hasApiKey: !!process.env.LITELLM_API_KEY,
-      timeout: process.env.LITELLM_REQUEST_TIMEOUT_MS,
-      cause: cause instanceof Error ? { message: cause.message, name: cause.name } : cause,
-      errorName: error instanceof Error ? error.name : typeof error,
-      errorConstructor: error?.constructor?.name,
-      stackTop: stack?.split('\n').slice(0, 4).join('\n'),
-    });
-    if (!isFallbackEnabled()) {
-      throw error;
-    }
-    return respondWithError('error', model, message);
-  }
-}
 
 function resolveThinkingLevel(thinkingLevel?: ThinkingLevelInput, thinkingMode?: boolean): ThinkingLevelInput {
   if (thinkingLevel) return thinkingLevel;
@@ -418,12 +219,7 @@ function toSdkThinkingLevel(thinkingLevel: ThinkingLevelInput): GeminiSdkThinkin
   return GeminiSdkThinkingLevel.HIGH;
 }
 
-async function executeGeminiAction(
-  ai: GoogleGenAI,
-  body: ParsedBody,
-  req: VercelRequest,
-  res: VercelResponse,
-): Promise<VercelResponse> {
+async function executeGeminiAction(ai: GoogleGenAI, body: ParsedBody, res: VercelResponse): Promise<VercelResponse> {
   switch (body.action) {
     case 'health': {
       const response = await ai.models.generateContent({
@@ -562,10 +358,31 @@ async function executeGeminiAction(
         if (configIn.toolConfig !== undefined) genConfig.toolConfig = configIn.toolConfig;
       }
 
-      const geminiResult = await runGeminiGenerateContent(ai, body);
-      await logGenerateContentModuleEnd(srvModuleName, srvRunId, model);
+      const response = await ai.models.generateContent({
+        model,
+        contents,
+        config: genConfig,
+      });
 
-      return res.status(200).json(geminiResult);
+      if (srvModuleName) {
+        void insertDiagnosticsBatch({ runId: srvRunId, route: '/api/gemini', events: [] }, [
+          {
+            at: new Date().toISOString(),
+            t: Date.now(),
+            runId: srvRunId,
+            area: 'ServerWaterfall',
+            event: 'module:end',
+            severity: 'info',
+            payload: { module: srvModuleName, model },
+          },
+        ]);
+      }
+
+      return res.status(200).json({
+        text: extractGeminiText(response),
+        candidates: response.candidates || [],
+        usageMetadata: extractUsageMetadata(response),
+      });
     }
 
     case 'createCachedContent': {
@@ -822,22 +639,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     const body = parsed.data;
-    const model = body.action === 'generateContent' ? body.model : undefined;
-    const isGeminiModel = !model || model.includes('gemini');
-
-    // Pula getApiKeys quando o modelo não é Gemini (ex: rota LiteLLM).
-    // executeGeminiAction já roteia modelos não-Gemini para callLiteLLM sem usar o objeto ai.
-    if (!isGeminiModel) {
-      return await executeGeminiAction(null!, body, req, res);
-    }
-
     const keys = getApiKeys();
     let lastError: unknown;
 
     for (let i = 0; i < keys.length; i++) {
       try {
         const ai = new GoogleGenAI({ apiKey: keys[i] });
-        return await executeGeminiAction(ai, body, req, res);
+        return await executeGeminiAction(ai, body, res);
       } catch (error: unknown) {
         const hasNextKey = i < keys.length - 1;
         if ((isQuotaExhausted(error) || isBillingOrPermissionDenied(error)) && hasNextKey) {
