@@ -162,6 +162,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       degraded: true,
       detail: message,
       providerStatus: [{ provider: 'duckduckgo', ok: false, reason: 'unknown' }],
+      ...(isDebugSearch() ? { _searchTelemetry: getSearchTelemetrySnapshot() } : {}),
     });
   }
 }

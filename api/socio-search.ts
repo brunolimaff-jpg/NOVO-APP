@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { applyCors } from './_cors-headers.js';
 import { scoutDiag } from '../utils/diagnosticLog.js';
-import { initSearchTelemetry } from '../utils/searchTelemetry.js';
+import { initSearchTelemetry, getSearchTelemetrySnapshot } from '../utils/searchTelemetry.js';
 import { isDebugSearch } from '../utils/feature-flags.js';
 import {
   type SocioSearchResponse,
@@ -117,7 +117,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         })
       : stripTrace(payload);
 
-    return res.status(200).json(responsePayload);
+    return res.status(200).json({
+      ...responsePayload,
+      ...(isDebugSearch() ? { _searchTelemetry: getSearchTelemetrySnapshot() } : {}),
+    });
   } catch (error) {
     scoutDiag.warn('SocioSearch', 'falha no drill-down de socio', {
       socioName: parsed.data.socioName,
@@ -138,15 +141,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       },
       detail: 'Busca societaria indisponivel no momento.',
     };
-    return res.status(200).json(
-      wantsTrace
-        ? withTraceCache(fallbackPayload, {
-            required: persistentCacheRequired,
-            configured: hasPersistentConfig,
-            status: cacheTraceStatus,
-            source: cacheTraceSource,
-          })
-        : fallbackPayload,
-    );
+    const body = wantsTrace
+      ? withTraceCache(fallbackPayload, {
+          required: persistentCacheRequired,
+          configured: hasPersistentConfig,
+          status: cacheTraceStatus,
+          source: cacheTraceSource,
+        })
+      : fallbackPayload;
+    return res.status(200).json({
+      ...body,
+      ...(isDebugSearch() ? { _searchTelemetry: getSearchTelemetrySnapshot() } : {}),
+    });
   }
 }
