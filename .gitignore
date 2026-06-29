@@ -66,3 +66,5 @@ vercel_build_tag.json
 # Audit/review artifacts (não comitar)
 .audit-pr386/
 .superhuman/
+
+
