@@ -302,7 +302,7 @@ async function executeGeminiAction(ai: GoogleGenAI, body: ParsedBody, res: Verce
             temperature: temperature,
             maxTokens: maxTokens,
           });
-          return res.status(200).json({ text });
+          return res.status(200).json({ text, _model: resolvedModel });
         } catch (err) {
           console.error('LiteLLM call failed:', err);
           return res
