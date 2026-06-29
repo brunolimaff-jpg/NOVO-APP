@@ -15,7 +15,7 @@ import {
   PROMPT_VERSION,
   SHARED_FOUNDATION_BLOCK,
 } from '../../prompts/megaPrompts';
-import { generateContinuityQuestion, generateDossierModule } from '../../services/geminiService';
+import { generateContinuityQuestion, generateDossierModule } from '../../services/llmService';
 import {
   buildDynamicDossierContext,
   buildStaticDossierContext,
@@ -23,7 +23,7 @@ import {
   deleteWaterfallFoundationCache,
   isFoundationCacheEnabled,
   joinDossierExtraContext,
-} from '../../services/gemini/foundation-cache';
+} from '../../services/llm/foundation-cache';
 import { formatarParaPrompt, lookupCliente } from '../../services/clientLookupService';
 import { getContextoConcorrentesRegionais } from '../../services/competitorService';
 import { generatePortaContextForDeepDive } from '../../services/portaStateService';
@@ -407,10 +407,13 @@ async function validateInlineSourcesForPromotionCore(
       signal: controller.signal,
     });
 
+    // Prevent unhandled rejection when Promise.race discards this promise
     fetchPromise.catch((err: unknown) => {
-      scoutDiag.warn('FreezeDiag', 'inline-validation:fetch:race-discarded', {
-        reason: err instanceof Error ? err.message : String(err),
-      });
+      if (!isAbortLikeError(err)) {
+        scoutDiag.warn('FreezeDiag', 'inline-validation:fetch:race-discarded', {
+          reason: err instanceof Error ? err.message : String(err),
+        });
+      }
     });
 
     const response = await withInlineValidationBudget(
@@ -881,7 +884,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
         };
 
         const sharedDossierModuleOptions = {
-          useGrounding: true as const,
+          useGrounding: false,
           onGroundingSources: appendGroundingSources,
           onVerificationStatus: rememberVerificationStatus,
           onLlmMetadata: (metadata: {

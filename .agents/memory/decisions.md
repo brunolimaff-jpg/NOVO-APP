@@ -1,6 +1,122 @@
 # decisions.md — NOVO-APP
 
-## ARQUITETURA FINAL (consolidado Fase 5 — 2026-06-24)
+## Novas Decisoes (Sessao 2026-06-26 — Sprint 2: infraestrutura LiteLLM)
+
+### DI-2026-06-26-06: Foundation cache desliga com pipeline hibrido ativo
+
+- **Decisao:** `isFoundationCacheEnabled()` retorna `false` quando `VITE_HYBRID_PIPELINE_ENABLED=1`. Foundation cache e incompativel com proxy LiteLLM — ferramentas de grounding sao descartadas pelo proxy desde maio/2026.
+- **Contexto:** O foundation cache do Gemini usa ferramentas de grounding (Google Search). O proxy LiteLLM (versao atual homolog) descarta ferramentas nao-suportadas silenciosamente. Com o cache ativo, o Gemini respondia sem grounding mesmo quando `useGrounding=true`. A solucao foi desligar o foundation cache automaticamente quando o pipeline hibrido esta ativo.
+- **Impacto:** Perda de performance de cache quando pipeline hibrido ativo. Mas evita resposta sem grounding silenciosamente. Quando o proxy LiteLLM suportar grounding, esta decisao pode ser revista.
+- **Referencia:** `services/gemini/foundation-cache.ts`, PR #390, DI-2026-06-26-04
+
+### DI-2026-06-26-05: LiteLLM gate unico controlado por LLM_PROVIDER
+
+- **Decisao:** LiteLLM possui um unico gate (nao 5 como planejado originalmente). A flag `LLM_PROVIDER` (env var) controla o provider ativo: `gemini` (default, direto) ou `litellm` (via proxy). Ambiente DEV configurado com `LLM_PROVIDER=gemini`. HOMOLOG e PROD usarao Gemini direto ate ativacao explicita.
+- **Contexto:** O plano original previa 5 gates (feature flag, env var, runtime, modulo, A/B). Cada gate adicionava complexidade sem ganho proporcional de seguranca. Um unico gate por env var e suficiente: se `LLM_PROVIDER` nao estiver setado ou for `gemini`, o fluxo existente (Gemini direto) e usado. Se for `litellm`, o client LiteLLM e ativado.
+- **Impacto:** Reduz complexidade operacional. Rollback e simples: remover/unset `LLM_PROVIDER`. Ambiente DEV ja testado. HOMOLOG precisa de configuracao adicional (foundation cache off).
+- **Referencia:** `api/gemini.ts`, `api/_llm-client.ts`, PR #390
+
+### DI-2026-06-26-04: useGrounding removido (default false); Score PORTA recalibrado
+
+- **Decisao:** `useGrounding` removido da configuracao de modulos — default e `false` em todos os casos. Score PORTA recalibrado apos a remocao (resultado atual: 82, benchmark esperado sem grounding: 68-75). Sprint 3 recalibrara metricas formalmente.
+- **Contexto:** Grounding (Google Search) causava timeout inconsistente no proxy LiteLLM — ferramentas de grounding eram descartadas no proxy desde maio/2026. O fallback DuckDuckGo funcionava mas com qualidade inferior. A decisao foi remover o grounding por completo e depender do conhecimento do modelo para o Score PORTA.
+- **Impacto:** Score PORTA pode estar superestimado (82 vs benchmark 68-75 esperado). Recalibracao agendada para Sprint 3 antes de ativar LiteLLM em HOMOLOG.
+- **Referencia:** `services/gemini/investigation-orchestration.ts`, PR #390
+
+### DI-2026-06-26-03: Roteamento de LLM 100% server-side
+
+- **Decisao:** Roteamento entre modelos LLM (Sonnet 4.6, DeepSeek V3.2) e 100% server-side, feito exclusivamente em `api/gemini.ts` via `selectModelForModule()`. O client-side (`investigation-orchestration.ts`) mantem `STABLE_RESEARCH_MODEL_ID` fixo — nao ha roteamento no frontend.
+- **Contexto:** Durante o code review, Cursor apontou que roteamento client-side exporia os provedores LLM ao usuario final (via bundle). O padrao correto e server-side: o backend decide qual modelo usar por modulo (regex "bloco de X com extrema" para Sonnet, demais para DeepSeek), e o frontend apenas envia a requisicao.
+- **Impacto:** Nenhum provedor ou modelo exposto no bundle. Backend controla 100% da estrategia de roteamento. Flexivel para mudar sem deploy de frontend.
+- **Referencia:** `api/gemini.ts`, `utils/llm/modelRouter.ts`, PR #390
+
+## Novas Decisoes (Sessao 2026-06-26 — Sprint 1: cherry-picks sobre fe6c6f9)
+
+### DI-2026-06-26-02: useStaticTimelineFallback.ts e blankPanelTelemetry.ts sao parte de fe6c6f9, nao scar tissue
+
+- **Decisao:** `useStaticTimelineFallback.ts` e `blankPanelTelemetry.ts` nao devem ser removidos ou considerados scar tissue. Eles FAZEM parte do baseline fe6c6f9 e estao presentes em producao. Poderao ser tratados em Sprint posterior de codebase cleanup, mas apenas com validacao explicita.
+- **Contexto:** Durante a limpeza pos-cherry-pick, esses dois arquivos foram confundidos com scar tissue de refatoracao (Sprint 5-11). Na verdade, `blankPanelTelemetry.ts` e referenciado em pelo menos 3 lugares em fe6c6f9 e `useStaticTimelineFallback.ts` e usado pelo `MessageTimeline.tsx`. O que efetivamente NAO esta em fe6c6f9: `useCofreTransition.ts`, `CofreOverlay.tsx`, `api/_llm-client.ts`, `api/llm-experiment.ts`.
+- **Impacto:** Evita remocao acidental de codigo de producao. Sessao futura que quiser limpar esses arquivos deve primeiro confirmar que estao realmente mortos.
+- **Referencia:** commit `fe6c6f9ba59fb7063356a5f0adcc51c411db3c4a`, `stabilize/from-production-fe6c6f9`
+
+### DI-2026-06-26-01: Cherry-pick inviavel para commits com dependencias cross-cutting; reimplementacao manual
+
+- **Decisao:** Commits que tocam 25+ arquivos com dependencias cross-cutting (Cofre, LiteLLM, auth) devem ser reimplementados manualmente, nao cherry-picked. Cherry-pick e viavel apenas para commits focados (< 5 arquivos, sem dependencias de componentes que nao existem no baseline).
+- **Contexto:** Dois cherry-picks foram abortados por conflito massivo: MCP config (25+ arquivos em conflito, modify/delete em docs/mcp/fetch.generic.example.json) e PR #383 (10 arquivos em conflito, useCofreTransition.ts com modify/delete). Ambos dependiam de codigo que nao existe em fe6c6f9 (CofreOverlay, useCofreTransition, LiteLLM).
+- **Impacto:** Sprint 2 usara reimplementacao manual para MCP config e CI gates. Custo maior, mas sem risco de conflito ou quebra silenciosa.
+- **Referencia:** commits abortados `8670e5e7` (MCP), `62323649` (PR #383)
+
+## Novas Decisoes (Sessao 2026-06-18)
+
+### DI-2026-06-18-02: Cron de limpeza e dry-run por padrao
+
+- **Decisao:** `api/cron-email-confirmation.ts` nao remove usuarios por padrao. A exclusao exige `CRON_DELETE_ENABLED=true`; sem a flag, o endpoint retorna a quantidade de candidatos e `cleaned: 0`.
+- **Contexto:** Em 18/06, producao retornou `CRON_SECRET not configured`. Habilitar o segredo na versao antiga acionaria exclusao direta sem prova previa da contagem.
+- **Impacto:** O rollout passa a ser em duas etapas: publicar e revisar dry-run; depois autorizar a exclusao.
+- **Referencia:** `api/cron-email-confirmation.ts`, `tests/api/cron-email-confirmation.test.ts`.
+
+### DI-2026-06-18-01: Playbook priorizado, sem trava global
+
+- **Decisao:** O playbook permanece como roadmap de qualidade, mas nao bloqueia mudancas de assunto e nao exige confirmacao para pausar.
+- **Contexto:** Bruno pediu explicitamente a retirada da trava e a consolidacao do plano revisado.
+- **Impacto:** Subagentes continuam disponiveis em paralelo; o agente principal pode executar e integrar resultados sem bloqueio global.
+- **Referencia:** `docs/superpowers/plans/2026-06-18-ai-proof-execution-playbook-revised.md`.
+
+## Novas Decisoes (Sessao 2026-06-17)
+
+### DI-2026-06-17-01: Playbook de Execucao a Prova de IA como plano bloqueante [SUPERADA]
+
+- **Decisao:** O Playbook de Execucao a Prova de IA — Senior Scout 360 (16 tarefas, 5 fases) e registrado como plano bloqueante. Toda nova sessao deve carregar este plano como contexto principal. Se o usuario pedir algo fora do escopo do plano, o sistema deve perguntar: "O plano bloqueante ainda esta ativo. Quer pausar o plano e mudar de assunto, ou prefere continuar?"
+- **Contexto:** O playbook foi validado com 85% de confianca, 4 ajustes aplicados apos revisao. Contem 16 tarefas em 5 fases: Fundacao (Fase 0), Causa-raiz (Fase A), Loading declarativo (Fase B), Unificar timeout (Fase C), Liquidar divida (Fase D). A Fase 0 esta pronta para iniciar. O maior risco e T-A.1 (causa raiz de display:none desconhecida ha meses). O maior bloqueador e T-00.5 (helper timeout que bloqueia a Fase C).
+- **Impacto:** Mudancas de assunto agora exigem confirmacao explicita do Bruno. Proximas sessoes carregam automaticamente o plano.
+- **Referencia:** /Users/brunolima/Downloads/Particular e Compartilhado/Playbook de Execucao a Prova de IA — Senior Scout 360 e1af6db4856e40c88043249c0329ce7d.html
+- **Superada por:** DI-2026-06-18-01.
+
+## Novas Decisoes (Sessao 2026-06-16)
+
+### DI-2026-06-16-03: gh api com corpo nunca usa backticks — heredoc com aspas simples
+
+- **Decisao:** Comandos `gh api` que enviam corpo com texto sempre usam `cat <<'EOF' | gh api --input -` em vez de `-f body='...'`. O delimitador deve usar aspa simples (`'EOF'`) para evitar qualquer expansao de shell.
+- **Contexto:** Backticks em `gh api -f body='text with \`code\`'`foram expandidos pelo shell como substituicao de comando`$(...)`. O GITHUB_TOKEN e outros tokens de ambiente foram expostos publicamente em um comentario GitHub. O GitHub secret scanning removeu o comentario em ~8 minutos e revogou o GITHUB_TOKEN automaticamente.
+- **Impacto:** Incidente de seguranca grave. Tokens DeepSeek, Pinecone, Apify, Context7, Vercel Bypass expostos — pendentes de rotacao manual. GITHUB_TOKEN ja revogado e reautenticado.
+- **Referencia:** PR #378, commit f8af6206
+
+### DI-2026-06-16-02: Vite define SENTRY_DSN condicional (ignorar vitest)
+
+- **Decisao:** `define` no vite.config.ts para expor `SENTRY_DSN` como `VITE_SENTRY_DSN` deve ser condicional: so substituir quando `!process.env.VITEST`. Sem isso, o define tenta substituir `SENTRY_DSN` mesmo em testes onde a env var nao existe, quebrando o build.
+- **Contexto:** Sentry DSN e uma env var de producao. Em dev/test, ela nao existe. `define` sem condicional substitui a string SENTRY_DSN por `undefined` em tempo de compilacao, quebrando o build local e testes.
+- **Impacto:** Build local funciona. Testes passam.
+- **Referencia:** commit f8af6206, `vite.config.ts`
+
+### DI-2026-06-16-01: Sentry integrado via Vercel Marketplace, nao por env vars manuais
+
+- **Decisao:** Integracao Sentry-Vercel deve ser feita exclusivamente pelo Vercel Marketplace. Env vars manuais de integracao (SENTRY\_\*) devem ser removidas porque tem `internal: true` por padrao, o que bloqueia a injecao de DSN pela integracao oficial.
+- **Contexto:** O Sentry estava configurado com env vars manuais no Vercel (SENTRY_DSN, SENTRY_ORG, SENTRY_PROJECT, SENTRY_AUTH_TOKEN, etc.). O Sentry nunca recebia erros das serverless functions porque a integracao Marketplace nao conseguia injetar o SENTRY_DSN automaticamente — as env vars manuais tinham prioridade e internal=true impedia o override.
+- **Impacto:** 8 env vars removidas. Sentry integrado via Marketplace. Source maps em producao.
+- **Referencia:** PR #378
+
+## Decisoes Ativas (anteriores)
+
+### DI-2026-06-15-07: Debug de sidebar vazia comeca pela network layer, nao pelo state React
+
+- **Decisao:** Ao investigar sidebar vazia com dados intactos no banco, o primeiro passo e inspecionar o network request (payload, content-length, status code), nao o estado React. Sidebar vazia com dados no banco = cadeia de bugs onde cada um mascara o proximo.
+- **Contexto:** Ananda e Wuender tinham historico vazio no app. Network request mostrava `content-length: 2` com payload `[]`. Isso revelou a cadeia: localStorage vazio -> query com temp operator_id -> RLS filtra por role authenticated -> retorna []. Cada bug individual passava despercebido porque o resultado final (`[]`) parecia normal.
+- **Impacto:** 3 bugs identificados em sequencia. Debug comecando pelo state React nao teria revelado a RLS.
+- **Referencia:** commits `4ca4339a`, `9ba0a2cc`, `fe6c6f9b`
+
+### DI-2026-06-15-06: RLS policy de dossies deve cobrir anon + authenticated
+
+- **Decisao:** Toda RLS policy que protege dados de negocios (dossies, user_context) deve explicitar `TO anon, authenticated`. Policy criada apenas com `TO anon` bloqueia silenciosamente usuarios logados (role `authenticated`) retornando `[]`.
+- **Contexto:** A policy `operator_own_dossies` foi criada com `TO anon`. Usuarios logados no Supabase usam role `authenticated`. O Supabase nao gera erro — simplesmente aplica RLS e retorna 0 rows. O sintoma era historico vazio (`HISTORICO (0)`) mesmo com 18 ou 47 dossies no banco.
+- **Impacto:** Migration aplicada. Historico de Ananda e Wuender restaurado.
+- **Referencia:** commit `fe6c6f9b`, `supabase/migrations/20260615_fix_dossies_rls_authenticated.sql`
+
+### DI-2026-06-15-05: Evento operator-relinked deve usar setTimeout(0) para garantir listeners montados
+
+- **Decisao:** `window.dispatchEvent(new CustomEvent('operator-relinked'))` deve ser encapsulado em `setTimeout(() => window.dispatchEvent(...), 0)` para garantir que os listeners dos componentes filhos ja estejam registrados.
+- **Contexto:** React executa useEffect dos pais antes dos efeitos dos filhos. Quando o dispatch era sincrono no useEffect do OperatorContext (pai), nenhum listener dos componentes filhos tinha sido registrado ainda. O evento era disparado e perdido para sempre.
+- **Impacto:** Componentes que escutam `operator-relinked` (sidebar, historico) agora recebem o evento corretamente.
+- **Referencia:** commit `9ba0a2cc`, `contexts/OperatorContext.tsx`
 
 ### DI-2026-06-24-FINAL: Arquitetura Final Senior Scout 360 pos-experimento LiteLLM
 

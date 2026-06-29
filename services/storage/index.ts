@@ -6,17 +6,11 @@
 import { dossiers } from './dossiers';
 import { extractCache } from './extractCache';
 import { userContext } from './userContext';
-import { audit } from './audit';
-import { favorites } from './favorites';
 import { radar } from './radar';
-import { sharedDossiers } from './sharedDossiers';
 
 export const storage = {
   ...dossiers,
   ...extractCache,
   ...userContext,
-  ...audit,
-  ...favorites,
   ...radar,
-  ...sharedDossiers,
 };

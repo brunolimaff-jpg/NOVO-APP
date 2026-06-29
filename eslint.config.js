@@ -52,6 +52,9 @@ export default [
         ...globals.browser,
         ...globals.es2022,
         ...globals.node,
+        __BUILD_SHA__: 'readonly',
+        __VERCEL_ENV__: 'readonly',
+        __BUILD_TS__: 'readonly',
       },
     },
     rules: {

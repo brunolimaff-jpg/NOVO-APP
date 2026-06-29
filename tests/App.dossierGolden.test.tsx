@@ -251,7 +251,7 @@ vi.mock('../services/clientLookupService', () => ({
   formatarParaPrompt: formatarParaPromptMock,
 }));
 
-vi.mock('../services/geminiService', () => ({
+vi.mock('../services/llmService', () => ({
   sendMessageToGemini: sendMessageToGeminiMock,
   generateContinuityQuestion: generateContinuityQuestionMock,
   generateDossierModule: generateDossierModuleMock,

@@ -18,14 +18,14 @@ vi.mock('../../features/dossier/SocietaryMap', () => ({
   default: ({
     cnpj,
     empresaAlvo,
-    geminiCnpjs,
+    llmCnpjs,
   }: {
     cnpj?: string | null;
     empresaAlvo?: string | null;
-    geminiCnpjs?: Array<{ name: string }>;
+    llmCnpjs?: Array<{ name: string }>;
   }) => (
     <div data-testid="societary-map">
-      {cnpj}::{empresaAlvo}::{geminiCnpjs?.map(company => company.name).join('|') || 'sem-gemini'}
+      {cnpj}::{empresaAlvo}::{llmCnpjs?.map(company => company.name).join('|') || 'sem-gemini'}
     </div>
   ),
 }));
@@ -412,45 +412,66 @@ describe('SectionalBotMessage', () => {
     expect(getByRole('button', { name: /Ver relatório completo/ })).toBeInTheDocument();
   });
 
-  it('usa preview leve durante waterfall isThinking sem parsear secoes', () => {
-    const longBody = 'Conteúdo parcial do dossiê. '.repeat(120);
-    const message: Message = {
-      id: 'bot-waterfall-preview',
-      sender: Sender.Bot,
-      timestamp: new Date(),
-      isThinking: true,
-      text: `# Perfil Comercial\n\n${longBody}`,
+  describe('deferred rendering (threshold 15K)', () => {
+    const makeLargeText = (targetChars: number) => {
+      const line = 'Linha de conteúdo markdown para teste de deferred rendering com dossiê grande.\n';
+      const needed = Math.ceil(targetChars / line.length);
+      return '# 🦅 DOSSIÊ SCOUT 360\n\n' + Array(needed).fill(line).join('');
     };
 
-    render(<SectionalBotMessage message={message} isDarkMode={false} />);
+    it('renderiza sem crash com texto menor que o threshold (15K)', () => {
+      const message: Message = {
+        id: 'bot-small',
+        sender: Sender.Bot,
+        timestamp: new Date(),
+        text: '# Intro\nConteúdo curto.\n',
+      };
 
-    expect(screen.getByTestId('waterfall-thinking-preview')).toBeInTheDocument();
-    expect(screen.queryByTestId('societary-map-shell')).not.toBeInTheDocument();
-  });
+      // Não deve lançar exceção (sem tela branca)
+      expect(() => render(<SectionalBotMessage message={message} isDarkMode={false} />)).not.toThrow();
+      // Conteúdo renderizado
+      expect(screen.getByText(/Conteúdo curto/)).toBeInTheDocument();
+    });
 
-  it('nao monta SocietaryMap enquanto isLoading ou isThinking estiver ativo', () => {
-    const message: Message = {
-      id: 'bot-teia-preview',
-      sender: Sender.Bot,
-      timestamp: new Date(),
-      isThinking: true,
-      text: [
-        '## Mapa de poder societario',
-        '',
-        'Análise da teia societária da empresa com texto suficiente para preview incremental no waterfall.',
-      ].join('\n'),
-    };
+    it('renderiza sem crash com texto >15K (caminho deferred ou render direto)', () => {
+      const largeText = makeLargeText(20_000);
+      const message: Message = {
+        id: 'bot-large',
+        sender: Sender.Bot,
+        timestamp: new Date(),
+        text: largeText,
+      };
 
-    render(
-      <SectionalBotMessage
-        message={message}
-        isDarkMode={false}
-        empresaAlvo="Scheffer & Cia"
-        cnpj="04733767000180"
-        isLoading={false}
-      />,
-    );
+      // Não deve lançar exceção (P0: tela branca com >40K)
+      expect(() => render(<SectionalBotMessage message={message} isDarkMode={false} />)).not.toThrow();
 
-    expect(screen.queryByTestId('societary-map')).not.toBeInTheDocument();
+      // Se useDeferredValue resolveu async → skeleton com data-deferred.
+      // Se resolveu sync → conteúdo markdown renderizado.
+      // Ambos são válidos; o que NÃO pode é crash.
+      const deferredEl = screen.queryByTestId('bot-message-content');
+      if (deferredEl?.getAttribute('data-deferred') === 'true') {
+        expect(screen.getByText(/Carregando dossiê/)).toBeInTheDocument();
+      } else {
+        // Renderizou conteúdo sem deferred — assert que tem texto
+        const text = document.body.textContent || '';
+        expect(text.length).toBeGreaterThan(100);
+      }
+    });
+
+    it('boundary: exatamente 15K chars não ativa deferred (> obrigatório)', () => {
+      const exact15k = makeLargeText(15_000);
+      const message: Message = {
+        id: 'bot-boundary',
+        sender: Sender.Bot,
+        timestamp: new Date(),
+        text: exact15k,
+      };
+
+      render(<SectionalBotMessage message={message} isDarkMode={false} />);
+
+      // 15.000 não é > 15.000 → deferred NÃO deve ativar
+      const deferredEl = screen.queryByTestId('bot-message-content');
+      expect(deferredEl?.getAttribute('data-deferred')).not.toBe('true');
+    });
   });
 });

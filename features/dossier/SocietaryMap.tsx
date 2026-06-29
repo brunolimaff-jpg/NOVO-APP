@@ -50,7 +50,7 @@ interface SocietaryMapProps {
   cnpj?: string | null;
   empresaAlvo?: string | null;
   isDarkMode: boolean;
-  geminiCnpjs?: SocietaryCompanyInput[];
+  llmCnpjs?: SocietaryCompanyInput[];
   traceId?: string;
   traceEnabled?: boolean;
 }
@@ -59,7 +59,7 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({
   cnpj,
   empresaAlvo,
   isDarkMode,
-  geminiCnpjs,
+  llmCnpjs,
   traceId,
   traceEnabled,
 }) => {
@@ -155,9 +155,9 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({
         });
       }
 
-      if (partners.length === 0 && geminiCnpjs && geminiCnpjs.length > 0) {
+      if (partners.length === 0 && llmCnpjs && llmCnpjs.length > 0) {
         const geminiPartners = new Map<string, SocietaryPartnerInput>();
-        for (const c of geminiCnpjs) {
+        for (const c of llmCnpjs) {
           if (c.partnerName && !geminiPartners.has(c.partnerName)) {
             geminiPartners.set(c.partnerName, {
               name: c.partnerName,
@@ -171,7 +171,7 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({
           partners = [...geminiPartners.values()];
           trace('fallback Gemini gerou socios para a teia', {
             partnersCount: partners.length,
-            geminiCompaniesCount: geminiCnpjs.length,
+            geminiCompaniesCount: llmCnpjs.length,
           });
           if (!cancelled) setNotice('Dados do Gemini utilizados para montar o mapa societario.');
         } else {
@@ -183,7 +183,7 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({
             },
           ];
           trace('fallback Gemini sem socios explicitos; usando socio sintetico', {
-            geminiCompaniesCount: geminiCnpjs.length,
+            geminiCompaniesCount: llmCnpjs.length,
           });
           if (!cancelled) setNotice('Mapa montado com dados do Gemini. Validacao via QSA pendente.');
         }
@@ -192,7 +192,7 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({
       if (partners.length === 0) {
         trace('teia sem socios apos lookup e fallback', {
           cnpj: lookupCnpj,
-          geminiCompaniesCount: geminiCnpjs?.length || 0,
+          geminiCompaniesCount: llmCnpjs?.length || 0,
         });
         if (!cancelled) {
           setRootData(null);
@@ -237,7 +237,7 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({
       cancelled = true;
       controller.abort();
     };
-  }, [cnpj, empresaAlvo, geminiCnpjs, trace]);
+  }, [cnpj, empresaAlvo, llmCnpjs, trace]);
 
   useEffect(() => {
     setIsEvidenceOpen(false);
@@ -406,9 +406,9 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({
     const isSyntheticFallback =
       rootData.partners.length === 1 && rootData.partners[0].name === 'Grupo Econômico (Gemini)';
     const enrichedGemini =
-      isSyntheticFallback && geminiCnpjs
-        ? geminiCnpjs.map(c => (c.partnerName ? c : { ...c, partnerName: 'Grupo Econômico (Gemini)' }))
-        : geminiCnpjs;
+      isSyntheticFallback && llmCnpjs
+        ? llmCnpjs.map(c => (c.partnerName ? c : { ...c, partnerName: 'Grupo Econômico (Gemini)' }))
+        : llmCnpjs;
     return buildSocietaryGraph(
       {
         root: {
@@ -420,7 +420,7 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({
       },
       enrichedGemini,
     );
-  }, [rootData, companiesByPartner, geminiCnpjs]);
+  }, [rootData, companiesByPartner, llmCnpjs]);
 
   const partnersById = useMemo(() => (graph ? new Map(graph.partners.map(p => [p.id, p])) : new Map()), [graph]);
 

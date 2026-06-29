@@ -106,21 +106,21 @@ interface GeminiHealthResponse {
   text?: string;
 }
 
-const CUSTOM_GEMINI_PROXY_BASE_URL = (import.meta.env.VITE_GEMINI_PROXY_URL || '')
+const CUSTOM_LLM_PROXY_BASE_URL = (import.meta.env.VITE_GEMINI_PROXY_URL || '')
   .replace(/\/api\/gemini$/, '')
   .replace(/\/$/, '');
 // O serverless usa 55s para chat normal e ate 180s para investigacoes pesadas.
 // Frontend da margem de 210s para cobrir o cenario mais longo + overhead de rede.
-const GEMINI_PROXY_TIMEOUT_MS = Number(import.meta.env.VITE_GEMINI_PROXY_TIMEOUT_MS || 210000);
+const LLM_PROXY_TIMEOUT_MS = Number(import.meta.env.VITE_LLM_PROXY_TIMEOUT_MS || 210000);
 
 // FIX: resolveEndpoint permanece como função pura — nunca como const de módulo.
-// Chamá-la no nível de módulo causaria TDZ quando outro módulo importa geminiProxy
+// Chamá-la no nível de módulo causaria TDZ quando outro módulo importa llmProxy
 // antes que window/import.meta estejam disponíveis no bundle minificado.
 function resolveEndpoint(path: string): string {
   const hostname = typeof window !== 'undefined' ? window.location.hostname : '';
   const isLocalDev = import.meta.env.DEV && (hostname === 'localhost' || hostname === '127.0.0.1');
   if (!isLocalDev) return path;
-  return CUSTOM_GEMINI_PROXY_BASE_URL ? `${CUSTOM_GEMINI_PROXY_BASE_URL}${path}` : path;
+  return CUSTOM_LLM_PROXY_BASE_URL ? `${CUSTOM_LLM_PROXY_BASE_URL}${path}` : path;
 }
 
 export function resolveGeminiApiEndpoint(
@@ -129,12 +129,8 @@ export function resolveGeminiApiEndpoint(
 ): string {
   const isLocalDevHost = hostname === 'localhost' || hostname === '127.0.0.1';
   if (!(isDev && isLocalDevHost)) return '/api/gemini';
-  return CUSTOM_GEMINI_PROXY_BASE_URL ? `${CUSTOM_GEMINI_PROXY_BASE_URL}/api/gemini` : '/api/gemini';
+  return CUSTOM_LLM_PROXY_BASE_URL ? `${CUSTOM_LLM_PROXY_BASE_URL}/api/gemini` : '/api/gemini';
 }
-
-// FIX: removidas as const GEMINI_API_ENDPOINT e GERAR_DOSSIE_ENDPOINT do escopo
-// de módulo. Cada função resolve seu endpoint de forma lazy (na primeira chamada),
-// garantindo que window e import.meta estejam disponíveis no momento da avaliação.
 
 function buildAbortError(): Error {
   if (typeof DOMException !== 'undefined') {
@@ -173,6 +169,9 @@ async function callGeminiApi<TResponse>(
     | Record<string, unknown>,
   signal?: AbortSignal,
 ): Promise<TResponse> {
+  const controller = new AbortController();
+  const timeoutMs = Number.isFinite(LLM_PROXY_TIMEOUT_MS) && LLM_PROXY_TIMEOUT_MS > 0 ? LLM_PROXY_TIMEOUT_MS : 90000;
+  let timedOut = false;
   const action = typeof payload.action === 'string' ? payload.action : 'unknown';
   const model =
     typeof payload === 'object' && payload !== null && 'model' in payload
@@ -212,15 +211,7 @@ async function callGeminiApi<TResponse>(
   let responseText: string;
   try {
     try {
-      scoutDiag.warn('GeminiProxy', 'request:start', { endpoint, action, requestClass, timeoutMs, model });
-      console.error('[TRACE] request:start', {
-        endpoint,
-        action,
-        model,
-        requestClass,
-        timeoutMs,
-        signalAborted: signal?.aborted ?? false,
-      });
+      scoutDiag.info('LlmProxy', 'request:start', { endpoint, action, requestClass, timeoutMs });
 
       const authHeaders = await getSupabaseAuthHeaders();
       const hasAuth = Boolean(authHeaders.Authorization ?? authHeaders.authorization);
@@ -246,7 +237,7 @@ async function callGeminiApi<TResponse>(
       responseText = await readResponseText(response, controller.signal);
     } catch (error: unknown) {
       if (timedOut) {
-        scoutDiag.error('GeminiProxy', 'timeout no proxy', {
+        scoutDiag.error('LlmProxy', 'timeout no proxy', {
           timeoutMs,
           endpoint,
           action,
@@ -260,7 +251,7 @@ async function callGeminiApi<TResponse>(
           { cause: error },
         );
       }
-      scoutDiag.error('GeminiProxy', 'falha de rede, abort ou leitura do body', {
+      scoutDiag.error('LlmProxy', 'falha de rede, abort ou leitura do body', {
         endpoint,
         action,
         requestClass,
@@ -270,7 +261,7 @@ async function callGeminiApi<TResponse>(
       throw error;
     }
 
-    scoutDiag.info('GeminiProxy', 'response:body-read', {
+    scoutDiag.info('LlmProxy', 'response:body-read', {
       endpoint,
       action,
       requestClass,
@@ -279,7 +270,7 @@ async function callGeminiApi<TResponse>(
     });
 
     if (!response.ok) {
-      scoutDiag.error('GeminiProxy', 'resposta HTTP nao OK', {
+      scoutDiag.error('LlmProxy', 'resposta HTTP nao OK', {
         status: response.status,
         endpoint,
         action,
@@ -304,7 +295,7 @@ async function callGeminiApi<TResponse>(
     try {
       return JSON.parse(trimmedBody) as TResponse;
     } catch (error: unknown) {
-      scoutDiag.error('GeminiProxy', 'JSON invalido na resposta do proxy', {
+      scoutDiag.error('LlmProxy', 'JSON invalido na resposta do proxy', {
         endpoint,
         action,
         requestClass,

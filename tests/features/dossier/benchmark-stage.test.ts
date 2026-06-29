@@ -3,7 +3,7 @@ import { runDossierBenchmarkStage } from '../../../features/dossier/benchmark-st
 
 const getIsolatedBenchmarkMock = vi.hoisted(() => vi.fn());
 
-vi.mock('../../../services/geminiService', () => ({
+vi.mock('../../../services/llmService', () => ({
   getIsolatedBenchmark: getIsolatedBenchmarkMock,
 }));
 

@@ -231,7 +231,7 @@ describe('useChatFeedbackActions', () => {
       friendlyMessage: 'Falha ao carregar',
       retryable: true,
       transient: true,
-      source: 'GEMINI',
+      source: 'LLM',
       details: { attempt: 1 },
     };
 
@@ -252,7 +252,7 @@ describe('useChatFeedbackActions', () => {
       aiContent: JSON.stringify(
         {
           code: 'NETWORK',
-          source: 'GEMINI',
+          source: 'LLM',
           message: 'Falha de rede',
           details: { attempt: 1 },
         },
@@ -263,7 +263,7 @@ describe('useChatFeedbackActions', () => {
       userName: 'Bruno Lima',
       metadata: {
         errorCode: 'NETWORK',
-        source: 'GEMINI',
+        source: 'LLM',
       },
       timestamp: expect.any(String),
     });

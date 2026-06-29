@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState, useCallback, useTransition } from 'react';
+import React, { useEffect, useMemo, useRef, useState, useCallback, useDeferredValue } from 'react';
 import { Message } from '../types';
 import MarkdownRenderer from './MarkdownRenderer';
 import { getSellerSectionKind, parseMarkdownSections, type SellerSectionKind } from '../utils/sectionParser';
@@ -302,14 +302,20 @@ const SectionalBotMessage: React.FC<SectionalBotMessageProps> = ({
   const displayText = useMemo(() => {
     if (isWaterfallThinkingPreview) return content;
     return stripUnsafeSocietarySections(cleanText);
-  }, [cleanText, content, isWaterfallThinkingPreview]);
+  }, [cleanText]);
+
+  // Errata 5: useDeferredValue evita que parseMarkdownSections + MarkdownRenderer
+  // bloqueiem a main thread em dossiês grandes (>15KB). React 18 processa o valor
+  // deferred em render de baixa prioridade, mantendo a UI responsiva.
+  const LARGE_DOSSIER_DEFERRED_CHARS = 15_000;
+  const deferredText = useDeferredValue(displayText);
+  const isDeferredPending = deferredText !== displayText && displayText.length > LARGE_DOSSIER_DEFERRED_CHARS;
+
+  const effectiveText = isDeferredPending ? deferredText : displayText;
+
   const sections = useMemo(() => {
-    if (isWaterfallThinkingPreview) return [];
-    console.time('⏱️ parseMarkdownSections');
-    const result = parseMarkdownSections(displayText);
-    console.timeEnd('⏱️ parseMarkdownSections');
-    return result;
-  }, [displayText, isWaterfallThinkingPreview]);
+    return parseMarkdownSections(effectiveText);
+  }, [effectiveText]);
 
   // Pré-computa as fontes de cada seção em useMemo para estabilizar as referências
   // de array passadas ao MarkdownRenderer. Sem isso, filterSourcesForSection é chamado
@@ -323,8 +329,8 @@ const SectionalBotMessage: React.FC<SectionalBotMessageProps> = ({
   const parsedTeiaData = useMemo(() => {
     if (isWaterfallThinkingPreview) return { companies: [], warnings: [] as string[] };
     return parseTeiaText(cleanText);
-  }, [cleanText, isWaterfallThinkingPreview]);
-  const geminiCnpjsForMap = useMemo(() => {
+  }, [cleanText]);
+  const llmCnpjsForMap = useMemo(() => {
     if (parsedTeiaData.companies.length === 0) return undefined;
     return parsedTeiaData.companies;
   }, [cleanText, parsedTeiaData.companies.length]);
@@ -418,6 +424,21 @@ const SectionalBotMessage: React.FC<SectionalBotMessageProps> = ({
           groundingSources={message.groundingSources}
           auditableSources={[]}
         />
+      </div>
+    );
+  }
+
+  // Skeleton enquanto deferred pendente (dossiês >15KB). Rules of Hooks: todos os
+  // hooks já rodaram — este return condicional é seguro (React vê mesma contagem).
+  if (isDeferredPending) {
+    return (
+      <div data-testid="bot-message-content" data-deferred="true" className="flex min-w-0 flex-col gap-3 p-4">
+        <div className="animate-pulse space-y-3">
+          <div className="h-3 bg-slate-300 dark:bg-slate-700 rounded w-3/4" />
+          <div className="h-3 bg-slate-200 dark:bg-slate-800 rounded w-1/2" />
+          <div className="h-3 bg-slate-200 dark:bg-slate-800 rounded w-5/6" />
+        </div>
+        <p className="text-xs text-slate-400 dark:text-slate-500 mt-2">Carregando dossiê...</p>
       </div>
     );
   }
@@ -526,7 +547,7 @@ const SectionalBotMessage: React.FC<SectionalBotMessageProps> = ({
                   cnpj={cnpj}
                   empresaAlvo={empresaAlvo}
                   isDarkMode={isDarkMode}
-                  geminiCnpjs={geminiCnpjsForMap}
+                  llmCnpjs={llmCnpjsForMap}
                   traceId={teiaTraceIdRef.current}
                   traceEnabled={teiaTraceEnabled}
                 />

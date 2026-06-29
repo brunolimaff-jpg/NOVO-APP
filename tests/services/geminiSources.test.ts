@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { normalizeGroundingSources } from '../../services/gemini/sources';
+import { normalizeGroundingSources } from '../../services/llm/sources';
 
 describe('normalizeGroundingSources', () => {
   it('extrai fontes do groundingMetadata dentro de candidates', () => {

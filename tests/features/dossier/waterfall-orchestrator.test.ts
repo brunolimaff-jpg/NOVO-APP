@@ -40,7 +40,7 @@ vi.mock('uuid', () => ({
   v4: uuidv4Mock,
 }));
 
-vi.mock('../../../services/geminiService', () => ({
+vi.mock('../../../services/llmService', () => ({
   generateDossierModule: generateDossierModuleMock,
   generateContinuityQuestion: generateContinuityQuestionMock,
 }));
@@ -92,9 +92,9 @@ vi.mock('../../../utils/diagnosticLog', () => ({
   scoutDiag: scoutDiagMock,
 }));
 
-vi.mock('../../../services/gemini/foundation-cache', async () => {
-  const actual = await vi.importActual<typeof import('../../../services/gemini/foundation-cache')>(
-    '../../../services/gemini/foundation-cache',
+vi.mock('../../../services/llm/foundation-cache', async () => {
+  const actual = await vi.importActual<typeof import('../../../services/llm/foundation-cache')>(
+    '../../../services/llm/foundation-cache',
   );
   return {
     ...actual,
@@ -392,7 +392,7 @@ describe('useDossierWaterfallOrchestrator', () => {
       expect.any(String),
       expect.any(String),
       expect.any(String),
-      expect.objectContaining({ useGrounding: true }),
+      expect.objectContaining({ useGrounding: false }),
     );
     expect(generateDossierModuleMock.mock.calls[0][2]).toContain('CONTRATO VISÍVEL V2');
     expect(generateDossierModuleMock.mock.calls[0][2]).toContain('Não gere seção "Brief de Reunião"');

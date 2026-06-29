@@ -1,34 +1,57 @@
 # Active Context
 
-**Last updated:** 2026-06-24 18:00 — READY TO MERGE: 2 waterwalls validados, 20 commits
+Last updated: 2026-06-26 — Marathon session closeout: Sprint 1 + Sprint 2 concluidos
 
 ## STATUS ATUAL: PRONTO PARA REVISAO FINAL
 
-2 waterwalls validados em producao (6/6 modulos completos). Timeouts padronizados e funcional. Pipeline hibrido Sonnet+DeepSeek confirmado.
+- **Branch atual:** `refac/litellm-clean`
+- **Base com Sprints:** `origin/stabilize/from-production-fe6c6f9` — contem ambas as Sprints
+- **PRs mergeadas:** [#389](https://github.com/brunolimaff-jpg/NOVO-APP/pull/389) (Sprint 1 — cherry-picks), [#390](https://github.com/brunolimaff-jpg/NOVO-APP/pull/390) (Sprint 2 — LiteLLM)
+- **Tags:** `fase-1-done`, `fase-2-done`
+- **Plano maior:** https://github.com/brunolimaff-jpg/NOVO-APP/issues/386
+- **Fase:** Sprint 1 + Sprint 2 concluidos. 0 BLOCKER. Proximo: Sprint 3.
 
-## Descobertas desta sessao
+## O que foi entregue
 
-- **2 waterwalls validados:** 47-51K chars, $0.135-0.137, 317-373s. 6/6 modulos completos.
-- **HYBRID_MODEL_MAP confirmado:** Sonnet 4.6 na Operacao (69-72s) e Caminho de Venda; DeepSeek V3.2 nos demais.
-- **Hard-cap 330s removido** (`ffdcf096`) — timeout individual de 120s por modulo.
-- **Timeouts padronizados:** VITE_LITELLM_CLIENT_TIMEOUT_MS=120000 (cliente) + MAX_LITELLM_REQUEST_TIMEOUT_MS=180_000 (servidor) = 120s efetivo.
-- **Env vars Vercel:** 2 adicionadas, 3 removidas (zumbis).
-- **30 env vars LiteLLM mapeadas** — plano em `/Users/brunolima/.claude/plans/streamed-purring-gem.md`.
-- **Bug SectionalBotMessage:** "Ver relatorio completo" nao expande (useDeferredValue) — pre-existente, nao desta PR.
-- **Vercel Live Feedback:** estava bloqueando cliques (z-index 2147483647) — desativado no painel.
+### Sprint 1 (PR #389)
+
+- 3/5 cherry-picks: PR #379 (Cron), PR #380 (QSA knownCnpjs), Sentry
+- 2 abortados por conflito massivo: MCP config, PR #383
+- Limpeza: ChatInterface.tsx restaurado, scar tissue confirmado como parte fe6c6f9
+- 11 threads resolvidas, squash merged, tag `fase-1-done`
+
+### Sprint 2 (PR #390)
+
+- 4 novos arquivos: `api/_llm-client.ts`, `utils/llm/modelRouter.ts`, `utils/llm/types.ts`, `api/ping-litellm.ts`
+- 5 modificados: `api/gemini.ts`, `investigation-orchestration.ts`, `waterfall-orchestrator.ts`, `foundation-cache.ts`, `SectionalBotMessage.tsx`
+- 64 threads resolvidas (Gemini Code Assist + 7 rodadas Cursor + 1 security review Cursor)
+- 13 commits, squash merged, tag `fase-2-done`
+- 10 bugs corrigidos: 2 P0, 4 P1, 1 P5 + 3 infra
+- Validacao completa: typecheck, build, 1489/13 testes, ping, dossie, freeze
 
 ## HEAD
 
-- Branch: `feat/litellm-experiment`
-- HEAD: `ffdcf096` (20 commits de `origin/main`, +10 desde ultimo handoff)
-- Estado: **PRONTO PARA SUBIR PR #386** — Bruno vai fazer revisao final
+- **DI-2026-06-26-01:** Cherry-pick inviavel para commits >5 arquivos com cross-cutting
+- **DI-2026-06-26-02:** useStaticTimelineFallback e blankPanelTelemetry sao parte de fe6c6f9
+- **DI-2026-06-26-03:** Roteamento 100% server-side via selectModelForModule
+- **DI-2026-06-26-04:** useGrounding removido, Score PORTA recalibrado
+- **DI-2026-06-26-05:** LiteLLM gate unico (LLM_PROVIDER flag)
+- **DI-2026-06-26-06:** Foundation cache desliga com VITE_HYBRID_PIPELINE_ENABLED=1
+
+## Proximo: Sprint 3
+
+- Recalibrar Score PORTA sem grounding
+- Fallback Gemini em erro LiteLLM
+- Unificar flags VITE_HYBRID_PIPELINE_ENABLED + LLM_PROVIDER
+- Testes unitarios modelRouter + LiteLLM gate
+- Remover CodeRabbit do repo
+- 13 testes fail + 8 erros lint (debito fe6c6f9)
+- MIGRATION_DEADLINE (debito fe6c6f9)
 
 ## Proximos passos
 
-| #   | Prioridade | Tarefa                                  |
-| --- | ---------- | --------------------------------------- |
-| 1   | P0         | Revisao final Bruno + subir PR #386     |
-| 2   | P1         | Atualizar PR body                       |
-| 3   | P1         | Aplicar codigo perdido worktrees        |
-| 4   | P2         | Corrigir 4 CI checks                    |
-| 5   | P2         | Diagnosticar SectionalBotMessage expand |
+- 13 testes falham — todos pre-existentes em fe6c6f9 (MIGRATION_DEADLINE expirado)
+- Pipeline hibrido NAO esta ativo em producao (LLM_PROVIDER default = gemini)
+- Grounding removido afeta Score PORTA — recalibracao pendente
+- Foundation cache desliga automaticamente quando pipeline hibrido ativo
+- Branch `refac/litellm-clean` pode ser removida — commits estao em origin/stabilize/from-production-fe6c6f9

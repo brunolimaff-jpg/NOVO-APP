@@ -9,8 +9,8 @@ import { scoutDiag } from '../utils/diagnosticLog.js';
 import { callLiteLLM, isFallbackEnabled, isLiteLLMEnabled } from './_llm-client.js';
 import { isQuotaExhausted, isBillingOrPermissionDenied } from './_gemini-key-utils.js';
 import { applyCors } from './_cors-headers.js';
-import { authenticateExperimentRequest, isExperimentAuthError } from './_experiment-auth.js';
-import { getExperimentConfig } from '../utils/llm/modelRouter.js';
+import { isLiteLLMEnabled, callLiteLLM } from './_llm-client.js';
+import { selectModelForModule } from '../utils/llm/modelRouter.js';
 
 const HistoryItemSchema = z.object({
   role: z.enum(['user', 'model']),
@@ -437,9 +437,86 @@ async function executeGeminiAction(
     }
 
     case 'generateContent': {
-      const model = body.model ?? DEFAULT_GEMINI_MODEL;
+      const modelFromClient = typeof body.model === 'string' ? body.model : undefined;
       const contents = body.contents;
-      const { srvModuleName, srvRunId } = extractGenerateContentWatermark(contents);
+      const cfg = (body.config ?? {}) as Record<string, unknown>;
+
+      // Extrai nome do modulo das contents para roteamento server-side
+      const contentsStr =
+        typeof contents === 'string'
+          ? contents
+          : Array.isArray(contents)
+            ? (contents as Array<{ text?: string }>).map(c => c?.text || '').join(' ')
+            : '';
+      const srvModuleMatch = contentsStr.match(/bloco de (.+?) com extrema/i);
+      const srvModuleName = srvModuleMatch?.[1]?.trim() || null;
+
+      const hasCachedContent = typeof cfg.cachedContent === 'string';
+      const hasSystemInstr = typeof cfg.systemInstruction === 'string';
+      const hasGrounding =
+        Array.isArray(cfg.tools) &&
+        cfg.tools.some((t: unknown) => t && typeof t === 'object' && 'googleSearch' in (t as Record<string, unknown>));
+
+      // ── LiteLLM branch ──
+      // cachedContent sem systemInstruction = foundation cache ativo (recurso Gemini).
+      // tools com googleSearch = chat usa grounding (restaurado default true). LiteLLM
+      // nao suporta googleSearch nativo — delegamos ao Gemini.
+      if (isLiteLLMEnabled() && !(hasCachedContent && !hasSystemInstr) && !hasGrounding) {
+        try {
+          const sysInstr = hasSystemInstr ? (cfg.systemInstruction as string) : undefined;
+          const msgs: Array<{ role: string; content: string }> = [];
+          if (sysInstr) msgs.push({ role: 'system', content: sysInstr });
+
+          const userContent =
+            typeof contents === 'string'
+              ? contents
+              : Array.isArray(contents)
+                ? contents
+                    .map(c => {
+                      if (typeof c === 'string') return c;
+                      if (c && typeof c === 'object') {
+                        if (typeof (c as Record<string, unknown>).text === 'string')
+                          return (c as Record<string, unknown>).text;
+                        const parts = (c as Record<string, unknown>).parts;
+                        if (Array.isArray(parts)) {
+                          return parts
+                            .map(p =>
+                              p && typeof p === 'object' && typeof (p as Record<string, unknown>).text === 'string'
+                                ? (p as Record<string, unknown>).text
+                                : '',
+                            )
+                            .filter(Boolean)
+                            .join('\n');
+                        }
+                      }
+                      return JSON.stringify(c);
+                    })
+                    .join('\n')
+                : JSON.stringify(contents);
+          msgs.push({ role: 'user', content: userContent });
+
+          const resolvedModel = selectModelForModule(srvModuleName || '');
+          const temperature = typeof cfg.temperature === 'number' ? cfg.temperature : undefined;
+          const maxTokens = typeof cfg.maxOutputTokens === 'number' ? cfg.maxOutputTokens : undefined;
+          // tools (grounding) nao suportado via LiteLLM — sprint futura
+
+          const text = await callLiteLLM({
+            model: resolvedModel,
+            messages: msgs,
+            temperature: temperature,
+            maxTokens: maxTokens,
+          });
+          return res.status(200).json({ text });
+        } catch (err) {
+          console.error('LiteLLM call failed:', err);
+          return res
+            .status(500)
+            .json({ error: 'LLM call failed', message: err instanceof Error ? err.message : 'Unknown' });
+        }
+      }
+
+      const model = modelFromClient ?? DEFAULT_GEMINI_MODEL;
+      const srvRunId = `srv-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
 
       if (srvModuleName) {
         void insertDiagnosticsBatch({ runId: srvRunId, route: '/api/gemini', events: [] }, [
@@ -459,48 +536,30 @@ async function executeGeminiAction(
         return res.status(400).json({ error: 'Missing contents' });
       }
 
-      const requestedModel = body.model ?? DEFAULT_GEMINI_MODEL;
-      const litellmEnabled = isLiteLLMEnabled();
-      const useLiteLLMPath = litellmEnabled && typeof requestedModel === 'string' && !requestedModel.includes('gemini');
-      console.error('[TRACE] G2 useLiteLLMPath', {
-        useLiteLLMPath,
-        litellmEnabled,
-        requestedModel,
-        caminho: useLiteLLMPath ? 'LiteLLM' : 'Gemini_nativo',
-        LLM_PROVIDER: process.env.LLM_PROVIDER,
-        hasKey: !!process.env.LITELLM_API_KEY,
-        hasUrl: !!process.env.LITELLM_BASE_URL,
-      });
-      if (useLiteLLMPath) {
-        const auth = await authenticateExperimentRequest(req);
-        if (isExperimentAuthError(auth)) {
-          console.error('[TRACE] G3 auth_falhou', {
-            authStatus: auth.status,
-            authError: auth.error,
-            acao: 'return error sem Gemini fallback',
-          });
-          return res.status(auth.status).json({ error: auth.error });
+      const configIn = (body.config ?? {}) as Record<string, unknown>;
+      const genConfig: Record<string, unknown> = {
+        temperature: toNumberSafe(configIn.temperature, 0.2),
+        maxOutputTokens: toNumberSafe(configIn.maxOutputTokens, 65536),
+      };
+
+      if (typeof configIn.responseMimeType === 'string') genConfig.responseMimeType = configIn.responseMimeType;
+      if (typeof configIn.cachedContent === 'string') {
+        genConfig.cachedContent = configIn.cachedContent;
+        if (configIn.systemInstruction !== undefined) {
+          console.warn('[LlmProxy] cachedContent ignorou systemInstruction no generateContent');
         }
-        console.error('[TRACE] G3 auth_OK', { acao: 'prosseguir para G5' });
-        scoutDiag.error('LiteLLM-Gate', 'auth_OK_prosseguindo', { requestedModel: requestedModel });
-        const allowedModels = getExperimentConfig(process.env).experimentModels;
-        console.error('[TRACE] G5 allowedModels_check', {
-          requestedModel,
-          allowedModels,
-          match: allowedModels.includes(requestedModel),
-        });
-        if (!allowedModels.includes(requestedModel)) {
-          console.error('[TRACE] G5 BLOCKED', { requestedModel, acao: 'return 400' });
-          return res.status(400).json({ error: 'Model not allowed for experiment' });
+        if (Array.isArray(configIn.tools) && configIn.tools.length > 0) {
+          console.warn('[LlmProxy] cachedContent ignorou tools no generateContent; use tools em createCachedContent');
         }
-        console.error('[TRACE] executeLiteLLMGenerateContent CHAMANDO', {
-          model: requestedModel,
-          fallbackEnabled: isFallbackEnabled(),
-        });
-        scoutDiag.error('LiteLLM-Gate', 'executando_callLiteLLM', { model: requestedModel, timestamp: Date.now() });
-        const requestController = new AbortController();
-        req.once?.('aborted', () => requestController.abort());
-        return executeLiteLLMGenerateContent(ai, body, res, requestController.signal);
+        if (configIn.toolConfig !== undefined) {
+          console.warn('[LlmProxy] cachedContent ignorou toolConfig no generateContent');
+        }
+      } else {
+        if (typeof configIn.systemInstruction === 'string') {
+          genConfig.systemInstruction = configIn.systemInstruction;
+        }
+        if (Array.isArray(configIn.tools)) genConfig.tools = configIn.tools;
+        if (configIn.toolConfig !== undefined) genConfig.toolConfig = configIn.toolConfig;
       }
 
       const geminiResult = await runGeminiGenerateContent(ai, body);
@@ -678,7 +737,7 @@ async function executeGeminiAction(
         }
       } catch (primaryError) {
         if (!useGrounding) throw primaryError;
-        console.warn('[GeminiProxy] Falha no Grounding/Tool, acionando fallback:', primaryError);
+        console.warn('[LlmProxy] Falha no Grounding/Tool, acionando fallback:', primaryError);
         groundingActivated = false;
         const fallbackData = await runChat(false);
         response = fallbackData.response;
@@ -782,7 +841,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       } catch (error: unknown) {
         const hasNextKey = i < keys.length - 1;
         if ((isQuotaExhausted(error) || isBillingOrPermissionDenied(error)) && hasNextKey) {
-          console.warn(`[GeminiProxy] Chave ${i + 1} com erro (quota/billing), tentando fallback...`);
+          console.warn(`[LlmProxy] Chave ${i + 1} com erro (quota/billing), tentando fallback...`);
           lastError = error;
           continue;
         }

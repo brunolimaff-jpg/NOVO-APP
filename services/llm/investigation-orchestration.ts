@@ -4,7 +4,7 @@ import { parsePortaMarkerV2 } from '../../utils/porta';
 import { enforceSeniorEvidenceConstraints, extractClienteSeniorData } from '../../utils/seniorEvidence';
 import { applyPromptLeakShield } from '../../utils/textCleaners';
 import { withAutoRetry } from '../../utils/retry';
-import { proxyChatSendMessage, proxyGenerateContent } from '../geminiProxy';
+import { proxyChatSendMessage, proxyGenerateContent } from '../llmProxy';
 import {
   benchmarkClientes,
   formatarBenchmarkParaPrompt,
@@ -30,7 +30,8 @@ import {
   resetPortaState,
   setBaseScore,
 } from '../portaStateService';
-import { STABLE_RESEARCH_MODEL_ID, TACTICAL_MODEL_ID, selectMainChatModelId } from './config';
+import { TACTICAL_MODEL_ID, selectMainChatModelId } from './config';
+import { STABLE_RESEARCH_MODEL_ID } from '../../config/models';
 import type { DossierModuleOptions, GeminiRequestOptions, SendMessageToGeminiResult } from './contracts';
 import { parsePortaFeeds } from './porta';
 import { debugRecovery, looksLikeMissedOpenQuestionAnswer, trackOpenQuestionRecoveryAttempt } from './recovery';

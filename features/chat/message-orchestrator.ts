@@ -3,7 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { DEFAULT_MODE } from '../../constants';
 import { useMaybeMode } from '../../contexts/ModeContext';
 import { BACKEND_URL } from '../../services/apiConfig';
-import { sendMessageToGemini } from '../../services/geminiService';
+import { sendMessageToGemini } from '../../services/llmService';
 import { withAutoRetry } from '../../utils/retry';
 import { useMaybeChatStore } from '../../stores/chatStore';
 import { findReusableEmptySession } from './session-reuse';
@@ -748,20 +748,14 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
         );
 
         // PR #349: probes de estado real + RAF safety net contra loading preso.
-        // Captura validade ANTES de deletar a ref — probes são assíncronos
-        // (setTimeout/RAF) e não podem depender da ref viva.
+        // generationValid é snapshot booleano capturado antes do delete;
+        // scheduleLoadingStuckProbes opera com esse snapshot, não com a ref.
         const generationValid = activeGenerationRef.current[sessionId] === botMessageId;
+        const cleanupProbes = scheduleLoadingStuckProbes(sessionId, generationValid);
+
         if (activeGenerationRef.current[sessionId] === botMessageId) {
           delete activeGenerationRef.current[sessionId];
         }
-        const cleanupProbes = scheduleLoadingStuckProbes(sessionId, botMessageId, generationValid, {
-          activeGenerationRef,
-          currentSessionIdRef,
-          latestLoadingRef,
-          setIsLoading,
-          setLoadingVariant,
-          completeLoadingProgress,
-        });
 
         cleanupPostCompletionRef.current = () => {
           cleanupChecks();

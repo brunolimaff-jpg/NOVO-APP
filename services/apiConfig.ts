@@ -30,7 +30,6 @@ export const FAKE_DOMAINS = [
   'generativelanguage.googleapis.com',
   'makersuite.google.com',
   'bard.google.com',
-  'gemini.google.com',
   'g.co',
   'example.com',
   'exemplo.com',

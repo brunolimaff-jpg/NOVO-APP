@@ -8,6 +8,7 @@ pnpm-debug.log*
 lerna-debug.log*
 
 node_modules
+nimbalyst-local/
 .superpowers/
 dist
 dist-ssr
@@ -69,3 +70,7 @@ scheffer-*.png
 !.obsidian/core-plugins.json
 !.obsidian/graph.json
 *.canvas
+
+# Audit/review artifacts (não comitar)
+.audit-pr386/
+.superhuman/

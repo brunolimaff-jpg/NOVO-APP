@@ -18,7 +18,7 @@ const {
   lookupClienteMock: vi.fn(),
 }));
 
-vi.mock('../../services/geminiProxy', () => ({
+vi.mock('../../services/llmProxy', () => ({
   proxyGenerateContent: proxyGenerateContentMock,
   proxyChatSendMessage: proxyChatSendMessageMock,
   executeOpenWebSearchTool: executeOpenWebSearchToolMock,
@@ -82,7 +82,7 @@ vi.mock('../../utils/textCleaners', async () => {
   };
 });
 
-import { generateDossierModule, sendMessageToGemini } from '../../services/geminiService';
+import { generateDossierModule, sendMessageToGemini } from '../../services/llmService';
 import { Sender } from '../../types';
 
 describe('investigation-orchestration', () => {

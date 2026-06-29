@@ -1,6 +1,6 @@
 import { normalizeAppError } from '../../utils/errorHelpers';
 import { withAutoRetry } from '../../utils/retry';
-import { proxyGerarDossie } from '../geminiProxy';
+import { proxyGerarDossie } from '../llmProxy';
 import { MODEL_ID, MODEL_TIMEOUT_MS } from './config';
 import type {
   WarRoomMessage,
@@ -177,7 +177,7 @@ export async function queryWarRoom(
     return { text: (text.trim() + disclaimer).trim(), sources };
   } catch (error: unknown) {
     console.error('[WarRoom] Erro:', error);
-    const appError = normalizeAppError(error, 'GEMINI', 'Falha ao consultar War Room.');
+    const appError = normalizeAppError(error, 'LLM', 'Falha ao consultar War Room.');
     const errorMessage =
       appError.friendlyMessage || `Erro de comunicação: ${appError.message || 'Falha na conexão'}. Tente novamente.`;
 
