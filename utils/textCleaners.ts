@@ -107,6 +107,8 @@ const HARD_PROMPT_LEAK_PATTERNS: Array<{ id: string; regex: RegExp }> = [
   { id: 'absolute_mission', regex: /sua miss[aã]o absoluta/i },
   { id: 'dont_discuss_internal', regex: /n[aã]o discuta o funcionamento interno do modelo/i },
   { id: 'contexto_cadastral', regex: /contexto cadastral obrigat[oó]rio/i },
+  { id: 'nota_de_escopo', regex: /nota de escopo:\s*este m[óo]dulo/i },
+  { id: 'aviso_metodologico', regex: /aviso metodol[óo]gico:\s*(este m[óo]dulo|este dossi[eê]|esta an[áa]lise)/i },
 ];
 
 const SOFT_PROMPT_LEAK_PATTERNS: Array<{ id: string; regex: RegExp }> = [

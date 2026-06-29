@@ -1,8 +1,33 @@
 # Progress
 
-Last updated: 2026-06-26 — Marathon session closeout: Sprint 1 + Sprint 2 concluidos
+Last updated: 2026-06-30 — Sessão Z.ai + H1/H3 concluída, PR #405 aberta
 
 ## Timeline
+
+### 2026-06-30 (Sessão Z.ai — Materialização + H1/H3)
+
+- **Branch:** `condescending-hoover-10c1cc` (worktree)
+- **PR #405 aberta:** https://github.com/brunolimaff-jpg/NOVO-APP/pull/405
+- **5 commits:** bb1030dc, 59fe4ab7, 67790184, 938eccbd, 23ab5d9d
+- **Z.ai validado:** workflow de 22 agentes, 121 verificações, 82% claims confirmadas
+- **ADRs 0003-0005 commitados** (investigation-orchestration, clientLookupService, api/gemini)
+- **Plano de limpeza de prompts** em `docs/management/`
+- **H1 executado:** `utils/promptLeakShield.ts` deletado (órfão, -150 LOC)
+- **H3 executado + corrigido:** 2 padrões de shield (`nota_de_escopo`, `aviso_metodologico`)
+  - Regex `aviso_metodologico` restringida após adversarial encontrar falso positivo
+- **12 comentários de bots resolvidos** (CodeRabbit Critical/Major, Gemini Code Assist)
+- **Handoff completo** em `HANDOFF_AI.md`
+- **Decisões:** 4 novas (DI-2026-06-29-01 a 04)
+- **Lições:** 6 novas (Z.ai = docs só, adversarial > cascata, cache Pro > Flash, etc.)
+
+### 2026-06-29 (Sessão Z.ai — Levantamento)
+
+- IA gestora Z.ai (sessão web-2804fbf2) fez levantamento de código
+- Leu 13 arquivos de prompt (4052 LOC) + dossiê Scheffer (1181 linhas)
+- Criou ADRs 0003-0005 + plano de limpeza + resumo
+- NÃO commitou nada — 7 arquivos salvos em ~/Downloads/
+- 2 discrepâncias encontradas vs handoff (offset linha 440, 5 vs 3 endpoints)
+- Fase 6 concluída: 5/5 god components documentados
 
 ### 2026-06-26 (Marathon Closeout — Sprint 1 + Sprint 2 concluidos)
 
