@@ -182,7 +182,13 @@ async function callGeminiApi<TResponse>(
   let responseText: string;
   try {
     try {
-      scoutDiag.info('LlmProxy', 'request:start', { endpoint, action, requestClass, timeoutMs });
+      scoutDiag.info('LlmProxy', 'request:start', {
+        endpoint,
+        action,
+        requestClass,
+        timeoutMs,
+        clientModel: (payload as Record<string, unknown>).model || 'unknown',
+      });
 
       response = await fetch(endpoint, {
         method: 'POST',
@@ -218,12 +224,21 @@ async function callGeminiApi<TResponse>(
       throw error;
     }
 
+    let actualModel = 'unknown';
+    try {
+      const parsed = JSON.parse(responseText);
+      if (parsed && typeof parsed._model === 'string') actualModel = parsed._model;
+    } catch {
+      /* ignora — log abaixo executa de qualquer forma */
+    }
+
     scoutDiag.info('LlmProxy', 'response:body-read', {
       endpoint,
       action,
       requestClass,
       status: response.status,
       bodyChars: responseText.length,
+      model: actualModel,
     });
 
     if (!response.ok) {

@@ -302,7 +302,7 @@ async function executeGeminiAction(ai: GoogleGenAI, body: ParsedBody, res: Verce
             temperature: temperature,
             maxTokens: maxTokens,
           });
-          return res.status(200).json({ text });
+          return res.status(200).json({ text, _model: resolvedModel });
         } catch (err) {
           console.error('LiteLLM call failed:', err);
           return res
@@ -312,6 +312,10 @@ async function executeGeminiAction(ai: GoogleGenAI, body: ParsedBody, res: Verce
       }
 
       const model = modelFromClient ?? DEFAULT_GEMINI_MODEL;
+      console.warn('[LlmProxy] Gemini fallback ativo', {
+        model,
+        reason: 'liteLLM desligado ou condição não atendida (grounding/cache)',
+      });
       const srvRunId = `srv-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
 
       if (srvModuleName) {
@@ -380,6 +384,7 @@ async function executeGeminiAction(ai: GoogleGenAI, body: ParsedBody, res: Verce
 
       return res.status(200).json({
         text: extractGeminiText(response),
+        _model: model,
         candidates: response.candidates || [],
         usageMetadata: extractUsageMetadata(response),
       });
@@ -425,7 +430,7 @@ async function executeGeminiAction(ai: GoogleGenAI, body: ParsedBody, res: Verce
       const systemInstruction = body.systemInstruction ?? '';
       const history = normalizeHistory(body.history);
       const message = body.message;
-      const useGrounding = body.useGrounding ?? true;
+      const useGrounding = body.useGrounding ?? false;
       const resolvedThinkingLevel = resolveThinkingLevel(body.thinkingLevel, body.thinkingMode);
       const sdkThinkingLevel = toSdkThinkingLevel(resolvedThinkingLevel);
       const useOpenWebSearch = body.useOpenWebSearch ?? false;
