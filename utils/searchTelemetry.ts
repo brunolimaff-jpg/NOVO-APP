@@ -1,4 +1,5 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
+import { scoutDiag } from './diagnosticLog';
 
 interface SearchCall {
   provider: 'gemini' | 'duckduckgo';
@@ -21,7 +22,9 @@ export function trackSearchCall(c: SearchCall): void {
     if (!calls) return;
     calls.push(c);
     if (calls.length > MAX) calls.shift();
-  } catch {}
+  } catch (e) {
+    scoutDiag.warn('SearchTelemetry', 'trackSearchCall falhou', { error: String(e) });
+  }
 }
 
 export function getSearchTelemetrySnapshot() {

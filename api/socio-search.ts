@@ -1,6 +1,8 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { applyCors } from './_cors-headers.js';
 import { scoutDiag } from '../utils/diagnosticLog.js';
+import { initSearchTelemetry } from '../utils/searchTelemetry';
+import { isDebugSearch } from '../utils/feature-flags';
 import {
   type SocioSearchResponse,
   type SocioSearchTraceDiagnostics,
@@ -23,6 +25,7 @@ export const maxDuration = 60;
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   applyCors(req, res);
+  if (isDebugSearch()) initSearchTelemetry();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   const parsed = RequestSchema.safeParse(req.body);
