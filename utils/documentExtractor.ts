@@ -1,6 +1,6 @@
 import { normalizeCnpj } from './cnpj.js';
 import { scoutDiag } from './diagnosticLog.js';
-import { trackSearchCall } from './searchTelemetry';
+import { trackSearchCall } from './searchTelemetry.js';
 
 /**
  * Utilitário Unificado de Extração e Busca

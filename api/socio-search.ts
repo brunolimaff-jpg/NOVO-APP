@@ -1,8 +1,8 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { applyCors } from './_cors-headers.js';
 import { scoutDiag } from '../utils/diagnosticLog.js';
-import { initSearchTelemetry } from '../utils/searchTelemetry';
-import { isDebugSearch } from '../utils/feature-flags';
+import { initSearchTelemetry } from '../utils/searchTelemetry.js';
+import { isDebugSearch } from '../utils/feature-flags.js';
 import {
   type SocioSearchResponse,
   type SocioSearchTraceDiagnostics,
