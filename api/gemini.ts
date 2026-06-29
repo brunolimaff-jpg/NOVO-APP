@@ -255,7 +255,7 @@ async function executeGeminiAction(ai: GoogleGenAI, body: ParsedBody, res: Verce
 
       // ── LiteLLM branch ──
       // cachedContent sem systemInstruction = foundation cache ativo (recurso Gemini).
-      // tools com googleSearch = chat usa grounding (restaurado default true). LiteLLM
+      // tools com googleSearch = chat usa grounding (default false). LiteLLM
       // nao suporta googleSearch nativo — delegamos ao Gemini.
       if (isLiteLLMEnabled() && !(hasCachedContent && !hasSystemInstr) && !hasGrounding) {
         try {
@@ -312,10 +312,17 @@ async function executeGeminiAction(ai: GoogleGenAI, body: ParsedBody, res: Verce
       }
 
       const model = modelFromClient ?? DEFAULT_GEMINI_MODEL;
-      console.warn('[LlmProxy] Gemini fallback ativo', {
-        model,
-        reason: 'liteLLM desligado ou condição não atendida (grounding/cache)',
-      });
+      if (isLiteLLMEnabled()) {
+        const skipReason = hasGrounding
+          ? 'grounding_required'
+          : hasCachedContent && !hasSystemInstr
+            ? 'foundation_cache'
+            : 'unknown';
+        console.warn('[LlmProxy] Gemini fallback ativo', {
+          model,
+          reason: skipReason,
+        });
+      }
       const srvRunId = `srv-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
 
       if (srvModuleName) {
@@ -579,6 +586,7 @@ async function executeGeminiAction(ai: GoogleGenAI, body: ParsedBody, res: Verce
 
       return res.status(200).json({
         text: leakShieldResult.text,
+        _model: model,
         groundingChunks,
         groundingUsed,
       });
