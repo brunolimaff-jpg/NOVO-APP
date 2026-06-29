@@ -51,7 +51,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             source: 'memory',
           })
         : cached;
-      return res.status(200).json(payload);
+      return res.status(200).json({
+        ...payload,
+        ...(isDebugSearch() ? { _searchTelemetry: getSearchTelemetrySnapshot() } : {}),
+      });
     }
   } else {
     const persistentCached = await getPersistentCached(cacheKey);
@@ -65,7 +68,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             source: 'persistent',
           })
         : persistentCached.payload;
-      return res.status(200).json(payload);
+      return res.status(200).json({
+        ...payload,
+        ...(isDebugSearch() ? { _searchTelemetry: getSearchTelemetrySnapshot() } : {}),
+      });
     }
     cacheTraceStatus = persistentCached.status === 'unavailable' ? 'unavailable' : 'miss';
     if (persistentCacheRequired && !hasPersistentConfig) {
@@ -85,7 +91,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             source: 'memory',
           })
         : memoryCached;
-      return res.status(200).json(payload);
+      return res.status(200).json({
+        ...payload,
+        ...(isDebugSearch() ? { _searchTelemetry: getSearchTelemetrySnapshot() } : {}),
+      });
     }
     cacheTraceSource = persistentCached.status === 'unavailable' ? 'none' : cacheTraceSource;
   }
