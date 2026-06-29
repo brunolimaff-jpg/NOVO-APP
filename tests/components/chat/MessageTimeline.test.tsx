@@ -332,6 +332,7 @@ describe('MessageTimeline', () => {
         vi.advanceTimersByTime(200);
       });
 
+      // Sem loading → auto
       expect(screen.getByTestId('messages-scroller')).toHaveAttribute('data-follow-output', 'auto');
 
       rerender(
@@ -349,7 +350,8 @@ describe('MessageTimeline', () => {
         vi.advanceTimersByTime(200);
       });
 
-      expect(screen.getByTestId('messages-scroller')).toHaveAttribute('data-follow-output', 'auto');
+      // Com loading → false (evita scroll durante waterfall streaming)
+      expect(screen.getByTestId('messages-scroller')).toHaveAttribute('data-follow-output', 'false');
     } finally {
       Element.prototype.scrollIntoView = originalScrollIntoView;
     }
