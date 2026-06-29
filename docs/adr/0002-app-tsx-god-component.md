@@ -27,20 +27,20 @@ O impacto no produto é total: se App.tsx falhar na montagem, o usuário vê tel
 
 ## Responsabilidades acumuladas
 
-| # | Responsabilidade | Linhas aprox | Deveria estar em |
-|---|---|---|---|
-| 1 | Composição de providers (AuthGate, ChatErrorBoundary, DossierErrorBoundary, modais) | 514-694 | ✅ App.tsx (correto) |
-| 2 | Estado de UI (sidebar open/close, theme toggle) | 80-128 | ✅ App.tsx (correto) |
-| 3 | Diagnóstico de overlay stuck (`useEffect` que força `display: none` no `hero-loading-fullscreen`) | 167-183 | `hooks/useOverlaySafetyCheck.ts` |
-| 4 | Diagnóstico de render-decision (`scoutDiag.info` overlay:render-decision) | 142-165 | `hooks/useOverlayRenderLogging.ts` |
-| 5 | Service Worker cleanup (PWA removido, mas código ficou) | 185-213 | `utils/swCleanup.ts` |
-| 6 | Diagnóstico de build info (buildSha, vercelEnv) | 215-223 | `hooks/useBuildInfo.ts` |
-| 7 | 4 lazy-loaded modais com retry (LoadingSmart, Email, FollowUp, UpdateNotification) via `loadWithChunkRetry` | 23-31, 425-460 | `components/AppModals.tsx` |
-| 8 | Fallback de carregamento `HeroLoadingChunkFallback` inline | 36-49 | `components/HeroLoadingChunkFallback.tsx` |
-| 9 | Helper `isTopicDeepDiveDisplayMessage` inline | 74-77 | `utils/topicDeepDive.ts` |
-| 10 | Instanciar `useDossierWaterfallOrchestrator` + `useChatMessageOrchestrator` + `useSessionManager` | 259-292 | `features/app-shell/AppOrchestrators.tsx` |
-| 11 | Invocar `useAppInitialization` que controla gate `isInitialized` | 261 | `hooks/useAppInitialization.ts` |
-| 12 | Decisão de overlay hero (`shouldShowHeroLoadingOverlay` + `WATERFALL_PREVIEW_MIN_CHARS = 200`) | 130-152 | `hooks/useHeroOverlayDecision.ts` |
+| #   | Responsabilidade                                                                                            | Linhas aprox   | Deveria estar em                          |
+| --- | ----------------------------------------------------------------------------------------------------------- | -------------- | ----------------------------------------- |
+| 1   | Composição de providers (AuthGate, ChatErrorBoundary, DossierErrorBoundary, modais)                         | 514-694        | ✅ App.tsx (correto)                      |
+| 2   | Estado de UI (sidebar open/close, theme toggle)                                                             | 80-128         | ✅ App.tsx (correto)                      |
+| 3   | Diagnóstico de overlay stuck (`useEffect` que força `display: none` no `hero-loading-fullscreen`)           | 167-183        | `hooks/useOverlaySafetyCheck.ts`          |
+| 4   | Diagnóstico de render-decision (`scoutDiag.info` overlay:render-decision)                                   | 142-165        | `hooks/useOverlayRenderLogging.ts`        |
+| 5   | Service Worker cleanup (PWA removido, mas código ficou)                                                     | 185-213        | `utils/swCleanup.ts`                      |
+| 6   | Diagnóstico de build info (buildSha, vercelEnv)                                                             | 215-223        | `hooks/useBuildInfo.ts`                   |
+| 7   | 4 lazy-loaded modais com retry (LoadingSmart, Email, FollowUp, UpdateNotification) via `loadWithChunkRetry` | 23-31, 425-460 | `components/AppModals.tsx`                |
+| 8   | Fallback de carregamento `HeroLoadingChunkFallback` inline                                                  | 36-49          | `components/HeroLoadingChunkFallback.tsx` |
+| 9   | Helper `isTopicDeepDiveDisplayMessage` inline                                                               | 74-77          | `utils/topicDeepDive.ts`                  |
+| 10  | Instanciar `useDossierWaterfallOrchestrator` + `useChatMessageOrchestrator` + `useSessionManager`           | 259-292        | `features/app-shell/AppOrchestrators.tsx` |
+| 11  | Invocar `useAppInitialization` que controla gate `isInitialized`                                            | 261            | `hooks/useAppInitialization.ts`           |
+| 12  | Decisão de overlay hero (`shouldShowHeroLoadingOverlay` + `WATERFALL_PREVIEW_MIN_CHARS = 200`)              | 130-152        | `hooks/useHeroOverlayDecision.ts`         |
 
 ---
 
@@ -185,9 +185,9 @@ O impacto no produto é total: se App.tsx falhar na montagem, o usuário vê tel
 
 ## Histórico de revisão
 
-| Data | Revisor | Ação |
-|---|---|---|
+| Data       | Revisor               | Ação                                                                       |
+| ---------- | --------------------- | -------------------------------------------------------------------------- |
 | 28/06/2026 | DeepSeek + IA gestora | Autor — análise de código (DeepSeek v1) + merge com piloto IA gestora (v2) |
-| 28/06/2026 | IA Gestora | Validação — consistência com princípios 12-14 e plano V3 |
-| Pendente | Bruno | Revisão — confirmação de que não refatorar agora é a decisão correta |
-| Pendente | Sênior (Fase 9) | Revisão técnica aprofundada antes de iniciar refatoração |
+| 28/06/2026 | IA Gestora            | Validação — consistência com princípios 12-14 e plano V3                   |
+| Pendente   | Bruno                 | Revisão — confirmação de que não refatorar agora é a decisão correta       |
+| Pendente   | Sênior (Fase 9)       | Revisão técnica aprofundada antes de iniciar refatoração                   |

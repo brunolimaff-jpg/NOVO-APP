@@ -78,21 +78,21 @@ quebrar o waterfall silenciosamente.
 
 ## Responsabilidades acumuladas
 
-| # | Responsabilidade | Linhas aprox | Deveria estar em |
-|---|---|---|---|
-| 1 | Orquestração de 5 módulos LLM sequenciais com abort, timeout (90s/60s) e fallback opcional | 729-983 | `features/dossier/dossier-pipeline.ts` |
-| 2 | Sub-orquestração Teia Societária (Identidade + Profundidade com fallback genérico) | 787-927 | `features/dossier/teia-orchestrator.ts` |
-| 3 | Construção de contexto estático (lookup, senior evidence, teia research para foundation cache) | 643-696 | `services/llm/foundation-cache.ts` |
-| 4 | Validação pós-geração de CNPJs contra fontes oficiais (threshold de 30% não confirmados) | 430-516 | `services/cnpj-validator.ts` |
-| 5 | Reconciliação de score PORTA com Promise.race + timeout de 120s | 1010-1067 | `features/dossier/porta-reconciliation.ts` |
-| 6 | Validação inline de fontes promovíveis (timeout total 5s, body read timeout 3s) | 254-416 | `services/web-verification.ts` |
-| 7 | Gerenciamento de estado de loading (7 stages, reset incremental com keepHistory: 4) | 930-1008 | `hooks/useLoadingProgress.ts` |
-| 8 | Fallback de sessão perdida por race condition React 18 (2 cenários documentados) | 1374-1435 | `stores/chatStore.ts` |
-| 9 | Persistência fire-and-forget no Supabase com evento dossier:completed + timeout 15s | 1440-1481 | `services/storage.ts` |
-| 10 | Cache foundation: criação (antes dos módulos) e deleção (finally, fire-and-forget 15s) | 669-696, 1487-1509 | `services/llm/foundation-cache.ts` |
-| 11 | Health-check final com snapshot DOM + store (5+ dimensões, 35+ linhas de diagnóstico) | 1520-1557 | `utils/diagnosticLog.ts` |
-| 12 | Finalização atômica de UI (isLoading, loadingVariant, progress, failureCount, overlay DOM) | 1566-1579 | `utils/finalizeWaterfallUI.ts` |
-| 13 | Geração de sugestões de continuidade com timeout de 20s e fallback para sugestões genéricas | 1150-1239 | `utils/messageHelpers.ts` |
+| #   | Responsabilidade                                                                               | Linhas aprox       | Deveria estar em                           |
+| --- | ---------------------------------------------------------------------------------------------- | ------------------ | ------------------------------------------ |
+| 1   | Orquestração de 5 módulos LLM sequenciais com abort, timeout (90s/60s) e fallback opcional     | 729-983            | `features/dossier/dossier-pipeline.ts`     |
+| 2   | Sub-orquestração Teia Societária (Identidade + Profundidade com fallback genérico)             | 787-927            | `features/dossier/teia-orchestrator.ts`    |
+| 3   | Construção de contexto estático (lookup, senior evidence, teia research para foundation cache) | 643-696            | `services/llm/foundation-cache.ts`         |
+| 4   | Validação pós-geração de CNPJs contra fontes oficiais (threshold de 30% não confirmados)       | 430-516            | `services/cnpj-validator.ts`               |
+| 5   | Reconciliação de score PORTA com Promise.race + timeout de 120s                                | 1010-1067          | `features/dossier/porta-reconciliation.ts` |
+| 6   | Validação inline de fontes promovíveis (timeout total 5s, body read timeout 3s)                | 254-416            | `services/web-verification.ts`             |
+| 7   | Gerenciamento de estado de loading (7 stages, reset incremental com keepHistory: 4)            | 930-1008           | `hooks/useLoadingProgress.ts`              |
+| 8   | Fallback de sessão perdida por race condition React 18 (2 cenários documentados)               | 1374-1435          | `stores/chatStore.ts`                      |
+| 9   | Persistência fire-and-forget no Supabase com evento dossier:completed + timeout 15s            | 1440-1481          | `services/storage.ts`                      |
+| 10  | Cache foundation: criação (antes dos módulos) e deleção (finally, fire-and-forget 15s)         | 669-696, 1487-1509 | `services/llm/foundation-cache.ts`         |
+| 11  | Health-check final com snapshot DOM + store (5+ dimensões, 35+ linhas de diagnóstico)          | 1520-1557          | `utils/diagnosticLog.ts`                   |
+| 12  | Finalização atômica de UI (isLoading, loadingVariant, progress, failureCount, overlay DOM)     | 1566-1579          | `utils/finalizeWaterfallUI.ts`             |
+| 13  | Geração de sugestões de continuidade com timeout de 20s e fallback para sugestões genéricas    | 1150-1239          | `utils/messageHelpers.ts`                  |
 
 ---
 
@@ -372,9 +372,9 @@ carga e estabilização). Todas exigem `npm run typecheck` e `npm test` passando
 
 ## Histórico de revisão
 
-| Data | Revisor | Ação |
-|---|---|---|
-| 28/06/2026 | DeepSeek | Autor — análise de código e redação do ADR |
-| 28/06/2026 | IA Gestora | Validação — consistência com princípios 12-14 e plano V3 |
-| 28/06/2026 | Bruno | Revisão — confirmação de que não refatorar agora é a decisão correta |
-| Pendente | Sênior (Fase 9) | Revisão técnica aprofundada antes de iniciar refatoração |
+| Data       | Revisor         | Ação                                                                 |
+| ---------- | --------------- | -------------------------------------------------------------------- |
+| 28/06/2026 | DeepSeek        | Autor — análise de código e redação do ADR                           |
+| 28/06/2026 | IA Gestora      | Validação — consistência com princípios 12-14 e plano V3             |
+| 28/06/2026 | Bruno           | Revisão — confirmação de que não refatorar agora é a decisão correta |
+| Pendente   | Sênior (Fase 9) | Revisão técnica aprofundada antes de iniciar refatoração             |
