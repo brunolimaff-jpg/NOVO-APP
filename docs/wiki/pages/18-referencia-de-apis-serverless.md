@@ -37,6 +37,7 @@ Em desenvolvimento local, `config/localDevApiProxy.ts` mantém a lista de rotas 
 | `/api/cnpj`            | `GET`, `OPTIONS`                         | Manual                                       | padrão Vercel    | Proxy CNPJ com CORS explícito e cache HTTP de 1 hora                                 |
 | `/api/comex`           | `OPTIONS` e requisições com `query.cnpj` | Manual                                       | padrão Vercel    | Simulação determinística de exportador com cache HTTP de 24 horas                    |
 | `/api/rag`             | `POST`                                   | Zod                                          | `60s`            | Consulta Pinecone genérica com embeddings Gemini                                     |
+| `/api/docs-rag`        | `POST`                                   | Zod                                          | `60s`            | Consulta RAG documental com namespaces permitidos                                    |
 | `/api/pulse-news`      | `POST`                                   | Zod                                          | padrão Vercel    | Resumo comercial Gemini por `companyName`                                            |
 
 ## Headers comuns
@@ -71,7 +72,7 @@ Todas as rotas principais chamam `setSecurityHeaders(res)` antes de responder:
 | Falha controlada com fallback útil | `200` com `degraded: true`, `context` vazio, `providerStatus` ou `detail` |
 
 <Warning>
-Nem toda falha operacional vira status HTTP de erro. `/api/open-web-search`, `/api/socio-search`, `/api/rag` e `recordDiagnostics` preferem resposta degradada em `200` quando isso preserva o fluxo do usuário.
+Nem toda falha operacional vira status HTTP de erro. `/api/open-web-search`, `/api/socio-search`, `/api/rag`, `/api/docs-rag` e `recordDiagnostics` preferem resposta degradada em `200` quando isso preserva o fluxo do usuário.
 </Warning>
 
 ## Contratos por rota
@@ -400,14 +401,14 @@ A rota busca Google News RSS e feeds fixos, deduplica títulos e usa Gemini para
 
 ## RAG e documentação
 
-`/api/rag` usa embeddings Gemini (`gemini-embedding-001`) e Pinecone para os modos global e documental. Falhas operacionais retornam `200` degradado para não quebrar o War Room.
+`/api/rag` e `/api/docs-rag` usam embeddings Gemini (`gemini-embedding-001`) e Pinecone. Ambas retornam `200` degradado em falhas operacionais para não quebrar o War Room.
 
-| Rota              | Entrada                                    | Saída de sucesso                          | Degradação                                             |
-| ----------------- | ------------------------------------------ | ----------------------------------------- | ------------------------------------------------------ |
-| `/api/rag` global | `{ "query": string }`                      | `{ "context": string }`                   | `{ "context": "", "degraded": true, "detail": "..." }` |
-| `/api/rag` docs   | `{ "query": string, "namespace": string }` | `{ "context": string, "matches": [...] }` | Resposta degradada ou sinal explícito sem docs         |
+| Rota            | Entrada                                     | Saída de sucesso                          | Degradação                                                                         |
+| --------------- | ------------------------------------------- | ----------------------------------------- | ---------------------------------------------------------------------------------- |
+| `/api/rag`      | `{ "query": string }`                       | `{ "context": string }`                   | `{ "context": "", "degraded": true, "detail": "..." }`                             |
+| `/api/docs-rag` | `{ "query": string, "namespace"?: string }` | `{ "context": string, "matches": [...] }` | `{ "context": "", "degraded": true, "detail": "..." }` ou sinal explícito sem docs |
 
-O modo documental exige `namespace` e só aceita `senior-erp-docs` ou `competitor-pdfs`; sem o campo a consulta é global. `matches` contém somente resultados com score `>= 0.6`; URL-only permanece diagnóstico e não vira contexto factual.
+`/api/docs-rag` só aceita namespaces `senior-erp-docs` e `competitor-pdfs`; namespace inválido retorna `400 { "error": "Invalid namespace", "allowed": [...] }`. Matches abaixo de `0.6` ou sem texto indexado retornam o sinal:
 
 ```text
 [SEM DOCUMENTAÇÃO ENCONTRADA — NÃO complete com suposições. Informe que não há dados verificados disponíveis.]
@@ -419,19 +420,19 @@ O modo documental exige `namespace` e só aceita `senior-erp-docs` ou `competito
 
 ## Variáveis de ambiente server-side
 
-| Variável                                  | Usada por                                                                             | Observação                                                         |
-| ----------------------------------------- | ------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
-| `GEMINI_API_KEY`                          | `gemini`, `gerar-dossie`, `radar-scan`, `rag`, `pulse-news`, busca web via utilitário | Obrigatória nas rotas que chamam Gemini diretamente                |
-| `GEMINI_API_KEY_FALLBACK`                 | `gemini`, `gerar-dossie`                                                              | Usada em quota, billing ou permissão quando a chave primária falha |
-| `GEMINI_FOUNDATION_CACHE_ENABLED`         | `gemini`                                                                              | Deve ser `1` para `createCachedContent` e `deleteCachedContent`    |
-| `SUPABASE_URL` ou `VITE_SUPABASE_URL`     | `recordDiagnostics`, cache persistente de `socio-search`                              | URL REST Supabase                                                  |
-| `SUPABASE_SERVICE_ROLE_KEY`               | `recordDiagnostics`, cache persistente de `socio-search`                              | Chave server-side; não expor no frontend                           |
-| `PINECONE_API_KEY` ou `PINECONE_DOCS_KEY` | `rag`                                                                                 | Chave Pinecone                                                     |
-| `PINECONE_INDEX` ou `PINECONE_DOCS_INDEX` | `rag`                                                                                 | Índice inválido cai para `scout-arsenal`                           |
-| `PINECONE_NAMESPACE`                      | `rag`                                                                                 | Namespace opcional somente do modo global                          |
-| `PINECONE_DOCS_NAMESPACE`                 | scripts de ingestão                                                                   | Não seleciona o modo documental no runtime                         |
-| `CNPJABERTO_API_KEY`                      | `socio-search` via `documentExtractor`                                                | Habilita busca estruturada por sócio                               |
-| `ALLOWED_ORIGIN` e `VERCEL_URL`           | `cnpj`, `comex`                                                                       | Compõem lista CORS permitida                                       |
+| Variável                                  | Usada por                                                                                         | Observação                                                         |
+| ----------------------------------------- | ------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| `GEMINI_API_KEY`                          | `gemini`, `gerar-dossie`, `radar-scan`, `rag`, `docs-rag`, `pulse-news`, busca web via utilitário | Obrigatória nas rotas que chamam Gemini diretamente                |
+| `GEMINI_API_KEY_FALLBACK`                 | `gemini`, `gerar-dossie`                                                                          | Usada em quota, billing ou permissão quando a chave primária falha |
+| `GEMINI_FOUNDATION_CACHE_ENABLED`         | `gemini`                                                                                          | Deve ser `1` para `createCachedContent` e `deleteCachedContent`    |
+| `SUPABASE_URL` ou `VITE_SUPABASE_URL`     | `recordDiagnostics`, cache persistente de `socio-search`                                          | URL REST Supabase                                                  |
+| `SUPABASE_SERVICE_ROLE_KEY`               | `recordDiagnostics`, cache persistente de `socio-search`                                          | Chave server-side; não expor no frontend                           |
+| `PINECONE_API_KEY` ou `PINECONE_DOCS_KEY` | `rag`, `docs-rag`                                                                                 | Chave Pinecone                                                     |
+| `PINECONE_INDEX` ou `PINECONE_DOCS_INDEX` | `rag`, `docs-rag`                                                                                 | Índice inválido cai para `scout-arsenal`                           |
+| `PINECONE_NAMESPACE`                      | `rag`, fallback de `docs-rag`                                                                     | Namespace opcional                                                 |
+| `PINECONE_DOCS_NAMESPACE`                 | `docs-rag`                                                                                        | Default efetivo para docs quando permitido                         |
+| `CNPJABERTO_API_KEY`                      | `socio-search` via `documentExtractor`                                                            | Habilita busca estruturada por sócio                               |
+| `ALLOWED_ORIGIN` e `VERCEL_URL`           | `cnpj`, `comex`                                                                                   | Compõem lista CORS permitida                                       |
 
 ## Respostas degradadas por design
 
@@ -440,7 +441,7 @@ O modo documental exige `namespace` e só aceita `senior-erp-docs` ou `competito
 | `/api/open-web-search`            | `200`, `content: ""`, `degraded: true`, `providerStatus` | Busca pública é enriquecimento, não deve travar o dossiê      |
 | `/api/socio-search`               | `200`, `companies: []`, `degraded: true`, `detail`       | Drill-down societário lateral deve falhar de forma controlada |
 | `/api/rag`                        | `200`, `context: ""`, `degraded: true`                   | War Room pode seguir sem contexto RAG                         |
-| `/api/rag` com namespace          | `200` com sinal sem documentação ou `degraded: true`     | Evita completar resposta com fonte fraca ou ausente           |
+| `/api/docs-rag`                   | `200` com sinal sem documentação ou `degraded: true`     | Evita completar resposta com fonte fraca ou ausente           |
 | `/api/gemini` `recordDiagnostics` | `200`, `inserted: 0`, `degraded: true`                   | Ausência de Supabase não deve quebrar telemetria do cliente   |
 | `/api/link-status`                | item `unknown`                                           | Validação de fonte é opcional e revisável manualmente         |
 | `/api/radar-scan`                 | `partialFailures` ou fallback de RSS bruto               | Falha parcial por categoria não invalida o scan inteiro       |
@@ -455,7 +456,7 @@ npm test -- tests/api-gemini.test.ts
 npm test -- tests/api-open-web-search.test.ts
 npm test -- tests/api-extract.test.ts
 npm test -- tests/api/comex.test.ts
-npm test -- tests/api-rag-docs.test.ts
+npm test -- tests/api-docs-rag.test.ts
 npm test -- tests/api-socio-search.test.ts
 npm test -- tests/api/security-headers.test.ts
 ```
@@ -469,7 +470,7 @@ Para validar comportamento integrado no app, prefira preview Vercel quando a mud
     Ações de `/api/gemini`, cache foundation, grounding, Open Web Search tool e fachada `geminiService`.
   </Card>
   <Card title="Referência de RAG" href="/rag-reference">
-    Contrato consolidado de `/api/rag`, namespaces e sinal sem documentação.
+    Contratos detalhados de `/api/rag` e `/api/docs-rag`, namespaces e sinal sem documentação.
   </Card>
   <Card title="Busca societária" href="/socio-search-reference">
     Schema, cache, deadline, enriquecimento por CNPJ, trace diagnostics e rejeições.

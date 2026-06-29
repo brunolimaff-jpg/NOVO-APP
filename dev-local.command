@@ -56,7 +56,7 @@ echo -e "${YELLOW}🚀 Iniciando servidor Vite...${NC}"
 echo ""
 
 # Função para detectar quando o servidor está pronto
-PORT=3000
+PORT=5173
 MAX_WAIT=30
 WAIT_COUNT=0
 

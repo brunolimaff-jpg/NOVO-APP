@@ -352,7 +352,7 @@ function buildBadges(company: SocietaryCompany): SocietaryBadge[] {
 
 export function buildSocietaryGraph(
   input: BuildSocietaryGraphInput,
-  geminiCnpjs?: SocietaryCompanyInput[],
+  llmCnpjs?: SocietaryCompanyInput[],
 ): SocietaryGraph {
   const partners: SocietaryPartner[] = input.partners
     .filter(partner => partner.name.trim())
@@ -502,8 +502,8 @@ export function buildSocietaryGraph(
     }
   }
 
-  if (geminiCnpjs) {
-    for (const geminiCompany of geminiCnpjs) {
+  if (llmCnpjs) {
+    for (const geminiCompany of llmCnpjs) {
       if (!geminiCompany.name.trim()) continue;
 
       const geminiCandidate: SocietaryCompanyInput = {

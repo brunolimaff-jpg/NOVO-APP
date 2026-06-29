@@ -197,16 +197,16 @@
     {
       "id": "page-ingerir-docs-rag",
       "title": "Ingerir documentação para RAG",
-      "description": "Comandos e parâmetros para CSV, crawler Senior, PDFs de concorrentes, embeddings, namespaces Pinecone e verificação pelo modo documental de `/api/rag`.",
+      "description": "Comandos e parâmetros para CSV, crawler Senior, PDFs de concorrentes, embeddings, namespaces Pinecone e verificação por `/api/docs-rag`.",
       "path": "pages/14-ingerir-documentacao-para-rag.md",
       "sourceFiles": [
         "scripts/crawlAndIngestSeniorDocs.ts",
         "scripts/ingestErpDocs.ts",
         "scripts/ingestPdfDocs.ts",
-        "api/rag.ts",
+        "api/docs-rag.ts",
         "services/ragService.ts",
         "services/war-room/retrieval.ts",
-        "tests/api-rag-docs.test.ts"
+        "tests/api-docs-rag.test.ts"
       ]
     },
     {
@@ -289,14 +289,15 @@
     {
       "id": "page-rag-reference",
       "title": "Referência de RAG",
-      "description": "Contrato consolidado de `/api/rag`, namespaces permitidos, thresholds, sinal sem documentação, cliente `ragService` e uso no War Room.",
+      "description": "Contratos de `/api/rag` e `/api/docs-rag`, namespaces permitidos, thresholds, sinal sem documentação, cliente `ragService` e uso no War Room.",
       "path": "pages/20-referencia-de-rag.md",
       "sourceFiles": [
         "services/ragService.ts",
         "api/rag.ts",
+        "api/docs-rag.ts",
         "services/war-room/retrieval.ts",
         "scripts/ingestPdfDocs.ts",
-        "tests/api-rag-docs.test.ts",
+        "tests/api-docs-rag.test.ts",
         "tests/services/ragService.test.ts"
       ]
     },
@@ -458,48 +459,6 @@
         "hooks/chat/useInvestigation.ts",
         "utils/loadingStatus.ts",
         "components/LoadingSmart.tsx"
-      ]
-    },
-    {
-      "id": "page-arquitetura-llm-providers",
-      "title": "Arquitetura de Provedores LLM (Fase 5)",
-      "description": "Evolucao de Gemini-only para pipeline hibrido com LiteLLM proxy, Bedrock (Sonnet) e DeepSeek. Roteamento, custos, timeouts e bugs conhecidos.",
-      "path": "pages/31-arquitetura-llm-providers.md",
-      "sourceFiles": [
-        "utils/llm/modelRouter.ts",
-        "utils/llm/modelCatalog.ts",
-        "utils/llm/groundingHybrid.ts",
-        "utils/llm/types.ts",
-        "api/_llm-client.ts",
-        "api/gemini.ts",
-        "features/dossier/waterfall-orchestrator.ts",
-        "CALIBER_LEARNINGS.md",
-        "ARQUITETURA.md"
-      ]
-    },
-    {
-      "id": "page-hybrid-model-map",
-      "title": "HYBRID_MODEL_MAP — Roteamento Inteligente por Modulo",
-      "description": "Mapa que define qual modelo/provedor cada modulo do waterfall usa. Decisao arquitetural que separa qualidade por custo conforme criticidade.",
-      "path": "pages/32-hybrid-model-map.md",
-      "sourceFiles": [
-        "utils/llm/modelRouter.ts",
-        "utils/llm/modelCatalog.ts",
-        "utils/llm/types.ts",
-        "features/dossier/waterfall-orchestrator.ts",
-        "tests/utils/modelRouter.test.ts"
-      ]
-    },
-    {
-      "id": "page-grounding-cache-bug-p0",
-      "title": "Bug P0 — Grounding Cache",
-      "description": "groundingSources=0 nos modulos waterfall ao usar foundation cache. Tools descartadas no proxy desde maio/2026.",
-      "path": "pages/33-grounding-cache-bug-p0.md",
-      "sourceFiles": [
-        "utils/llm/groundingHybrid.ts",
-        "api/gemini.ts",
-        "services/geminiProxy.ts",
-        "CALIBER_LEARNINGS.md"
       ]
     }
   ]

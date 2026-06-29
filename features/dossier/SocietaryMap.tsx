@@ -19,38 +19,18 @@ import {
   countCompaniesByScope,
   describeEvidencePartner,
   describeRelationshipScope,
-  SOCIO_SEARCH_BATCH_SIZE,
-  SOCIO_SEARCH_CLIENT_TIMEOUT_MS,
 } from './SocietaryMap/utils';
 import { isValidCnpj } from '../../utils/cnpj';
 import SocietaryMatrix from './SocietaryMatrix';
 import { createScoutTraceId, isScoutTraceEnabled, scoutDiag } from '../../utils/diagnosticLog';
-import { useOperator } from '../../contexts/OperatorContext';
 
 const MAX_CNAE_LOOKUPS = 24;
-
-function mergeAbortSignals(primary: AbortSignal, timeoutMs: number): AbortSignal {
-  const merged = new AbortController();
-  const abortMerged = () => merged.abort();
-  if (primary.aborted) {
-    abortMerged();
-    return merged.signal;
-  }
-  primary.addEventListener('abort', abortMerged, { once: true });
-  if (typeof AbortSignal.timeout === 'function') {
-    const timeoutSignal = AbortSignal.timeout(timeoutMs);
-    timeoutSignal.addEventListener('abort', abortMerged, { once: true });
-  } else {
-    setTimeout(abortMerged, timeoutMs);
-  }
-  return merged.signal;
-}
 
 interface SocietaryMapProps {
   cnpj?: string | null;
   empresaAlvo?: string | null;
   isDarkMode: boolean;
-  geminiCnpjs?: SocietaryCompanyInput[];
+  llmCnpjs?: SocietaryCompanyInput[];
   traceId?: string;
   traceEnabled?: boolean;
 }
@@ -59,11 +39,10 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({
   cnpj,
   empresaAlvo,
   isDarkMode,
-  geminiCnpjs,
+  llmCnpjs,
   traceId,
   traceEnabled,
 }) => {
-  const { operatorId } = useOperator();
   const [state, setState] = useState<LoadState>('idle');
   const [rootData, setRootData] = useState<RootData | null>(null);
   const [companiesByPartner, setCompaniesByPartner] = useState<Record<string, SocietaryCompanyInput[]>>({});
@@ -155,9 +134,9 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({
         });
       }
 
-      if (partners.length === 0 && geminiCnpjs && geminiCnpjs.length > 0) {
+      if (partners.length === 0 && llmCnpjs && llmCnpjs.length > 0) {
         const geminiPartners = new Map<string, SocietaryPartnerInput>();
-        for (const c of geminiCnpjs) {
+        for (const c of llmCnpjs) {
           if (c.partnerName && !geminiPartners.has(c.partnerName)) {
             geminiPartners.set(c.partnerName, {
               name: c.partnerName,
@@ -171,7 +150,7 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({
           partners = [...geminiPartners.values()];
           trace('fallback Gemini gerou socios para a teia', {
             partnersCount: partners.length,
-            geminiCompaniesCount: geminiCnpjs.length,
+            geminiCompaniesCount: llmCnpjs.length,
           });
           if (!cancelled) setNotice('Dados do Gemini utilizados para montar o mapa societario.');
         } else {
@@ -183,7 +162,7 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({
             },
           ];
           trace('fallback Gemini sem socios explicitos; usando socio sintetico', {
-            geminiCompaniesCount: geminiCnpjs.length,
+            geminiCompaniesCount: llmCnpjs.length,
           });
           if (!cancelled) setNotice('Mapa montado com dados do Gemini. Validacao via QSA pendente.');
         }
@@ -192,7 +171,7 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({
       if (partners.length === 0) {
         trace('teia sem socios apos lookup e fallback', {
           cnpj: lookupCnpj,
-          geminiCompaniesCount: geminiCnpjs?.length || 0,
+          geminiCompaniesCount: llmCnpjs?.length || 0,
         });
         if (!cancelled) {
           setRootData(null);
@@ -237,7 +216,7 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({
       cancelled = true;
       controller.abort();
     };
-  }, [cnpj, empresaAlvo, geminiCnpjs, trace]);
+  }, [cnpj, empresaAlvo, llmCnpjs, trace]);
 
   useEffect(() => {
     setIsEvidenceOpen(false);
@@ -267,7 +246,7 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({
         uiCommitStrategy: 'incremental_per_partner',
       });
 
-      const BATCH_SIZE = SOCIO_SEARCH_BATCH_SIZE;
+      const BATCH_SIZE = 5;
       const allPartners = rootData!.partners;
 
       const processPartner = async (partner: RootData['partners'][number]) => {
@@ -282,7 +261,6 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({
             partnerKey,
             partnersTotal: allPartners.length,
           });
-          const fetchSignal = mergeAbortSignals(controller.signal, SOCIO_SEARCH_CLIENT_TIMEOUT_MS);
           const response = await fetch('/api/socio-search', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -291,9 +269,8 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({
               rootCompanyName: rootName,
               rootCnpj,
               trace: traceActive || undefined,
-              operatorId,
             }),
-            signal: fetchSignal,
+            signal: controller.signal,
           });
           const payload = response.ok
             ? ((await response.json()) as SocioSearchResponse)
@@ -346,12 +323,9 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({
             }
           }
         } catch (error) {
-          const timedOut =
-            error instanceof Error && /timeout|aborted|abort/i.test(`${error.name || ''} ${error.message || ''}`);
           trace('socio-search falhou no frontend', {
             partnerName: partner.name,
             partnerKey,
-            timedOut,
             message: error instanceof Error ? error.message : String(error),
           });
           if (!cancelled) {
@@ -399,16 +373,16 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({
       cancelled = true;
       controller.abort();
     };
-  }, [rootData, trace, traceActive, operatorId]);
+  }, [rootData, trace, traceActive]);
 
   const graph = useMemo(() => {
     if (!rootData) return null;
     const isSyntheticFallback =
       rootData.partners.length === 1 && rootData.partners[0].name === 'Grupo Econômico (Gemini)';
     const enrichedGemini =
-      isSyntheticFallback && geminiCnpjs
-        ? geminiCnpjs.map(c => (c.partnerName ? c : { ...c, partnerName: 'Grupo Econômico (Gemini)' }))
-        : geminiCnpjs;
+      isSyntheticFallback && llmCnpjs
+        ? llmCnpjs.map(c => (c.partnerName ? c : { ...c, partnerName: 'Grupo Econômico (Gemini)' }))
+        : llmCnpjs;
     return buildSocietaryGraph(
       {
         root: {
@@ -420,7 +394,7 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({
       },
       enrichedGemini,
     );
-  }, [rootData, companiesByPartner, geminiCnpjs]);
+  }, [rootData, companiesByPartner, llmCnpjs]);
 
   const partnersById = useMemo(() => (graph ? new Map(graph.partners.map(p => [p.id, p])) : new Map()), [graph]);
 

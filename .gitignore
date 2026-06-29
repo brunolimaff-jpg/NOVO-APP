@@ -8,6 +8,7 @@ pnpm-debug.log*
 lerna-debug.log*
 
 node_modules
+nimbalyst-local/
 .superpowers/
 dist
 dist-ssr
@@ -29,7 +30,6 @@ dist-ssr
 *.sw?
 
 # Local agent/cursor artifacts
-opencode.json
 .cursor/
 .kilo/
 .playwright-mcp/
@@ -57,15 +57,12 @@ vercel_build_tag.json
 # IDE local (Google Project IDX)
 .idx/
 
-# Supabase temp artifacts
-supabase/.temp/
-
-# Session screenshots (temporary evidence)
-pr386-*.png
-scheffer-*.png
-
 # Shared Obsidian repo graph
 .obsidian/*
 !.obsidian/core-plugins.json
 !.obsidian/graph.json
 *.canvas
+
+# Audit/review artifacts (não comitar)
+.audit-pr386/
+.superhuman/

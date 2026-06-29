@@ -326,5 +326,3 @@ describe('InlineLoadingBubble — regressão', () => {
     expect(screen.queryByTestId('inline-loading-bubble')).not.toBeInTheDocument();
   });
 });
-
-/* ── Skeleton cards — TODO: implementar contrato antes de reativar testes ── */

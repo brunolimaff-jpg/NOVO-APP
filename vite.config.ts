@@ -57,7 +57,9 @@ export default defineConfig(({ mode }) => {
       __BUILD_TS__: JSON.stringify(new Date().toISOString()),
       // Expor SENTRY_DSN da integracao Vercel para o client (Vite so expoe vars com prefixo VITE_)
       // So aplica quando SENTRY_DSN existe (build Vercel); local dev usa VITE_SENTRY_DSN do .env nativo
-      ...(env.SENTRY_DSN ? { 'import.meta.env.VITE_SENTRY_DSN': JSON.stringify(env.SENTRY_DSN) } : {}),
+      ...(env.SENTRY_DSN && !process.env.VITEST
+        ? { 'import.meta.env.VITE_SENTRY_DSN': JSON.stringify(env.SENTRY_DSN) }
+        : {}),
     },
     server: {
       port: 3000,
@@ -68,7 +70,7 @@ export default defineConfig(({ mode }) => {
       generateVersionPlugin(),
       react({
         babel: {
-          plugins: [ReactCompilerPlugin],
+          plugins: mode !== 'production' ? [ReactCompilerPlugin] : [],
         },
       }),
       // PWA/Service Worker removido (PR #334).
@@ -110,7 +112,7 @@ export default defineConfig(({ mode }) => {
               id.includes('/constants.ts') ||
               id.includes('/types.ts') ||
               id.includes('/services/investigationStore.ts') ||
-              id.includes('/services/geminiProxy.ts')
+              id.includes('/services/llmProxy.ts')
             )
               return 'app-core';
           },

@@ -17,7 +17,7 @@ source_files:
   - 'tests/utils/documentExtractor.test.ts'
 ---
 
-A camada de API do Senior Scout 360 roda em Vercel Functions `nodejs`, concentra segredos em `process.env`, aplica headers comuns via `setSecurityHeaders(res)` e usa validação Zod nas rotas que recebem JSON. O navegador deve chamar os proxies locais (`/api/gemini`, `/api/cnpj`, `/api/open-web-search`, `/api/extract-content`, `/api/rag`) em vez de chamar provedores externos com chaves ou URLs diretas.
+A camada de API do Senior Scout 360 roda em Vercel Functions `nodejs`, concentra segredos em `process.env`, aplica headers comuns via `setSecurityHeaders(res)` e usa validação Zod nas rotas que recebem JSON. O navegador deve chamar os proxies locais (`/api/gemini`, `/api/cnpj`, `/api/open-web-search`, `/api/extract-content`, `/api/rag`, `/api/docs-rag`) em vez de chamar provedores externos com chaves ou URLs diretas.
 
 ## Fronteira de confiança
 
@@ -60,7 +60,7 @@ Todas as rotas públicas em `api/*.ts` chamam `setSecurityHeaders(res)` no iníc
 | `/api/gerar-dossie`        | `GEMINI_API_KEY`, `GEMINI_API_KEY_FALLBACK`                                    | Geração longa com `maxDuration = 300`.                                                     |
 | `/api/open-web-search`     | `GEMINI_API_KEY` opcional via `performWebSearch`; fallback DuckDuckGo          | Não usa `BRAVE_SEARCH_API_KEY` no runtime atual.                                           |
 | `/api/rag`                 | `GEMINI_API_KEY`, `PINECONE_API_KEY` ou `PINECONE_DOCS_KEY`                    | Embedding Gemini + consulta Pinecone no servidor.                                          |
-| `/api/rag` com namespace   | `GEMINI_API_KEY`, `PINECONE_DOCS_KEY` ou `PINECONE_API_KEY`                    | Restringe namespace de documentação.                                                       |
+| `/api/docs-rag`            | `GEMINI_API_KEY`, `PINECONE_DOCS_KEY` ou `PINECONE_API_KEY`                    | Restringe namespace de documentação.                                                       |
 | `/api/socio-search`        | `CNPJABERTO_API_KEY` opcional, `SUPABASE_SERVICE_ROLE_KEY` opcional para cache | Se cache persistente não estiver configurado, degrada para cache em memória.               |
 | `/api/cnpj` e `/api/comex` | Sem chave de provedor no handler                                               | Centralizam chamadas CNPJ no servidor para evitar CORS no navegador.                       |
 
@@ -240,17 +240,17 @@ O Sentry Replay utiliza atualmente `maskAllText: false` e `blockAllMedia: false`
 
 ## Limites de payload por rota
 
-| Rota                   | Método                                | Runtime                     | Limites e comportamento                                                               |
-| ---------------------- | ------------------------------------- | --------------------------- | ------------------------------------------------------------------------------------- |
-| `/api/gemini`          | `POST`                                | `nodejs`, `maxDuration=300` | Schema por `action`; mensagens até 200000 chars; cache foundation protegido por flag. |
-| `/api/gerar-dossie`    | `POST`                                | `nodejs`, `maxDuration=300` | `model` até 200 chars; `contents` obrigatório; `config` livre com defaults seguros.   |
-| `/api/extract-content` | `POST`                                | `nodejs`, `maxDuration=60`  | `base64Content` até 13.6M chars; URL pública ou base64+mimeType.                      |
-| `/api/open-web-search` | `POST`                                | `nodejs`, `maxDuration=60`  | `query` ou `url`; URL pública; falha de provedor vira resposta degradada.             |
-| `/api/socio-search`    | `POST`                                | `nodejs`, `maxDuration=60`  | `socioName` 3-160; `rootCompanyName` 2-180; deadline interno 45s; até 60 empresas.    |
-| `/api/cnpj`            | `GET`, `OPTIONS`                      | `nodejs`                    | CNPJ com dígitos válidos; cache 3600s em sucesso; erros 400/404/503.                  |
-| `/api/comex`           | `OPTIONS` e requests com `cnpj` query | serverless Node implícito   | CNPJ válido; resposta mockada determinística; cache 86400s.                           |
-| `/api/rag`             | `POST`                                | `nodejs`, `maxDuration=60`  | `query` 1-10000; Pinecone server-side; resposta degradada em erro.                    |
-| `/api/rag` docs        | `POST`                                | `nodejs`, `maxDuration=60`  | `query` 1-10000; namespaces permitidos: `senior-erp-docs`, `competitor-pdfs`.         |
+| Rota                   | Método                                | Runtime                     | Limites e comportamento                                                                            |
+| ---------------------- | ------------------------------------- | --------------------------- | -------------------------------------------------------------------------------------------------- |
+| `/api/gemini`          | `POST`                                | `nodejs`, `maxDuration=300` | Schema por `action`; mensagens até 200000 chars; cache foundation protegido por flag.              |
+| `/api/gerar-dossie`    | `POST`                                | `nodejs`, `maxDuration=300` | `model` até 200 chars; `contents` obrigatório; `config` livre com defaults seguros.                |
+| `/api/extract-content` | `POST`                                | `nodejs`, `maxDuration=60`  | `base64Content` até 13.6M chars; URL pública ou base64+mimeType.                                   |
+| `/api/open-web-search` | `POST`                                | `nodejs`, `maxDuration=60`  | `query` ou `url`; URL pública; falha de provedor vira resposta degradada.                          |
+| `/api/socio-search`    | `POST`                                | `nodejs`, `maxDuration=60`  | `socioName` 3-160; `rootCompanyName` 2-180; deadline interno 45s; até 60 empresas.                 |
+| `/api/cnpj`            | `GET`, `OPTIONS`                      | `nodejs`                    | CNPJ com dígitos válidos; cache 3600s em sucesso; erros 400/404/503.                               |
+| `/api/comex`           | `OPTIONS` e requests com `cnpj` query | serverless Node implícito   | CNPJ válido; resposta mockada determinística; cache 86400s.                                        |
+| `/api/rag`             | `POST`                                | `nodejs`, `maxDuration=60`  | `query` 1-10000; Pinecone server-side; resposta degradada em erro.                                 |
+| `/api/docs-rag`        | `POST`                                | `nodejs`, `maxDuration=60`  | `query` 1-10000; `namespace` até 120; namespaces permitidos: `senior-erp-docs`, `competitor-pdfs`. |
 
 ## Busca societária e budget serverless
 

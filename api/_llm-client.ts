@@ -1,347 +1,140 @@
-import type { LiteLLMUsageMetadata, NormalizeModelOutputResult } from '../utils/llm/types.js';
+/**
+ * LiteLLM HTTP client for Vercel serverless functions.
+ *
+ * Encapsulates auth, timeout, and retry logic so callers only need
+ * to pass model/prompt parameters.
+ */
 
-type Environment = Record<string, string | undefined>;
-
-/** Hobby Vercel = 60s hard limit — budget 38s leaves room for fallback Gemini no mesmo handler. */
-const DEFAULT_LITELLM_REQUEST_TIMEOUT_MS = 38_000;
-const MAX_LITELLM_REQUEST_TIMEOUT_MS = 180_000;
-const DEFAULT_LITELLM_MAX_RETRIES = 2;
-const DEFAULT_RETRY_BASE_DELAY_MS = 500;
-
-class LiteLLMHttpError extends Error {
-  constructor(
-    readonly status: number,
-    message: string,
-  ) {
-    super(message);
-  }
-}
-
-function isRetryableStatus(status: number): boolean {
-  return status === 408 || status === 429 || status >= 500;
-}
-
-function remainingBudget(deadline: number): number {
-  return Math.max(0, deadline - Date.now());
-}
-
-async function waitWithinBudget(delayMs: number, deadline: number, signal?: AbortSignal): Promise<void> {
-  const available = remainingBudget(deadline);
-  if (available <= delayMs) throw new Error('LiteLLM total request budget exceeded');
-
-  await new Promise<void>((resolve, reject) => {
-    const timeout = setTimeout(resolve, delayMs);
-    const abort = () => {
-      clearTimeout(timeout);
-      reject(new Error('Aborted'));
-    };
-    if (signal?.aborted) abort();
-    else signal?.addEventListener('abort', abort, { once: true });
-  });
-}
-
-async function withDeadline<T>(operation: Promise<T>, signal: AbortSignal): Promise<T> {
-  if (signal.aborted) throw new Error('LiteLLM total request budget exceeded');
-  return Promise.race([
-    operation,
-    new Promise<T>((_, reject) => {
-      signal.addEventListener('abort', () => reject(new Error('LiteLLM total request budget exceeded')), {
-        once: true,
-      });
-    }),
-  ]);
-}
-
-const REASONING_PREFIXES = [
-  /^let me analyze[\s\S]*?(?=\n#|\[\[PORTA|\{)/i,
-  /^vou analisar[\s\S]*?(?=\n#|\[\[PORTA|\{)/i,
-  /^i(?:'|')?ll analyze[\s\S]*?(?=\n#|\[\[PORTA|\{)/i,
-];
-
-export function isLiteLLMEnabled(env: Environment = process.env): boolean {
-  const provider = env.LLM_PROVIDER;
-  const hasKey = Boolean(env.LITELLM_API_KEY);
-  const hasUrl = Boolean(env.LITELLM_BASE_URL);
-  const result = provider === 'litellm' && hasKey && hasUrl;
-  console.error('[TRACE] G1 isLiteLLMEnabled', {
-    result,
-    LLM_PROVIDER: provider,
-    hasKey,
-    hasUrl,
-    baseUrl_preview: (env.LITELLM_BASE_URL || '').slice(0, 50),
-    keyLength: (env.LITELLM_API_KEY || '').length,
-  });
-  return result;
-}
-
-export function isFallbackEnabled(_env: Environment = process.env): boolean {
-  // Zero Gemini — pipeline híbrido não faz fallback automático
-  return false;
-}
-
-export function resolveLiteLLMRequestBudgetMs(rawValue?: string): number {
-  const configured = Number(rawValue ?? DEFAULT_LITELLM_REQUEST_TIMEOUT_MS);
-  if (!Number.isFinite(configured) || configured <= 0) return DEFAULT_LITELLM_REQUEST_TIMEOUT_MS;
-  return Math.min(configured, MAX_LITELLM_REQUEST_TIMEOUT_MS);
-}
-
-function stripClosedTag(text: string, tag: string): { text: string; removedChars: number } {
-  const regex = new RegExp(`<${tag}>[\\s\\S]*?<\\/${tag}>`, 'gi');
-  const before = text.length;
-  const cleaned = text.replace(regex, '').trim();
-  return { text: cleaned, removedChars: before - cleaned.length };
-}
-
-function stripUnclosedTag(text: string, tag: string): { text: string; removedChars: number } {
-  const openIndex = text.search(new RegExp(`<${tag}>`, 'i'));
-  if (openIndex < 0) return { text, removedChars: 0 };
-
-  const afterOpen = text.slice(openIndex);
-  if (new RegExp(`</${tag}>`, 'i').test(afterOpen)) {
-    return { text, removedChars: 0 };
-  }
-
-  const markerOffset = afterOpen.search(/\n#+\s|\[\[PORTA|\{/);
-  if (markerOffset > 0) {
-    const cleaned = `${text.slice(0, openIndex)}${afterOpen.slice(markerOffset)}`.trimStart();
-    return { text: cleaned, removedChars: text.length - cleaned.length };
-  }
-
-  const regex = new RegExp(`<${tag}>[\\s\\S]*$`, 'i');
-  const before = text.length;
-  const cleaned = text.replace(regex, '').trim();
-  return { text: cleaned, removedChars: before - cleaned.length };
-}
-
-function stripReasoningBeforeFirstHeading(text: string): { text: string; removedChars: number } {
-  const markerIndex = text.search(/(^|\n)#+\s|\[\[PORTA|\{/);
-  if (markerIndex <= 0) return { text, removedChars: 0 };
-
-  const prefix = text.slice(0, markerIndex);
-  if (!prefix.trim()) return { text, removedChars: 0 };
-
-  const looksLikeReasoning =
-    /<(?:redacted_thinking|reasoning|analysis)>/i.test(prefix) ||
-    /^(let me|vou analisar|i(?:'|')?ll analyze)/i.test(prefix.trim());
-
-  if (!looksLikeReasoning) return { text, removedChars: 0 };
-
-  const cleaned = text.slice(markerIndex).trimStart();
-  return { text: cleaned, removedChars: prefix.length };
-}
-
-function stripExplicitPrefixes(text: string): { text: string; removedChars: number } {
-  let current = text;
-  let removedChars = 0;
-
-  for (const regex of REASONING_PREFIXES) {
-    const before = current.length;
-    current = current.replace(regex, '').trimStart();
-    removedChars += before - current.length;
-  }
-
-  return { text: current, removedChars };
-}
-
-export function normalizeModelOutput(raw: string): NormalizeModelOutputResult {
-  let text = raw ?? '';
-  let reasoningCharsRemoved = 0;
-
-  const layers: Array<(input: string) => { text: string; removedChars: number }> = [
-    input => stripClosedTag(input, 'redacted_thinking'),
-    input => stripClosedTag(input, 'reasoning'),
-    input => stripClosedTag(input, 'analysis'),
-    input => stripUnclosedTag(input, 'redacted_thinking'),
-    input => stripUnclosedTag(input, 'reasoning'),
-    input => stripUnclosedTag(input, 'analysis'),
-    stripReasoningBeforeFirstHeading,
-    stripExplicitPrefixes,
-  ];
-
-  for (const layer of layers) {
-    const result = layer(text);
-    text = result.text;
-    reasoningCharsRemoved += result.removedChars;
-  }
-
-  text = ensureMarkdownStart(text);
-
-  return {
-    text,
-    reasoningRemoved: reasoningCharsRemoved > 0,
-    reasoningCharsRemoved,
-  };
-}
-
-export function ensureMarkdownStart(text: string): string {
-  const trimmed = text.trim();
-  if (!trimmed) return trimmed;
-
-  if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
-    return trimmed;
-  }
-
-  if (/^#+\s/.test(trimmed) || /\[\[PORTA/.test(trimmed)) {
-    return trimmed;
-  }
-
-  return trimmed;
-}
-
-export function normalizeUsage(usage?: {
-  prompt_tokens?: number;
-  completion_tokens?: number;
-  total_tokens?: number;
-}): LiteLLMUsageMetadata {
-  return {
-    promptTokenCount: usage?.prompt_tokens,
-    candidatesTokenCount: usage?.completion_tokens,
-    totalTokenCount: usage?.total_tokens,
-  };
-}
-
-export interface LiteLLMCallInput {
+export interface LiteLLMParams {
   model: string;
-  systemInstruction?: string;
-  userContent: string;
+  messages: Array<{ role: string; content: string }>;
+  maxTokens?: number;
   temperature?: number;
-  maxOutputTokens?: number;
-  signal?: AbortSignal;
+  timeoutMs?: number;
 }
 
-export interface LiteLLMCallResult {
-  text: string;
-  usage: LiteLLMUsageMetadata;
-  finishReason?: string;
-  reasoningRemoved: boolean;
-  reasoningCharsRemoved: number;
+/* ------------------------------------------------------------------ */
+/*  Guards                                                            */
+/* ------------------------------------------------------------------ */
+
+export function isLiteLLMEnabled(): boolean {
+  return process.env.LLM_PROVIDER === 'litellm' && !!process.env.LITELLM_API_KEY && !!process.env.LITELLM_BASE_URL;
 }
 
-export async function callLiteLLM(input: LiteLLMCallInput, env: Environment = process.env): Promise<LiteLLMCallResult> {
-  const baseUrl = env.LITELLM_BASE_URL?.replace(/\/$/, '');
-  const apiKey = env.LITELLM_API_KEY;
+/* ------------------------------------------------------------------ */
+/*  Timeout resolution                                                */
+/* ------------------------------------------------------------------ */
+
+export function resolveLiteLLMClientTimeoutMs(): number {
+  const raw = process.env.VITE_LITELLM_CLIENT_TIMEOUT_MS;
+  if (!raw) return 120_000;
+
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed) || parsed <= 0) return 120_000;
+
+  return Math.min(parsed, 180_000);
+}
+
+/* ------------------------------------------------------------------ */
+/*  Core client                                                       */
+/* ------------------------------------------------------------------ */
+
+export async function callLiteLLM(params: LiteLLMParams): Promise<string> {
+  const baseUrl = process.env.LITELLM_BASE_URL;
+  const apiKey = process.env.LITELLM_API_KEY;
+  const timeout = params.timeoutMs ?? resolveLiteLLMClientTimeoutMs();
+
   if (!baseUrl || !apiKey) {
-    throw new Error('LiteLLM não configurado: LITELLM_BASE_URL e LITELLM_API_KEY são obrigatórios');
+    throw new Error('LITELLM_BASE_URL and LITELLM_API_KEY must be set');
   }
 
-  const messages: Array<{ role: 'system' | 'user'; content: string }> = [];
-  if (input.systemInstruction) {
-    messages.push({ role: 'system', content: input.systemInstruction });
-  }
-  messages.push({ role: 'user', content: input.userContent });
+  const body = {
+    model: params.model,
+    messages: params.messages,
+    max_tokens: params.maxTokens ?? 4096,
+    temperature: params.temperature ?? 0.7,
+  };
 
-  const effectiveTimeoutMs = resolveLiteLLMRequestBudgetMs(env.LITELLM_REQUEST_TIMEOUT_MS);
-  console.error('[LiteLLM] callLiteLLM CHAMADO', {
-    raw: env.LITELLM_REQUEST_TIMEOUT_MS,
-    effective: effectiveTimeoutMs,
-    provider: env.LLM_PROVIDER,
-    hasUrl: !!env.LITELLM_BASE_URL,
-    hasKey: !!env.LITELLM_API_KEY,
-  });
+  const url = `${baseUrl.replace(/\/+$/, '')}/chat/completions`;
+  const maxAttempts = 2;
+  const backoffMs = 1_000;
 
-  const deadline = Date.now() + effectiveTimeoutMs;
-  const configuredRetries = Number(env.LITELLM_MAX_RETRIES ?? DEFAULT_LITELLM_MAX_RETRIES);
-  const maxRetries =
-    Number.isInteger(configuredRetries) && configuredRetries >= 0
-      ? Math.min(configuredRetries, DEFAULT_LITELLM_MAX_RETRIES)
-      : DEFAULT_LITELLM_MAX_RETRIES;
-  const configuredDelay = Number(env.LITELLM_RETRY_BASE_DELAY_MS ?? DEFAULT_RETRY_BASE_DELAY_MS);
-  const baseDelayMs =
-    Number.isFinite(configuredDelay) && configuredDelay >= 0 ? configuredDelay : DEFAULT_RETRY_BASE_DELAY_MS;
   let lastError: Error | undefined;
 
-  for (let attempt = 0; attempt <= maxRetries; attempt++) {
-    if (input.signal?.aborted) {
-      throw new Error('Aborted');
-    }
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeout);
 
-    let attemptTimeoutId: ReturnType<typeof setTimeout> | undefined;
     try {
-      const available = remainingBudget(deadline);
-      if (available <= 0) throw new Error('LiteLLM total request budget exceeded');
-      const timeoutController = new AbortController();
-      attemptTimeoutId = setTimeout(() => timeoutController.abort(), available);
-      const signal = input.signal
-        ? AbortSignal.any([input.signal, timeoutController.signal])
-        : timeoutController.signal;
-      const response = await withDeadline(
-        fetch(`${baseUrl}/chat/completions`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${apiKey}`,
-          },
-          body: JSON.stringify({
-            model: input.model,
-            messages,
-            temperature: input.temperature ?? 0.1,
-            max_tokens: input.maxOutputTokens ?? 8192,
-          }),
-          signal,
-        }),
-        signal,
-      );
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(body),
+        signal: controller.signal,
+      });
 
       if (!response.ok) {
-        const errorBody = await withDeadline(
-          response.text().catch(() => ''),
-          signal,
-        );
-        clearTimeout(attemptTimeoutId);
-        throw new LiteLLMHttpError(response.status, `LiteLLM HTTP ${response.status}: ${errorBody.slice(0, 200)}`);
+        const errorText = await response.text().catch(() => '');
+        const isRetryable = response.status === 429 || response.status >= 500;
+        const err = new Error(`LiteLLM request failed [${response.status}]: ${errorText || response.statusText}`);
+        (err as unknown as Record<string, unknown>).isRetryable = isRetryable;
+        throw err;
       }
 
-      const responseBody = await withDeadline(response.text(), signal);
-      if (remainingBudget(deadline) <= 0) throw new Error('LiteLLM total request budget exceeded');
-      const completion = JSON.parse(responseBody) as {
-        choices?: Array<{ message?: { content?: string }; finish_reason?: string }>;
-        usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number };
-      };
+      const data: unknown = await response.json();
 
-      const choice = completion.choices?.[0];
-      const rawText = choice?.message?.content ?? '';
-      const normalized = normalizeModelOutput(rawText);
-      clearTimeout(attemptTimeoutId);
-      if (!normalized.text.trim()) {
-        throw new Error('LiteLLM retornou resposta vazia');
+      const content = extractContent(data);
+
+      if (content === undefined || content === null) {
+        throw new Error('LiteLLM response missing choices[0].message.content');
       }
 
-      return {
-        text: normalized.text,
-        usage: normalizeUsage(completion.usage),
-        finishReason: choice?.finish_reason,
-        reasoningRemoved: normalized.reasoningRemoved,
-        reasoningCharsRemoved: normalized.reasoningCharsRemoved,
-      };
-    } catch (error) {
-      if (attemptTimeoutId) clearTimeout(attemptTimeoutId);
-      lastError = error instanceof Error ? error : new Error(String(error));
-      const isAbort =
-        lastError.message.includes('aborted') ||
-        lastError.message.includes('AbortError') ||
-        lastError.name === 'AbortError';
-      const isTimeout = lastError.message.includes('timed out') || lastError.message.includes('budget exceeded');
-      console.error('[TRACE] callLiteLLM catch', {
-        attempt,
-        errorMessage: lastError.message,
-        isAbort,
-        isTimeout,
-        errorName: lastError.name,
-        budgetRemaining: remainingBudget(deadline),
-      });
-      const permanentHttpError = error instanceof LiteLLMHttpError && !isRetryableStatus(error.status);
-      const retryable =
-        !permanentHttpError && !(error instanceof SyntaxError) && !/resposta vazia/i.test(lastError.message);
-      if (attempt >= maxRetries || input.signal?.aborted || !retryable) break;
-      await waitWithinBudget(baseDelayMs * Math.pow(2, attempt), deadline, input.signal);
+      return content;
+    } catch (err: unknown) {
+      lastError = err instanceof Error ? err : new Error(String(err));
+      const isRetryable =
+        lastError instanceof DOMException && lastError.name === 'AbortError'
+          ? false
+          : ((lastError as unknown as Record<string, unknown>).isRetryable ?? true);
+
+      if (attempt < maxAttempts && isRetryable) {
+        await sleep(backoffMs);
+      } else {
+        break;
+      }
+    } finally {
+      clearTimeout(timer);
     }
   }
 
-  const finalError = lastError ?? new Error('LiteLLM request failed');
-  console.error('[TRACE] callLiteLLM FAIL FINAL', {
-    errorMessage: finalError.message,
-    isAbort: finalError.message.includes('aborted'),
-    isTimeout: finalError.message.includes('budget') || finalError.message.includes('timed out'),
-  });
-  throw finalError;
+  const errorMessage = lastError?.message ?? 'Unknown error';
+  console.error('[callLiteLLM] all attempts failed:', errorMessage);
+  throw new Error(`LiteLLM call failed after ${maxAttempts} attempts: ${errorMessage}`);
+}
+
+/* ------------------------------------------------------------------ */
+/*  Helpers                                                            */
+/* ------------------------------------------------------------------ */
+
+function extractContent(data: unknown): string | undefined {
+  if (!data || typeof data !== 'object') {
+    return undefined;
+  }
+  const obj = data as Record<string, unknown>;
+  const choices = obj.choices;
+  if (!Array.isArray(choices) || choices.length === 0) {
+    return undefined;
+  }
+  const message = choices[0]?.message;
+  if (!message || typeof message !== 'object' || typeof (message as Record<string, unknown>).content !== 'string') {
+    return undefined;
+  }
+  return (message as Record<string, unknown>).content as string;
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
 }

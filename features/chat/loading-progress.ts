@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useReducer, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   finalizeLoadingProgress,
   startIncrementalLoadingProgress,
@@ -6,13 +6,12 @@ import {
 } from '../../utils/loadingStatus';
 import type { LoadingVariant, RequestKind } from '../../utils/loadingVariant';
 import { updateVisibilityState } from '../../utils/diagnosticLog';
-import type { GenerationKind } from '../../utils/cofreLifecycle';
-import {
-  INITIAL_LOADING_STAGE,
-  initialLoadingStoreState,
-  loadingStoreReducer,
-  type LoadingProgressState,
-} from './loading-progress-reducer';
+
+interface LoadingProgressState {
+  stage: string;
+  completedStages: string[];
+  totalStages?: number;
+}
 
 interface ResetLoadingProgressOptions {
   incremental?: boolean;
@@ -25,8 +24,18 @@ interface CommitLoadingProgressInput {
   totalStages?: number;
 }
 
+const INITIAL_LOADING_STAGE = 'Iniciando análise';
+
 export function useChatLoadingProgress() {
-  const [state, dispatch] = useReducer(loadingStoreReducer, undefined, initialLoadingStoreState);
+  const [isLoading, setIsLoading] = useState(false);
+  const [loadingStatus, setLoadingStatus] = useState<string>(INITIAL_LOADING_STAGE);
+  const [failureCount, setFailureCount] = useState(0);
+  const [completedLoadingStatuses, setCompletedLoadingStatuses] = useState<string[]>([]);
+  const [loadingTotalStages, setLoadingTotalStages] = useState<number | undefined>(undefined);
+  const [loadingIsIncremental, setLoadingIsIncremental] = useState(false);
+  const [requestKind, setRequestKind] = useState<RequestKind>('default');
+  const [loadingVariant, setLoadingVariant] = useState<LoadingVariant | undefined>('hero');
+  const [loadingPinnedLabel, setLoadingPinnedLabel] = useState<string | null>(null);
 
   const loadingProgressRef = useRef<LoadingProgressState>({
     stage: INITIAL_LOADING_STAGE,
@@ -34,13 +43,14 @@ export function useChatLoadingProgress() {
     totalStages: undefined,
   });
 
+  // Sincroniza estado do loading para listeners de visibilidade (fora do ciclo React)
   useEffect(() => {
     updateVisibilityState({
-      isLoading: state.isLoading,
-      loadingVariant: state.loadingVariant,
-      requestKind: state.requestKind,
+      isLoading,
+      loadingVariant,
+      requestKind,
     });
-  }, [state.isLoading, state.loadingVariant, state.requestKind]);
+  }, [isLoading, loadingVariant, requestKind]);
 
   const commitLoadingProgress = useCallback((nextState: CommitLoadingProgressInput) => {
     const updated = {
@@ -54,12 +64,14 @@ export function useChatLoadingProgress() {
     };
 
     loadingProgressRef.current = updated;
-    dispatch({ type: 'commit_progress', patch: updated });
+    setLoadingStatus(updated.stage);
+    setCompletedLoadingStatuses(updated.completedStages);
+    setLoadingTotalStages(updated.totalStages);
   }, []);
 
   const resetLoadingProgress = useCallback(
     (stage: string = 'Realizando pesquisa...', totalStages?: number, options?: ResetLoadingProgressOptions) => {
-      dispatch({ type: 'set_failure_count', value: 0 });
+      setFailureCount(0);
       const useIncremental = Boolean(options?.incremental);
       if (useIncremental) {
         const next = startIncrementalLoadingProgress(
@@ -71,12 +83,15 @@ export function useChatLoadingProgress() {
             maxHistory: options?.keepHistory ?? 4,
           },
         );
-        dispatch({ type: 'set_incremental', value: true });
+        setLoadingIsIncremental(true);
         commitLoadingProgress(next);
         return;
       }
 
-      dispatch({ type: 'set_incremental', value: false });
+      setLoadingIsIncremental(false);
+      // Preserva a etapa inicial como concluída para que o contador global
+      // bata com a soma dos tempos por etapa (evita gap entre início do
+      // loading e primeira etapa do waterfall).
       const priorStage = loadingProgressRef.current.stage;
       const priorCompleted = loadingProgressRef.current.completedStages;
       const carryOver = priorStage && priorStage !== stage ? [priorStage] : [];
@@ -123,47 +138,21 @@ export function useChatLoadingProgress() {
     });
   }, [commitLoadingProgress]);
 
-  const setIsLoading = useCallback((value: boolean) => {
-    dispatch({ type: 'set_is_loading', value });
-  }, []);
-
-  const setFailureCount = useCallback((value: number | ((prev: number) => number)) => {
-    dispatch({ type: 'set_failure_count', value });
-  }, []);
-
-  const setRequestKind = useCallback((value: RequestKind) => {
-    dispatch({ type: 'set_request_kind', value });
-  }, []);
-
-  const setLoadingVariant = useCallback((value: LoadingVariant | undefined) => {
-    dispatch({ type: 'set_loading_variant', value });
-  }, []);
-
-  const setLoadingPinnedLabel = useCallback((value: string | null) => {
-    dispatch({ type: 'set_loading_pinned_label', value });
-  }, []);
-
-  const setGenerationKind = useCallback((value: GenerationKind) => {
-    dispatch({ type: 'set_generation_kind', value });
-  }, []);
-
   return {
-    isLoading: state.isLoading,
+    isLoading,
     setIsLoading,
-    loadingStatus: state.loadingStatus,
-    failureCount: state.failureCount,
+    loadingStatus,
+    failureCount,
     setFailureCount,
-    completedLoadingStatuses: state.completedLoadingStatuses,
-    loadingTotalStages: state.loadingTotalStages,
-    loadingIsIncremental: state.loadingIsIncremental,
-    requestKind: state.requestKind,
+    completedLoadingStatuses,
+    loadingTotalStages,
+    loadingIsIncremental,
+    requestKind,
     setRequestKind,
-    loadingVariant: state.loadingVariant,
+    loadingVariant,
     setLoadingVariant,
-    loadingPinnedLabel: state.loadingPinnedLabel,
+    loadingPinnedLabel,
     setLoadingPinnedLabel,
-    generationKind: state.generationKind,
-    setGenerationKind,
     resetLoadingProgress,
     advanceLoadingProgress,
     replaceLoadingProgressStage,

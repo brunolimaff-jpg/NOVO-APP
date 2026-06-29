@@ -19,7 +19,6 @@ export interface RadarProps {
 export type ExtendedChatInterfaceProps = ChatInterfaceProps & {
   onDeleteMessage?: (id: string) => void;
   radar?: RadarProps;
-  toast?: { error: (message: string) => void };
 };
 
 export interface ChatTheme {

@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import type { BlankPanelSnapshot } from '../../utils/blankPanelTelemetry';
-import { isOverlayStuckPostWaterfall, isPostWaterfallStuckHandoff } from '../../utils/postWaterfallHandoff';
+import {
+  isOverlayStuckPostWaterfall,
+  isPostWaterfallStuckHandoff,
+  shouldApplyProactiveForceStatic,
+  shouldResetForceStaticOnLoadingStart,
+} from '../../utils/postWaterfallHandoff';
 
 function snapshot(partial: Partial<BlankPanelSnapshot>): BlankPanelSnapshot {
   return {
@@ -45,6 +50,36 @@ function snapshot(partial: Partial<BlankPanelSnapshot>): BlankPanelSnapshot {
 }
 
 describe('postWaterfallHandoff', () => {
+  it('não zera forceStatic ao iniciar loading quando o dossiê já tem >= 4000 chars', () => {
+    expect(
+      shouldResetForceStaticOnLoadingStart({
+        expectedBotCharsMax: 5_000,
+        isLoading: true,
+        wasLoading: false,
+      }),
+    ).toBe(false);
+  });
+
+  it('zera forceStatic ao iniciar loading quando o volume ainda é pequeno', () => {
+    expect(
+      shouldResetForceStaticOnLoadingStart({
+        expectedBotCharsMax: 500,
+        isLoading: true,
+        wasLoading: false,
+      }),
+    ).toBe(true);
+  });
+
+  it('aplica forceStatic proativo para sessão ativa com dossiê grande', () => {
+    expect(
+      shouldApplyProactiveForceStatic({
+        expectedBotCharsMax: 4_000,
+        showInitialHome: false,
+        sessionId: 'sess-1',
+      }),
+    ).toBe(true);
+  });
+
   it('detecta handoff preso em placeholder com overlay ausente', () => {
     expect(isPostWaterfallStuckHandoff(snapshot({ placeholderVisible: true }))).toBe(true);
   });

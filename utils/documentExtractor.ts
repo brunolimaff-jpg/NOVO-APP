@@ -30,13 +30,10 @@ export function isValidPublicUrl(urlString: string): boolean {
     if (url.protocol !== 'http:' && url.protocol !== 'https:') return false;
     const hostname = url.hostname.toLowerCase();
     if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '[::1]') return false;
-    if (hostname === '0.0.0.0' || hostname === '[::]') return false;
     if (hostname.startsWith('10.') || hostname.startsWith('192.168.')) return false;
     if (/^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(hostname)) return false;
-    if (hostname.startsWith('169.254.') || hostname.startsWith('100.')) return false;
-    if (/^\[?fe80:/.test(hostname) || /^\[?(fc|fd)[0-9a-f]{2}:/.test(hostname)) return false;
+    if (hostname.startsWith('169.254.')) return false;
     if (hostname.endsWith('.local') || hostname.endsWith('.internal')) return false;
-    if (/\.(nip\.io|sslip\.io|xip\.io)$/i.test(hostname)) return false;
     return true;
   } catch {
     return false;
@@ -183,7 +180,8 @@ export async function performGeminiSearch(query: string, apiKey: string): Promis
  */
 export async function performWebSearch(query: string, _options: { count?: number } = {}): Promise<string | null> {
   // Tenta Gemini com grounding primeiro (mais preciso, com fontes verificadas)
-  const apiKey = typeof process !== 'undefined' && process.env ? process.env.GEMINI_API_KEY : undefined;
+  const apiKey =
+    typeof process !== 'undefined' && process.env ? process.env.LLM_API_KEY || process.env.GEMINI_API_KEY : undefined;
   if (apiKey) {
     const result = await performGeminiSearch(query, apiKey);
     if (result) return result;

@@ -45,13 +45,10 @@ export function buildExportConversationFile(
   const inconsistenciesSection = detectInconsistencies(sections);
   const normalizedText = normalizeMermaidBlocks(fullText);
   const executiveSummary = generateExecutiveSummary(normalizedText, sections, inconsistenciesSection);
-  const dossierMetadata = session.cnpj?.trim() ? `> **CNPJ analisado:** ${session.cnpj.trim()}\n\n` : '';
   const contentMarkdown = sanitizeSensitivePersonalData(
-    `${dossierMetadata}${
-      reportType === 'executive'
-        ? executiveSummary
-        : `${executiveSummary}\n\n---\n\n${normalizedText}${inconsistenciesSection}`
-    }`,
+    reportType === 'executive'
+      ? executiveSummary
+      : `${executiveSummary}\n\n---\n\n${normalizedText}${inconsistenciesSection}`,
   );
   const safeTitle = cleanTitle(session.title)
     .replace(/[^a-z0-9]/gi, '_')

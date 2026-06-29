@@ -1,6 +1,5 @@
 ---
 name: Preview Smoke
-# Smoke HTTP de rotas — Gemini real no preview é follow-up (PR Gate IA / critical-ux)
 
 on: # yamllint disable-line rule:truthy
   deployment_status:

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { buscarContextoPinecone, buscarContextoDocsPinecone } from '../services/ragService';
 import { lookupCliente } from '../services/clientLookupService';
 import { BACKEND_URL } from '../services/apiConfig';
-import { proxyGeminiHealth } from '../services/geminiProxy';
+import { proxyGeminiHealth } from '../services/llmProxy';
 import { getFeatureAccess } from '../utils/featureAccess';
 
 interface TestResult {

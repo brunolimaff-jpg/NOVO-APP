@@ -18,7 +18,6 @@ const FAKE_SOURCE_HOSTS = [
   'ai.studio',
   'aistudio.google.com',
   'vertexai.google.com',
-  'gemini.google.com',
   'example.com',
   'exemplo.com',
   'fake-link.com',

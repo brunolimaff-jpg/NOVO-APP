@@ -19,6 +19,7 @@ Marque os itens antes de publicar:
 - [ ] Gate inicial de nome do operador funcionando e persistindo localmente
 - [ ] Chat responde e salva sessão
 - [ ] Exportação PDF/MD/DOC funcionando
+- [ ] Fluxo de CRM (criar/mover card) funcionando
 
 ## Qualidade
 

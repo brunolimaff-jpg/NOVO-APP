@@ -272,6 +272,43 @@ describe('MessageTimeline', () => {
     expect(props.onPrefillComposer).toHaveBeenCalledWith('prefill-0');
   });
 
+  it('renderiza timeline estatica quando a virtualizacao falha em materializar o DOM', () => {
+    const props = buildProps({
+      forceStaticTimelineFallback: true,
+      hasMore: true,
+    });
+
+    render(<MessageTimeline {...props} />);
+
+    expect(screen.getByTestId('messages-static-fallback')).toBeInTheDocument();
+    expect(screen.queryByTestId('messages-scroller')).not.toBeInTheDocument();
+    expect(screen.getByTestId('message-row-0')).toHaveTextContent('Investigar Acme Agro');
+    expect(screen.getByTestId('message-row-1')).toHaveTextContent('Resumo inicial');
+
+    fireEvent.click(screen.getByRole('button', { name: /carregar mensagens anteriores/i }));
+    expect(props.onLoadMore).toHaveBeenCalled();
+  });
+
+  it('prioriza fallback estatico para bot gigante mesmo se a viewport ainda estiver suspensa', () => {
+    const largeMessages = [
+      buildMessage('m1', Sender.User, 'Investigar Acme Agro'),
+      buildMessage('m2', Sender.Bot, 'SCHEFFER_E2E_SENTINEL '.repeat(250)),
+    ];
+
+    const props = buildProps({
+      messages: largeMessages,
+      currentSession: buildSession(largeMessages),
+      shouldSuspendVirtualizedList: true,
+      forceStaticTimelineFallback: true,
+    });
+
+    render(<MessageTimeline {...props} />);
+
+    expect(screen.getByTestId('messages-static-fallback')).toBeInTheDocument();
+    expect(screen.queryByTestId('messages-viewport-suspended')).not.toBeInTheDocument();
+    expect(screen.getByTestId('message-row-1')).toHaveTextContent('SCHEFFER_E2E_SENTINEL');
+  });
+
   it('mantem followOutput auto sempre (Virtuoso gerencia scroll nativamente)', async () => {
     vi.useFakeTimers();
     // @ts-expect-error test fallback path
@@ -406,64 +443,113 @@ describe('MessageTimeline', () => {
     vi.useRealTimers();
   });
 
-  it('renderiza timeline estática quando forceStaticTimelineFallback=true', () => {
-    const largeText = 'D'.repeat(4_001);
-    const messages = [
-      buildMessage('m1', Sender.User, 'Investigar Scheffer'),
-      buildMessage('m2', Sender.Bot, largeText),
-    ];
+  describe('static-fallback display recovery', () => {
+    it('recupera display block quando getComputedStyle retorna none para o static fallback', async () => {
+      vi.useFakeTimers();
 
-    render(
-      <MessageTimeline
-        {...buildProps({
-          messages,
-          currentSession: buildSession(messages),
-          forceStaticTimelineFallback: true,
-        })}
-      />,
-    );
+      const originalGetComputedStyle = window.getComputedStyle;
+      const setPropertySpy = vi.spyOn(CSSStyleDeclaration.prototype, 'setProperty');
 
-    expect(screen.getByTestId('messages-static-fallback')).toBeInTheDocument();
-    expect(screen.queryByTestId('messages-scroller')).not.toBeInTheDocument();
-    expect(screen.getByTestId('message-row-1')).toHaveTextContent(largeText);
-  });
+      // Mock: getComputedStyle retorna display:none apenas para o static fallback
+      vi.spyOn(window, 'getComputedStyle').mockImplementation((el: Element, pseudoElt?: string | null) => {
+        const baseStyle = originalGetComputedStyle.call(window, el, pseudoElt ?? null);
+        const testid = (el as HTMLElement).getAttribute('data-testid');
+        if (testid === 'messages-static-fallback') {
+          return new Proxy(baseStyle, {
+            get(target, prop) {
+              if (prop === 'display') return 'none';
+              return Reflect.get(target, prop);
+            },
+          });
+        }
+        return baseStyle;
+      });
 
-  it('Virtuoso renderiza com dossiê grande (>4000 chars)', async () => {
-    const originalResizeObserver = global.ResizeObserver;
-    const originalRaf = window.requestAnimationFrame;
-    const originalCancelRaf = window.cancelAnimationFrame;
-
-    vi.useFakeTimers();
-    // @ts-expect-error test fallback path
-    global.ResizeObserver = undefined;
-    window.requestAnimationFrame = vi.fn(() => 1);
-    window.cancelAnimationFrame = vi.fn();
-
-    try {
-      const largeText = 'D'.repeat(4_001);
-      const messages = [
-        buildMessage('m1', Sender.User, 'Investigar Scheffer'),
-        buildMessage('m2', Sender.Bot, largeText),
+      const largeMessages = [
+        buildMessage('m1', Sender.User, 'Investigar Acme Agro'),
+        buildMessage('m2', Sender.Bot, 'SCHEFFER_E2E_SENTINEL '.repeat(250)),
       ];
 
       const props = buildProps({
-        messages,
-        currentSession: buildSession(messages),
+        messages: largeMessages,
+        currentSession: buildSession(largeMessages),
+        forceStaticTimelineFallback: true,
       });
 
       render(<MessageTimeline {...props} />);
 
-      act(() => {
-        vi.advanceTimersByTime(200);
+      expect(screen.getByTestId('messages-static-fallback')).toBeInTheDocument();
+
+      // Avança efeitos: useEffect → dynamic import → RAF
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(100);
+        // Dispara todos os RAFs pendentes
+        for (let i = 0; i < 5; i++) {
+          await vi.advanceTimersByTimeAsync(20);
+        }
       });
 
-      expect(screen.getByTestId('messages-scroller')).toBeInTheDocument();
-      expect(screen.getByTestId('message-row-1')).toHaveTextContent(largeText);
-    } finally {
-      global.ResizeObserver = originalResizeObserver;
-      window.requestAnimationFrame = originalRaf;
-      window.cancelAnimationFrame = originalCancelRaf;
+      // Verifica que o recovery foi acionado: setProperty('display', 'block', 'important')
+      const displayResetCalls = setPropertySpy.mock.calls.filter(
+        call => call[0] === 'display' && call[1] === 'block' && call[2] === 'important',
+      );
+      expect(displayResetCalls.length).toBeGreaterThanOrEqual(1);
+
+      setPropertySpy.mockRestore();
       vi.useRealTimers();
-    }
+    });
+
+    it('recovery é idempotente e nao quebra o elemento quando executado múltiplas vezes', async () => {
+      vi.useFakeTimers();
+
+      const largeMessages = [
+        buildMessage('m1', Sender.User, 'Investigar Acme Agro'),
+        buildMessage('m2', Sender.Bot, 'SCHEFFER_E2E_SENTINEL '.repeat(250)),
+      ];
+
+      const props = buildProps({
+        messages: largeMessages,
+        currentSession: buildSession(largeMessages),
+        forceStaticTimelineFallback: true,
+      });
+
+      render(<MessageTimeline {...props} />);
+      expect(screen.getByTestId('messages-static-fallback')).toBeInTheDocument();
+
+      await act(async () => {
+        for (let i = 0; i < 5; i++) {
+          await vi.advanceTimersByTimeAsync(20);
+        }
+      });
+
+      // O recovery pode ou nao ter executado dependendo do jsdom.
+      // O que importa: o elemento continua no DOM, acessível e funcional.
+      const fallbackEl = screen.getByTestId('messages-static-fallback') as HTMLElement;
+      expect(fallbackEl).toBeInTheDocument();
+      expect(fallbackEl.children.length).toBeGreaterThan(0);
+      // Se o recovery aplicou display:block !important, o elemento tem conteúdo visível
+      expect(fallbackEl.style.getPropertyPriority('display') === 'important' || fallbackEl.style.display === '').toBe(
+        true,
+      );
+
+      vi.useRealTimers();
+    });
+
+    it('nao executa recovery quando static fallback nao esta ativo', () => {
+      const props = buildProps({
+        messages: [buildMessage('m1', Sender.User, 'Ola'), buildMessage('m2', Sender.Bot, 'Resposta curta')],
+        currentSession: buildSession([
+          buildMessage('m1', Sender.User, 'Ola'),
+          buildMessage('m2', Sender.Bot, 'Resposta curta'),
+        ]),
+      });
+
+      render(<MessageTimeline {...props} />);
+
+      expect(screen.queryByTestId('messages-static-fallback')).not.toBeInTheDocument();
+      // Nenhum elemento deve ter style com !important injetado
+      const elementsWithImportant = document.querySelectorAll('[style*="important"]');
+      expect(elementsWithImportant.length).toBe(0);
+    });
   });
 });

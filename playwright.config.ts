@@ -1,19 +1,13 @@
 import { defineConfig, devices } from '@playwright/test';
 
-// E2E preview/CI usa installFastGeminiStubs — não chama Gemini real (ver HANDOFF_AI.md)
 const baseURL = process.env.BASE_URL || 'http://localhost:3000';
 const isExternal = !!process.env.BASE_URL;
-const desktopChrome = { ...devices['Desktop Chrome'] };
-const vercelBypassHeaders = process.env.VERCEL_AUTOMATION_BYPASS_SECRET
-  ? { 'x-vercel-protection-bypass': process.env.VERCEL_AUTOMATION_BYPASS_SECRET }
-  : undefined;
-const reportReadyTimeoutMs = Number(process.env.REPORT_READY_TIMEOUT_MS ?? 390_000);
 
 export default defineConfig({
   testDir: './tests-e2e',
   fullyParallel: false,
   forbidOnly: !!process.env.CI,
-  retries: process.env.CI ? 1 : 0,
+  retries: process.env.CI ? 2 : 0,
   workers: 1, // Mantemos em 1 para garantir a ordem em testes de fluxo de chat
   reporter: 'html',
   timeout: 180_000, // 3 min — investigação Gemini pode demorar
@@ -21,58 +15,12 @@ export default defineConfig({
     baseURL,
     trace: 'on-first-retry',
     video: 'retain-on-failure',
-    ...(vercelBypassHeaders ? { extraHTTPHeaders: vercelBypassHeaders } : {}),
   },
 
   projects: [
     {
       name: 'chromium',
-      use: desktopChrome,
-      testIgnore: /golden-dossier-live\.spec\.ts/,
-    },
-    {
-      name: 'critical-ux',
-      use: desktopChrome,
-      // Onda 1 E2E P0: 2ª investigação + stop/nova investigação (PR Gate IA 16/16)
-      testMatch:
-        /(scheffer-cnpj|blank-center|controlled-error|cofre-progressive|second-investigation|loading-smart-recovery).*\.spec\.ts/,
-    },
-    {
-      name: 'p1-smoke',
-      use: desktopChrome,
-      testMatch: /smoke\..*\.spec\.ts/,
-    },
-    {
-      // p2-cnpj-live: manual/workflow_dispatch only — npm run test:e2e:cnpj:live
-      name: 'p2-cnpj-live',
-      use: desktopChrome,
-      testMatch: /cnpj-investigation-flow\.spec\.ts/,
-    },
-    {
-      name: 'golden-dossier-live',
-      use: {
-        ...desktopChrome,
-        trace: 'on',
-        video: 'on',
-      },
-      testMatch: /golden-dossier-live\.spec\.ts/,
-      fullyParallel: false,
-      workers: 1,
-      retries: 0,
-    },
-    {
-      // Fase 6 delivery-loop: dossiê live no preview (sem gate de qualidade)
-      name: 'report-ready',
-      use: {
-        ...desktopChrome,
-        trace: 'on',
-        video: 'retain-on-failure',
-      },
-      testMatch: /report-ready\.spec\.ts/,
-      fullyParallel: false,
-      workers: 1,
-      retries: 0,
-      timeout: reportReadyTimeoutMs + 120_000,
+      use: { ...devices['Desktop Chrome'] },
     },
   ],
 

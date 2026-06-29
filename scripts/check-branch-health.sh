@@ -1,65 +1,46 @@
 #!/bin/bash
 # check-branch-health.sh — Trava de acúmulo de commits sem PR
+# Níveis:
+#   <= 5 commits → silencioso (OK)
+#   6-7 commits → warning (amarelo)
+#   >= 8 commits → bloqueia commit (vermelho)
+
 set -euo pipefail
+
 MAIN_BRANCH="${1:-main}"
 THRESHOLD_WARN=5
 THRESHOLD_BLOCK=8
+CONTEXT="${2:-commit}"  # "commit" | "session"
 
-count_commits() {
-  local remote
-  remote=$(git rev-parse --abbrev-ref '@{upstream}' 2>/dev/null) || true
-  if [ -n "$remote" ]; then
-    git rev-list --count "${remote}..HEAD" 2>/dev/null || echo "0"
-  else
-    git rev-list --count "${MAIN_BRANCH}..HEAD" 2>/dev/null || echo "0"
-  fi
-}
+# Conta commits locais ahead de main
+count=$(git rev-list --count "${MAIN_BRANCH}..HEAD" 2>/dev/null || echo "0")
 
-emit_cursor_json() {
-  python3 -c 'import json,sys; p=sys.argv[1]; m=sys.argv[2] if len(sys.argv)>2 else ""; o={"permission":p}; 
-if m: o["user_message"]=o["agent_message"]=m
-print(json.dumps(o,ensure_ascii=False))' "$1" "${2:-}"
-}
-
-is_git_commit_command() {
-  printf '%s' "$1" | grep -qE '(^|[;&|]|&&[[:space:]]*)git[[:space:]]+commit\b'
-}
-
-HOOK_INPUT=""
-[ ! -t 0 ] && HOOK_INPUT="$(cat)"
-
-CURSOR_MODE=0
-if [ -n "$HOOK_INPUT" ] && printf '%s' "$HOOK_INPUT" | python3 -c 'import json,sys
-try: d=json.load(sys.stdin)
-except json.JSONDecodeError: sys.exit(1)
-sys.exit(0 if isinstance(d,dict) and isinstance(d.get("command"),str) else 1)' 2>/dev/null; then
-  CURSOR_MODE=1
-fi
-
-if [ "$CURSOR_MODE" -eq 1 ]; then
-  COMMAND="$(printf '%s' "$HOOK_INPUT" | python3 -c 'import json,sys
-try: print(json.load(sys.stdin).get("command",""))
-except: print("")' 2>/dev/null || true)"
-  if ! is_git_commit_command "$COMMAND"; then emit_cursor_json allow; exit 0; fi
-  count="$(count_commits)"
-  if [ "$count" -ge "$THRESHOLD_BLOCK" ] && [ "${BRANCH_HEALTH_SKIP:-0}" != "1" ]; then
-    msg="${count} commits locais sem push. Abra PR ou push. BRANCH_HEALTH_SKIP=1 para forçar."
-    emit_cursor_json deny "$msg"; exit 2
-  fi
-  if [ "$count" -gt "$THRESHOLD_WARN" ]; then
-    emit_cursor_json allow "Atenção: ${count} commits locais sem push."
+if [ "$count" -ge "$THRESHOLD_BLOCK" ]; then
+  echo ""
+  echo "🚨🚨🚨 BLOQUEIO: $count commits NÃO pushados! 🚨🚨🚨"
+  echo ""
+  echo "   Você está acumulando commits demais sem abrir PR."
+  echo "   Risco: PR gigante, difícil revisar, conflitos com main."
+  echo ""
+  echo "   Ações antes de commitar de novo:"
+  echo "   1. Revise o que tem: git log main..HEAD --oneline"
+  echo "   2. Abra um PR com o que já existe"
+  echo "   3. Ou faça push dos commits: git push origin HEAD"
+  echo ""
+  echo "   Para forçar o commit mesmo assim:"
+  echo "   BRANCH_HEALTH_SKIP=1 git commit ..."
+  echo ""
+  if [ "${BRANCH_HEALTH_SKIP:-0}" = "1" ]; then
+    echo "   ⚠️ Skip forçado via BRANCH_HEALTH_SKIP=1"
     exit 0
   fi
-  emit_cursor_json allow; exit 0
-fi
-
-count="$(count_commits)"
-if [ "$count" -ge "$THRESHOLD_BLOCK" ]; then
-  echo "🚨 BLOQUEIO: $count commits sem push. BRANCH_HEALTH_SKIP=1 para forçar." >&2
-  [ "${BRANCH_HEALTH_SKIP:-0}" = "1" ] && exit 0
   exit 1
 elif [ "$count" -gt "$THRESHOLD_WARN" ]; then
-  echo "⚠️ $count commits locais sem push (bloqueio em $THRESHOLD_BLOCK)." >&2
+  echo ""
+  echo "⚠️  ATENÇÃO: $count commits locais sem push (limite: $THRESHOLD_WARN)"
+  echo "   Considere abrir um PR em breve. Máximo antes de bloquear: $THRESHOLD_BLOCK."
+  echo ""
+  exit 0
 fi
-exit 0
 
+exit 0

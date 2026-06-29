@@ -10,7 +10,10 @@ import {
   isOverlayStuckPostWaterfall,
   isPostWaterfallStuckHandoff,
   POST_WATERFALL_WATCHDOG_MS,
+  shouldApplyProactiveForceStatic,
+  shouldResetForceStaticOnLoadingStart,
 } from '../utils/postWaterfallHandoff';
+import { shouldPreferStaticTimelineForBotVolume } from '../utils/expectedBotContent';
 
 function shouldActivateStaticTimelineFallback(snapshot: BlankPanelSnapshot): boolean {
   if (!snapshot.sessionId || snapshot.expectedBotCharsMax <= 0 || snapshot.messageCount <= 0) return false;
@@ -47,15 +50,18 @@ export interface UseStaticTimelineFallbackParams {
   hasActiveSession: boolean;
   hasDossierContent: boolean;
   showOperatorGate: boolean;
-  hasBotThinkingPlaceholder?: boolean;
+  forceStaticTimelineFallback?: boolean;
+  preferStaticForLargeDossier?: boolean;
+  effectiveStaticTimelineFallback?: boolean;
+  shouldSuspendVirtualizedListForTimeline?: boolean;
 }
 
 export interface UseStaticTimelineFallbackResult {
   forceStaticTimelineFallback: boolean;
   setForceStaticTimelineFallback: (value: boolean) => void;
+  preferStaticForLargeDossier: boolean;
   effectiveStaticTimelineFallback: boolean;
   shouldSuspendVirtualizedListForTimeline: boolean;
-  recoveryKey: number;
 }
 
 export function useStaticTimelineFallback(params: UseStaticTimelineFallbackParams): UseStaticTimelineFallbackResult {
@@ -72,17 +78,25 @@ export function useStaticTimelineFallback(params: UseStaticTimelineFallbackParam
     hasActiveSession,
     hasDossierContent,
     showOperatorGate,
-    hasBotThinkingPlaceholder = false,
   } = params;
 
   const [forceStaticTimelineFallback, setForceStaticTimelineFallback] = useState(false);
-  const [recoveryKey, setRecoveryKey] = useState(0);
   const staticTimelineFallbackSessionRef = useRef<string | null>(null);
   const postWaterfallWatchdogLoggedRef = useRef<string | null>(null);
   const prevIsLoadingForStaticResetRef = useRef(isLoading);
   const panelSnapshotSignatureRef = useRef('');
+  const renderingModeLocked = useRef(false);
 
-  const effectiveStaticTimelineFallback = forceStaticTimelineFallback;
+  const preferStaticForLargeDossier =
+    !isLoading &&
+    !showInitialHome &&
+    !shouldSuspendVirtualizedList &&
+    !renderingModeLocked.current &&
+    shouldPreferStaticTimelineForBotVolume(expectedBotCharsMax);
+  if (!isLoading && !shouldSuspendVirtualizedList && !renderingModeLocked.current) {
+    renderingModeLocked.current = true;
+  }
+  const effectiveStaticTimelineFallback = forceStaticTimelineFallback || preferStaticForLargeDossier;
   const shouldSuspendVirtualizedListForTimeline = shouldSuspendVirtualizedList && !effectiveStaticTimelineFallback;
 
   // ── Efeito #2: Panel snapshot telemetry ──
@@ -136,18 +150,34 @@ export function useStaticTimelineFallback(params: UseStaticTimelineFallbackParam
       shouldSuspendVirtualizedList,
       shouldSuspendVirtualizedListForTimeline,
       forceStaticTimelineFallback,
+      preferStaticForLargeDossier,
+      effectiveStaticTimelineFallback,
       ...buildHandoffPanelDiag(domSnapshot, {
         shouldSuspendVirtualizedList,
+        forceStaticTimelineFallback,
         expectedBotCharsMax,
       }),
     };
 
     scoutDiag.info('ChatInterface', 'panel:snapshot', snapshotPayload);
+
+    if (effectiveStaticTimelineFallback && expectedBotCharsMax > 4000) {
+      requestAnimationFrame(() => {
+        import('../utils/layoutTraceTelemetry')
+          .then(({ traceLayout }) => {
+            traceLayout(scoutDiag.info.bind(scoutDiag), 'chat-interface-static-fallback', {
+              ...snapshotPayload,
+            });
+          })
+          .catch(() => {});
+      });
+    }
   }, [
     currentSession?.id,
     expectedBotCharsMax,
     effectiveStaticTimelineFallback,
     forceStaticTimelineFallback,
+    preferStaticForLargeDossier,
     hasActiveSession,
     hasDossierContent,
     isLoading,
@@ -166,83 +196,62 @@ export function useStaticTimelineFallback(params: UseStaticTimelineFallbackParam
     setForceStaticTimelineFallback(false);
     staticTimelineFallbackSessionRef.current = null;
     postWaterfallWatchdogLoggedRef.current = null;
+    renderingModeLocked.current = false;
   }, [currentSession?.id]);
 
-  // ── Efeito #3b: Fallback estático proativo durante waterfall de dossiê ──
-  // Virtuoso falha em dossiês grandes; ativar timeline estática enquanto o bot
-  // placeholder existe evita painel vazio mesmo antes do texto final na store.
-  useEffect(() => {
-    if (!currentSession?.id || showInitialHome || showOperatorGate) return;
-    if (!isLoading || !hasBotThinkingPlaceholder) return;
-    if (forceStaticTimelineFallback) return; // já ativo, evita re-disparo durante crescimento do texto
-
-    staticTimelineFallbackSessionRef.current = currentSession.id;
-    setForceStaticTimelineFallback(true);
-    scoutDiag.info('ChatInterface', 'static-fallback-proactive-dossier-loading', {
-      sessionId: currentSession.id,
-      expectedBotCharsMax,
-      safeMessagesLength,
-    } as unknown as Record<string, unknown>);
-  }, [
-    currentSession?.id,
-    expectedBotCharsMax,
-    forceStaticTimelineFallback,
-    hasBotThinkingPlaceholder,
-    isLoading,
-    safeMessagesLength,
-    showInitialHome,
-    showOperatorGate,
-  ]);
-
-  // ── Efeito #4: Reset ao iniciar loading + recovery proativo ao terminar ──
+  // ── Efeito #4: Reset ao iniciar loading com dossiê pequeno ──
   useEffect(() => {
     const wasLoading = prevIsLoadingForStaticResetRef.current;
     prevIsLoadingForStaticResetRef.current = isLoading;
-    if (isLoading && !wasLoading) {
+    if (
+      shouldResetForceStaticOnLoadingStart({
+        expectedBotCharsMax,
+        isLoading,
+        wasLoading,
+      })
+    ) {
       setForceStaticTimelineFallback(false);
       staticTimelineFallbackSessionRef.current = null;
       postWaterfallWatchdogLoggedRef.current = null;
-      return;
+      renderingModeLocked.current = false;
     }
+  }, [expectedBotCharsMax, isLoading]);
 
-    if (!wasLoading || isLoading || !currentSession?.id || expectedBotCharsMax <= 0 || showInitialHome) {
-      return;
-    }
-
-    const recoveryTimer = window.setTimeout(() => {
-      if (typeof document === 'undefined') return;
-
-      const botNode = document.querySelector('[data-testid="bot-message-content"]');
-      const botVisible = (() => {
-        if (!botNode) return false;
-        const style = window.getComputedStyle(botNode);
-        const opacity = Number(style.opacity || '1');
-        if (style.display === 'none' || style.visibility === 'hidden' || opacity <= 0.01) return false;
-        const rect = botNode.getBoundingClientRect();
-        return rect.width > 0 && rect.height > 0;
-      })();
-
-      if (botVisible) return;
-
-      setRecoveryKey(k => k + 1);
-      if (expectedBotCharsMax >= 4_000) {
-        staticTimelineFallbackSessionRef.current = currentSession.id;
-        setForceStaticTimelineFallback(true);
-      }
-
-      scoutDiag.warn('BlankPanel', 'store-text-dom-empty-recovery', {
-        sessionId: currentSession.id,
-        expectedBotCharsMax,
-        safeMessagesLength,
-      } as unknown as Record<string, unknown>);
-    }, 450);
-
-    return () => window.clearTimeout(recoveryTimer);
-  }, [currentSession?.id, expectedBotCharsMax, isLoading, safeMessagesLength, showInitialHome]);
-
-  // ── Efeito #5: Watchdog pós-waterfall ──
+  // ── Efeito #5: Força proativa para dossiês grandes ──
   useEffect(() => {
-    if (!currentSession?.id) return;
+    if (isLoading) return;
+    if (
+      !shouldApplyProactiveForceStatic({
+        expectedBotCharsMax,
+        showInitialHome,
+        sessionId: currentSession?.id,
+      })
+    ) {
+      return;
+    }
+
+    setForceStaticTimelineFallback(true);
+    staticTimelineFallbackSessionRef.current = currentSession!.id;
+    scoutDiag.info('ChatInterface', 'proactive-static-fallback-large-dossier', {
+      sessionId: currentSession!.id,
+      expectedBotCharsMax,
+      threshold: 4_000,
+      syncOnRender: true,
+      preferStaticForLargeDossier,
+      shouldSuspendVirtualizedList,
+    });
+  }, [
+    currentSession?.id,
+    expectedBotCharsMax,
+    isLoading,
+    preferStaticForLargeDossier,
+    shouldSuspendVirtualizedList,
+    showInitialHome,
+  ]);
+
+  // ── Efeito #6: Watchdog pós-waterfall ──
+  useEffect(() => {
+    if (!currentSession?.id || expectedBotCharsMax < 4_000) return;
     if (isLoading || showInitialHome) return;
 
     const watchdogTimer = window.setTimeout(() => {
@@ -265,6 +274,7 @@ export function useStaticTimelineFallback(params: UseStaticTimelineFallbackParam
             delayMs: POST_WATERFALL_WATCHDOG_MS,
             ...buildHandoffPanelDiag(snapshot, {
               shouldSuspendVirtualizedList,
+              forceStaticTimelineFallback,
               expectedBotCharsMax,
             }),
           } as unknown as Record<string, unknown>);
@@ -274,7 +284,6 @@ export function useStaticTimelineFallback(params: UseStaticTimelineFallbackParam
 
       staticTimelineFallbackSessionRef.current = currentSession.id;
       setForceStaticTimelineFallback(true);
-      setRecoveryKey(k => k + 1);
 
       if (postWaterfallWatchdogLoggedRef.current === currentSession.id) return;
       postWaterfallWatchdogLoggedRef.current = currentSession.id;
@@ -284,6 +293,7 @@ export function useStaticTimelineFallback(params: UseStaticTimelineFallbackParam
         delayMs: POST_WATERFALL_WATCHDOG_MS,
         ...buildHandoffPanelDiag(snapshot, {
           shouldSuspendVirtualizedList,
+          forceStaticTimelineFallback,
           expectedBotCharsMax,
         }),
         reason: snapshot?.reason,
@@ -304,7 +314,7 @@ export function useStaticTimelineFallback(params: UseStaticTimelineFallbackParam
     showInitialHome,
   ]);
 
-  // ── Efeito #6: Detecção de blank panel (4 timers) ──
+  // ── Efeito #7: Detecção de blank panel (4 timers) ──
   useEffect(() => {
     if (!currentSession?.id || expectedBotCharsMax <= 0) return;
     if (isLoading || showInitialHome || shouldSuspendVirtualizedList) return;
@@ -329,7 +339,6 @@ export function useStaticTimelineFallback(params: UseStaticTimelineFallbackParam
 
         staticTimelineFallbackSessionRef.current = currentSession.id;
         setForceStaticTimelineFallback(true);
-        setRecoveryKey(k => k + 1);
         scoutDiag.warn('BlankPanel', 'static-timeline-fallback-activated', {
           ...snapshot,
           delay,
@@ -352,8 +361,8 @@ export function useStaticTimelineFallback(params: UseStaticTimelineFallbackParam
   return {
     forceStaticTimelineFallback,
     setForceStaticTimelineFallback,
+    preferStaticForLargeDossier,
     effectiveStaticTimelineFallback,
     shouldSuspendVirtualizedListForTimeline,
-    recoveryKey,
   };
 }

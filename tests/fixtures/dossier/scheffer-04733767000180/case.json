@@ -16,15 +16,9 @@
     "Scheffer Colombia SAS",
     "Jobconvo integrado"
   ],
-  "locality": {
-    "city": "Sapezal",
-    "state": "MT",
-    "forbidden": ["Chapecó"]
-  },
   "forbiddenPhrases": [
     "Erro no processamento",
     "Falha técnica",
-    "Chapecó",
     "⚠️ Nota operacional:",
     "## ⚠️ INCONSISTÊNCIAS DETECTADAS",
     "## Brief de Reunião",

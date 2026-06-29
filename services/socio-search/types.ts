@@ -122,7 +122,6 @@ export const RequestSchema = z.object({
   rootCompanyName: z.string().min(2).max(180),
   rootCnpj: z.string().optional().default(''),
   trace: z.boolean().optional().default(false),
-  operatorId: z.string().optional().default(''),
 });
 
 export const CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
@@ -134,7 +133,7 @@ export const CNPJ_LOOKUP_TIMEOUT_MS = 3_500;
 export const MAX_CNPJ_LOOKUPS = 5;
 export const MAX_COMPANIES = 60;
 export const SUPABASE_CACHE_OPERATOR_ID = 'server:socio-search';
-export const CACHE_KEY_VERSION = 'v8-operator-scoped';
+export const CACHE_KEY_VERSION = 'v7-structured-lateral-cnpj';
 
 export const cache = new Map<string, CacheEntry>();
 
@@ -151,10 +150,9 @@ export function normalizeText(value: string): string {
     .trim();
 }
 
-export function buildCacheKey(rootCnpj: string, rootCompanyName: string, socioName: string, operatorId = ''): string {
+export function buildCacheKey(rootCnpj: string, rootCompanyName: string, socioName: string): string {
   const cnpj = normalizeCnpj(rootCnpj);
-  const operatorScope = normalizeText(operatorId) || 'anonymous';
-  return `${CACHE_KEY_VERSION}::${operatorScope}::${cnpj || normalizeText(rootCompanyName)}::${normalizeText(socioName)}`;
+  return `${CACHE_KEY_VERSION}::${cnpj || normalizeText(rootCompanyName)}::${normalizeText(socioName)}`;
 }
 
 export function buildPersistentCacheId(key: string): string {

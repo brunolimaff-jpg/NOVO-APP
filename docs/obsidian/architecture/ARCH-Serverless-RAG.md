@@ -27,7 +27,7 @@ As rotas `api/*.ts` sao o runtime real de integracao com Vercel para RAG, proxy 
 
 - `api/gemini.ts`
 - `api/rag.ts`
-- `api/rag.ts` também atende o modo documental via `namespace`
+- `api/docs-rag.ts`
 - `api/extract-content.ts`
 - `api/open-web-search.ts`
 - `api/radar-scan.ts`

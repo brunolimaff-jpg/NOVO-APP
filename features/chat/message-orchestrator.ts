@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useRef, type Dispatch, type MutableRefObject, type SetStateAction } from 'react';
+import { useCallback, useRef, type Dispatch, type MutableRefObject, type SetStateAction } from 'react';
+import * as Sentry from '@sentry/react';
 import { v4 as uuidv4 } from 'uuid';
 import { DEFAULT_MODE } from '../../constants';
 import { useMaybeMode } from '../../contexts/ModeContext';
 import { BACKEND_URL } from '../../services/apiConfig';
-import { sendMessageToGemini } from '../../services/geminiService';
+import { sendMessageToGemini } from '../../services/llmService';
 import { withAutoRetry } from '../../utils/retry';
 import { useMaybeChatStore } from '../../stores/chatStore';
 import { findReusableEmptySession } from './session-reuse';
@@ -14,6 +15,7 @@ import { normalizeAppError } from '../../utils/errorHelpers';
 import { extractCompanyName } from '../../utils/companyNameExtractor';
 import { cleanTitle, sanitizeLoadingContextText } from '../../utils/textCleaners';
 import {
+  resolveLoadingVariant,
   resolvePlaceholderLoadingVariant,
   resolveEffectiveLoadingVariant,
   type LoadingVariant,
@@ -29,13 +31,6 @@ import {
 import { useToast } from '../../hooks/useToast';
 import { trackOperatorEvent } from '../../services/operatorTracking';
 import { getWaterfallGuardState, isAnyWaterfallActive } from '../dossier/waterfall-guard';
-import {
-  dispatchCofreRenderReady,
-  isCofreRenderReady,
-  resolveGenerationKind,
-  type GenerationKind,
-} from '../../utils/cofreLifecycle';
-import { POST_COMPLETION_PROBE_DELAYS_MS, scheduleLoadingStuckProbes } from './loading-watchdog';
 
 interface ResetLoadingProgressOptions {
   incremental?: boolean;
@@ -80,7 +75,6 @@ export interface UseChatMessageOrchestratorOptions {
   setFailureCount: Dispatch<SetStateAction<number>>;
   setLoadingVariant: Dispatch<SetStateAction<LoadingVariant>>;
   setLoadingPinnedLabel: Dispatch<SetStateAction<string | null>>;
-  setGenerationKind: Dispatch<SetStateAction<GenerationKind>>;
   setVisibleCount: Dispatch<SetStateAction<number>>;
   setLastQuery: Dispatch<SetStateAction<string>>;
   toast: { warning?: (message: string) => void };
@@ -153,10 +147,6 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
     options.setLoadingPinnedLabel ?? chatStore?.setLoadingPinnedLabel,
     'setLoadingPinnedLabel',
   );
-  const setGenerationKind = requireDependency(
-    options.setGenerationKind ?? chatStore?.setGenerationKind,
-    'setGenerationKind',
-  );
   const setVisibleCount = requireDependency(options.setVisibleCount ?? chatStore?.setVisibleCount, 'setVisibleCount');
   const setLastQuery = requireDependency(options.setLastQuery ?? chatStore?.setLastQuery, 'setLastQuery');
   const toast = options.toast ?? fallbackToast;
@@ -169,10 +159,6 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
 
   const cleanupPostCompletionRef = useRef<(() => void) | null>(null);
   const pendingInitialSendRef = useRef<PendingInitialSend | null>(null);
-
-  useEffect(() => {
-    return () => cleanupPostCompletionRef.current?.();
-  }, []);
   const latestLoadingRef = useRef<{
     isLoading: boolean;
     loadingVariant: LoadingVariant | null | undefined;
@@ -184,30 +170,17 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
     isLoading: chatStore?.isLoading ?? false,
     loadingVariant: chatStore?.loadingVariant ?? null,
   };
-  const currentSessionIdRef = useRef(currentSessionId);
-  currentSessionIdRef.current = currentSessionId;
 
   /**
-   * Agenda verificações pós-finalização do dossiê em 0/1k/10k ms.
+   * Agenda verificações pós-finalização do dossiê em 0/100/500/1k/3k/10k ms.
    * Cada check captura estado do DOM, overlays, composer e viewport.
    * Retorna função de cancelamento para limpar timers pendentes.
    */
-  function measureTimelineViewportHeight(): number {
-    const panel = document.querySelector('[data-testid="chat-main-panel"]');
-    const root = panel || document;
-    const virtuoso = root.querySelector('[data-virtuoso-scroller]') as HTMLElement | null;
-    if (virtuoso?.clientHeight) return virtuoso.clientHeight;
-    const staticFallback = root.querySelector('[data-testid="messages-static-fallback"]') as HTMLElement | null;
-    if (staticFallback?.clientHeight) return staticFallback.clientHeight;
-    return (panel as HTMLElement | null)?.clientHeight ?? 0;
-  }
-
-  function schedulePostCompletionChecks(sessionId: string, generationKind: GenerationKind): () => void {
-    const delays = [...POST_COMPLETION_PROBE_DELAYS_MS];
+  function schedulePostCompletionChecks(sessionId: string): () => void {
+    const delays = [0, 100, 500, 1_000, 3_000, 10_000];
     const timerIds: ReturnType<typeof setTimeout>[] = [];
     const baselineGuard = getWaterfallGuardState(sessionId);
     const baselineGen = baselineGuard?.generationCount ?? 0;
-    let cofreReadyEmitted = false;
 
     for (const delay of delays) {
       const id = setTimeout(() => {
@@ -215,11 +188,8 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
           const bodyText = document.body?.textContent || '';
           const loadingOverlay = document.querySelector('[data-testid="loading-smart-overlay"]');
           const botMessages = document.querySelectorAll('[data-testid="bot-message-content"]');
-          const composer = document.querySelector(
-            '[data-testid="message-input"], [data-testid="chat-input"], [data-testid="composer-input"]',
-          );
+          const composer = document.querySelector('[data-testid="chat-input"], [data-testid="composer-input"]');
           const scroller = document.querySelector('[data-virtuoso-scroller]');
-          const timelineViewportHeight = measureTimelineViewportHeight();
           const botTextMaxLen = Math.max(
             0,
             ...[...botMessages].map(el => (el as HTMLElement).textContent?.length || 0),
@@ -249,9 +219,9 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
             loadingOverlayExists: Boolean(loadingOverlay),
             botMessageCount: botMessages.length,
             botTextMaxLen,
-            composerDisabled: composer ? (composer as HTMLInputElement).disabled : postCompletionIsLoading,
-            scrollerHeight: timelineViewportHeight,
-            scrollerScrollHeight: (scroller as HTMLElement)?.scrollHeight || timelineViewportHeight,
+            composerDisabled: (composer as HTMLInputElement)?.disabled || false,
+            scrollerHeight: (scroller as HTMLElement)?.clientHeight || 0,
+            scrollerScrollHeight: (scroller as HTMLElement)?.scrollHeight || 0,
             blankPanelDetected: blankPanelSnapshot?.blankDetected ?? false,
             blankPanelReason: blankPanelSnapshot?.reason ?? null,
             mainPanelChars: blankPanelSnapshot?.mainPanelChars ?? 0,
@@ -286,24 +256,6 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
             );
             flushDiagnosticsNow(`blank-panel-detected:${delay}ms`, true);
           }
-
-          if (
-            !cofreReadyEmitted &&
-            isCofreRenderReady({
-              generationKind,
-              storeIsLoading: postCompletionIsLoading,
-              composerDisabled: composer ? (composer as HTMLInputElement).disabled : postCompletionIsLoading,
-              blankPanelDetected: blankPanelSnapshot?.blankDetected ?? false,
-              panelVisible: blankPanelSnapshot?.panelVisible ?? timelineViewportHeight > 0,
-              visibleBotWithCharsCount: blankPanelSnapshot?.visibleBotWithCharsCount ?? 0,
-              botTextMaxLen,
-              scrollerHeight: timelineViewportHeight,
-            })
-          ) {
-            cofreReadyEmitted = true;
-            dispatchCofreRenderReady(sessionId);
-            scoutDiag.info('Cofre', 'render-ready', { sessionId, delay });
-          }
         } catch (error) {
           scoutDiag.warn('PostCompletion', `check-failed:${delay}ms`, {
             sessionId,
@@ -315,6 +267,102 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
     }
 
     return () => timerIds.forEach(id => clearTimeout(id));
+  }
+
+  // PR #349: probes de estado real pos-finalizacao do waterfall.
+  // Detectam se overlay/stop/composer continuam ativos apos setIsLoading(false).
+  // Retorna cleanup que cancela RAF + timers; caller deve compor com cleanupPostCompletionRef.
+  function scheduleLoadingStuckProbes(sessionId: string, generationValid: boolean): () => void {
+    const delays = [0, 100, 500, 1_000, 3_000, 10_000];
+    const timerIds: ReturnType<typeof setTimeout>[] = [];
+    const capturedSessionId = sessionId;
+    let rafSafetyNetFired = false;
+    let rafHandle = 0;
+
+    if (!generationValid) return () => {};
+
+    rafHandle = requestAnimationFrame(() => {
+      if (latestLoadingRef.current.isLoading) {
+        rafSafetyNetFired = true;
+        setIsLoading(false);
+        (setLoadingVariant as (v: string | undefined) => void)(undefined);
+        completeLoadingProgress();
+        scoutDiag.warn('MessageOrchestrator', 'raf-safety-net-fired', {
+          sessionId: capturedSessionId,
+        } as unknown as Record<string, unknown>);
+      }
+    });
+
+    for (const delay of delays) {
+      const id = setTimeout(() => {
+        try {
+          const bodyText = document.body?.textContent || '';
+          const loadingOverlay = document.querySelector('[data-testid="loading-smart-overlay"]');
+          const stopButton = document.querySelector('[data-testid="loading-stop-button"]');
+          const composer = document.querySelector(
+            '[data-testid="chat-input"], [data-testid="composer-input"]',
+          ) as HTMLInputElement | null;
+          const botMessages = document.querySelectorAll('[data-testid="bot-message-content"]');
+          const storeIsLoading = latestLoadingRef.current.isLoading;
+          const storeLoadingVariant = latestLoadingRef.current.loadingVariant ?? null;
+
+          const domHasOverlay = Boolean(loadingOverlay);
+          const domHasStopButton = Boolean(stopButton);
+          const domComposerDisabled = composer?.disabled ?? false;
+          const botTextLen = Math.max(0, ...[...botMessages].map(el => (el as HTMLElement).textContent?.length || 0));
+          const containsDossie = /dossi[eê]/i.test(bodyText);
+
+          const isStuck =
+            domHasOverlay || domHasStopButton || domComposerDisabled || storeIsLoading || storeLoadingVariant !== null;
+
+          const payload = {
+            sessionId: capturedSessionId,
+            timing: delay,
+            rafSafetyNetFired,
+            storeIsLoading,
+            storeLoadingVariant,
+            domHasOverlay,
+            domHasStopButton,
+            domComposerDisabled,
+            composerPlaceholder: composer?.placeholder ?? null,
+            botMessageCount: botMessages.length,
+            botTextLen,
+            bodyTextLen: bodyText.length,
+            containsDossie,
+            hostname: typeof window !== 'undefined' ? window.location.hostname : 'ssr',
+          };
+
+          if (isStuck) {
+            scoutDiag.warn(
+              'LoadingStuckProbe',
+              `stuck-after-completed:${delay}ms`,
+              payload as unknown as Record<string, unknown>,
+            );
+            if (delay === 10_000) {
+              Sentry.captureMessage('Scout360 loading stuck — safety probe timed out', {
+                level: 'warning',
+                tags: { area: 'loading-stuck', session_id: capturedSessionId, probe_delay: '10000' },
+                extra: payload as unknown as Record<string, unknown>,
+              });
+            }
+          } else {
+            scoutDiag.info('LoadingStuckProbe', `clear:${delay}ms`, payload as unknown as Record<string, unknown>);
+          }
+        } catch (err: unknown) {
+          scoutDiag.warn('LoadingStuckProbe', 'probe-error', {
+            sessionId: capturedSessionId,
+            delay,
+            error: err instanceof Error ? err.message : String(err),
+          } as unknown as Record<string, unknown>);
+        }
+      }, delay);
+      timerIds.push(id);
+    }
+
+    return () => {
+      if (rafHandle) cancelAnimationFrame(rafHandle);
+      timerIds.forEach(tid => clearTimeout(tid));
+    };
   }
 
   const processMessage = useCallback(
@@ -349,9 +397,6 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
       }
 
       const resolvedRequestKind = options?.requestKind ?? requestKind;
-      cleanupPostCompletionRef.current?.();
-      cleanupPostCompletionRef.current = null;
-      const resolvedGenerationKind = resolveGenerationKind(resolvedRequestKind, Boolean(options?.isFollowUp));
       const fixedLoadingLine = options?.fixedLoadingLine ?? null;
       const resolvedLoadingVariant = resolveEffectiveLoadingVariant({
         requestKind: resolvedRequestKind,
@@ -360,7 +405,6 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
       setRequestKind(resolvedRequestKind);
       setLoadingVariant(resolvedLoadingVariant);
       setLoadingPinnedLabel(resolvedRequestKind === 'deep_dive' ? fixedLoadingLine : null);
-      setGenerationKind(resolvedGenerationKind);
       setIsLoading(true);
       setDiagnosticsSessionId(sessionId);
 
@@ -455,7 +499,6 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
         .toUpperCase();
       const isMegaPrompt = normalizedUpperText.includes('DOSSIE COMPLETO') && resolvedRequestKind !== 'deep_dive';
 
-      let completedWithError = false;
       try {
         if (isMegaPrompt) {
           const preGuard = getWaterfallGuardState(sessionId);
@@ -486,8 +529,6 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
             signal,
             isFirstInteraction,
             sessionCnpjDigits,
-            operatorId: operatorId || undefined,
-            operatorEmail: operatorEmail || undefined,
           });
 
           const postGuard = getWaterfallGuardState(sessionId);
@@ -628,7 +669,6 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
           });
         }
       } catch (error: unknown) {
-        completedWithError = true;
         scoutDiag.warn('MessageOrchestrator', 'processMessage:catch', {
           sessionId,
           errorMessage: error instanceof Error ? error.message : String(error),
@@ -636,7 +676,6 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
         });
 
         if (isAbortLikeError(error)) {
-          setGenerationKind(null);
           setSessions(prev =>
             prev.map(session =>
               session.id === sessionId
@@ -730,38 +769,28 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
         // o render síncrono terminar e devolver controle ao event loop.
         setIsLoading(false);
         (setLoadingVariant as (v: string | undefined) => void)(undefined);
-        latestLoadingRef.current = { isLoading: false, loadingVariant: null };
         completeLoadingProgress();
         setRequestKind('default');
         setLoadingPinnedLabel(null);
-        if (isAbort || completedWithError || resolvedGenerationKind !== 'dossier') {
-          setGenerationKind(null);
-        }
         abortControllerRef.current = null;
 
         scoutDiag.info('MessageOrchestrator', 'post-render-scheduled', { sessionId });
 
+        // Cancela checks anteriores (evita acúmulo de timers entre mensagens)
+        if (cleanupPostCompletionRef.current) cleanupPostCompletionRef.current();
+
         // Agenda checks pós-finalização para monitorar DOM/composer/overlays
-        const cleanupChecks = schedulePostCompletionChecks(
-          sessionId,
-          isAbort || completedWithError ? null : resolvedGenerationKind,
-        );
+        const cleanupChecks = schedulePostCompletionChecks(sessionId);
 
         // PR #349: probes de estado real + RAF safety net contra loading preso.
-        // Captura validade ANTES de deletar a ref — probes são assíncronos
-        // (setTimeout/RAF) e não podem depender da ref viva.
+        // generationValid é snapshot booleano capturado antes do delete;
+        // scheduleLoadingStuckProbes opera com esse snapshot, não com a ref.
         const generationValid = activeGenerationRef.current[sessionId] === botMessageId;
+        const cleanupProbes = scheduleLoadingStuckProbes(sessionId, generationValid);
+
         if (activeGenerationRef.current[sessionId] === botMessageId) {
           delete activeGenerationRef.current[sessionId];
         }
-        const cleanupProbes = scheduleLoadingStuckProbes(sessionId, botMessageId, generationValid, {
-          activeGenerationRef,
-          currentSessionIdRef,
-          latestLoadingRef,
-          setIsLoading,
-          setLoadingVariant,
-          completeLoadingProgress,
-        });
 
         cleanupPostCompletionRef.current = () => {
           cleanupChecks();
@@ -789,7 +818,6 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
       setIsLoading,
       setLastQuery,
       setLoadingPinnedLabel,
-      setGenerationKind,
       setLoadingVariant,
       setRequestKind,
       operatorId,

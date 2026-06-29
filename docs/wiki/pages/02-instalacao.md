@@ -69,23 +69,23 @@ O script executa `vite`. A configuração fixa `server.host` como `0.0.0.0`, `se
 
 O boot React não exige variáveis obrigatórias no estado atual: a lista `REQUIRED_ENV_VARS` está vazia. A ausência de algumas variáveis degrada fluxos específicos, mas não deve impedir a tela inicial de montar.
 
-| Variável                                            | Escopo                 | Uso local esperado                                                                                                       |
-| --------------------------------------------------- | ---------------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| `GEMINI_API_KEY`                                    | Servidor/API           | Exigida por rotas como `/api/gemini`, `/api/gerar-dossie`, `/api/rag` e Radar quando essas rotas rodam no ambiente alvo. |
-| `GEMINI_API_KEY_FALLBACK`                           | Servidor/API           | Chave secundária para handlers Gemini que suportam fallback.                                                             |
-| `PINECONE_API_KEY` ou `PINECONE_DOCS_KEY`           | Servidor/API e scripts | Usada por RAG, docs RAG e ingestões. `check-exports.command` aceita uma das duas.                                        |
-| `PINECONE_DOCS_INDEX`                               | Servidor/API e scripts | Índice de documentação. O exemplo usa `scout-arsenal`; alguns scripts de validação exigem export explícito.              |
-| `VITE_SUPABASE_URL` e `VITE_SUPABASE_ANON_KEY`      | Frontend               | Ativam o cliente Supabase. Sem elas, o app registra aviso e desativa storage remoto.                                     |
-| `VITE_BACKEND_URL` e `VITE_LOOKUP_URL`              | Frontend               | Sobrescrevem os endpoints Apps Script legados usados por `services/apiConfig.ts`.                                        |
-| `VITE_SENTRY_DSN`                                   | Frontend               | Ativa Sentry no navegador. Sem DSN, Sentry fica desabilitado.                                                            |
-| `SENTRY_AUTH_TOKEN`, `SENTRY_ORG`, `SENTRY_PROJECT` | Build/servidor         | Usados pelo plugin Vite de Sentry para sourcemaps quando o token existe. Não use prefixo `VITE_` no token.               |
-| `LOCAL_DEV_API_PROXY_TARGET`                        | Vite local             | Sobrescreve o alvo remoto do proxy local.                                                                                |
-| `VERCEL_AUTOMATION_BYPASS_SECRET`                   | Vite local             | Quando definido, o proxy envia `x-vercel-protection-bypass` para previews protegidos.                                    |
-| `VITE_GEMINI_PROXY_URL`                             | Frontend local         | Faz o cliente Gemini chamar outro host base em dev local.                                                                |
-| `VITE_CNPJ_PROXY_URL`                               | Frontend local         | Sobrescreve o endpoint de CNPJ em host local quando necessário.                                                          |
-| `VITE_OPEN_WEB_SEARCH_URL`                          | Frontend               | Sobrescreve o endpoint de busca web aberto.                                                                              |
-| `VITE_DEBUG_CONSOLE` ou `VITE_VERBOSE_LOGS`         | Frontend               | Aumenta logs diagnósticos com prefixo `[Scout360]`.                                                                      |
-| `VITE_SCOUT_DIAGNOSTICS_ENABLED`                    | Frontend               | Ativa envio em lote de diagnósticos para `/api/gemini` com `action: recordDiagnostics`.                                  |
+| Variável                                            | Escopo                 | Uso local esperado                                                                                                                        |
+| --------------------------------------------------- | ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| `GEMINI_API_KEY`                                    | Servidor/API           | Exigida por rotas como `/api/gemini`, `/api/gerar-dossie`, `/api/rag`, `/api/docs-rag` e Radar quando essas rotas rodam no ambiente alvo. |
+| `GEMINI_API_KEY_FALLBACK`                           | Servidor/API           | Chave secundária para handlers Gemini que suportam fallback.                                                                              |
+| `PINECONE_API_KEY` ou `PINECONE_DOCS_KEY`           | Servidor/API e scripts | Usada por RAG, docs RAG e ingestões. `check-exports.command` aceita uma das duas.                                                         |
+| `PINECONE_DOCS_INDEX`                               | Servidor/API e scripts | Índice de documentação. O exemplo usa `scout-arsenal`; alguns scripts de validação exigem export explícito.                               |
+| `VITE_SUPABASE_URL` e `VITE_SUPABASE_ANON_KEY`      | Frontend               | Ativam o cliente Supabase. Sem elas, o app registra aviso e desativa storage remoto.                                                      |
+| `VITE_BACKEND_URL` e `VITE_LOOKUP_URL`              | Frontend               | Sobrescrevem os endpoints Apps Script legados usados por `services/apiConfig.ts`.                                                         |
+| `VITE_SENTRY_DSN`                                   | Frontend               | Ativa Sentry no navegador. Sem DSN, Sentry fica desabilitado.                                                                             |
+| `SENTRY_AUTH_TOKEN`, `SENTRY_ORG`, `SENTRY_PROJECT` | Build/servidor         | Usados pelo plugin Vite de Sentry para sourcemaps quando o token existe. Não use prefixo `VITE_` no token.                                |
+| `LOCAL_DEV_API_PROXY_TARGET`                        | Vite local             | Sobrescreve o alvo remoto do proxy local.                                                                                                 |
+| `VERCEL_AUTOMATION_BYPASS_SECRET`                   | Vite local             | Quando definido, o proxy envia `x-vercel-protection-bypass` para previews protegidos.                                                     |
+| `VITE_GEMINI_PROXY_URL`                             | Frontend local         | Faz o cliente Gemini chamar outro host base em dev local.                                                                                 |
+| `VITE_CNPJ_PROXY_URL`                               | Frontend local         | Sobrescreve o endpoint de CNPJ em host local quando necessário.                                                                           |
+| `VITE_OPEN_WEB_SEARCH_URL`                          | Frontend               | Sobrescreve o endpoint de busca web aberto.                                                                                               |
+| `VITE_DEBUG_CONSOLE` ou `VITE_VERBOSE_LOGS`         | Frontend               | Aumenta logs diagnósticos com prefixo `[Scout360]`.                                                                                       |
+| `VITE_SCOUT_DIAGNOSTICS_ENABLED`                    | Frontend               | Ativa envio em lote de diagnósticos para `/api/gemini` com `action: recordDiagnostics`.                                                   |
 
 <Info>
 Todo `VITE_*` é embutido no bundle do navegador pelo Vite. Chaves secretas de IA, Pinecone, Supabase service role, Sentry auth token e bypass de preview devem ficar sem prefixo `VITE_` quando forem segredo de servidor.
@@ -134,6 +134,7 @@ Rotas proxadas no checkout atual:
 /api/link-status
 /api/extract-content
 /api/rag
+/api/docs-rag
 /api/socio-search
 ```
 
@@ -211,7 +212,7 @@ A chave precisa existir no ambiente que executa a rota `/api/gemini` ou `/api/ge
 
 ### RAG degrada ou volta vazio
 
-`/api/rag` depende de `GEMINI_API_KEY` e de `PINECONE_API_KEY` ou `PINECONE_DOCS_KEY`. O cliente documental envia por padrão `senior-erp-docs`; os namespaces documentais aceitos são `senior-erp-docs` e `competitor-pdfs`.
+`/api/rag` e `/api/docs-rag` dependem de `GEMINI_API_KEY` e de `PINECONE_API_KEY` ou `PINECONE_DOCS_KEY`. `docs-rag` usa namespace padrão `senior-erp-docs` quando não há override válido; namespaces aceitos incluem `senior-erp-docs` e `competitor-pdfs`.
 
 ### Supabase aparece desativado
 

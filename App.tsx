@@ -7,7 +7,6 @@ import { useAppInitialization } from './hooks/useAppInitialization';
 import { useEmailModal } from './hooks/useEmailModal';
 import { useFollowUpModal } from './hooks/useFollowUpModal';
 import { useSessionManager, useSessionRemoteSave } from './features/chat/session-controller';
-import { subscribeSessionPersistFailure } from './hooks/useSessionStorage';
 import { useChatFeedbackActions } from './features/chat/feedback-actions';
 import ChatErrorBoundary from './features/chat/ChatErrorBoundary';
 import { useChatMessageOrchestrator } from './features/chat/message-orchestrator';
@@ -19,9 +18,6 @@ import ChatInterface from './components/ChatInterface';
 import { loadWithChunkRetry } from './utils/chunkRetry';
 import { shouldShowHeroLoadingOverlay } from './utils/loadingVariant';
 import { AuthGate } from './components/AuthGate';
-import CofreOverlay, { type CofreStage } from './components/CofreOverlay';
-import { useCofreTransition } from './hooks/useCofreTransition';
-import { resolveCofreTotalStageCount } from './utils/cofreLifecycle';
 
 // Lazy-loaded — não críticos para a primeira paint
 const LoadingSmart = React.lazy(() => loadWithChunkRetry(() => import('./components/LoadingSmart')));
@@ -56,7 +52,7 @@ import InstallPrompt from './components/InstallPrompt';
 import { useOperator } from './contexts/OperatorContext';
 import { useMode } from './contexts/ModeContext';
 import { ExportFormat, ReportType, Sender } from './types';
-import { generateContinuityQuestion } from './services/geminiService';
+import { generateContinuityQuestion } from './services/llmService';
 
 import { APP_NAME } from './constants';
 import { cleanTitle } from './utils/textCleaners';
@@ -117,8 +113,6 @@ const App: React.FC = () => {
     setLoadingVariant,
     loadingPinnedLabel,
     setLoadingPinnedLabel,
-    generationKind,
-    setGenerationKind,
     resetLoadingProgress,
     completeLoadingProgress,
   } = useChatStore();
@@ -142,61 +136,8 @@ const App: React.FC = () => {
         Boolean(String(m.text || '').trim()) &&
         (!m.isThinking || String(m.text || '').trim().length >= WATERFALL_PREVIEW_MIN_CHARS),
     );
-    return (
-      generationKind !== 'dossier' && shouldShowHeroLoadingOverlay(isLoading, loadingVariant, hasRenderableBotMessage)
-    );
-  }, [isLoading, loadingVariant, allMessages, generationKind]);
-
-  const handleCofreHidden = useCallback(() => {
-    setGenerationKind(null);
-  }, [setGenerationKind]);
-
-  const handleCofreForceReleaseLoading = useCallback(() => {
-    scoutDiag.warn('App', 'cofre-force-release-loading', { sessionId: currentSessionId });
-    setIsLoading(false);
-    setLoadingVariant(undefined);
-    completeLoadingProgress();
-  }, [completeLoadingProgress, currentSessionId, setIsLoading, setLoadingVariant]);
-
-  const { cofrePhase } = useCofreTransition({
-    generationKind,
-    isLoading,
-    sessionId: currentSessionId,
-    onHidden: handleCofreHidden,
-    onForceReleaseLoading: handleCofreForceReleaseLoading,
-  });
-  const isCofreOpen = cofrePhase !== 'hidden';
-  const [cofreElapsedTimeMs, setCofreElapsedTimeMs] = useState(0);
-
-  useEffect(() => {
-    if (generationKind !== 'dossier') {
-      setCofreElapsedTimeMs(0);
-      return;
-    }
-
-    const startedAt = Date.now();
-    setCofreElapsedTimeMs(0);
-    const timer = window.setInterval(() => {
-      setCofreElapsedTimeMs(Date.now() - startedAt);
-    }, 1_000);
-    return () => window.clearInterval(timer);
-  }, [generationKind, currentSessionId]);
-
-  const cofreStages = useMemo<CofreStage[]>(() => {
-    const stages: CofreStage[] = completedLoadingStatuses.map(label => ({
-      label,
-      completed: true,
-      elapsedMs: 0,
-    }));
-    if (loadingStatus && !completedLoadingStatuses.includes(loadingStatus)) {
-      stages.push({
-        label: loadingStatus,
-        completed: false,
-        elapsedMs: cofreElapsedTimeMs,
-      });
-    }
-    return stages;
-  }, [completedLoadingStatuses, loadingStatus, cofreElapsedTimeMs]);
+    return shouldShowHeroLoadingOverlay(isLoading, loadingVariant, hasRenderableBotMessage);
+  }, [isLoading, loadingVariant, allMessages]);
 
   // Log render-decision: captura AMBOS os casos (show/hide) para diagnóstico.
   useEffect(() => {
@@ -285,8 +226,6 @@ const App: React.FC = () => {
   const { updateAvailable, currentVersion, newVersion, dismissUpdate, updateNow } = useUpdateNotification();
 
   const { toasts, toast, dismiss: dismissToast } = useToast();
-  const toastRef = useRef(toast);
-  toastRef.current = toast;
   const radar = useRadar(toast);
 
   const featureAccess = getFeatureAccess();
@@ -317,10 +256,6 @@ const App: React.FC = () => {
     document.title = APP_NAME;
   }, [mode]);
 
-  useEffect(() => {
-    return subscribeSessionPersistFailure(message => toastRef.current.warning(message));
-  }, []);
-
   const { handleNewSession, handleSelectSession, handleDeleteSession } = useSessionManager();
 
   useAppInitialization({
@@ -332,7 +267,6 @@ const App: React.FC = () => {
   });
 
   const handleClearChat = () => {
-    setGenerationKind(null);
     updateCurrentSession(session => ({
       ...session,
       messages: [],
@@ -446,7 +380,6 @@ const App: React.FC = () => {
       setLoadingVariant(undefined);
       completeLoadingProgress();
     }
-    setGenerationKind(null);
   }, [
     isLoading,
     completeLoadingProgress,
@@ -458,7 +391,6 @@ const App: React.FC = () => {
     setLoadingPinnedLabel,
     setRequestKind,
     setLoadingVariant,
-    setGenerationKind,
   ]);
 
   const handleRetry = () => {
@@ -610,14 +542,11 @@ const App: React.FC = () => {
 
         <div
           data-testid="app-shell"
-          inert={isCofreOpen || undefined}
-          aria-hidden={isCofreOpen || undefined}
           className={`flex h-[100dvh] min-h-screen w-full flex-col overflow-hidden overscroll-none ${isDarkMode ? 'bg-slate-950' : 'bg-slate-50'}`}
         >
           <main className="flex min-h-0 flex-1 flex-col overflow-hidden">
             <ChatErrorBoundary isDarkMode={isDarkMode}>
               <ChatInterface
-                toast={toast}
                 currentSession={currentSession}
                 sessions={sessions}
                 onNewSession={handleNewSession}
@@ -683,24 +612,6 @@ const App: React.FC = () => {
             <FooterCredits />
           </div>
         </div>
-
-        {isCofreOpen && (
-          <CofreOverlay
-            phase={cofrePhase}
-            isDarkMode={isDarkMode}
-            empresaAlvo={currentSession?.empresaAlvo ?? null}
-            cnpj={currentSession?.cnpj ?? null}
-            completedStageCount={completedLoadingStatuses.length}
-            totalStageCount={resolveCofreTotalStageCount(
-              loadingTotalStages,
-              completedLoadingStatuses.length,
-              cofreStages.length,
-            )}
-            stages={cofreStages}
-            elapsedTimeMs={cofreElapsedTimeMs}
-            onStop={handleStopGeneration}
-          />
-        )}
 
         {emailModal.isOpen && (
           <React.Suspense fallback={null}>
