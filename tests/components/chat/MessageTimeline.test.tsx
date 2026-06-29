@@ -385,6 +385,7 @@ describe('MessageTimeline', () => {
       const items = screen.getAllByTestId('virtuoso-item-list');
       const thinkingItem = items.find(el => el.getAttribute('data-item-key') === 'm2');
       expect(thinkingItem).toBeTruthy();
+      const thinkingRef = thinkingItem;
 
       const msgDone = {
         ...buildMessage('m2', Sender.Bot, 'A'.repeat(199)),
@@ -409,6 +410,8 @@ describe('MessageTimeline', () => {
       const itemsAfter = screen.getAllByTestId('virtuoso-item-list');
       const doneItem = itemsAfter.find(el => el.getAttribute('data-item-key') === 'm2');
       expect(doneItem).toBeTruthy();
+      // DOM identity: mesmo elemento sobreviveu ao rerender — sem remount
+      expect(doneItem).toBe(thinkingRef);
     } finally {
       Element.prototype.scrollIntoView = originalScrollIntoView;
     }
@@ -479,5 +482,107 @@ describe('MessageTimeline', () => {
     render(<MessageTimeline {...props} />);
     expect(screen.getByTestId('messages-static-fallback')).toBeInTheDocument();
     expect(screen.getByTestId('message-row-1')).toHaveTextContent('SCHEFFER_E2E_SENTINEL');
+  });
+
+  describe('static-fallback display recovery', () => {
+    it('recupera display block quando getComputedStyle retorna none para o static fallback', async () => {
+      vi.useFakeTimers();
+
+      const originalGetComputedStyle = window.getComputedStyle;
+      const setPropertySpy = vi.spyOn(CSSStyleDeclaration.prototype, 'setProperty');
+
+      vi.spyOn(window, 'getComputedStyle').mockImplementation((el: Element, pseudoElt?: string | null) => {
+        const baseStyle = originalGetComputedStyle.call(window, el, pseudoElt ?? null);
+        const testid = (el as HTMLElement).getAttribute('data-testid');
+        if (testid === 'messages-static-fallback') {
+          return new Proxy(baseStyle, {
+            get(target, prop) {
+              if (prop === 'display') return 'none';
+              return Reflect.get(target, prop);
+            },
+          });
+        }
+        return baseStyle;
+      });
+
+      const largeMessages = [
+        buildMessage('m1', Sender.User, 'Investigar Acme Agro'),
+        buildMessage('m2', Sender.Bot, 'SCHEFFER_E2E_SENTINEL '.repeat(250)),
+      ];
+
+      const props = buildProps({
+        messages: largeMessages,
+        currentSession: buildSession(largeMessages),
+        forceStaticTimelineFallback: true,
+      });
+
+      render(<MessageTimeline {...props} />);
+
+      expect(screen.getByTestId('messages-static-fallback')).toBeInTheDocument();
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(100);
+        for (let i = 0; i < 5; i++) {
+          await vi.advanceTimersByTimeAsync(20);
+        }
+      });
+
+      const displayResetCalls = setPropertySpy.mock.calls.filter(
+        call => call[0] === 'display' && call[1] === 'block' && call[2] === 'important',
+      );
+      expect(displayResetCalls.length).toBeGreaterThanOrEqual(1);
+
+      setPropertySpy.mockRestore();
+      vi.useRealTimers();
+    });
+
+    it('recovery é idempotente e nao quebra o elemento quando executado múltiplas vezes', async () => {
+      vi.useFakeTimers();
+
+      const largeMessages = [
+        buildMessage('m1', Sender.User, 'Investigar Acme Agro'),
+        buildMessage('m2', Sender.Bot, 'SCHEFFER_E2E_SENTINEL '.repeat(250)),
+      ];
+
+      const props = buildProps({
+        messages: largeMessages,
+        currentSession: buildSession(largeMessages),
+        forceStaticTimelineFallback: true,
+      });
+
+      render(<MessageTimeline {...props} />);
+      expect(screen.getByTestId('messages-static-fallback')).toBeInTheDocument();
+
+      await act(async () => {
+        for (let i = 0; i < 5; i++) {
+          await vi.advanceTimersByTimeAsync(20);
+        }
+      });
+
+      const fallbackEl = screen.getByTestId('messages-static-fallback') as HTMLElement;
+      expect(fallbackEl).toBeInTheDocument();
+      expect(fallbackEl.children.length).toBeGreaterThan(0);
+      expect(fallbackEl.style.getPropertyPriority('display') === 'important' || fallbackEl.style.display === '').toBe(
+        true,
+      );
+
+      vi.useRealTimers();
+    });
+
+    it('nao executa recovery quando static fallback nao esta ativo', () => {
+      const props = buildProps({
+        messages: [buildMessage('m1', Sender.User, 'Ola'), buildMessage('m2', Sender.Bot, 'Resposta curta')],
+        currentSession: buildSession([
+          buildMessage('m1', Sender.User, 'Ola'),
+          buildMessage('m2', Sender.Bot, 'Resposta curta'),
+        ]),
+      });
+
+      render(<MessageTimeline {...props} />);
+
+      expect(screen.queryByTestId('messages-static-fallback')).not.toBeInTheDocument();
+      const elementsWithImportant = document.querySelectorAll('[style*="important"]');
+      expect(elementsWithImportant.length).toBe(0);
+    });
   });
 });
