@@ -9,7 +9,7 @@ describe('searchTelemetry', () => {
     expect(snap.total).toBe(0);
     expect(snap.gemini.count).toBe(0);
     expect(snap.duckduckgo.count).toBe(0);
-    expect(snap.fallbackRate).toBe(0);
+    expect(snap.ddgCallShare).toBe(0);
   });
 
   it('trackSearchCall é noop seguro quando store ausente', () => {
@@ -37,7 +37,7 @@ describe('searchTelemetry', () => {
     expect(snap.gemini.success).toBe(1);
     expect(snap.duckduckgo.count).toBe(1);
     expect(snap.duckduckgo.success).toBe(1);
-    expect(snap.fallbackRate).toBeCloseTo(1 / 3);
+    expect(snap.ddgCallShare).toBeCloseTo(1 / 3);
   });
 
   it('ring buffer limita a MAX entries', () => {

@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { scoutDiag } from '../utils/diagnosticLog.js';
 import { isValidPublicUrl, extractHtml, performWebSearch } from '../utils/documentExtractor.js';
 import { initSearchTelemetry, getSearchTelemetrySnapshot } from '../utils/searchTelemetry';
-import { isDebugSearch } from '../lib/feature-flags';
+import { isDebugSearch } from '../utils/feature-flags';
 
 const SearchRequestSchema = z
   .object({

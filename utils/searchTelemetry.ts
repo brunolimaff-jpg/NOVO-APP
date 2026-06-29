@@ -33,6 +33,6 @@ export function getSearchTelemetrySnapshot() {
     total: calls.length,
     gemini: { count: gemini.length, success: gemini.filter(c => c.success).length },
     duckduckgo: { count: ddg.length, success: ddg.filter(c => c.success).length },
-    fallbackRate: calls.length > 0 ? ddg.length / calls.length : 0,
+    ddgCallShare: calls.length > 0 ? ddg.length / calls.length : 0,
   };
 }
