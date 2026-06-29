@@ -267,6 +267,30 @@
 
 ### DI-2026-06-08-05: Documentacao e runtime em PRs distintas
 
+### DI-2026-06-29-04: Tag `pre-prompts-cleanup` como ponto de reversão
+
+- **Decisão:** Tag `pre-prompts-cleanup` criada no commit `61ced7bc` (baseline main) antes de qualquer alteração de prompt. Permite `git revert` ou reset para estado pré-limpeza.
+- **Contexto:** O plano de limpeza de prompts (Z.ai) recomendava criar uma tag antes de executar H1/H3/H4. A tag foi criada no início da execução.
+- **Impacto:** Rollback seguro em caso de quebra de produção.
+
+### DI-2026-06-29-03: Regex de leak-shield requer adversarial review obrigatória
+
+- **Decisão:** Toda regex adicionada ao `HARD_PROMPT_LEAK_PATTERNS` ou `SOFT_PROMPT_LEAK_PATTERNS` deve passar por adversarial review (falso positivo, bypass, ReDoS) antes de deploy.
+- **Contexto:** A regex original `aviso_metodologico` causava falso positivo em relatórios com seção de metodologia. Foi detectado apenas na 3ª camada de revisão (adversarial), após Z.ai e validação de 22 agentes não pegarem.
+- **Impacto:** Adicionado como gate no fluxo de PR para mudanças em `textCleaners.ts`.
+
+### DI-2026-06-29-02: Princípio 6 (grep) mantido como gate de qualidade para handoffs
+
+- **Decisão:** Handoffs de agentes externos (Z.ai, outros gestores) devem ser validados com grep antes de serem aceitos como verdade. Nenhuma claim sem evidência de código.
+- **Contexto:** O handoff Z.ai tinha 2 discrepâncias (13 vs 8 arquivos, linha 428 vs 440) que só foram detectadas com grep. Nenhuma era crítica, mas estabeleceu o padrão.
+- **Impacto:** Validação de handoff agora é etapa obrigatória antes de executar qualquer plano baseado em handoff externo.
+
+### DI-2026-06-29-01: Z.ai é produtor de documentação, não executor
+
+- **Decisão:** A IA gestora Z.ai (sessão web-2804fbf2) produz documentos de alta qualidade (ADRs, planos, validações) mas não executa nenhuma ação — não commita, não cria diretórios, não roda comandos. Toda entrega dela requer um "materializador" externo.
+- **Contexto:** Z.ai fez levantamento de 7 arquivos (5 ADRs + resumo + plano) mas salvou tudo em `~/Downloads/` sem commitar. A documentação era precisa (82% claims confirmadas), mas a execução foi zero.
+- **Impacto:** Sessões futuras com Z.ai devem incluir etapa explícita de "materialização" — copiar arquivos, commitar, validar.
+
 ## Decisoes Historicas
 
 ### 2026-06-08 — Handoff final precisa apontar repo + Bruno Vault (APLICADO na PR #346)
