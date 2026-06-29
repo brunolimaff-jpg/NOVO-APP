@@ -118,6 +118,13 @@ export async function performGeminiSearch(query: string, apiKey: string): Promis
 
     if (!response.ok) {
       scoutDiag.warn('DocumentExtractor', `Gemini API error: ${response.status}`);
+      trackSearchCall({
+        provider: 'gemini',
+        query,
+        success: false,
+        durationMs: Date.now() - start,
+        timestamp: new Date().toISOString(),
+      });
       return null;
     }
 
@@ -133,6 +140,13 @@ export async function performGeminiSearch(query: string, apiKey: string): Promis
 
     if (groundingChunks.length === 0) {
       scoutDiag.warn('DocumentExtractor', 'Gemini Search: sem URLs de grounding');
+      trackSearchCall({
+        provider: 'gemini',
+        query,
+        success: false,
+        durationMs: Date.now() - start,
+        timestamp: new Date().toISOString(),
+      });
       return null;
     }
 
