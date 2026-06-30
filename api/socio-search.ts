@@ -48,9 +48,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             source: 'memory',
           })
         : cached;
-      return res.status(200).json({
-        ...payload,
-      });
+      return res.status(200).json(payload);
     }
   } else {
     const persistentCached = await getPersistentCached(cacheKey);
@@ -64,9 +62,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             source: 'persistent',
           })
         : persistentCached.payload;
-      return res.status(200).json({
-        ...payload,
-      });
+      return res.status(200).json(payload);
     }
     cacheTraceStatus = persistentCached.status === 'unavailable' ? 'unavailable' : 'miss';
     if (persistentCacheRequired && !hasPersistentConfig) {
@@ -86,9 +82,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             source: 'memory',
           })
         : memoryCached;
-      return res.status(200).json({
-        ...payload,
-      });
+      return res.status(200).json(payload);
     }
     cacheTraceSource = persistentCached.status === 'unavailable' ? 'none' : cacheTraceSource;
   }
@@ -141,14 +135,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       },
       detail: 'Busca societaria indisponivel no momento.',
     };
-    const body = wantsTrace
-      ? withTraceCache(fallbackPayload, {
-          required: persistentCacheRequired,
-          configured: hasPersistentConfig,
-          status: cacheTraceStatus,
-          source: cacheTraceSource,
-        })
-      : fallbackPayload;
-    return res.status(200).json(body);
+    return res.status(200).json(
+      wantsTrace
+        ? withTraceCache(fallbackPayload, {
+            required: persistentCacheRequired,
+            configured: hasPersistentConfig,
+            status: cacheTraceStatus,
+            source: cacheTraceSource,
+          })
+        : fallbackPayload,
+    );
   }
 }
