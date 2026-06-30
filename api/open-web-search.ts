@@ -2,8 +2,6 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { z } from 'zod';
 import { scoutDiag } from '../utils/diagnosticLog.js';
 import { isValidPublicUrl, extractHtml, performWebSearch } from '../utils/documentExtractor.js';
-import { initSearchTelemetry, getSearchTelemetrySnapshot } from '../utils/searchTelemetry.js';
-import { isDebugSearch } from '../utils/feature-flags.js';
 
 const SearchRequestSchema = z
   .object({
@@ -79,7 +77,6 @@ async function performResilientSearch(query: string): Promise<{
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  if (isDebugSearch()) initSearchTelemetry();
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
@@ -150,7 +147,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       degraded,
       detail,
       providerStatus,
-      ...(isDebugSearch() ? { _searchTelemetry: getSearchTelemetrySnapshot() } : {}),
     });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Unknown error';
@@ -162,7 +158,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       degraded: true,
       detail: message,
       providerStatus: [{ provider: 'duckduckgo', ok: false, reason: 'unknown' }],
-      ...(isDebugSearch() ? { _searchTelemetry: getSearchTelemetrySnapshot() } : {}),
     });
   }
 }

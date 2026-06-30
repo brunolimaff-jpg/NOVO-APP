@@ -1,6 +1,5 @@
 import { normalizeCnpj } from './cnpj.js';
 import { scoutDiag } from './diagnosticLog.js';
-import { trackSearchCall } from './searchTelemetry.js';
 
 /**
  * Utilitário Unificado de Extração e Busca
@@ -91,7 +90,6 @@ export async function extractDocx(buffer: Buffer): Promise<string> {
  */
 export async function performGeminiSearch(query: string, apiKey: string): Promise<string | null> {
   scoutDiag.info('DocumentExtractor', `Buscando URLs via Gemini Search Grounding: ${query}`);
-  const start = Date.now();
 
   try {
     const response = await fetch(
@@ -118,13 +116,6 @@ export async function performGeminiSearch(query: string, apiKey: string): Promis
 
     if (!response.ok) {
       scoutDiag.warn('DocumentExtractor', `Gemini API error: ${response.status}`);
-      trackSearchCall({
-        provider: 'gemini',
-        query,
-        success: false,
-        durationMs: Date.now() - start,
-        timestamp: new Date().toISOString(),
-      });
       return null;
     }
 
@@ -140,13 +131,6 @@ export async function performGeminiSearch(query: string, apiKey: string): Promis
 
     if (groundingChunks.length === 0) {
       scoutDiag.warn('DocumentExtractor', 'Gemini Search: sem URLs de grounding');
-      trackSearchCall({
-        provider: 'gemini',
-        query,
-        success: false,
-        durationMs: Date.now() - start,
-        timestamp: new Date().toISOString(),
-      });
       return null;
     }
 
@@ -181,24 +165,10 @@ export async function performGeminiSearch(query: string, apiKey: string): Promis
     }
 
     scoutDiag.info('DocumentExtractor', `Gemini Search: ${results.length} paginas extraidas`);
-    trackSearchCall({
-      provider: 'gemini',
-      query,
-      success: results.length > 0,
-      durationMs: Date.now() - start,
-      timestamp: new Date().toISOString(),
-    });
     return results.length > 0 ? results.join('\n') : null;
   } catch (error) {
     scoutDiag.warn('DocumentExtractor', 'Erro na busca Gemini Search', {
       message: error instanceof Error ? error.message : String(error),
-    });
-    trackSearchCall({
-      provider: 'gemini',
-      query,
-      success: false,
-      durationMs: Date.now() - start,
-      timestamp: new Date().toISOString(),
     });
     return null;
   }
@@ -224,7 +194,6 @@ export async function performWebSearch(query: string, _options: { count?: number
 async function performDuckDuckGoSearch(query: string): Promise<string | null> {
   const cheerio = await import('cheerio');
   scoutDiag.info('DocumentExtractor', `Buscando no DuckDuckGo (POST): ${query}`);
-  const start = Date.now();
 
   try {
     const response = await fetch('https://lite.duckduckgo.com/lite/', {
@@ -262,23 +231,9 @@ async function performDuckDuckGoSearch(query: string): Promise<string | null> {
       results.push(`Título: ${title}\nURL: ${url}\nResumo: ${snippet}\n---`);
     });
 
-    trackSearchCall({
-      provider: 'duckduckgo',
-      query,
-      success: results.length > 0,
-      durationMs: Date.now() - start,
-      timestamp: new Date().toISOString(),
-    });
     return results.join('\n') || 'Nenhum resultado encontrado.';
   } catch (error) {
     scoutDiag.error('DocumentExtractor', 'Erro na busca DuckDuckGo', error);
-    trackSearchCall({
-      provider: 'duckduckgo',
-      query,
-      success: false,
-      durationMs: Date.now() - start,
-      timestamp: new Date().toISOString(),
-    });
     return null;
   }
 }

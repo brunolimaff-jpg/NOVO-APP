@@ -1,8 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { applyCors } from './_cors-headers.js';
 import { scoutDiag } from '../utils/diagnosticLog.js';
-import { initSearchTelemetry, getSearchTelemetrySnapshot } from '../utils/searchTelemetry.js';
-import { isDebugSearch } from '../utils/feature-flags.js';
 import {
   type SocioSearchResponse,
   type SocioSearchTraceDiagnostics,
@@ -25,7 +23,6 @@ export const maxDuration = 60;
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   applyCors(req, res);
-  if (isDebugSearch()) initSearchTelemetry();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   const parsed = RequestSchema.safeParse(req.body);
@@ -53,7 +50,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         : cached;
       return res.status(200).json({
         ...payload,
-        ...(isDebugSearch() ? { _searchTelemetry: getSearchTelemetrySnapshot() } : {}),
       });
     }
   } else {
@@ -70,7 +66,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         : persistentCached.payload;
       return res.status(200).json({
         ...payload,
-        ...(isDebugSearch() ? { _searchTelemetry: getSearchTelemetrySnapshot() } : {}),
       });
     }
     cacheTraceStatus = persistentCached.status === 'unavailable' ? 'unavailable' : 'miss';
@@ -93,7 +88,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         : memoryCached;
       return res.status(200).json({
         ...payload,
-        ...(isDebugSearch() ? { _searchTelemetry: getSearchTelemetrySnapshot() } : {}),
       });
     }
     cacheTraceSource = persistentCached.status === 'unavailable' ? 'none' : cacheTraceSource;
@@ -126,10 +120,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         })
       : stripTrace(payload);
 
-    return res.status(200).json({
-      ...responsePayload,
-      ...(isDebugSearch() ? { _searchTelemetry: getSearchTelemetrySnapshot() } : {}),
-    });
+    return res.status(200).json(responsePayload);
   } catch (error) {
     scoutDiag.warn('SocioSearch', 'falha no drill-down de socio', {
       socioName: parsed.data.socioName,
@@ -158,9 +149,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           source: cacheTraceSource,
         })
       : fallbackPayload;
-    return res.status(200).json({
-      ...body,
-      ...(isDebugSearch() ? { _searchTelemetry: getSearchTelemetrySnapshot() } : {}),
-    });
+    return res.status(200).json(body);
   }
 }
