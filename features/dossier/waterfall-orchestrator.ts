@@ -1,4 +1,4 @@
-import { useCallback, type Dispatch, type SetStateAction } from 'react';
+import { useCallback, useRef, type Dispatch, type SetStateAction } from 'react';
 import * as Sentry from '@sentry/react';
 import { v4 as uuidv4 } from 'uuid';
 import { registerWaterfallStart, registerWaterfallEnd } from './waterfall-guard';
@@ -52,6 +52,21 @@ import type { MutableRefObject } from 'react';
 import type { RunMegaPromptWaterfallArgs } from '../../types';
 import { isAbortLikeError } from '../../utils/abortHelpers';
 import { isEvidencePipelineV2 } from '../../utils/feature-flags';
+import {
+  selectOutputMode,
+  type OutputMode,
+  type OutputModeDecision,
+} from '../../services/evidence/output-mode-selector';
+import { formatEvidencePackForPrompt } from '../../services/evidence/pack-formatter';
+import {
+  PROMPT_CAMINHO_DE_VENDA_V2,
+  PROMPT_RADAR_EXPANSAO_GOD_MODE_V2,
+  PROMPT_RAIO_X_OPERACIONAL_ATAQUE_V2,
+  PROMPT_RISCOS_COMPLIANCE_GOD_MODE_V2,
+  PROMPT_TECH_STACK_GOD_MODE_ATAQUE_V2,
+} from '../../prompts/mega/specialist-prompts-v2';
+import { PROMPT_TEIA_IDENTITY_MODULE_V2 } from '../../prompts/mega/teia-identity-v2';
+import type { EvidencePack } from '../../services/llm/query-planner';
 import { ensureContinuitySuggestions, pickCompanyLabel } from '../../utils/messageHelpers';
 import { runDossierBenchmarkStage } from './benchmark-stage';
 import type { PortaScoreResolution } from '../../utils/porta';
@@ -544,6 +559,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
   const setIsLoading = options.setIsLoading ?? chatStore?.setIsLoading;
   const setLoadingVariant = options.setLoadingVariant ?? chatStore?.setLoadingVariant;
   const activeGenerationRef = options.activeGenerationRef ?? chatStore?.activeGenerationRef;
+  const outputModeRef = useRef<OutputMode | null>(null);
 
   const runMegaPromptWaterfall = useCallback(
     async ({
@@ -692,6 +708,68 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
           }
         }
 
+        // === EVIDENCE PIPELINE V2: Query Planner + Collector (PR #407) ===
+        let evidencePack: EvidencePack | null = null;
+        let modeDecision: OutputModeDecision | null = null;
+        if (isEvidencePipelineV2()) {
+          try {
+            const { buildEntityResolutionFromContext, planQueries, executeQueryPlan } =
+              await import('../../services/llm/query-planner');
+
+            const entity = buildEntityResolutionFromContext({
+              cnpj: sessionCnpjDigits,
+              razaoSocial: resolvedMegaCompany || void 0,
+              cnaePrincipal: '',
+              clienteSeniorData: waterfallClienteSeniorData
+                ? { encontrado: true, totalModulos: waterfallClienteSeniorData.totalModulos }
+                : void 0,
+              estadoOperacao: [],
+            });
+
+            const callLLM = async (prompt: string): Promise<string> => {
+              const { sendMessageToGemini } = await import('../../services/llmService');
+              const result = await sendMessageToGemini(
+                prompt,
+                [],
+                'Você é um planejador de investigação. Retorne APENAS JSON válido.',
+                { useGrounding: false, useOpenWebSearch: false, maxOutputTokens: 16384 },
+                false,
+              );
+              return result.text || '';
+            };
+
+            assertNotAborted();
+            const plan = await withAbortSignal(planQueries(entity, callLLM), signal);
+            assertNotAborted();
+            evidencePack = await withAbortSignal(executeQueryPlan(plan), signal);
+
+            // Compute OutputMode from confidence profile
+            modeDecision = selectOutputMode(evidencePack.confidenceProfile);
+            outputModeRef.current = modeDecision.mode;
+
+            scoutDiag.info('PipelineV2', 'planner+collector concluído', {
+              sessionId,
+              company: entity.razaoSocial,
+              cnpj: entity.cnpjRaiz || null,
+              segmento: entity.segmentoInferido,
+              queries: plan.queries.length,
+              items: evidencePack.items.length,
+              tierAB: evidencePack.confidenceProfile.tierACount + evidencePack.confidenceProfile.tierBCount,
+              modules: evidencePack.confidenceProfile.modulesCovered.length,
+              outputMode: modeDecision.mode,
+              outputRationale: modeDecision.rationale,
+            });
+          } catch (err) {
+            if (isAbortLikeError(err)) throw err;
+            console.error('[PipelineV2:FATAL]', err);
+            scoutDiag.warn('PipelineV2', 'Fallback v1 (planner/collector falhou)', {
+              sessionId,
+              error: err instanceof Error ? err.message : String(err),
+              stack: err instanceof Error ? err.stack : undefined,
+            });
+          }
+        }
+
         const buildModuleExtraContext = (accumulatedTextSnapshot: string, contextHint = '') => {
           const dynamicContext = buildDynamicDossierContext(
             contextHint,
@@ -727,38 +805,39 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
           accumulatedText += (accumulatedText ? '\n\n---\n\n' : '') + normalizedChunk;
         };
 
+        const useV2 = isEvidencePipelineV2() && evidencePack !== null;
         const modules: DossierWaterfallModule[] = [
           {
             name: 'Porte / Teia Societária',
-            prompt: PROMPT_RADAR_EXPANSAO_GOD_MODE,
+            prompt: useV2 ? PROMPT_RADAR_EXPANSAO_GOD_MODE_V2 : PROMPT_RADAR_EXPANSAO_GOD_MODE,
             stage: MODULAR_DOSSIER_STAGES[0],
             optional: false,
             timeoutMs: MODULAR_REQUIRED_STEP_TIMEOUT_MS,
           },
           {
             name: 'Operação / Cadeia de Valor',
-            prompt: PROMPT_RAIO_X_OPERACIONAL_ATAQUE,
+            prompt: useV2 ? PROMPT_RAIO_X_OPERACIONAL_ATAQUE_V2 : PROMPT_RAIO_X_OPERACIONAL_ATAQUE,
             stage: MODULAR_DOSSIER_STAGES[1],
             optional: false,
             timeoutMs: MODULAR_REQUIRED_STEP_TIMEOUT_MS,
           },
           {
             name: 'Bordas de Controle',
-            prompt: PROMPT_TECH_STACK_GOD_MODE_ATAQUE,
+            prompt: useV2 ? PROMPT_TECH_STACK_GOD_MODE_ATAQUE_V2 : PROMPT_TECH_STACK_GOD_MODE_ATAQUE,
             stage: MODULAR_DOSSIER_STAGES[2],
             optional: true,
             timeoutMs: MODULAR_OPTIONAL_STEP_TIMEOUT_MS,
           },
           {
             name: 'Riscos & Compliance',
-            prompt: PROMPT_RISCOS_COMPLIANCE_GOD_MODE,
+            prompt: useV2 ? PROMPT_RISCOS_COMPLIANCE_GOD_MODE_V2 : PROMPT_RISCOS_COMPLIANCE_GOD_MODE,
             stage: MODULAR_DOSSIER_STAGES[3],
             optional: true,
             timeoutMs: MODULAR_OPTIONAL_STEP_TIMEOUT_MS,
           },
           {
             name: 'Caminho de Venda',
-            prompt: PROMPT_CAMINHO_DE_VENDA,
+            prompt: useV2 ? PROMPT_CAMINHO_DE_VENDA_V2 : PROMPT_CAMINHO_DE_VENDA,
             stage: MODULAR_DOSSIER_STAGES[4],
             optional: true,
             timeoutMs: MODULAR_OPTIONAL_STEP_TIMEOUT_MS,
@@ -771,12 +850,16 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
           accumulatedTextSnapshot,
           contextHint = '',
           timeoutMs = module.timeoutMs,
-        ) =>
-          generateDossierModule(
+        ) => {
+          const effectivePrompt =
+            useV2 && evidencePack
+              ? module.prompt.replace('{EVIDENCE_PACK_INJECTED_HERE}', formatEvidencePackForPrompt(evidencePack))
+              : module.prompt;
+          return generateDossierModule(
             module.name,
             resolvedMegaCompany || 'Empresa',
             SHARED_FOUNDATION_BLOCK,
-            module.prompt,
+            effectivePrompt,
             buildModuleExtraContext(accumulatedTextSnapshot, contextHint),
             {
               signal,
@@ -784,17 +867,23 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
               ...sharedDossierModuleOptions,
             },
           );
+        };
 
         const runTeiaSocietariaOrchestration = async (): Promise<string> => {
           let identityResult: string;
 
           try {
             const identityStart = performance.now();
+            const teiaIdentityPrompt = useV2 ? PROMPT_TEIA_IDENTITY_MODULE_V2 : PROMPT_TEIA_IDENTITY_MODULE;
+            const effectiveTeiaPrompt =
+              useV2 && evidencePack
+                ? teiaIdentityPrompt.replace('{EVIDENCE_PACK_INJECTED_HERE}', formatEvidencePackForPrompt(evidencePack))
+                : teiaIdentityPrompt;
             identityResult = await generateDossierModule(
               'Teia Societaria — Identidade',
               resolvedMegaCompany || 'Empresa',
               SHARED_FOUNDATION_BLOCK,
-              PROMPT_TEIA_IDENTITY_MODULE,
+              effectiveTeiaPrompt,
               buildModuleExtraContext(accumulatedText),
               {
                 signal,
@@ -927,60 +1016,6 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
 
           return validatedText;
         };
-
-        // === EVIDENCE PIPELINE V2: Query Planner + Collector (PR #407) ===
-        if (isEvidencePipelineV2()) {
-          try {
-            const { buildEntityResolutionFromContext, planQueries, executeQueryPlan } =
-              await import('../../services/llm/query-planner');
-
-            const entity = buildEntityResolutionFromContext({
-              cnpj: sessionCnpjDigits,
-              razaoSocial: resolvedMegaCompany || void 0,
-              cnaePrincipal: '',
-              clienteSeniorData: waterfallClienteSeniorData
-                ? { encontrado: true, totalModulos: waterfallClienteSeniorData.totalModulos }
-                : void 0,
-              estadoOperacao: [],
-            });
-
-            const callLLM = async (prompt: string): Promise<string> => {
-              const { sendMessageToGemini } = await import('../../services/llmService');
-              const result = await sendMessageToGemini(
-                prompt,
-                [],
-                'Você é um planejador de investigação. Retorne APENAS JSON válido.',
-                { useGrounding: false, useOpenWebSearch: false, maxOutputTokens: 16384 },
-                false,
-              );
-              return result.text || '';
-            };
-
-            assertNotAborted();
-            const plan = await withAbortSignal(planQueries(entity, callLLM), signal);
-            assertNotAborted();
-            const pack = await withAbortSignal(executeQueryPlan(plan), signal);
-
-            scoutDiag.info('PipelineV2', 'planner+collector concluído', {
-              sessionId,
-              company: entity.razaoSocial,
-              cnpj: entity.cnpjRaiz || null,
-              segmento: entity.segmentoInferido,
-              queries: plan.queries.length,
-              items: pack.items.length,
-              tierAB: pack.confidenceProfile.tierACount + pack.confidenceProfile.tierBCount,
-              modules: pack.confidenceProfile.modulesCovered.length,
-            });
-          } catch (err) {
-            if (isAbortLikeError(err)) throw err;
-            console.error('[PipelineV2:FATAL]', err);
-            scoutDiag.warn('PipelineV2', 'Fallback v1 (planner/collector falhou)', {
-              sessionId,
-              error: err instanceof Error ? err.message : String(err),
-              stack: err instanceof Error ? err.stack : undefined,
-            });
-          }
-        }
 
         if (isFirstInteraction) {
           resetLoadingProgress(modules[FIRST_MODULE_INDEX].stage, MODULAR_DOSSIER_TOTAL_STAGES);
@@ -1655,5 +1690,5 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
     ],
   );
 
-  return { runMegaPromptWaterfall };
+  return { runMegaPromptWaterfall, outputModeRef };
 }
