@@ -236,14 +236,15 @@ export async function planQueries(
     parsed = JSON.parse(cleaned);
   } catch {
     let ok = false;
+    let lastParseError = '';
     try {
       const ext = extractJson(cleaned);
       if (ext) {
         parsed = JSON.parse(ext);
         ok = true;
       }
-    } catch {
-      /* continua */
+    } catch (e) {
+      lastParseError = e instanceof Error ? e.message : String(e);
     }
     if (!ok) {
       try {
@@ -253,14 +254,15 @@ export async function planQueries(
           parsed = JSON.parse(ext);
           ok = true;
         }
-      } catch {
-        /* continua */
+      } catch (e) {
+        lastParseError = e instanceof Error ? e.message : String(e);
       }
     }
     if (!ok) {
-      console.error('[QueryPlanner] raw:', raw.slice(0, 500));
-      console.error('[QueryPlanner] cleaned:', cleaned.slice(0, 500));
-      throw new Error('Planner retornou JSON inválido após extração');
+      console.error('[QueryPlanner] parseError:', lastParseError);
+      console.error('[QueryPlanner] raw:', raw.slice(0, 2000));
+      console.error('[QueryPlanner] cleaned:', cleaned.slice(0, 2000));
+      throw new Error(`Planner retornou JSON inválido: ${lastParseError}`);
     }
   }
 
