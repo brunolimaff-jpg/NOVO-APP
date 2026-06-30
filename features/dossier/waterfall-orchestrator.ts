@@ -577,6 +577,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
       operatorEmail: waterfallOperatorEmail,
       operatorSessionId: waterfallOperatorSessionId,
     }: RunMegaPromptWaterfallArgs) => {
+      outputModeRef.current = null; // reset between waterfall attempts
       const guardCheck = registerWaterfallStart(sessionId);
       if (!guardCheck.allowed) {
         scoutDiag.warn('WaterfallGuard', 'waterfall bloqueado por floodgate; abortando execução', {
@@ -591,7 +592,6 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
         return;
       }
       const waterfallRunId = guardCheck.runId;
-      outputModeRef.current = null; // reset between waterfall runs
       let waterfallEndStatus: 'completed' | 'failed' = 'failed';
       let foundationCacheName: string | undefined;
       let sessionToPersist: ChatSession | null = null;
