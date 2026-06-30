@@ -322,6 +322,15 @@ export async function executeQueryPlan(plan: QueryPlan): Promise<EvidencePack> {
       batch.map(async q => {
         try {
           const raw = await performWebSearch(q.query);
+          console.log('[QueryPlanner] query:', q.query.substring(0, 80));
+          console.log(
+            '[QueryPlanner] raw type:',
+            typeof raw,
+            'length:',
+            raw?.length || 0,
+            'preview:',
+            raw?.substring(0, 200) || '(vazio)',
+          );
           if (!raw) return [];
 
           const blocks = raw.split(/\n---\n/).filter(Boolean);
@@ -343,6 +352,7 @@ export async function executeQueryPlan(plan: QueryPlan): Promise<EvidencePack> {
             })
             .filter((r): r is BraveSearchResult => r !== null);
         } catch (err) {
+          console.error('[QueryPlanner] queryError:', q.query.substring(0, 60), String(err).substring(0, 200));
           scoutDiag.warn('QueryPlanner', 'busca falhou na query', { queryId: q.id, error: String(err) });
           return [];
         }
