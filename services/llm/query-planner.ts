@@ -223,7 +223,10 @@ export async function planQueries(
     .trim();
 
   // Corrige vírgula faltando entre objetos do array (erro comum de LLM)
-  const repaired = cleaned.replace(/}(\s*)\{/g, '},$1{');
+  const repaired = cleaned
+    .replace(/}(\s*)\{/g, '},$1{')
+    // Corrige array não fechado: } no final sem ] antes (Gemini esquece de fechar queries[])
+    .replace(/(\})\s*\}$/g, '$1\n  ]\n}');
 
   const extractJson = (text: string): string | null => {
     const first = text.indexOf('{');
