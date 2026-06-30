@@ -950,7 +950,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
                 prompt,
                 [],
                 'Você é um planejador de investigação. Retorne APENAS JSON válido.',
-                { useGrounding: false, useOpenWebSearch: false },
+                { useGrounding: false, useOpenWebSearch: false, maxOutputTokens: 16384 },
                 false,
               );
               return result.text || '';
