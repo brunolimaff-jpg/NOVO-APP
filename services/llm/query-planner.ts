@@ -287,11 +287,16 @@ export async function planQueries(
     }
   }
 
-  // Normaliza homonimRisk com acento (Gemini escreve "médio" em vez de "medio")
+  // Normaliza campos que Gemini pode gerar com acento/maiúscula/string
   if (parsed && typeof parsed === 'object' && 'queries' in parsed) {
-    const obj = parsed as { queries: Array<{ homonimRisk?: string }> };
+    const obj = parsed as { queries: Array<Record<string, unknown>> };
     for (const q of obj.queries) {
-      if (q.homonimRisk === 'médio') q.homonimRisk = 'medio';
+      if (typeof q.homonimRisk === 'string') {
+        q.homonimRisk = q.homonimRisk.toLowerCase().replace('é', 'e').replace('ê', 'e');
+      }
+      if (typeof q.objective === 'string') q.objective = q.objective.toLowerCase();
+      if (typeof q.module === 'string') q.module = q.module.toLowerCase().replace('ê', 'e');
+      if (typeof q.priority === 'string') q.priority = Number(q.priority);
     }
   }
 
