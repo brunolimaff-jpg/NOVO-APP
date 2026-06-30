@@ -957,8 +957,10 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
               return result.text || '';
             };
 
-            const plan = await planQueries(entity, callLLM);
-            const pack = await executeQueryPlan(plan);
+            assertNotAborted();
+            const plan = await withAbortSignal(planQueries(entity, callLLM), signal);
+            assertNotAborted();
+            const pack = await withAbortSignal(executeQueryPlan(plan), signal);
 
             scoutDiag.info('PipelineV2', 'planner+collector concluído', {
               sessionId,
@@ -971,9 +973,10 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
               modules: pack.confidenceProfile.modulesCovered.length,
             });
           } catch (err) {
+            if (isAbortLikeError(err)) throw err;
             scoutDiag.warn('PipelineV2', 'Fallback v1 (planner/collector falhou)', {
               sessionId,
-              error: String(err),
+              error: err instanceof Error ? err.message : String(err),
             });
           }
         }

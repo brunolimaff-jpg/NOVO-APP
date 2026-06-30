@@ -158,11 +158,12 @@ EXEMPLOS (adapte, não copie):
 Retorne APENAS o JSON. Sem texto antes. Sem texto depois. Sem \`\`\`json.`;
 
 function renderPlannerPrompt(entity: EntityResolution): string {
-  return PLANNER_PROMPT.replace('{companyName}', entity.razaoSocial)
-    .replace('{cnpjRaiz}', entity.cnpjRaiz)
-    .replace('{cnaePrincipal}', entity.cnaePrincipal)
-    .replace('{segmentoInferido}', entity.segmentoInferido)
-    .replace('{clienteSenior}', entity.clienteSeniorData?.encontrado ? 'SIM' : 'NÃO');
+  return PLANNER_PROMPT
+    .split('{companyName}').join(entity.razaoSocial)
+    .split('{cnpjRaiz}').join(entity.cnpjRaiz)
+    .split('{cnaePrincipal}').join(entity.cnaePrincipal)
+    .split('{segmentoInferido}').join(entity.segmentoInferido)
+    .split('{clienteSenior}').join(entity.clienteSeniorData?.encontrado ? 'SIM' : 'NÃO');
 }
 
 // === Zod schema ===
