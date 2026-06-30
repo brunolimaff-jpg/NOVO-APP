@@ -52,7 +52,6 @@ import type { MutableRefObject } from 'react';
 import type { RunMegaPromptWaterfallArgs } from '../../types';
 import { isAbortLikeError } from '../../utils/abortHelpers';
 import { isEvidencePipelineV2 } from '../../utils/feature-flags';
-import { planQueries, executeQueryPlan, buildEntityResolutionFromContext } from '../../services/llm/query-planner';
 import { ensureContinuitySuggestions, pickCompanyLabel } from '../../utils/messageHelpers';
 import { runDossierBenchmarkStage } from './benchmark-stage';
 import type { PortaScoreResolution } from '../../utils/porta';
@@ -932,6 +931,10 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
         // === EVIDENCE PIPELINE V2: Query Planner + Collector (PR #407) ===
         if (isEvidencePipelineV2()) {
           try {
+            const { buildEntityResolutionFromContext, planQueries, executeQueryPlan } = await import(
+              '../../services/llm/query-planner'
+            );
+
             const entity = buildEntityResolutionFromContext({
               cnpj: sessionCnpjDigits,
               razaoSocial: resolvedMegaCompany || void 0,

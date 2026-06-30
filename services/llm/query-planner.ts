@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { performWebSearch } from '../../utils/documentExtractor';
+import { scoutDiag } from '../../utils/diagnosticLog';
 
 // === TIPOS INLINE (Principio 17) ===
 
@@ -196,7 +197,7 @@ const QueryPlanSchema = z.object({
         rationale: z.string().min(10),
       }),
     )
-    .min(8)
+    .min(12)
     .max(18),
 });
 
@@ -219,7 +220,11 @@ export async function planQueries(
   } catch {
     const match = cleaned.match(/\{[\s\S]*\}/);
     if (!match) throw new Error('Planner retornou JSON inválido');
-    parsed = JSON.parse(match[0]);
+    try {
+      parsed = JSON.parse(match[0]);
+    } catch {
+      throw new Error('Planner retornou JSON inválido após extração');
+    }
   }
 
   const validated = QueryPlanSchema.parse(parsed);
@@ -264,7 +269,8 @@ export async function executeQueryPlan(plan: QueryPlan): Promise<EvidencePack> {
               } as BraveSearchResult;
             })
             .filter((r): r is BraveSearchResult => r !== null);
-        } catch {
+        } catch (err) {
+          scoutDiag.warn('QueryPlanner', 'busca falhou na query', { queryId: q.id, error: String(err) });
           return [];
         }
       }),
@@ -313,8 +319,8 @@ function classifyTier(url: string): EvidenceTier {
   try {
     const u = url.toLowerCase();
     if (/\.(gov|jus)\.br/.test(u) || /cnpj\.ws/.test(u)) return 'A';
-    if (/\.com\.br$/.test(new URL(url).hostname)) return 'B';
     if (/blog|news|imprensa/.test(u)) return 'C';
+    if (/\.com\.br$/.test(new URL(url).hostname)) return 'B';
   } catch {
     // URL parse pode falhar com strings malformadas
   }
@@ -322,7 +328,9 @@ function classifyTier(url: string): EvidenceTier {
 }
 
 function classifyEntityMatch(snippet: string, cnpj: string): EntityType {
+  if (!cnpj) return 'likely';
   const cnpjClean = cnpj.replace(/\D/g, '');
+  if (!cnpjClean) return 'likely';
   if (snippet.includes(cnpjClean) || snippet.includes(cnpj)) return 'exact';
   return 'likely'; // stub — Fase 2 melhorar
 }
