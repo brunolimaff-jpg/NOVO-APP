@@ -591,6 +591,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
         return;
       }
       const waterfallRunId = guardCheck.runId;
+      outputModeRef.current = null; // reset between waterfall runs
       let waterfallEndStatus: 'completed' | 'failed' = 'failed';
       let foundationCacheName: string | undefined;
       let sessionToPersist: ChatSession | null = null;
@@ -711,6 +712,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
         // === EVIDENCE PIPELINE V2: Query Planner + Collector (PR #407) ===
         let evidencePack: EvidencePack | null = null;
         let modeDecision: OutputModeDecision | null = null;
+        let evidencePackText = '';
         if (isEvidencePipelineV2()) {
           try {
             const { buildEntityResolutionFromContext, planQueries, executeQueryPlan } =
@@ -743,9 +745,14 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
             assertNotAborted();
             evidencePack = await withAbortSignal(executeQueryPlan(plan), signal);
 
-            // Compute OutputMode from confidence profile
-            modeDecision = selectOutputMode(evidencePack.confidenceProfile);
-            outputModeRef.current = modeDecision.mode;
+            // Compute OutputMode from confidence profile (defensive: null-safe)
+            if (evidencePack?.confidenceProfile) {
+              modeDecision = selectOutputMode(evidencePack.confidenceProfile);
+              outputModeRef.current = modeDecision.mode;
+            }
+
+            // Memoize evidence pack text once per waterfall run
+            evidencePackText = evidencePack ? formatEvidencePackForPrompt(evidencePack) : '';
 
             scoutDiag.info('PipelineV2', 'planner+collector concluído', {
               sessionId,
@@ -756,11 +763,12 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
               items: evidencePack.items.length,
               tierAB: evidencePack.confidenceProfile.tierACount + evidencePack.confidenceProfile.tierBCount,
               modules: evidencePack.confidenceProfile.modulesCovered.length,
-              outputMode: modeDecision.mode,
-              outputRationale: modeDecision.rationale,
+              outputMode: modeDecision?.mode,
+              outputRationale: modeDecision?.rationale,
             });
           } catch (err) {
             if (isAbortLikeError(err)) throw err;
+            outputModeRef.current = null; // reset on V2 fallback
             console.error('[PipelineV2:FATAL]', err);
             scoutDiag.warn('PipelineV2', 'Fallback v1 (planner/collector falhou)', {
               sessionId,
@@ -853,7 +861,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
         ) => {
           const effectivePrompt =
             useV2 && evidencePack
-              ? module.prompt.replace('{EVIDENCE_PACK_INJECTED_HERE}', formatEvidencePackForPrompt(evidencePack))
+              ? module.prompt.replace('{EVIDENCE_PACK_INJECTED_HERE}', evidencePackText)
               : module.prompt;
           return generateDossierModule(
             module.name,
@@ -864,6 +872,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
             {
               signal,
               timeoutMs,
+              ...(useV2 ? { temperature: 0.1 } : {}),
               ...sharedDossierModuleOptions,
             },
           );
@@ -877,7 +886,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
             const teiaIdentityPrompt = useV2 ? PROMPT_TEIA_IDENTITY_MODULE_V2 : PROMPT_TEIA_IDENTITY_MODULE;
             const effectiveTeiaPrompt =
               useV2 && evidencePack
-                ? teiaIdentityPrompt.replace('{EVIDENCE_PACK_INJECTED_HERE}', formatEvidencePackForPrompt(evidencePack))
+                ? teiaIdentityPrompt.replace('{EVIDENCE_PACK_INJECTED_HERE}', evidencePackText)
                 : teiaIdentityPrompt;
             identityResult = await generateDossierModule(
               'Teia Societaria — Identidade',
@@ -968,7 +977,9 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
                 resolvedMegaCompany || 'Empresa',
                 SHARED_FOUNDATION_BLOCK,
                 PROMPT_TEIA_DEEP_MODULE,
-                buildModuleExtraContext(combinedTeiaText),
+                useV2 && evidencePackText
+                  ? buildModuleExtraContext(combinedTeiaText) + '\n\n' + evidencePackText
+                  : buildModuleExtraContext(combinedTeiaText),
                 {
                   signal,
                   timeoutMs: MODULAR_REQUIRED_STEP_TIMEOUT_MS,
@@ -1211,7 +1222,12 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
           groundingSourcesCount: waterfallGroundingSources.length,
           poolSize: sessionSourcePool.length,
         });
-        const finalized = finalizeDossierMarkdown(waterfallPrepared, waterfallGroundingSources, sessionSourcePool);
+        const finalized = finalizeDossierMarkdown(
+          waterfallPrepared,
+          waterfallGroundingSources,
+          sessionSourcePool,
+          outputModeRef.current ?? undefined,
+        );
         scoutDiag.info('FreezeDiag', 'post-finalize-markdown', {
           sessionId,
           waterfallRunId,

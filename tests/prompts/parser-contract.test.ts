@@ -5,17 +5,17 @@ import { PROMPT_TEIA_IDENTITY_MODULE } from '../../prompts/mega/teia-identity';
 import { PROMPT_TEIA_IDENTITY_MODULE_V2 } from '../../prompts/mega/teia-identity-v2';
 
 const PORTA_REGEXES = [
-  /[[PORTA_FEED_O:[^]]+]]/g,
-  /[[PORTA_FEED_R:[^]]+]]/g,
-  /[[PORTA_FLAG:NOFIT:[^]]+]]/g,
-  /[[PORTA_FEED_T:[^]]+]]/g,
-  /[[PORTA_FLAG:TRAD:[^]]+]]/g,
-  /[[PORTA_FEED_P:[^]]+]]/g,
-  /[[PORTA_SEG:[^]]+]]/g,
-  /[[PORTA_FEED_P_PROXY:[^]]+]]/g,
-  /[[PORTA_FEED_R_TRAB:[^]]+]]/g,
-  /[[PORTA_FEED_A2:[^]]+]]/g,
-  /[[PORTA_FEED_A:[^]]+]]/g,
+  /\[\[PORTA_FEED_O:[^\]]+\]\]/g,
+  /\[\[PORTA_FEED_R:[^\]]+\]\]/g,
+  /\[\[PORTA_FLAG:NOFIT:[^\]]+\]\]/g,
+  /\[\[PORTA_FEED_T:[^\]]+\]\]/g,
+  /\[\[PORTA_FLAG:TRAD:[^\]]+\]\]/g,
+  /\[\[PORTA_FEED_P:[^\]]+\]\]/g,
+  /\[\[PORTA_SEG:[^\]]+\]\]/g,
+  /\[\[PORTA_FEED_P_PROXY:[^\]]+\]\]/g,
+  /\[\[PORTA_FEED_R_TRAB:[^\]]+\]\]/g,
+  /\[\[PORTA_FEED_A2:[^\]]+\]\]/g,
+  /\[\[PORTA_FEED_A:[^\]]+\]\]/g,
 ];
 
 function extractMarkers(prompt: string): string[] {
