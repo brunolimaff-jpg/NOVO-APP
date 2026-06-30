@@ -219,15 +219,44 @@ export async function planQueries(
     .replace(/\s*```$/i, '')
     .trim();
 
+  const extractJson = (text: string): string | null => {
+    const first = text.indexOf('{');
+    const last = text.lastIndexOf('}');
+    if (first !== -1 && last > first) {
+      return text.slice(first, last + 1);
+    }
+    return null;
+  };
+
   let parsed: unknown;
   try {
     parsed = JSON.parse(cleaned);
   } catch {
-    const match = cleaned.match(/\{[\s\S]*\}/);
-    if (!match) throw new Error('Planner retornou JSON inválido');
+    let ok = false;
     try {
-      parsed = JSON.parse(match[0]);
+      const ext = extractJson(cleaned);
+      if (ext) {
+        parsed = JSON.parse(ext);
+        ok = true;
+      }
     } catch {
+      /* continua */
+    }
+    if (!ok) {
+      try {
+        const match = cleaned.match(/\{[\s\S]*\}/);
+        if (match) {
+          const ext = extractJson(match[0]) || match[0];
+          parsed = JSON.parse(ext);
+          ok = true;
+        }
+      } catch {
+        /* continua */
+      }
+    }
+    if (!ok) {
+      console.error('[QueryPlanner] raw:', raw.slice(0, 500));
+      console.error('[QueryPlanner] cleaned:', cleaned.slice(0, 500));
       throw new Error('Planner retornou JSON inválido após extração');
     }
   }
