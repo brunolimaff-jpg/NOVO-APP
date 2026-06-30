@@ -287,6 +287,14 @@ export async function planQueries(
     }
   }
 
+  // Normaliza homonimRisk com acento (Gemini escreve "médio" em vez de "medio")
+  if (parsed && typeof parsed === 'object' && 'queries' in parsed) {
+    const obj = parsed as { queries: Array<{ homonimRisk?: string }> };
+    for (const q of obj.queries) {
+      if (q.homonimRisk === 'médio') q.homonimRisk = 'medio';
+    }
+  }
+
   const validated = QueryPlanSchema.parse(parsed);
 
   return {
