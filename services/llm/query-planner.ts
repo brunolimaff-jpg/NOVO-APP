@@ -262,6 +262,18 @@ export async function planQueries(
       }
     }
     if (!ok) {
+      // Tenta fechar JSON truncado (Gemini cortou resposta no meio)
+      try {
+        const ext = extractJson(repaired);
+        if (ext && !ext.endsWith('}') && !ext.endsWith(']')) {
+          parsed = JSON.parse(ext + '}]');
+          ok = true;
+        }
+      } catch (e) {
+        lastParseError = e instanceof Error ? e.message : String(e);
+      }
+    }
+    if (!ok) {
       console.error('[QueryPlanner] parseError:', lastParseError);
       console.error('[QueryPlanner] raw:', raw.slice(0, 2000));
       console.error('[QueryPlanner] repaired:', repaired.slice(0, 2000));
