@@ -1,5 +1,4 @@
 import { z } from 'zod';
-import { performWebSearch } from '../../utils/documentExtractor';
 import { scoutDiag } from '../../utils/diagnosticLog';
 
 // === TIPOS INLINE (Principio 17) ===
@@ -321,16 +320,14 @@ export async function executeQueryPlan(plan: QueryPlan): Promise<EvidencePack> {
     const settled = await Promise.allSettled(
       batch.map(async q => {
         try {
-          const raw = await performWebSearch(q.query);
-          console.log('[QueryPlanner] query:', q.query.substring(0, 80));
-          console.log(
-            '[QueryPlanner] raw type:',
-            typeof raw,
-            'length:',
-            raw?.length || 0,
-            'preview:',
-            raw?.substring(0, 200) || '(vazio)',
-          );
+          const response = await fetch('/api/open-web-search', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ query: q.query }),
+          });
+          if (!response.ok) return [];
+          const data = await response.json();
+          const raw = data.content || '';
           if (!raw) return [];
 
           const blocks = raw.split(/\n---\n/).filter(Boolean);
@@ -352,7 +349,6 @@ export async function executeQueryPlan(plan: QueryPlan): Promise<EvidencePack> {
             })
             .filter((r): r is BraveSearchResult => r !== null);
         } catch (err) {
-          console.error('[QueryPlanner] queryError:', q.query.substring(0, 60), String(err).substring(0, 200));
           scoutDiag.warn('QueryPlanner', 'busca falhou na query', { queryId: q.id, error: String(err) });
           return [];
         }
