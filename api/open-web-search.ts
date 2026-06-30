@@ -2,6 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { z } from 'zod';
 import { scoutDiag } from '../utils/diagnosticLog.js';
 import { isValidPublicUrl, extractHtml, performWebSearch } from '../utils/documentExtractor.js';
+import { braveSearch } from '../services/search/brave-search.js';
 
 const SearchRequestSchema = z
   .object({
@@ -46,6 +47,24 @@ async function performResilientSearch(query: string): Promise<{
   const errors: string[] = [];
   const providerStatus: ProviderStatus[] = [];
 
+  // Brave como primário (JSON estruturado, server-side)
+  try {
+    const braveResults = await braveSearch(query);
+    if (braveResults.length > 0) {
+      providerStatus.push({ provider: 'duckduckgo', ok: true });
+      const content = braveResults.map(r => `Título: ${r.title}\nURL: ${r.url}\nResumo: ${r.snippet}\n---`).join('\n');
+      return {
+        content,
+        source: 'Brave',
+        sources: braveResults.map(r => ({ title: r.title, url: r.url, provider: 'url' as const })),
+        providerStatus,
+      };
+    }
+  } catch (e) {
+    scoutDiag.warn('OpenWebSearch', 'Brave falhou, fallback para DDG', { error: String(e).slice(0, 200) });
+  }
+
+  // Fallback DDG se Brave retornar vazio ou falhar
   try {
     const content = await performWebSearch(query);
     if (content && !/Nenhum resultado encontrado/i.test(content)) {

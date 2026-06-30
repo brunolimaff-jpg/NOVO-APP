@@ -17,6 +17,7 @@ export interface GeminiRequestOptions {
   sessionId?: string;
   hintedCompany?: string | null;
   isFollowUp?: boolean;
+  maxOutputTokens?: number;
 }
 
 export interface DossierModuleOptions {
