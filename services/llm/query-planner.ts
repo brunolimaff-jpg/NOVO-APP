@@ -277,6 +277,9 @@ export async function planQueries(
       console.error('[QueryPlanner] parseError:', lastParseError);
       console.error('[QueryPlanner] raw:', raw.slice(0, 2000));
       console.error('[QueryPlanner] repaired:', repaired.slice(0, 2000));
+      // Loga ao redor do erro (100 chars antes/depois)
+      const errPos = parseInt(lastParseError.match(/position (\d+)/)?.[1] || '0', 10);
+      console.error('[QueryPlanner] around-error:', repaired.slice(Math.max(0, errPos - 100), errPos + 100));
       throw new Error(`Planner retornou JSON inválido: ${lastParseError}`);
     }
   }
