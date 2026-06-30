@@ -124,7 +124,9 @@ ENTRADA:
 - Segmento: {segmentoInferido}
 - Cliente Senior: {clienteSenior}
 
-SAÍDA (JSON válido, sem markdown, sem comentários):
+SAÍDA: Retorne EXCLUSIVAMENTE um objeto JSON dentro de um bloco \`\`\`json:
+
+\`\`\`json
 {
   "queries": [
     {
@@ -139,6 +141,7 @@ SAÍDA (JSON válido, sem markdown, sem comentários):
     }
   ]
 }
+\`\`\`
 
 REGRAS OBRIGATÓRIAS:
 - Gere entre 12 e 18 queries (não mais, não menos)
@@ -155,7 +158,7 @@ EXEMPLOS (adapte, não copie):
 - Construção: 'site:gov.br "{companyName}" CNO OR CEI'
 - HCM: '{companyName} eSocial OR RAIS OR CAGED'
 
-Retorne APENAS o JSON. Sem texto antes. Sem texto depois. Sem \`\`\`json.`;
+IMPORTANTE: Sua resposta DEVE começar com \`\`\`json e terminar com \`\`\`. NADA de texto fora do bloco.`;
 
 function renderPlannerPrompt(entity: EntityResolution): string {
   return PLANNER_PROMPT.split('{companyName}')
