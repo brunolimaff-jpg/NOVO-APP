@@ -929,12 +929,6 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
         };
 
         // === EVIDENCE PIPELINE V2: Query Planner + Collector (PR #407) ===
-        console.log(
-          '[PipelineV2:DEBUG] isEvidencePipelineV2=',
-          isEvidencePipelineV2(),
-          'env=',
-          process.env.EVIDENCE_PIPELINE_V2,
-        );
         if (isEvidencePipelineV2()) {
           try {
             const { buildEntityResolutionFromContext, planQueries, executeQueryPlan } =
