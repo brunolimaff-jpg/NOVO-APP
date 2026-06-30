@@ -323,12 +323,17 @@ function buildThesis(
   primaryGap: string,
   foundSeniorBase: boolean,
   totalModulos?: number,
+  outputMode?: 'FULL_DOSSIER' | 'DISCOVERY_BRIEF' | 'ENRICHMENT_REQUIRED',
 ): string {
   const moduleSuffix = totalModulos ? `, com ${totalModulos} módulos confirmados,` : '';
   const gapSummary = summarizePainPoint(primaryGap);
   return foundSeniorBase
     ? `${displayCompany} já é uma conta instalada Senior${moduleSuffix} e a melhor expansão de conta hoje está em ${gapSummary}.`
-    : `${displayCompany} concentra uma dor executiva clara em ${gapSummary}, suficiente para abrir a conta por controle e eficiência.`;
+    : outputMode === 'DISCOVERY_BRIEF'
+      ? `${displayCompany} apresenta hipótese comercial a validar em ${gapSummary} — evidência pública insuficiente para tese forte.`
+      : outputMode === 'ENRICHMENT_REQUIRED'
+        ? `${displayCompany} requer enriquecimento de fontes antes de tese comercial — lacunas identificadas em ${gapSummary}.`
+        : `${displayCompany} concentra uma dor executiva clara em ${gapSummary}, suficiente para abrir a conta por controle e eficiência.`;
 }
 
 function buildRiskStatement(primaryGap: string, foundSeniorBase: boolean): string {
@@ -369,10 +374,13 @@ function buildExecutiveSummarySpine(
     companyName?: string | null;
     clienteSeniorData?: ClienteSeniorData;
     inconsistencyDetected?: boolean;
+    outputMode?: 'FULL_DOSSIER' | 'DISCOVERY_BRIEF' | 'ENRICHMENT_REQUIRED';
   },
 ): ExecutiveSummarySpine {
+  const rawName = options?.companyName?.trim();
+  const isPlaceholder = !rawName || /^(empresa|company|nome da empresa|undefined)$/i.test(rawName);
   const displayCompany =
-    formatCompanyDisplayName(options?.companyName || '') ||
+    (!isPlaceholder && formatCompanyDisplayName(rawName || '')) ||
     formatCompanyDisplayName(options?.clienteSeniorData?.grupo || '') ||
     'A conta analisada';
   const totalModulos = options?.clienteSeniorData?.totalModulos;
@@ -394,7 +402,7 @@ function buildExecutiveSummarySpine(
     .filter((item): item is { label: string; signal: string } => Boolean(item));
 
   const publicDataGaps = countPublicDataGaps(text);
-  const thesis = buildThesis(displayCompany, primaryGap, foundSeniorBase, totalModulos);
+  const thesis = buildThesis(displayCompany, primaryGap, foundSeniorBase, totalModulos, options?.outputMode);
   const urgency = detectUrgencyNarrative(evidenceCandidates, primaryGap, foundSeniorBase);
   const risk = buildRiskStatement(primaryGap, foundSeniorBase);
   const direction = buildDirectionStatement(foundSeniorBase);
@@ -458,7 +466,12 @@ const buildInconsistencyNote = (hasInconsistencies: boolean) =>
     ? '- **Validação obrigatória:** foram detectadas inconsistências entre seções; os pontos marcados como "precisa validar" devem ser confirmados antes de uso comercial.'
     : '- **Validação obrigatória:** não foram encontradas inconsistências numéricas automáticas entre seções.';
 
-export function generateExecutiveSummary(fullText: string, sections: string[], inconsistenciesSection: string): string {
+export function generateExecutiveSummary(
+  fullText: string,
+  sections: string[],
+  inconsistenciesSection: string,
+  outputMode?: 'FULL_DOSSIER' | 'DISCOVERY_BRIEF' | 'ENRICHMENT_REQUIRED',
+): string {
   const sourceText = normalizeMermaidBlocks(fullText);
   const mainSection = sections[0] || sourceText;
   const context = pickExecutiveContext(mainSection);
@@ -468,6 +481,7 @@ export function generateExecutiveSummary(fullText: string, sections: string[], i
   const modules = parsedSections.filter(section => section.level === 1 && section.kind === 'module');
   const spine = buildExecutiveSummarySpine(sourceText, modules, {
     inconsistencyDetected: Boolean(inconsistenciesSection),
+    outputMode,
   });
 
   const metricPatterns = [
@@ -488,7 +502,8 @@ export function generateExecutiveSummary(fullText: string, sections: string[], i
     .map(({ label, regex }) => {
       const values = collectMetricValues(sourceText, regex);
       if (!values.length) return null;
-      return `- **${label}:** ${values.slice(0, 2).join(' · ')}`;
+      if (values.length === 1) return `- **${label}:** ${values[0]}`;
+      return `- **${label}:** ${values[0]} ⚠️ (conflito: também aparece como ${values.slice(1).join(', ')})`;
     })
     .filter(Boolean)
     .join('\n');
@@ -506,7 +521,7 @@ export function generateExecutiveSummary(fullText: string, sections: string[], i
     `- **Risco de Inação:** ${spine.risk}`,
     `- **Direção Recomendada:** ${spine.direction}`,
     `- **Sinal de Confiança:** ${spine.confidence}`,
-    `- **Escopo compilado:** ${sectionCount} seção(ões), com ${aprofundamentos} aprofundamento(s).`,
+    `- **Escopo compilado:** ${sectionCount === 1 ? '1 seção' : `${sectionCount} seções`}, com ${aprofundamentos === 1 ? '1 aprofundamento' : `${aprofundamentos} aprofundamentos`}.`,
     `- **Síntese inicial:** ${context}`,
     mermaidBlocks > 0
       ? `- **Diagramas mermaid:** ${mermaidBlocks} bloco(s) incluído(s) no relatório para leitura visual dos fluxos.`

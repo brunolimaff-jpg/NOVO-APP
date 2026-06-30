@@ -15,7 +15,15 @@ export function finalizeDossierMarkdown(
   rawText: string,
   groundingSources: Array<{ title: string; url: string; verification?: 'grounding' | 'fallback' }>,
   sourcePool: DossierSourceRef[],
+  outputMode?: 'FULL_DOSSIER' | 'DISCOVERY_BRIEF' | 'ENRICHMENT_REQUIRED',
 ): FinalizeDossierResult {
+  // Output mode banner
+  if (outputMode === 'ENRICHMENT_REQUIRED') {
+    rawText = '> ⚠️ **DOSSIÊ PARCIAL** — fontes insuficientes. Tese comercial requer enriquecimento.\n\n' + rawText;
+  } else if (outputMode === 'DISCOVERY_BRIEF') {
+    rawText = '> ℹ️ **BRIEF DE DESCOBERTA** — hipóteses a validar, não tese confirmada.\n\n' + rawText;
+  }
+
   const cleaned = applyDossierLinkIntegrity(rawText, {
     allowedPool: sourcePool,
     renumberUrgencySection: true,
