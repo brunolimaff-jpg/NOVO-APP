@@ -222,6 +222,9 @@ export async function planQueries(
     .replace(/\s*```$/i, '')
     .trim();
 
+  // Corrige vírgula faltando entre objetos do array (erro comum de LLM)
+  const repaired = cleaned.replace(/}(\s*)\{/g, '},$1{');
+
   const extractJson = (text: string): string | null => {
     const first = text.indexOf('{');
     const last = text.lastIndexOf('}');
@@ -233,12 +236,12 @@ export async function planQueries(
 
   let parsed: unknown;
   try {
-    parsed = JSON.parse(cleaned);
+    parsed = JSON.parse(repaired);
   } catch {
     let ok = false;
     let lastParseError = '';
     try {
-      const ext = extractJson(cleaned);
+      const ext = extractJson(repaired);
       if (ext) {
         parsed = JSON.parse(ext);
         ok = true;
@@ -248,7 +251,7 @@ export async function planQueries(
     }
     if (!ok) {
       try {
-        const match = cleaned.match(/\{[\s\S]*\}/);
+        const match = repaired.match(/\{[\s\S]*\}/);
         if (match) {
           const ext = extractJson(match[0]) || match[0];
           parsed = JSON.parse(ext);
@@ -261,7 +264,7 @@ export async function planQueries(
     if (!ok) {
       console.error('[QueryPlanner] parseError:', lastParseError);
       console.error('[QueryPlanner] raw:', raw.slice(0, 2000));
-      console.error('[QueryPlanner] cleaned:', cleaned.slice(0, 2000));
+      console.error('[QueryPlanner] repaired:', repaired.slice(0, 2000));
       throw new Error(`Planner retornou JSON inválido: ${lastParseError}`);
     }
   }
