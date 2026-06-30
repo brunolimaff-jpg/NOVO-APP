@@ -973,9 +973,11 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
             });
           } catch (err) {
             if (isAbortLikeError(err)) throw err;
+            console.error('[PipelineV2:FATAL]', err);
             scoutDiag.warn('PipelineV2', 'Fallback v1 (planner/collector falhou)', {
               sessionId,
               error: err instanceof Error ? err.message : String(err),
+              stack: err instanceof Error ? err.stack : undefined,
             });
           }
         }
