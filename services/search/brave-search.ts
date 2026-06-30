@@ -1,4 +1,4 @@
-import { scoutDiag } from '../../utils/diagnosticLog';
+import { scoutDiag } from '../../utils/diagnosticLog.js';
 
 export interface BraveSearchResultItem {
   url: string;
@@ -7,7 +7,7 @@ export interface BraveSearchResultItem {
 }
 
 export async function braveSearch(query: string, count = 5): Promise<BraveSearchResultItem[]> {
-  const apiKey = process.env.BRAVE_API_KEY;
+  const apiKey = process.env.BRAVE_SEARCH_API_KEY;
   if (!apiKey) {
     scoutDiag.warn('BraveSearch', 'BRAVE_API_KEY ausente');
     return [];
