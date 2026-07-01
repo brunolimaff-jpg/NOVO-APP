@@ -760,6 +760,21 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
             if (evidencePack?.confidenceProfile) {
               modeDecision = selectOutputMode(evidencePack.confidenceProfile);
               outputModeRef.current = modeDecision.mode;
+              scoutDiag.info('PipelineV2', 'OutputMode selecionado', {
+                sessionId,
+                runId: waterfallRunId,
+                mode: modeDecision.mode,
+                rationale: modeDecision.rationale,
+                tierACount: evidencePack.confidenceProfile.tierACount,
+                tierBCount: evidencePack.confidenceProfile.tierBCount,
+                moduleCount: evidencePack.confidenceProfile.modulesCovered.length,
+              });
+            } else {
+              scoutDiag.warn('PipelineV2', 'OutputMode NULO — fallback implícito', {
+                sessionId,
+                runId: waterfallRunId,
+                reason: 'confidenceProfile ausente — selectOutputMode não executado',
+              });
             }
 
             // Memoize evidence pack text once per waterfall run
