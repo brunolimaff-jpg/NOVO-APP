@@ -589,6 +589,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
           ...session,
           messages: session.messages.filter(message => message.id !== botMessageId),
         }));
+        resetLoadingProgress(); // limpa spinner preso (BUG-1: floodgate bloqueou sem cleanup)
         return;
       }
       const waterfallRunId = guardCheck.runId;
