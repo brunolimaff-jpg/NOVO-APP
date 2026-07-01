@@ -66,6 +66,7 @@ import {
   PROMPT_TECH_STACK_GOD_MODE_ATAQUE_V2,
 } from '../../prompts/mega/specialist-prompts-v2';
 import { PROMPT_TEIA_IDENTITY_MODULE_V2 } from '../../prompts/mega/teia-identity-v2';
+import { QUERY_PLANNER_SYSTEM_PROMPT } from '../../prompts/evidence/query-planner';
 import type { EvidencePack } from '../../services/llm/query-planner';
 import { ensureContinuitySuggestions, pickCompanyLabel } from '../../utils/messageHelpers';
 import { runDossierBenchmarkStage } from './benchmark-stage';
@@ -734,7 +735,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
               const result = await sendMessageToGemini(
                 prompt,
                 [],
-                'Você é um planejador de investigação. Retorne APENAS JSON válido.',
+                QUERY_PLANNER_SYSTEM_PROMPT,
                 { useGrounding: false, useOpenWebSearch: false, maxOutputTokens: 16384 },
                 false,
               );
