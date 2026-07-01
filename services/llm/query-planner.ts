@@ -344,19 +344,27 @@ export async function planQueries(
 
 // === COLLECTOR ===
 
-export async function executeQueryPlan(plan: QueryPlan): Promise<EvidencePack> {
+export async function executeQueryPlan(plan: QueryPlan, signal?: AbortSignal): Promise<EvidencePack> {
   const concurrency = 4;
   const allResults: BraveSearchResult[] = [];
 
   for (let i = 0; i < plan.queries.length; i += concurrency) {
+    if (signal?.aborted) break;
     const batch = plan.queries.slice(i, i + concurrency);
     const settled = await Promise.allSettled(
       batch.map(async q => {
+        // Timeout individual de 15s como fallback (Gemini Search pode travar)
+        const ctrl = new AbortController();
+        const timeoutId = setTimeout(() => ctrl.abort(), 15_000);
+        const onExternalAbort = () => ctrl.abort();
+        signal?.addEventListener('abort', onExternalAbort, { once: true });
+
         try {
           const response = await fetch('/api/open-web-search', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ query: q.query }),
+            signal: ctrl.signal,
           });
           if (!response.ok) return [];
           const data = await response.json();
@@ -384,6 +392,9 @@ export async function executeQueryPlan(plan: QueryPlan): Promise<EvidencePack> {
         } catch (err) {
           scoutDiag.warn('QueryPlanner', 'busca falhou na query', { queryId: q.id, error: String(err) });
           return [];
+        } finally {
+          clearTimeout(timeoutId);
+          signal?.removeEventListener('abort', onExternalAbort);
         }
       }),
     );

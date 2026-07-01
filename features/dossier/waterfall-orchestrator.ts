@@ -743,7 +743,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
             assertNotAborted();
             const plan = await withAbortSignal(planQueries(entity, callLLM), signal);
             assertNotAborted();
-            evidencePack = await withAbortSignal(executeQueryPlan(plan), signal);
+            evidencePack = await withAbortSignal(executeQueryPlan(plan, signal), signal);
 
             // Compute OutputMode from confidence profile (defensive: null-safe)
             if (evidencePack?.confidenceProfile) {
