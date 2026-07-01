@@ -86,6 +86,17 @@ export function cleanStatusMarkers(text: string): { cleanText: string; lastStatu
 const INTERNAL_MARKER_TEST_REGEX = /\[\[\s*[A-Z_]+\s*:[\s\S]*?\]\]/i;
 const INTERNAL_MARKER_REGEX = /\[\[\s*[A-Z_]+\s*:[\s\S]*?\]\]/gi;
 const INTERNAL_MARKER_OPEN_TAIL_REGEX = /\[\[\s*[A-Z_]+\s*:[\s\S]*$/i;
+const PORTA_MARKER_REGEX = /\[\[PORTA_[A-Z_]+:[^\]]+\]\]/g;
+
+function maskPortaMarkers(text: string): { masked: string; markers: string[] } {
+  const markers: string[] = [];
+  const masked = text.replace(PORTA_MARKER_REGEX, match => {
+    const index = markers.push(match) - 1;
+    return `__PORTA_MARKER_${index}__`;
+  });
+  return { masked, markers };
+}
+
 const SENSITIVE_INTERNAL_PATTERNS: RegExp[] = [
   /investigacao_completa_integrada/i,
   /protocolo de investiga[çc][aã]o forense/i,
@@ -196,13 +207,14 @@ export function applyPromptLeakShield(
   options: { companyHint?: string; fallbackText?: string; preserveInternalMarkersWhenSafe?: boolean } = {},
 ): PromptLeakShieldResult {
   const raw = (text || '').trim();
-  const cleaned = stripInternalMarkers(raw);
-  const sample = cleaned || raw;
+  const { masked } = maskPortaMarkers(raw);
+  const cleaned = stripInternalMarkers(masked);
+  const sample = cleaned || masked;
   const detection = detectPromptLeakIndicators(sample);
 
   if (!detection.detected) {
     return {
-      text: options.preserveInternalMarkersWhenSafe ? raw : sample,
+      text: options.preserveInternalMarkersWhenSafe ? raw : stripInternalMarkers(raw),
       blocked: false,
       detected: false,
       indicators: [],

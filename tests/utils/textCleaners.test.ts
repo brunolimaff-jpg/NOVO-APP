@@ -65,4 +65,19 @@ describe('textCleaners security hardening', () => {
     expect(shielded.text).not.toContain('[[PORTA_FEED_O');
     expect(shielded.text).toContain('Conclusão.');
   });
+  it('não bloqueia resposta curta de Reconciliação PORTA só com markers [[PORTA_*]]', () => {
+    const portaOnly = '[[PORTA_FEED_T:6:T1:5:T2:4:T3:3:STACK:Sapiens]]';
+    expect(portaOnly.length).toBeLessThanOrEqual(93);
+
+    const shielded = applyPromptLeakShield(portaOnly, {
+      companyHint: 'SCHEFFER & CIA LTDA',
+      preserveInternalMarkersWhenSafe: true,
+    });
+
+    expect(shielded.blocked).toBe(false);
+    expect(shielded.indicators).not.toContain('internal_markers');
+    expect(shielded.indicators).not.toContain('internal_marker_tail');
+    expect(shielded.text).toBe(portaOnly);
+  });
+
 });
