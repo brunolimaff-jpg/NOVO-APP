@@ -365,6 +365,7 @@ export async function executeQueryPlan(plan: QueryPlan, signal?: AbortSignal): P
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ query: q.query }),
             signal: ctrl.signal,
+            cache: 'no-store',
           });
           if (!response.ok) return [];
           const data = await response.json();
