@@ -208,6 +208,34 @@ const QueryPlanSchema = z.object({
     .max(18),
 });
 
+/**
+ * Sinônimos comuns que o Gemini pode gerar em vez do valor do enum.
+ * Normaliza antes da validação Zod para evitar fallback v1 desnecessário.
+ */
+const OBJECTIVE_SYNONYMS: Record<string, string> = {
+  'identity': 'identity_resolution',
+  'resolution': 'identity_resolution',
+  'qsa': 'cnpj_qsa',
+  'socios': 'cnpj_qsa',
+  'societario': 'group_structure',
+  'group': 'group_structure',
+  'operational': 'operational_footprint',
+  'footprint': 'operational_footprint',
+  'tech': 'tech_stack',
+  'stack': 'tech_stack',
+  'compliance': 'compliance_risk',
+  'risk': 'compliance_risk',
+  'commercial': 'commercial_trigger',
+  'trigger': 'commercial_trigger',
+  'offer': 'senior_offer_fit',
+  'senior': 'senior_offer_fit',
+};
+
+function normalizeObjective(value: unknown): string {
+  const lower = String(value || '').toLowerCase().trim().replace(/[\s-]+/g, '_');
+  return OBJECTIVE_SYNONYMS[lower] || lower;
+}
+
 // === PLANNER ===
 
 export async function planQueries(
@@ -293,7 +321,7 @@ export async function planQueries(
       if (typeof q.homonimRisk === 'string') {
         q.homonimRisk = q.homonimRisk.toLowerCase().replace('é', 'e').replace('ê', 'e');
       }
-      if (typeof q.objective === 'string') q.objective = q.objective.toLowerCase();
+      if (typeof q.objective === 'string') q.objective = normalizeObjective(q.objective);
       if (typeof q.module === 'string') q.module = q.module.toLowerCase().replace('ê', 'e');
       if (typeof q.priority === 'string') q.priority = Number(q.priority);
     }
