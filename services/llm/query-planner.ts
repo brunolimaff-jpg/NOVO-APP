@@ -232,7 +232,12 @@ const OBJECTIVE_SYNONYMS: Record<string, string> = {
 };
 
 function normalizeObjective(value: unknown): string {
-  const lower = String(value || '').toLowerCase().trim().replace(/[\s-]+/g, '_');
+  const lower = String(value || '')
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+    .trim()
+    .replace(/[\s-]+/g, '_');
   return OBJECTIVE_SYNONYMS[lower] || lower;
 }
 
