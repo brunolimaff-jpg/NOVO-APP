@@ -731,15 +731,27 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
             });
 
             const callLLM = async (prompt: string): Promise<string> => {
+              // Checa se usuário cancelou antes de invocar Gemini
+              if (signal?.aborted) throw new Error('Aborted');
               const { sendMessageToGemini } = await import('../../services/llmService');
-              const result = await sendMessageToGemini(
-                prompt,
-                [],
-                QUERY_PLANNER_SYSTEM_PROMPT,
-                { useGrounding: false, useOpenWebSearch: false, maxOutputTokens: 16384 },
-                false,
-              );
-              return result.text || '';
+              // Timeout de 60s como fallback (Gemini pode travar sem AbortError)
+              const ctrl = new AbortController();
+              const timeoutId = setTimeout(() => ctrl.abort(), 60_000);
+              const onExternalAbort = () => ctrl.abort();
+              signal?.addEventListener('abort', onExternalAbort, { once: true });
+              try {
+                const result = await sendMessageToGemini(
+                  prompt,
+                  [],
+                  QUERY_PLANNER_SYSTEM_PROMPT,
+                  { useGrounding: false, useOpenWebSearch: false, maxOutputTokens: 16384, signal: ctrl.signal },
+                  false,
+                );
+                return result.text || '';
+              } finally {
+                clearTimeout(timeoutId);
+                signal?.removeEventListener('abort', onExternalAbort);
+              }
             };
 
             assertNotAborted();
