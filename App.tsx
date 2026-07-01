@@ -17,6 +17,7 @@ import ToastContainer from './components/ToastContainer';
 import ChatInterface from './components/ChatInterface';
 import { loadWithChunkRetry } from './utils/chunkRetry';
 import { shouldShowHeroLoadingOverlay } from './utils/loadingVariant';
+import { getWaterfallGuardState } from './features/dossier/waterfall-guard';
 import { AuthGate } from './components/AuthGate';
 
 // Lazy-loaded — não críticos para a primeira paint
@@ -136,8 +137,16 @@ const App: React.FC = () => {
         Boolean(String(m.text || '').trim()) &&
         (!m.isThinking || String(m.text || '').trim().length >= WATERFALL_PREVIEW_MIN_CHARS),
     );
-    return shouldShowHeroLoadingOverlay(isLoading, loadingVariant, hasRenderableBotMessage);
-  }, [isLoading, loadingVariant, allMessages]);
+    const waterfallEndStatus = currentSessionId
+      ? (getWaterfallGuardState(currentSessionId)?.lastEndStatus ?? null)
+      : null;
+    return shouldShowHeroLoadingOverlay(
+      isLoading,
+      loadingVariant,
+      hasRenderableBotMessage,
+      waterfallEndStatus,
+    );
+  }, [isLoading, loadingVariant, allMessages, currentSessionId]);
 
   // Log render-decision: captura AMBOS os casos (show/hide) para diagnóstico.
   useEffect(() => {

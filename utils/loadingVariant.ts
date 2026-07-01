@@ -32,9 +32,18 @@ export function shouldShowHeroLoadingOverlay(
   isLoading: boolean,
   loadingVariant: LoadingVariant | undefined,
   hasRenderableBotMessage = false,
+  waterfallEndStatus: string | null = null,
 ): boolean {
   if (!isLoading) return false;
   if (hasRenderableBotMessage) return false;
+  if (
+    waterfallEndStatus === 'completed' ||
+    waterfallEndStatus === 'failed' ||
+    waterfallEndStatus === 'partial' ||
+    waterfallEndStatus === 'aborted'
+  ) {
+    return false;
+  }
   return loadingVariant !== 'inline';
 }
 
@@ -48,9 +57,18 @@ export function shouldSuspendHeroMessageTimeline(
   isLoading: boolean,
   loadingVariant: LoadingVariant | undefined,
   hasRenderableBotMessage = false,
+  waterfallEndStatus: string | null = null,
 ): boolean {
   if (!isLoading) return false;
   if (hasRenderableBotMessage) return false;
+  if (
+    waterfallEndStatus === 'completed' ||
+    waterfallEndStatus === 'failed' ||
+    waterfallEndStatus === 'partial' ||
+    waterfallEndStatus === 'aborted'
+  ) {
+    return false;
+  }
   // Cobre hero explícito e janela pós-completeLoadingProgress (variant undefined, isLoading ainda true).
   return loadingVariant !== 'inline';
 }

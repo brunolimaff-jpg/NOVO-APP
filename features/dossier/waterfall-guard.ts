@@ -14,9 +14,12 @@ import { scoutDiag } from '../../utils/diagnosticLog';
 
 export const WATERFALL_COOLDOWN_MS = 5_000;
 
+export type WaterfallEndStatus = 'completed' | 'failed' | 'aborted' | 'partial';
+
 export interface WaterfallGuardState {
   activeRunId: string | null;
   lastCompletedAt: number;
+  lastEndStatus: WaterfallEndStatus | null;
   generationCount: number;
   blockedCount: number;
 }
@@ -31,6 +34,7 @@ function getOrCreateGuard(sessionId: string): WaterfallGuardState {
     guardBySession.set(sessionId, {
       activeRunId: null,
       lastCompletedAt: 0,
+      lastEndStatus: null,
       generationCount: 0,
       blockedCount: 0,
     });
@@ -117,7 +121,7 @@ export function registerWaterfallStart(sessionId: string): WaterfallStartResult 
 export function registerWaterfallEnd(
   sessionId: string,
   runId: string,
-  status: 'completed' | 'failed' | 'aborted',
+  status: WaterfallEndStatus,
 ): void {
   const guard = guardBySession.get(sessionId);
   if (!guard) return;
@@ -134,6 +138,7 @@ export function registerWaterfallEnd(
 
   guard.activeRunId = null;
   guard.lastCompletedAt = Date.now();
+  guard.lastEndStatus = status;
   globalActiveRunId = null;
   globalLastCompletedAt = Date.now();
 

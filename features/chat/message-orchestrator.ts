@@ -248,6 +248,25 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
             scoutDiag.info('PostCompletion', `check:${delay}ms`, payload);
           }
 
+          // Gate P0: após waterfall:end, força liberação se overlay ainda ativo com bot renderizável
+          if (
+            delay === 10_000 &&
+            postCompletionIsLoading &&
+            botTextMaxLen >= 200 &&
+            (Boolean(loadingOverlay) || postCompletionLoadingVariant !== null)
+          ) {
+            setIsLoading(false);
+            (setLoadingVariant as (v: string | undefined) => void)(undefined);
+            completeLoadingProgress();
+            scoutDiag.warn('PostCompletion', 'force-release-overlay:check:10000ms', {
+              sessionId,
+              botTextMaxLen,
+              storeIsLoading: postCompletionIsLoading,
+              storeLoadingVariant: postCompletionLoadingVariant,
+              loadingOverlayExists: Boolean(loadingOverlay),
+            });
+          }
+
           if (blankPanelSnapshot?.blankDetected) {
             scoutDiag.warn(
               'PostCompletion',

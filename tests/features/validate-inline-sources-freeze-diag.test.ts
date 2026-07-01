@@ -120,6 +120,29 @@ describe('validateInlineSourcesForPromotion — timeout e body', () => {
 
   beforeEach(() => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
+    // Garante que AbortSignal.timeout respeita fake timers do Vitest
+    vi.stubGlobal(
+      'AbortSignal',
+      class AbortSignal {
+        static timeout(ms: number) {
+          const controller = new AbortController();
+          setTimeout(() => controller.abort(), ms);
+          return controller.signal;
+        }
+        static any(signals: AbortSignal[]) {
+          const controller = new AbortController();
+          const onAbort = () => controller.abort();
+          for (const signal of signals) {
+            if (signal.aborted) {
+              controller.abort();
+              return controller.signal;
+            }
+            signal.addEventListener('abort', onAbort, { once: true });
+          }
+          return controller.signal;
+        }
+      },
+    );
   });
 
   afterEach(() => {
@@ -140,8 +163,8 @@ describe('validateInlineSourcesForPromotion — timeout e body', () => {
     const text = '[Gov](https://www.gov.br/doc)';
     const resultPromise = validateInlineSourcesForPromotion(text, []);
 
-    // Avança o timer para disparar o timeout total de 5s
-    await vi.advanceTimersByTimeAsync(6_000);
+    // Avança o timer para disparar o timeout agregado de 30s
+    await vi.advanceTimersByTimeAsync(31_000);
 
     const result = await resultPromise;
     expect(result).toEqual([]);
@@ -167,12 +190,12 @@ describe('validateInlineSourcesForPromotion — timeout e body', () => {
     const text = '[Gov](https://www.gov.br/doc)';
     const resultPromise = validateInlineSourcesForPromotion(text, []);
 
-    // Avança 6s para disparar o AbortController de timeout total
-    await vi.advanceTimersByTimeAsync(6_000);
+    // Avança 31s para disparar o timeout agregado
+    await vi.advanceTimersByTimeAsync(31_000);
 
     const result = await resultPromise;
     expect(result).toEqual([]);
-  }, 10_000);
+  }, 40_000);
 
   it('retorna [] quando fetch nunca resolve mesmo ignorando AbortSignal', async () => {
     const infoSpy = vi.spyOn(scoutDiag, 'info');
@@ -181,7 +204,7 @@ describe('validateInlineSourcesForPromotion — timeout e body', () => {
     const text = '[Gov](https://www.gov.br/doc)';
     const resultPromise = validateInlineSourcesForPromotion(text, []);
 
-    await vi.advanceTimersByTimeAsync(6_000);
+    await vi.advanceTimersByTimeAsync(31_000);
 
     const result = await resultPromise;
     expect(result).toEqual([]);
@@ -193,7 +216,7 @@ describe('validateInlineSourcesForPromotion — timeout e body', () => {
         candidateCount: 1,
       }),
     );
-  }, 10_000);
+  }, 40_000);
 
   it('retorna [] quando body nunca termina (response.text() pendente)', async () => {
     const headers = new Headers();
@@ -212,12 +235,12 @@ describe('validateInlineSourcesForPromotion — timeout e body', () => {
     const text = '[Gov](https://www.gov.br/doc)';
     const resultPromise = validateInlineSourcesForPromotion(text, []);
 
-    // Avança 16s para disparar o body read timeout (15s)
-    await vi.advanceTimersByTimeAsync(16_000);
+    // Avança 31s para disparar o timeout agregado
+    await vi.advanceTimersByTimeAsync(31_000);
 
     const result = await resultPromise;
     expect(result).toEqual([]);
-  });
+  }, 40_000);
 
   it('retorna [] quando HTTP status não é OK', async () => {
     globalThis.fetch = mockFetchResponse({ status: 500, ok: false, body: '{}' });
@@ -242,16 +265,18 @@ describe('validateInlineSourcesForPromotion — timeout e body', () => {
   });
 
   it('retorna fontes válidas quando tudo funciona', async () => {
-    globalThis.fetch = mockFetchResponse({
-      status: 200,
-      ok: true,
-      body: JSON.stringify({
-        results: {
-          'https://www.gov.br/doc': { status: 'valid' },
-          'https://www.example.com/fake': { status: 'broken' },
-        },
-      }),
-    });
+    globalThis.fetch = vi.fn(((_url, init?: { body?: string }) => {
+      const payload = JSON.parse(String(init?.body || '{}')) as { urls?: string[] };
+      const url = payload.urls?.[0] || '';
+      const status = url.includes('gov.br') ? 'valid' : 'broken';
+      return Promise.resolve({
+        status: 200,
+        ok: true,
+        headers: new Headers({ 'content-type': 'application/json' }),
+        bodyUsed: false,
+        text: () => Promise.resolve(JSON.stringify({ results: { [url]: { status } } })),
+      } as Response);
+    }) as unknown as typeof fetch);
 
     // Cria texto com links para domínios públicos
     const text = '[Gov](https://www.gov.br/doc) e [Fake](https://www.example.com/fake)';
@@ -282,11 +307,38 @@ describe('validateInlineSourcesForPromotion — timeout e body', () => {
     const text = '[Gov](https://www.gov.br/doc)';
     const resultPromise = validateInlineSourcesForPromotion(text, []);
 
-    // Avança o timer para disparar o timeout total (5s)
-    await vi.advanceTimersByTimeAsync(6_000);
+    // Avança o timer para disparar o timeout agregado (30s)
+    await vi.advanceTimersByTimeAsync(31_000);
 
     const result = await resultPromise;
     // Deve retornar [] (timeout capturado) em vez de travar
     expect(result).toEqual([]);
-  }, 10_000);
+  }, 40_000);
+
+  it('emite telemetria InlineValidation start/result', async () => {
+    const infoSpy = vi.spyOn(scoutDiag, 'info');
+    globalThis.fetch = mockFetchResponse({
+      status: 200,
+      ok: true,
+      body: JSON.stringify({ results: { 'https://www.gov.br/doc': { status: 'valid' } } }),
+    });
+
+    const text = '[Gov](https://www.gov.br/doc)';
+    await validateInlineSourcesForPromotion(text, [], {
+      sessionId: 'sess-1',
+      runId: 'run-1',
+      waterfallEndStatus: null,
+    });
+
+    expect(infoSpy).toHaveBeenCalledWith(
+      'InlineValidation',
+      'start',
+      expect.objectContaining({ sessionId: 'sess-1', runId: 'run-1', candidateCount: 1 }),
+    );
+    expect(infoSpy).toHaveBeenCalledWith(
+      'InlineValidation',
+      'result',
+      expect.objectContaining({ sessionId: 'sess-1', runId: 'run-1' }),
+    );
+  });
 });

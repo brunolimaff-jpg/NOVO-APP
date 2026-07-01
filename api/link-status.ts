@@ -13,7 +13,7 @@ export const config = {
   runtime: 'nodejs',
 };
 
-const REQUEST_TIMEOUT_MS = 5000;
+const REQUEST_TIMEOUT_MS = 15_000;
 const MAX_URLS_PER_REQUEST = 25;
 
 function withTimeout(ms: number): { signal: AbortSignal; clear: () => void } {
