@@ -2,7 +2,7 @@ import type { Message } from '../types';
 import { Sender } from '../types';
 
 /** Mínimo de caracteres no texto do bot para preferir timeline estática (evita Virtuoso em dossiês gigantes). */
-export const LARGE_DOSSIER_STATIC_FALLBACK_CHARS = 4_000;
+export const LARGE_DOSSIER_STATIC_FALLBACK_CHARS = 60_000;
 
 export function maxBotTextChars(messages: Message[]): number {
   return Math.max(

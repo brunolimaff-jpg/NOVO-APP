@@ -1,7 +1,8 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 
-const LARGE_DOSSIER_STATIC_FALLBACK_CHARS = 4_000;
+const LARGE_DOSSIER_STATIC_FALLBACK_CHARS = 60_000;
+const LARGE_DOSSIER_SAMPLE = 65_000;
 const POST_WATERFALL_WATCHDOG_MS = 2_000;
 
 // ── Mocks ──
@@ -28,16 +29,16 @@ vi.mock('../../utils/postWaterfallHandoff', () => ({
   POST_WATERFALL_WATCHDOG_MS: 2_000,
   shouldApplyProactiveForceStatic: vi.fn(
     (params: { expectedBotCharsMax: number; showInitialHome: boolean; sessionId: string | null | undefined }) =>
-      Boolean(params.sessionId) && !params.showInitialHome && params.expectedBotCharsMax >= 4_000,
+      Boolean(params.sessionId) && !params.showInitialHome && params.expectedBotCharsMax >= 60_000,
   ),
   shouldResetForceStaticOnLoadingStart: vi.fn(
     (ctx: { expectedBotCharsMax: number; isLoading: boolean; wasLoading: boolean }) =>
-      ctx.isLoading && !ctx.wasLoading && ctx.expectedBotCharsMax < 4_000,
+      ctx.isLoading && !ctx.wasLoading && ctx.expectedBotCharsMax < 60_000,
   ),
   isPostWaterfallStuckHandoff: vi.fn((snapshot: unknown) => {
     const s = snapshot as Record<string, unknown> | null;
     if (!s) return false;
-    if ((s.expectedBotCharsMax as number) < 4_000) return false;
+    if ((s.expectedBotCharsMax as number) < 60_000) return false;
     if (s.isLoading || s.showInitialHome || s.shouldSuspendVirtualizedList) return false;
     if (s.loadingOverlayVisible) return false;
     return Boolean(s.blankDetected || s.placeholderVisible || s.suspendedViewportVisible);
@@ -47,8 +48,8 @@ vi.mock('../../utils/postWaterfallHandoff', () => ({
 }));
 
 vi.mock('../../utils/expectedBotContent', () => ({
-  LARGE_DOSSIER_STATIC_FALLBACK_CHARS: 4_000,
-  shouldPreferStaticTimelineForBotVolume: vi.fn((chars: number) => chars >= 4_000),
+  LARGE_DOSSIER_STATIC_FALLBACK_CHARS: 60_000,
+  shouldPreferStaticTimelineForBotVolume: vi.fn((chars: number) => chars >= 60_000),
   maxExpectedBotChars: vi.fn(() => 0),
 }));
 
@@ -81,7 +82,7 @@ function baseParams(overrides: Record<string, unknown> = {}) {
 function blankSnapshot(overrides: Record<string, unknown> = {}): Record<string, unknown> {
   return {
     sessionId: 'session-1',
-    expectedBotCharsMax: 5000,
+    expectedBotCharsMax: LARGE_DOSSIER_SAMPLE,
     messageCount: 3,
     isLoading: false,
     showInitialHome: false,
@@ -136,7 +137,7 @@ describe('Efeito #3 — Reset ao trocar de sessão', () => {
   it('limpa refs ao trocar de sessão', async () => {
     const useHook = await loadHook();
     const { result, rerender } = renderHook(props => useHook(props), {
-      initialProps: baseParams({ currentSession: { id: 's1' }, expectedBotCharsMax: 5000 }),
+      initialProps: baseParams({ currentSession: { id: 's1' }, expectedBotCharsMax: LARGE_DOSSIER_SAMPLE }),
     });
 
     // Ativa fallback na s1
@@ -170,7 +171,7 @@ describe('Efeito #4 — Reset ao iniciar loading com dossiê pequeno', () => {
     act(() => result.current.setForceStaticTimelineFallback(true));
     expect(result.current.forceStaticTimelineFallback).toBe(true);
 
-    // Loading começa com dossiê pequeno (< 4000 chars)
+    // Loading começa com dossiê pequeno (< 60k chars)
     rerender(baseParams({ expectedBotCharsMax: 500, isLoading: true }));
 
     expect(result.current.forceStaticTimelineFallback).toBe(false);
@@ -179,7 +180,7 @@ describe('Efeito #4 — Reset ao iniciar loading com dossiê pequeno', () => {
   it('NÃO reseta fallback quando loading começa com dossiê grande', async () => {
     const useHook = await loadHook();
     const { result, rerender } = renderHook(props => useHook(props), {
-      initialProps: baseParams({ expectedBotCharsMax: 5000, isLoading: false }),
+      initialProps: baseParams({ expectedBotCharsMax: LARGE_DOSSIER_SAMPLE, isLoading: false }),
     });
 
     // Fallback ativo
@@ -187,7 +188,7 @@ describe('Efeito #4 — Reset ao iniciar loading com dossiê pequeno', () => {
     expect(result.current.forceStaticTimelineFallback).toBe(true);
 
     // Loading começa mas dossiê já é grande — NÃO resetar
-    rerender(baseParams({ expectedBotCharsMax: 5000, isLoading: true }));
+    rerender(baseParams({ expectedBotCharsMax: LARGE_DOSSIER_SAMPLE, isLoading: true }));
     expect(result.current.forceStaticTimelineFallback).toBe(true);
   });
 });
@@ -196,23 +197,21 @@ describe('Efeito #4 — Reset ao iniciar loading com dossiê pequeno', () => {
 //  EFETO #5 — Força proativa para dossiês grandes
 // ─────────────────────────────────────────────────────
 
-describe('Efeito #5 — Força proativa para dossiês grandes', () => {
+describe('Efeito #5 — Sem fallback proativo (BUG-8 v4)', () => {
   beforeEach(() => {
     vi.resetAllMocks();
     vi.useFakeTimers();
   });
   afterEach(() => vi.useRealTimers());
 
-  it('BUG-8 v4: NÃO ativa fallback proativo para dossiê ≥4000 chars', async () => {
+  it('BUG-8 v4: NÃO ativa fallback proativo para dossiê no limiar 60k', async () => {
     const useHook = await loadHook();
     const { rerender } = renderHook(props => useHook(props), {
-      initialProps: baseParams({ expectedBotCharsMax: 4000, isLoading: false, showInitialHome: false }),
+      initialProps: baseParams({ expectedBotCharsMax: LARGE_DOSSIER_STATIC_FALLBACK_CHARS, isLoading: false, showInitialHome: false }),
     });
 
-    // Não deve ativar ainda — expectedBotCharsMax era 500 no initial render
-    // Rerender com 4000 chars
     const { result } = renderHook(props => useHook(props), {
-      initialProps: baseParams({ expectedBotCharsMax: 5000, isLoading: false, showInitialHome: false }),
+      initialProps: baseParams({ expectedBotCharsMax: LARGE_DOSSIER_SAMPLE, isLoading: false, showInitialHome: false }),
     });
 
     act(() => vi.advanceTimersByTime(100));
@@ -222,7 +221,7 @@ describe('Efeito #5 — Força proativa para dossiês grandes', () => {
   it('NÃO ativa proativo quando está na home inicial', async () => {
     const useHook = await loadHook();
     const { result } = renderHook(props => useHook(props), {
-      initialProps: baseParams({ expectedBotCharsMax: 5000, isLoading: false, showInitialHome: true }),
+      initialProps: baseParams({ expectedBotCharsMax: LARGE_DOSSIER_SAMPLE, isLoading: false, showInitialHome: true }),
     });
 
     act(() => vi.advanceTimersByTime(100));
@@ -234,7 +233,7 @@ describe('Efeito #5 — Força proativa para dossiês grandes', () => {
     const { result } = renderHook(props => useHook(props), {
       initialProps: baseParams({
         currentSession: null as unknown as undefined,
-        expectedBotCharsMax: 5000,
+        expectedBotCharsMax: LARGE_DOSSIER_SAMPLE,
         isLoading: false,
       }),
     });
@@ -253,9 +252,6 @@ describe('Efeito #6 — Watchdog pós-waterfall', () => {
     vi.resetAllMocks();
     vi.useFakeTimers();
     collectBlankPanelSnapshotMock.mockReturnValue(blankSnapshot());
-    // Desativa proativo para isolar o watchdog
-    const { shouldApplyProactiveForceStatic } = await import('../../utils/postWaterfallHandoff');
-    vi.mocked(shouldApplyProactiveForceStatic).mockReturnValue(false);
   });
   afterEach(() => vi.useRealTimers());
 
@@ -265,7 +261,7 @@ describe('Efeito #6 — Watchdog pós-waterfall', () => {
 
     const useHook = await loadHook();
     const { result } = renderHook(props => useHook(props), {
-      initialProps: baseParams({ expectedBotCharsMax: 5000, isLoading: false, showInitialHome: false }),
+      initialProps: baseParams({ expectedBotCharsMax: LARGE_DOSSIER_SAMPLE, isLoading: false, showInitialHome: false }),
     });
 
     expect(result.current.forceStaticTimelineFallback).toBe(false);
@@ -279,14 +275,14 @@ describe('Efeito #6 — Watchdog pós-waterfall', () => {
 
     const useHook = await loadHook();
     const { result } = renderHook(props => useHook(props), {
-      initialProps: baseParams({ expectedBotCharsMax: 5000, isLoading: true, showInitialHome: false }),
+      initialProps: baseParams({ expectedBotCharsMax: LARGE_DOSSIER_SAMPLE, isLoading: true, showInitialHome: false }),
     });
 
     act(() => vi.advanceTimersByTime(2000));
     expect(result.current.forceStaticTimelineFallback).toBe(false);
   });
 
-  it('NÃO dispara se expectedBotCharsMax < 4000', async () => {
+  it('NÃO dispara se expectedBotCharsMax < 60k', async () => {
     const useHook = await loadHook();
     const { result } = renderHook(props => useHook(props), {
       initialProps: baseParams({ expectedBotCharsMax: 500, isLoading: false }),
@@ -302,7 +298,7 @@ describe('Efeito #6 — Watchdog pós-waterfall', () => {
 
     const useHook = await loadHook();
     const { result } = renderHook(props => useHook(props), {
-      initialProps: baseParams({ expectedBotCharsMax: 5000, isLoading: false }),
+      initialProps: baseParams({ expectedBotCharsMax: LARGE_DOSSIER_SAMPLE, isLoading: false }),
     });
 
     act(() => vi.advanceTimersByTime(2000));
@@ -320,16 +316,13 @@ describe('Efeito #7 — Detecção de blank panel (4 delays)', () => {
   beforeEach(async () => {
     vi.resetAllMocks();
     vi.useFakeTimers();
-    // Desativa proativo para isolar blank panel detection
-    const { shouldApplyProactiveForceStatic } = await import('../../utils/postWaterfallHandoff');
-    vi.mocked(shouldApplyProactiveForceStatic).mockReturnValue(false);
   });
   afterEach(() => vi.useRealTimers());
 
   it('dispara em 750ms, 2000ms, 5000ms, 9000ms', async () => {
     const useHook = await loadHook();
     renderHook(props => useHook(props), {
-      initialProps: baseParams({ expectedBotCharsMax: 5000, isLoading: false, showInitialHome: false }),
+      initialProps: baseParams({ expectedBotCharsMax: LARGE_DOSSIER_SAMPLE, isLoading: false, showInitialHome: false }),
     });
 
     expect(reportBlankPanelIfDetectedMock).toHaveBeenCalledTimes(0);
@@ -348,7 +341,7 @@ describe('Efeito #7 — Detecção de blank panel (4 delays)', () => {
 
     const useHook = await loadHook();
     const { result } = renderHook(props => useHook(props), {
-      initialProps: baseParams({ expectedBotCharsMax: 5000, isLoading: false, showInitialHome: false }),
+      initialProps: baseParams({ expectedBotCharsMax: LARGE_DOSSIER_SAMPLE, isLoading: false, showInitialHome: false }),
     });
 
     act(() => vi.advanceTimersByTime(750));
@@ -360,7 +353,7 @@ describe('Efeito #7 — Detecção de blank panel (4 delays)', () => {
 
     const useHook = await loadHook();
     const { result } = renderHook(props => useHook(props), {
-      initialProps: baseParams({ expectedBotCharsMax: 5000, isLoading: false }),
+      initialProps: baseParams({ expectedBotCharsMax: LARGE_DOSSIER_SAMPLE, isLoading: false }),
     });
 
     act(() => vi.advanceTimersByTime(2000));
@@ -373,7 +366,7 @@ describe('Efeito #7 — Detecção de blank panel (4 delays)', () => {
 
     const useHook = await loadHook();
     const { result } = renderHook(props => useHook(props), {
-      initialProps: baseParams({ expectedBotCharsMax: 5000, isLoading: false }),
+      initialProps: baseParams({ expectedBotCharsMax: LARGE_DOSSIER_SAMPLE, isLoading: false }),
     });
 
     act(() => vi.advanceTimersByTime(750));
@@ -385,7 +378,7 @@ describe('Efeito #7 — Detecção de blank panel (4 delays)', () => {
 
     const useHook = await loadHook();
     const { result } = renderHook(props => useHook(props), {
-      initialProps: baseParams({ expectedBotCharsMax: 5000, isLoading: false }),
+      initialProps: baseParams({ expectedBotCharsMax: LARGE_DOSSIER_SAMPLE, isLoading: false }),
     });
 
     // Primeiro timer ativa
@@ -404,7 +397,7 @@ describe('Efeito #7 — Detecção de blank panel (4 delays)', () => {
 
   it('NÃO dispara se isLoading=true', async () => {
     const useHook = await loadHook();
-    renderHook(props => useHook(props), { initialProps: baseParams({ expectedBotCharsMax: 5000, isLoading: true }) });
+    renderHook(props => useHook(props), { initialProps: baseParams({ expectedBotCharsMax: LARGE_DOSSIER_SAMPLE, isLoading: true }) });
 
     act(() => vi.advanceTimersByTime(9000));
     expect(reportBlankPanelIfDetectedMock).toHaveBeenCalledTimes(0);
@@ -413,7 +406,7 @@ describe('Efeito #7 — Detecção de blank panel (4 delays)', () => {
   it('NÃO dispara se showInitialHome=true', async () => {
     const useHook = await loadHook();
     renderHook(props => useHook(props), {
-      initialProps: baseParams({ expectedBotCharsMax: 5000, isLoading: false, showInitialHome: true }),
+      initialProps: baseParams({ expectedBotCharsMax: LARGE_DOSSIER_SAMPLE, isLoading: false, showInitialHome: true }),
     });
 
     act(() => vi.advanceTimersByTime(9000));
@@ -433,7 +426,7 @@ describe('Efeito #7 — Detecção de blank panel (4 delays)', () => {
 
     const useHook = await loadHook();
     const { unmount } = renderHook(props => useHook(props), {
-      initialProps: baseParams({ expectedBotCharsMax: 5000, isLoading: false }),
+      initialProps: baseParams({ expectedBotCharsMax: LARGE_DOSSIER_SAMPLE, isLoading: false }),
     });
 
     unmount();
@@ -460,7 +453,7 @@ describe('Valores derivados', () => {
       initialProps: baseParams({ expectedBotCharsMax: 500, isLoading: false }),
     });
 
-    // expectedBotCharsMax=500 < 4000 → preferStatic=false, force=false → effective=false
+    // expectedBotCharsMax=500 < 60k → preferStatic=false, force=false → effective=false
     expect(result.current.preferStaticForLargeDossier).toBe(false);
     expect(result.current.effectiveStaticTimelineFallback).toBe(false);
 
@@ -472,7 +465,7 @@ describe('Valores derivados', () => {
   it('shouldSuspendVirtualizedListForTimeline = suspend && !effective', async () => {
     const useHook = await loadHook();
     const { result } = renderHook(props => useHook(props), {
-      initialProps: baseParams({ expectedBotCharsMax: 5000, isLoading: false, shouldSuspendVirtualizedList: true }),
+      initialProps: baseParams({ expectedBotCharsMax: LARGE_DOSSIER_SAMPLE, isLoading: false, shouldSuspendVirtualizedList: true }),
     });
 
     // BUG-8 v4: preferStatic desabilitado → effective=false
@@ -500,7 +493,7 @@ describe('Interações entre efeitos', () => {
 
     const useHook = await loadHook();
     const { result } = renderHook(props => useHook(props), {
-      initialProps: baseParams({ expectedBotCharsMax: 5000, isLoading: false, showInitialHome: false }),
+      initialProps: baseParams({ expectedBotCharsMax: LARGE_DOSSIER_SAMPLE, isLoading: false, showInitialHome: false }),
     });
 
     // BUG-8 v4: proativo desabilitado — force permanece false até watchdog
@@ -517,14 +510,14 @@ describe('Interações entre efeitos', () => {
 
     const useHook = await loadHook();
     const { rerender } = renderHook(props => useHook(props), {
-      initialProps: baseParams({ currentSession: { id: 's1' }, expectedBotCharsMax: 5000, isLoading: false }),
+      initialProps: baseParams({ currentSession: { id: 's1' }, expectedBotCharsMax: LARGE_DOSSIER_SAMPLE, isLoading: false }),
     });
 
     // Avança só 500ms — nem chegou no primeiro timer (750ms)
     act(() => vi.advanceTimersByTime(500));
 
     // Troca sessão
-    rerender(baseParams({ currentSession: { id: 's2' }, expectedBotCharsMax: 5000, isLoading: false }));
+    rerender(baseParams({ currentSession: { id: 's2' }, expectedBotCharsMax: LARGE_DOSSIER_SAMPLE, isLoading: false }));
 
     // Avança até passar todos os timers
     act(() => vi.advanceTimersByTime(9000));
@@ -538,7 +531,7 @@ describe('Interações entre efeitos', () => {
     const useHook = await loadHook();
     const { result } = renderHook(props => useHook(props), {
       initialProps: baseParams({
-        expectedBotCharsMax: 5000,
+        expectedBotCharsMax: LARGE_DOSSIER_SAMPLE,
         isLoading: false,
         shouldSuspendVirtualizedList: true,
       }),
@@ -561,12 +554,12 @@ describe('hasLargeBotMessage — unificação MessageTimeline', () => {
   });
   afterEach(() => vi.useRealTimers());
 
-  it('retorna true quando safeMessages tem mensagem do bot ≥4000 chars', async () => {
+  it('preferStatic permanece false para dossiê grande (BUG-8 v4)', async () => {
     const { maxExpectedBotChars } = await import('../../utils/expectedBotContent');
     vi.mocked(maxExpectedBotChars).mockReturnValue(5000);
 
     const useHook = await loadHook();
-    const { result } = renderHook(props => useHook(props), { initialProps: baseParams({ expectedBotCharsMax: 5000 }) });
+    const { result } = renderHook(props => useHook(props), { initialProps: baseParams({ expectedBotCharsMax: LARGE_DOSSIER_SAMPLE }) });
 
     // BUG-8 v4: static proativo desabilitado — Virtuoso + chunked parse
     act(() => vi.advanceTimersByTime(100));
@@ -604,7 +597,7 @@ describe('Limpeza de recursos', () => {
 
     const useHook = await loadHook();
     const { unmount } = renderHook(props => useHook(props), {
-      initialProps: baseParams({ expectedBotCharsMax: 5000, isLoading: false }),
+      initialProps: baseParams({ expectedBotCharsMax: LARGE_DOSSIER_SAMPLE, isLoading: false }),
     });
 
     unmount();

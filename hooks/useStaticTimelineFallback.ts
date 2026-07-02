@@ -10,10 +10,12 @@ import {
   isOverlayStuckPostWaterfall,
   isPostWaterfallStuckHandoff,
   POST_WATERFALL_WATCHDOG_MS,
-  shouldApplyProactiveForceStatic,
   shouldResetForceStaticOnLoadingStart,
 } from '../utils/postWaterfallHandoff';
-import { shouldPreferStaticTimelineForBotVolume } from '../utils/expectedBotContent';
+import {
+  LARGE_DOSSIER_STATIC_FALLBACK_CHARS,
+  shouldPreferStaticTimelineForBotVolume,
+} from '../utils/expectedBotContent';
 
 function shouldActivateStaticTimelineFallback(snapshot: BlankPanelSnapshot): boolean {
   if (!snapshot.sessionId || snapshot.expectedBotCharsMax <= 0 || snapshot.messageCount <= 0) return false;
@@ -90,12 +92,11 @@ export function useStaticTimelineFallback(params: UseStaticTimelineFallbackParam
   // BUG-8 v4: Virtuoso + SectionalBotMessage chunked — static proativo inflava DOM (~432k).
   // Watchdog/blank-panel ainda pode forçar fallback reativo via setForceStaticTimelineFallback.
   const preferStaticForLargeDossier = false;
-  const proactiveForceStatic = false;
   if (!shouldSuspendVirtualizedList && shouldPreferStaticTimelineForBotVolume(expectedBotCharsMax)) {
     renderingModeLocked.current = true;
   }
   const effectiveStaticTimelineFallback =
-    forceStaticTimelineFallback || preferStaticForLargeDossier || proactiveForceStatic;
+    forceStaticTimelineFallback || preferStaticForLargeDossier;
   const shouldSuspendVirtualizedListForTimeline = shouldSuspendVirtualizedList && !effectiveStaticTimelineFallback;
 
   // ── Efeito #2: Panel snapshot telemetry ──
@@ -160,7 +161,7 @@ export function useStaticTimelineFallback(params: UseStaticTimelineFallbackParam
 
     scoutDiag.info('ChatInterface', 'panel:snapshot', snapshotPayload);
 
-    if (effectiveStaticTimelineFallback && expectedBotCharsMax > 4000) {
+    if (effectiveStaticTimelineFallback && expectedBotCharsMax > LARGE_DOSSIER_STATIC_FALLBACK_CHARS) {
       requestAnimationFrame(() => {
         import('../utils/layoutTraceTelemetry')
           .then(({ traceLayout }) => {
@@ -216,33 +217,9 @@ export function useStaticTimelineFallback(params: UseStaticTimelineFallbackParam
     }
   }, [expectedBotCharsMax, isLoading]);
 
-  // ── Efeito #5: Handoff estático proativo (R3 — sync via proactiveForceStatic + state) ──
+  // ── Efeito #5: Watchdog pós-waterfall ──
   useEffect(() => {
-    if (!proactiveForceStatic || !currentSession?.id) return;
-    setForceStaticTimelineFallback(true);
-    if (staticTimelineFallbackSessionRef.current === currentSession.id) return;
-    staticTimelineFallbackSessionRef.current = currentSession.id;
-    scoutDiag.info('ChatInterface', 'proactive-static-fallback-large-dossier', {
-      sessionId: currentSession.id,
-      expectedBotCharsMax,
-      threshold: 4_000,
-      syncOnRender: true,
-      preferStaticForLargeDossier,
-      shouldSuspendVirtualizedList,
-      isLoading,
-    });
-  }, [
-    currentSession?.id,
-    expectedBotCharsMax,
-    isLoading,
-    preferStaticForLargeDossier,
-    proactiveForceStatic,
-    shouldSuspendVirtualizedList,
-  ]);
-
-  // ── Efeito #6: Watchdog pós-waterfall ──
-  useEffect(() => {
-    if (!currentSession?.id || expectedBotCharsMax < 4_000) return;
+    if (!currentSession?.id || expectedBotCharsMax < LARGE_DOSSIER_STATIC_FALLBACK_CHARS) return;
     if (isLoading || showInitialHome) return;
 
     const watchdogTimer = window.setTimeout(() => {
@@ -305,7 +282,7 @@ export function useStaticTimelineFallback(params: UseStaticTimelineFallbackParam
     showInitialHome,
   ]);
 
-  // ── Efeito #7: Detecção de blank panel (4 timers) ──
+  // ── Efeito #6: Detecção de blank panel (4 timers) ──
   useEffect(() => {
     if (!currentSession?.id || expectedBotCharsMax <= 0) return;
     if (isLoading || showInitialHome || shouldSuspendVirtualizedList) return;
