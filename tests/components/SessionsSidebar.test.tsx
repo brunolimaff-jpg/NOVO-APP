@@ -3,7 +3,7 @@ import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import SessionsSidebar, { NEW_SESSION_DEBOUNCE_MS } from '../../components/SessionsSidebar';
-import type { ChatSession } from '../../types';
+import { Sender, type ChatSession } from '../../types';
 
 // Mock ConfirmPopover using its render-prop contract.
 vi.mock('../../components/ConfirmPopover', () => ({
@@ -61,6 +61,30 @@ describe('SessionsSidebar', () => {
     const sessions = [makeSession({ empresaAlvo: 'Fazenda Boa Vista' })];
     render(<SessionsSidebar {...defaultProps} sessions={sessions} />);
     expect(screen.getByText('Fazenda Boa Vista')).toBeInTheDocument();
+  });
+
+  it('BUG-8: capa preview longo do último bot e não despeja dossiê inteiro no DOM', () => {
+    const tailSentinel = 'SCHEFFER_PREVIEW_TAIL_SENTINEL';
+    const longBotText = `Resumo executivo Scheffer ${'A'.repeat(50_000)} ${tailSentinel}`;
+    const sessions = [
+      makeSession({
+        empresaAlvo: 'Scheffer',
+        messages: [
+          {
+            id: 'm1',
+            sender: Sender.Bot,
+            text: longBotText,
+            timestamp: new Date('2026-07-02T12:00:00.000Z'),
+          },
+        ],
+      }),
+    ];
+
+    render(<SessionsSidebar {...defaultProps} sessions={sessions} />);
+
+    const preview = screen.getByText(/Resumo executivo Scheffer/i);
+    expect(preview.textContent?.length).toBeLessThanOrEqual(164);
+    expect(document.body.textContent).not.toContain(tailSentinel);
   });
 
   it('extrai nome do título com padrão [empresa]', () => {

@@ -61,15 +61,16 @@ A prioridade do classificador é fixa: `error > loading > content > empty`. O es
 | ----------------- | ------------------------------------------------------------------------ | -------------------------------------------------------------------- |
 | Gate de operador  | `showOperatorGate=true`                                                  | Tela de boas-vindas de operador.                                     |
 | Home inicial      | `showInitialHome=true`                                                   | Formulário inicial de investigação e ajuda flutuante.                |
-| Fallback estático | `forceStaticTimelineFallback=true` ou bot com texto `>= 4000` caracteres | `messages-static-fallback`, `data-scout-virtuoso="static-fallback"`. |
+| Fallback estático | `forceStaticTimelineFallback=true` após recovery final para bot `>= 60_000` caracteres | `messages-static-fallback`, `data-scout-virtuoso="static-fallback"`. |
 | Viewport suspensa | `shouldSuspendVirtualizedList=true` e sem fallback estático              | `messages-viewport-suspended`.                                       |
 | Virtuoso          | Caminho normal de mensagens                                              | `data-scout-virtuoso="timeline"` e linhas `message-row`.             |
 
-Para dossiê grande, o fallback estático vence a viewport suspensa. Esse é o contrato de recuperação: se a resposta do bot é grande, o produto precisa mostrar `bot-message-content` no `chat-main-panel`, mesmo que Virtuoso ainda não esteja pronto.
+Para dossiê abaixo de `60_000` caracteres, a recuperação preferida é remount controlado da viewport virtualizada. Static fallback vence a viewport suspensa apenas como último recurso para dossiê `>= 60_000`.
 
 ### Regras de fallback estático
 
-- O limite de dossiê grande é `4000` caracteres de texto de bot.
+- O limite de static fallback final é `60_000` caracteres de texto de bot.
+- Abaixo de `60_000`, blank panel reativo deve acionar `timelineRecoveryNonce`, não `messages-static-fallback`.
 - `messages-static-fallback` renderiza `MessageRow` diretamente, sem depender da materialização do Virtuoso.
 - A safety net `static-fallback-display-recovery` verifica se o fallback está com `display:none`; se estiver, limpa `style.display` e força `display: block !important`.
 - O recovery é defensivo e idempotente. Ele não substitui investigação de causa raiz quando `display:none` reaparecer.

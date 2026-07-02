@@ -216,9 +216,9 @@ Quando o endpoint remoto está indisponível, incompatível ou responde payload 
 | `EmptyStateHome`              | `showInitialHome`.                                                       |
 | Virtuoso                      | Fluxo normal com viewport pronta.                                        |
 | `messages-viewport-suspended` | Timeline suspensa durante hero loading sem conteúdo renderizável.        |
-| `messages-static-fallback`    | `forceStaticTimelineFallback` ou dossiê grande que deve evitar Virtuoso. |
+| `messages-static-fallback`    | Recovery final para dossiê `>= 60_000` quando Virtuoso não materializa.  |
 
-Dossiês grandes preferem fallback estático quando há bot com texto acima do limite de volume esperado. O fallback estático também tem safety net: se `messages-static-fallback` montar com `display: none`, o componente limpa `style.display` e, se necessário, força `display: block !important`, registrando `static-fallback-display-recovery`.
+Dossiês abaixo de `60_000` caracteres devem permanecer no Virtuoso; blank panel reativo remonta a viewport com `timelineRecoveryNonce`. O fallback estático também tem safety net: se `messages-static-fallback` montar com `display: none`, o componente limpa `style.display` e, se necessário, força `display: block !important`, registrando `static-fallback-display-recovery`.
 
 ## Contrato anti-painel branco
 

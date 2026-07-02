@@ -31,7 +31,7 @@ O estado atual do incidente é mitigado, não encerrado por causa raiz: a safety
 | Pós-finalização          | `PostCompletion/check:*`, `LoadingStuckProbe`                                                        | Mede DOM real em `0`, `100`, `500`, `1000`, `3000` e `10000` ms                |
 | Detecção de branco       | `BlankPanel/blank-panel-detected`, `collectBlankPanelSnapshot`                                       | Classifica ausência de linhas, bot invisível, placeholder ou viewport suspensa |
 | Layout                   | `LayoutTrace`, `BlankPanelDebug`, `traceFullAncestorChain`                                           | Captura `display`, dimensões, overflow e ancestrais suspeitos                  |
-| Fallback visual          | `messages-static-fallback`, `static-timeline-fallback-activated`, `static-fallback-display-recovery` | Força timeline estática para dossiês grandes e recupera `display:none`         |
+| Fallback visual          | `messages-static-fallback`, `static-timeline-fallback-activated`, `static-fallback-display-recovery` | Static final para dossiê >=60k e recovery defensivo de `display:none`          |
 | Validação E2E            | `tests-e2e/scheffer-cnpj-blank-panel.spec.ts`                                                        | Garante overlay fora, painel visível, bot visível e texto mínimo               |
 
 ## Pré-condições de diagnóstico
@@ -75,8 +75,8 @@ sequenceDiagram
   M->>D: PostCompletion check:0ms..10000ms
   M->>D: LoadingStuckProbe clear|stuck-after-completed
   C->>D: panel:snapshot / BlankPanel
-  C->>T: forceStaticTimelineFallback se bot >= 4000 chars
-  T->>D: static-fallback-rendered / LayoutTrace / BlankPanelDebug
+  C->>T: remount virtualizado se bot < 60k; static final se bot >= 60k
+  T->>D: viewport-ready ou static-fallback-rendered
 ```
 
 A sessão saudável tem `FreezeDiag`, `WaterfallLifecycle/ui-finalized`, `PostCompletion` com seis checks, `check:10000ms` presente, nenhum `blank-panel-detected` persistente e `bot-message-content` visível dentro de `chat-main-panel`.
@@ -148,7 +148,7 @@ Reabra como incidente prioritário se qualquer condição aparecer em produção
 
 | Critério                                                       | Como medir                                                                                      |
 | -------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
-| `static-fallback-display-recovery` acima de 5% das sessões     | Contagem de eventos `Virtuoso/static-fallback-display-recovery` sobre sessões com dossiê grande |
+| `static-fallback-display-recovery` acima de 5% das sessões     | Contagem de eventos `Virtuoso/static-fallback-display-recovery` sobre sessões com dossiê >=60k  |
 | `PostCompletion/check:10000ms` ausente com waterfall concluído | `WaterfallLifecycle/ui-finalized=1` e `PostCompletion/check:10000ms=0`                          |
 | `domComposerDisabled=true` após `ui-finalize-post-render`      | Payload de `WaterfallLifecycle/ui-finalize-post-render`                                         |
 | `blank-panel-detected` em mais de três checks consecutivos     | Eventos `BlankPanel` ou `PostCompletion/blank-panel-detected:*` na mesma sessão                 |
@@ -171,7 +171,7 @@ Reabra como incidente prioritário se qualquer condição aparecer em produção
 
 ## Fallback estático
 
-Dossiês com bot de pelo menos `4000` caracteres preferem timeline estática. O caminho primário é `ChatInterface` ativar `forceStaticTimelineFallback` ou `preferStaticForLargeDossier`; o caminho reativo é `BlankPanel/static-timeline-fallback-activated`.
+Dossiês abaixo de `60_000` caracteres permanecem na timeline virtualizada. Se houver blank panel reativo, `ChatInterface` incrementa `timelineRecoveryNonce` e remonta o Virtuoso de forma limitada. `messages-static-fallback` fica reservado para dossiês `>= 60_000` caracteres quando `decideTimelineRecoveryMode` classifica como último recurso.
 
 Quando `MessageTimeline` renderiza `messages-static-fallback`, ele registra:
 

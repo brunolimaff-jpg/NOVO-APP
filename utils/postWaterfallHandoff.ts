@@ -9,6 +9,8 @@ export interface ForceStaticResetContext {
   wasLoading: boolean;
 }
 
+export type TimelineRecoveryMode = 'none' | 'remount-virtualized' | 'static-fallback';
+
 export function shouldResetForceStaticOnLoadingStart(ctx: ForceStaticResetContext): boolean {
   if (!ctx.isLoading || ctx.wasLoading) return false;
   return ctx.expectedBotCharsMax < LARGE_DOSSIER_STATIC_FALLBACK_CHARS;
@@ -27,6 +29,36 @@ export function shouldApplyProactiveForceStatic(params: {
     !params.showInitialHome &&
     params.expectedBotCharsMax >= LARGE_DOSSIER_STATIC_FALLBACK_CHARS
   );
+}
+
+function hasTimelineRecoverySignal(snapshot: BlankPanelSnapshot): boolean {
+  if (snapshot.blankDetected || snapshot.placeholderVisible || snapshot.suspendedViewportVisible) return true;
+
+  const panelHasAlmostNoContent =
+    snapshot.mainPanelChars < Math.min(800, Math.max(200, snapshot.expectedBotCharsMax / 10));
+  if (snapshot.botNodeCount === 0 && panelHasAlmostNoContent) return true;
+  if (snapshot.messageCount <= 3 && snapshot.visibleBotWithCharsCount === 0 && panelHasAlmostNoContent) return true;
+
+  return snapshot.panelVisible && snapshot.rowCount > 0 && snapshot.visibleRowCount === 0;
+}
+
+export function decideTimelineRecoveryMode(snapshot: BlankPanelSnapshot | null): TimelineRecoveryMode {
+  if (!snapshot) return 'none';
+  if (!snapshot.sessionId || snapshot.expectedBotCharsMax <= 0 || snapshot.messageCount <= 0) return 'none';
+  if (snapshot.isLoading || snapshot.showInitialHome || snapshot.shouldSuspendVirtualizedList) return 'none';
+  if (
+    snapshot.loadingOverlayVisible ||
+    snapshot.inlineBubbleVisible ||
+    snapshot.controlledErrorVisible ||
+    snapshot.emptyStateVisible
+  ) {
+    return 'none';
+  }
+  if (!hasTimelineRecoverySignal(snapshot)) return 'none';
+
+  return snapshot.expectedBotCharsMax >= LARGE_DOSSIER_STATIC_FALLBACK_CHARS
+    ? 'static-fallback'
+    : 'remount-virtualized';
 }
 
 /** Overlay ausente, mas painel ainda em placeholder/suspended com dossiê grande esperado. */

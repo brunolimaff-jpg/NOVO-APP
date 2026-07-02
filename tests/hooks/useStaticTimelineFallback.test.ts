@@ -2,6 +2,7 @@ import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 
 const LARGE_DOSSIER_STATIC_FALLBACK_CHARS = 60_000;
+const MEDIUM_DOSSIER_SAMPLE = 42_000;
 const LARGE_DOSSIER_SAMPLE = 65_000;
 const POST_WATERFALL_WATCHDOG_MS = 2_000;
 
@@ -45,6 +46,11 @@ vi.mock('../../utils/postWaterfallHandoff', () => ({
   }),
   isOverlayStuckPostWaterfall: vi.fn(),
   buildHandoffPanelDiag: vi.fn(() => ({})),
+  decideTimelineRecoveryMode: vi.fn((snapshot: Record<string, unknown> | null) => {
+    if (!snapshot || !snapshot.blankDetected) return 'none';
+    if ((snapshot.expectedBotCharsMax as number) < 60_000) return 'remount-virtualized';
+    return 'static-fallback';
+  }),
 }));
 
 vi.mock('../../utils/expectedBotContent', () => ({
@@ -346,6 +352,40 @@ describe('Efeito #7 — Detecção de blank panel (4 delays)', () => {
 
     act(() => vi.advanceTimersByTime(750));
     expect(result.current.forceStaticTimelineFallback).toBe(true);
+  });
+
+  it('BUG-8: dossiê ~42k com blank panel remonta timeline e não ativa static fallback completo', async () => {
+    reportBlankPanelIfDetectedMock.mockReturnValue(
+      blankSnapshot({
+        blankDetected: true,
+        expectedBotCharsMax: MEDIUM_DOSSIER_SAMPLE,
+        botCharsMax: 0,
+        botNodeCount: 0,
+        visibleBotNodeCount: 0,
+        visibleBotWithCharsCount: 0,
+        reason: 'no-message-rows-in-panel',
+      }),
+    );
+
+    const useHook = await loadHook();
+    const { result } = renderHook(props => useHook(props), {
+      initialProps: baseParams({ expectedBotCharsMax: MEDIUM_DOSSIER_SAMPLE, isLoading: false, showInitialHome: false }),
+    });
+
+    act(() => vi.advanceTimersByTime(750));
+
+    expect(result.current.forceStaticTimelineFallback).toBe(false);
+    expect(result.current.effectiveStaticTimelineFallback).toBe(false);
+    expect(result.current.timelineRecoveryNonce).toBe(1);
+    expect(scoutDiagWarnMock).toHaveBeenCalledWith(
+      'BlankPanel',
+      'virtualized-timeline-recovery',
+      expect.objectContaining({
+        expectedBotCharsMax: MEDIUM_DOSSIER_SAMPLE,
+        delay: 750,
+        recoveryAttempt: 1,
+      }),
+    );
   });
 
   it('NÃO ativa fallback se snapshot for null', async () => {

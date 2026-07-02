@@ -724,14 +724,15 @@ describe('ChatInterface shell regression', () => {
     }
   });
 
-  it('ativa fallback estatico quando existe bot final mas o DOM virtualizado fica branco', async () => {
+  it('BUG-8: dossiê ~42k com blank panel remonta timeline sem static fallback completo', async () => {
     vi.useFakeTimers();
+    const mediumText = `# Dossiê final disponível para Scheffer\n${'S'.repeat(42_000)}`;
     reportBlankPanelIfDetectedMock.mockReturnValue({
       sessionId: 'session-1',
       source: 'ChatInterface:750ms',
       route: '/',
       messageCount: 2,
-      expectedBotCharsMax: 34,
+      expectedBotCharsMax: mediumText.length,
       isLoading: false,
       panelState: 'content',
       showInitialHome: false,
@@ -767,7 +768,7 @@ describe('ChatInterface shell regression', () => {
     try {
       const messages = [
         buildMessage('m1', Sender.User, 'Investigar Scheffer'),
-        buildMessage('m2', Sender.Bot, '# Dossiê final disponível para Scheffer'),
+        buildMessage('m2', Sender.Bot, mediumText),
       ];
 
       render(
@@ -785,13 +786,15 @@ describe('ChatInterface shell regression', () => {
         vi.advanceTimersByTime(800);
       });
 
-      expect(screen.getByTestId('messages-static-fallback')).toBeInTheDocument();
+      expect(screen.queryByTestId('messages-static-fallback')).not.toBeInTheDocument();
+      expect(screen.getByTestId('messages-scroller')).toBeInTheDocument();
       expect(warnMock).toHaveBeenCalledWith(
         'BlankPanel',
-        'static-timeline-fallback-activated',
+        'virtualized-timeline-recovery',
         expect.objectContaining({
           reason: 'no-message-rows-in-panel',
           delay: 750,
+          recoveryAttempt: 1,
         }),
       );
     } finally {
@@ -799,15 +802,15 @@ describe('ChatInterface shell regression', () => {
     }
   });
 
-  it('ativa fallback estatico ao terminar loading com dossiê grande (proativo)', async () => {
-    const largeText = 'D'.repeat(5_000);
+  it('não ativa fallback estatico ao terminar loading com dossiê abaixo de 60k', async () => {
+    const mediumText = 'D'.repeat(5_000);
     const loadingMessages: Message[] = [
       buildMessage('m1', Sender.User, 'Investigar Scheffer'),
-      { ...buildMessage('m2', Sender.Bot, largeText), isThinking: true, loadingVariant: 'hero' },
+      { ...buildMessage('m2', Sender.Bot, mediumText), isThinking: true, loadingVariant: 'hero' },
     ];
     const finalMessages: Message[] = [
       buildMessage('m1', Sender.User, 'Investigar Scheffer'),
-      { ...buildMessage('m2', Sender.Bot, largeText), isThinking: false },
+      { ...buildMessage('m2', Sender.Bot, mediumText), isThinking: false },
     ];
 
     const { rerender } = render(
@@ -835,8 +838,10 @@ describe('ChatInterface shell regression', () => {
       />,
     );
 
-    expect(screen.getByTestId('messages-static-fallback')).toBeInTheDocument();
-    expect(screen.queryByTestId('messages-viewport-placeholder')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('messages-static-fallback')).not.toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.queryByTestId('messages-viewport-placeholder')).not.toBeInTheDocument();
+    });
   });
 
   it('não suspende timeline durante hero loading quando preview >= 200 chars', async () => {
@@ -869,11 +874,11 @@ describe('ChatInterface shell regression', () => {
   });
 
   it('mantém viewport suspensa durante hero loading mesmo com dossiê grande (fix: proativo não ativa em loading)', async () => {
-    const largeText = 'D'.repeat(5_000);
+    const mediumText = 'D'.repeat(5_000);
     const messages: Message[] = [
       buildMessage('m1', Sender.User, 'Investigar Scheffer'),
       {
-        ...buildMessage('m2', Sender.Bot, largeText),
+        ...buildMessage('m2', Sender.Bot, mediumText),
         isThinking: true,
         loadingVariant: 'hero' as const,
       },
@@ -898,13 +903,13 @@ describe('ChatInterface shell regression', () => {
     });
   });
 
-  it('watchdog pós-overlay força static quando DOM ainda está em placeholder', async () => {
+  it('watchdog pós-overlay ignora placeholder abaixo de 60k', async () => {
     vi.useFakeTimers();
     const collectSpy = vi.spyOn(await import('../../utils/blankPanelTelemetry'), 'collectBlankPanelSnapshot');
-    const largeText = 'D'.repeat(5_000);
+    const mediumText = 'D'.repeat(5_000);
     const messages = [
       buildMessage('m1', Sender.User, 'Investigar Scheffer'),
-      { ...buildMessage('m2', Sender.Bot, largeText), isThinking: false },
+      { ...buildMessage('m2', Sender.Bot, mediumText), isThinking: false },
     ];
 
     collectSpy.mockReturnValue({
@@ -962,13 +967,10 @@ describe('ChatInterface shell regression', () => {
         vi.advanceTimersByTime(2_100);
       });
 
-      expect(warnMock).toHaveBeenCalledWith(
+      expect(warnMock).not.toHaveBeenCalledWith(
         'SpinnerStuck',
         'post-waterfall-watchdog',
-        expect.objectContaining({
-          expectedBotCharsMax: 5_000,
-          centerElementTestId: 'messages-viewport-placeholder',
-        }),
+        expect.anything(),
       );
     } finally {
       collectSpy.mockRestore();

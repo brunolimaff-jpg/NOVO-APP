@@ -1,8 +1,25 @@
 # Progress
 
-Last updated: 2026-06-30 — Sessão Z.ai + H1/H3 concluída, PR #405 aberta
+Last updated: 2026-07-02 — BUG-8 PR #409 local fix implementado
 
 ## Timeline
+
+### 2026-07-02 (BUG-8 PR #409 — recovery leve + sidebar bounded)
+
+- **Worktree:** `/Users/brunolima/Documents/NOVO-APP/.claude/worktrees/sweet-bhabha-d544e3`
+- **Branch:** `feat/pipeline-v2-pr409-prompts-v2-output-mode`
+- **Base investigada:** SHA `44ad4056`
+- **Causa P0:** fallback reativo de `BlankPanel` ainda ativava `forceStaticTimelineFallback` para dossiês ~42k; histórico inflava DOM porque `SessionsSidebar` renderizava último bot completo com `line-clamp-1`.
+- **Implementado:**
+  - `utils/postWaterfallHandoff.ts`: `decideTimelineRecoveryMode(...)` (`<60_000` => remount virtualizado; `>=60_000` => static fallback).
+  - `hooks/useStaticTimelineFallback.ts`: `timelineRecoveryNonce`, limite de 2 tentativas e telemetria `BlankPanel/virtualized-timeline-recovery`.
+  - `components/chat/MessageTimeline.tsx`: remount seguro do viewport quando nonce muda.
+  - `components/SessionsSidebar.tsx`: preview limpo/capado em 160 chars.
+  - Docs vivas atualizadas para contrato 60k e static como último recurso.
+- **Testes:** 96/96 passando no conjunto focado (`useStaticTimelineFallback`, `ChatInterface`, `SessionsSidebar`, `MessageTimeline`, `postWaterfallHandoff`, `blankPanelTelemetry`).
+- **Build:** `npm run build` passou; Sentry CLI falhou em upload por DNS/rede para `sentry.io`, sem falhar o Vite.
+- **Typecheck:** `npm run typecheck` ainda falha por débitos pré-existentes fora do patch (`ModuleErrorCards`, `cofreLifecycle`, constantes de socio-search, testes antigos de LLM/runtime/golden/cache-key).
+- **Pendente:** commit/push, confirmar preview no novo SHA e rodar Scheffer do ZERO no preview. Não validar pelo histórico e não mergear sem `MERGE`.
 
 ### 2026-06-30 (Sessão Z.ai — Materialização + H1/H3)
 

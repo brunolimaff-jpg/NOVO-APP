@@ -6,6 +6,32 @@ import { useIsMobile } from '../hooks/useIsMobile';
 import ConfirmPopover from './ConfirmPopover';
 
 export const NEW_SESSION_DEBOUNCE_MS = 500;
+const MESSAGE_PREVIEW_MAX_CHARS = 160;
+
+function compactMessagePreview(text: string, maxChars = MESSAGE_PREVIEW_MAX_CHARS): string {
+  const normalized = text
+    .replace(/```[\s\S]*?```/g, ' ')
+    .replace(/[#>*_`[\]()|]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  if (normalized.length <= maxChars) return normalized;
+  return `${normalized.slice(0, maxChars).trimEnd()}...`;
+}
+
+export function getSessionMessagePreview(session: ChatSession): string | null {
+  if (!session.messages || session.messages.length === 0) return null;
+  let botText: string | null = null;
+  for (let i = session.messages.length - 1; i >= 0; i--) {
+    if (session.messages[i].sender === 'bot') {
+      botText = session.messages[i].text || null;
+      break;
+    }
+  }
+  const lastMessage = session.messages[session.messages.length - 1];
+  const rawPreview = botText || lastMessage?.text || null;
+  return rawPreview ? compactMessagePreview(rawPreview) : null;
+}
 
 interface SessionsSidebarProps {
   sessions: ChatSession[];
@@ -64,19 +90,6 @@ const SessionsSidebar: React.FC<SessionsSidebarProps> = ({
       ?.trim();
 
     return cleanTitle(clean || 'Sessão sem nome');
-  };
-
-  const getLastMessagePreview = (session: ChatSession): string | null => {
-    if (!session.messages || session.messages.length === 0) return null;
-    let botText: string | null = null;
-    for (let i = session.messages.length - 1; i >= 0; i--) {
-      if (session.messages[i].sender === 'bot') {
-        botText = session.messages[i].text || null;
-        break;
-      }
-    }
-    const lastMessage = session.messages[session.messages.length - 1];
-    return botText || lastMessage?.text || null;
   };
 
   const filteredSessions = useMemo(
@@ -221,7 +234,7 @@ const SessionsSidebar: React.FC<SessionsSidebarProps> = ({
                   const date = new Date(session.updatedAt);
                   const isToday = new Date().toDateString() === date.toDateString();
                   const displayName = getDisplayName(session);
-                  const messagePreview = getLastMessagePreview(session);
+                  const messagePreview = getSessionMessagePreview(session);
 
                   return (
                     <div

@@ -1,43 +1,30 @@
 # Active Context
 
-Last updated: 2026-06-30 — Sessão Z.ai + H1/H3 concluída, PR #405 aberta
+Last updated: 2026-07-02 — BUG-8 PR #409 local fix implementado
 
 ## Estado Atual
 
-- **Branch atual:** `condescending-hoover-10c1cc` (worktree)
-- **PR aberta:** [#405](https://github.com/brunolimaff-jpg/NOVO-APP/pull/405) — MERGEABLE
-- **Baseline:** `origin/main` @ `61ced7bc`
-- **Tag:** `pre-prompts-cleanup`
-- **Plano maior:** Plano de Profissionalização V3 (~80% concluído)
+- **Worktree atual:** `/Users/brunolima/Documents/NOVO-APP/.claude/worktrees/sweet-bhabha-d544e3`
+- **Branch:** `feat/pipeline-v2-pr409-prompts-v2-output-mode`
+- **PR:** #409 — bloqueada por BUG-8 até validação Scheffer do zero no preview
+- **SHA base investigado:** `44ad4056`
+- **Merge guard:** nunca mergear sem `MERGE` explícito do Bruno
 
-## O que foi entregue
+## O que mudou nesta sessão
 
-- Z.ai validado (22 agentes, 121 verificações, 82% claims confirmadas)
-- ADRs 0003-0005 commitados em `docs/adr/`
-- Plano de limpeza de prompts em `docs/management/`
-- H1: `utils/promptLeakShield.ts` deletado (órfão, -150 LOC)
-- H3: 2 padrões de leak-shield (`nota_de_escopo`, `aviso_metodologico`)
-- 12 comentários de bots resolvidos
-- 5 silent failures documentados (todos pré-existentes)
-- Handoff completo em `HANDOFF_AI.md`
+- Centralizada a política de recovery em `decideTimelineRecoveryMode(...)`.
+- Blank panel reativo abaixo de `60_000` chars não ativa mais `messages-static-fallback`; faz remount controlado da timeline via `timelineRecoveryNonce`.
+- Static fallback permanece só como último recurso para dossiê `>=60_000`.
+- `SessionsSidebar` passou a renderizar preview limpo/capado em 160 chars, evitando dossiê completo no DOM do histórico.
+- Testes regressivos adicionados para dossiê ~42k sem static fallback e sidebar com bot 50k sem sentinel no `document.body.textContent`.
+- Docs vivas atualizadas para remover contrato antigo de static `4k/5k`.
 
-## Decisões ativas
+## Validação
 
-- DI-2026-06-29-01: Z.ai produz docs, nunca executa
-- DI-2026-06-29-02: Princípio 6 como gate de handoff
-- DI-2026-06-29-03: Regex de shield requer adversarial review
-- DI-2026-06-29-04: `pre-prompts-cleanup` como reversão
+- Testes focados: 96/96 passando.
+- Build: passou, com falha não bloqueante do Sentry CLI por DNS/rede bloqueada.
+- Typecheck: falha por débitos pré-existentes fora do patch; nenhum erro restante nos arquivos alterados nesta sessão.
 
-## Próximos passos
+## Próximo passo
 
-- Merge PR #405 (aguardando "MERGE" do Bruno)
-- H4: consolidar 8× inline_citation_rule (médio risco)
-- Fase 7: cron-email-confirmation → createClient
-- Fase 8: consolidar 157 .md → ≤30
-- Fase 9: self-audit 97 itens
-
-## Atenção
-
-- 5 CI failures = débito fe6c6f9 (mesmo em main)
-- Cópia stale do shield em `api/gemini.ts:59-115` sem 2 novos padrões
-- `applyPromptLeakShield` sem try/catch em 2 locais
+- Commitar/pushar o fix, aguardar preview no novo SHA e rodar Scheffer do ZERO no preview.

@@ -289,6 +289,31 @@ describe('MessageTimeline', () => {
     expect(props.onLoadMore).toHaveBeenCalled();
   });
 
+  it('remonta a viewport virtualizada quando timelineRecoveryNonce muda', () => {
+    vi.useFakeTimers();
+    // @ts-expect-error test fallback path
+    global.ResizeObserver = undefined;
+    window.requestAnimationFrame = vi.fn(() => 1);
+    window.cancelAnimationFrame = vi.fn();
+
+    const props = buildProps({ timelineRecoveryNonce: 0 });
+    const { rerender } = render(<MessageTimeline {...props} />);
+
+    act(() => {
+      vi.advanceTimersByTime(200);
+    });
+
+    const firstViewport = document.querySelector('[data-scout-virtuoso="timeline"]');
+    expect(firstViewport).toHaveAttribute('data-timeline-recovery-nonce', '0');
+    expect(screen.getByTestId('messages-scroller')).toBeInTheDocument();
+
+    rerender(<MessageTimeline {...props} timelineRecoveryNonce={1} />);
+
+    const remountedViewport = document.querySelector('[data-scout-virtuoso="timeline"]');
+    expect(remountedViewport).not.toBe(firstViewport);
+    expect(remountedViewport).toHaveAttribute('data-timeline-recovery-nonce', '1');
+  });
+
   it('prioriza fallback estatico para bot gigante mesmo se a viewport ainda estiver suspensa', () => {
     const largeMessages = [
       buildMessage('m1', Sender.User, 'Investigar Acme Agro'),

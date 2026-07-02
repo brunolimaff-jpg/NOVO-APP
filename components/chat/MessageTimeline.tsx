@@ -10,6 +10,7 @@ import HelpCenterFloating from '../HelpCenterFloating';
 import MessageRow, { type MessageRowData } from '../MessageRow';
 import { parseSmartOptions } from '../SmartOptions';
 import type { ChatTheme, RadarProps, StartInvestigationPayload } from './contracts';
+import { LARGE_DOSSIER_STATIC_FALLBACK_CHARS } from '../../utils/expectedBotContent';
 
 interface MessageTimelineProps {
   currentSession: ChatSession | null;
@@ -22,6 +23,7 @@ interface MessageTimelineProps {
   showInitialHome: boolean;
   shouldSuspendVirtualizedList: boolean;
   forceStaticTimelineFallback?: boolean;
+  timelineRecoveryNonce?: number;
   onConfirmOperatorName: (name: string, email: string, existingOperatorId?: string) => void;
   onStartInvestigation: (payload: StartInvestigationPayload) => Promise<void>;
   radar?: RadarProps;
@@ -68,6 +70,7 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
   showInitialHome,
   shouldSuspendVirtualizedList,
   forceStaticTimelineFallback = false,
+  timelineRecoveryNonce = 0,
   onConfirmOperatorName,
   onStartInvestigation,
   radar,
@@ -100,6 +103,7 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
   const safeMessages = Array.isArray(messages) ? messages : [];
   const shouldRenderStaticTimelineFallback = forceStaticTimelineFallback;
   const shouldRenderSuspendedViewport = shouldSuspendVirtualizedList && !shouldRenderStaticTimelineFallback;
+  const timelineViewportKey = `${currentSession?.id ?? 'no-session'}:${timelineRecoveryNonce}`;
   const safeMessagesLengthRef = useRef(safeMessages.length);
   safeMessagesLengthRef.current = safeMessages.length;
 
@@ -181,6 +185,7 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
       viewportHeight: viewport?.clientHeight ?? 0,
       totalItems: safeMessagesLengthRef.current,
       overscan: virtuosoOverscan,
+      timelineRecoveryNonce,
     });
     return () => {
       scoutDiag.info('Virtuoso', 'virtuoso:unmount', {
@@ -252,6 +257,7 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
 
     const readViewportMetrics = () => ({
       sessionId: currentSession?.id ?? null,
+      timelineRecoveryNonce,
       viewportWidth: viewport.clientWidth,
       viewportHeight: viewport.clientHeight,
       offsetHeight: viewport.offsetHeight,
@@ -266,7 +272,7 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
       if (cancelled) return;
 
       const metrics = readViewportMetrics();
-      const signature = `${reason}|${metrics.viewportWidth}|${metrics.viewportHeight}|${metrics.totalItems}`;
+      const signature = `${timelineRecoveryNonce}|${reason}|${metrics.viewportWidth}|${metrics.viewportHeight}|${metrics.totalItems}`;
       if (viewportReadySignatureRef.current !== signature) {
         viewportReadySignatureRef.current = signature;
         const logPayload = { reason, ...metrics };
@@ -313,7 +319,13 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
       }
       if (emergencyTimer !== null) window.clearTimeout(emergencyTimer);
     };
-  }, [currentSession?.id, shouldRenderStaticTimelineFallback, shouldRenderSuspendedViewport, showInitialHome]);
+  }, [
+    currentSession?.id,
+    shouldRenderStaticTimelineFallback,
+    shouldRenderSuspendedViewport,
+    showInitialHome,
+    timelineRecoveryNonce,
+  ]);
 
   const hideSuggestionsForMessageId =
     isLoading &&
@@ -395,7 +407,7 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
 
     const hasBotMessage = safeMessages.some(message => message.sender === Sender.Bot);
     const botMsg = safeMessages.find(message => message.sender === Sender.Bot);
-    const hasLargeBot = hasBotMessage && (botMsg?.text?.length ?? 0) > 4000;
+    const hasLargeBot = hasBotMessage && (botMsg?.text?.length ?? 0) >= LARGE_DOSSIER_STATIC_FALLBACK_CHARS;
 
     scoutDiag.warn('Virtuoso', 'static-fallback-rendered', {
       sessionId: currentSession?.id ?? null,
@@ -531,7 +543,13 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
           </div>
         </div>
       ) : (
-        <div ref={messagesViewportRef} className="flex-1 min-h-0 w-full" data-scout-virtuoso="timeline">
+        <div
+          key={timelineViewportKey}
+          ref={messagesViewportRef}
+          className="flex-1 min-h-0 w-full"
+          data-scout-virtuoso="timeline"
+          data-timeline-recovery-nonce={timelineRecoveryNonce}
+        >
           {isMessagesViewportReady ? (
             <Virtuoso
               ref={virtuosoRef}

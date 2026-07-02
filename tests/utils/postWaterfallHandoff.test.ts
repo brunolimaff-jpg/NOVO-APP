@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { BlankPanelSnapshot } from '../../utils/blankPanelTelemetry';
 import {
+  decideTimelineRecoveryMode,
   isOverlayStuckPostWaterfall,
   isPostWaterfallStuckHandoff,
   shouldApplyProactiveForceStatic,
@@ -50,10 +51,10 @@ function snapshot(partial: Partial<BlankPanelSnapshot>): BlankPanelSnapshot {
 }
 
 describe('postWaterfallHandoff', () => {
-  it('não zera forceStatic ao iniciar loading quando o dossiê já tem >= 4000 chars', () => {
+  it('não zera forceStatic ao iniciar loading quando o dossiê já tem >= 60k chars', () => {
     expect(
       shouldResetForceStaticOnLoadingStart({
-        expectedBotCharsMax: 5_000,
+        expectedBotCharsMax: 60_000,
         isLoading: true,
         wasLoading: false,
       }),
@@ -70,24 +71,61 @@ describe('postWaterfallHandoff', () => {
     ).toBe(true);
   });
 
-  it('aplica forceStatic proativo para sessão ativa com dossiê grande', () => {
+  it('aplica forceStatic proativo só para sessão ativa com dossiê >= 60k', () => {
     expect(
       shouldApplyProactiveForceStatic({
-        expectedBotCharsMax: 4_000,
+        expectedBotCharsMax: 60_000,
         showInitialHome: false,
         sessionId: 'sess-1',
       }),
     ).toBe(true);
   });
 
-  it('detecta handoff preso em placeholder com overlay ausente', () => {
-    expect(isPostWaterfallStuckHandoff(snapshot({ placeholderVisible: true }))).toBe(true);
+  it('não aplica forceStatic proativo abaixo de 60k', () => {
+    expect(
+      shouldApplyProactiveForceStatic({
+        expectedBotCharsMax: 42_000,
+        showInitialHome: false,
+        sessionId: 'sess-1',
+      }),
+    ).toBe(false);
   });
 
-  it('detecta painel branco quando bot tem texto mas nenhum nó visível', () => {
+  it('decide remount virtualizado para blank panel abaixo de 60k', () => {
+    expect(
+      decideTimelineRecoveryMode(
+        snapshot({
+          expectedBotCharsMax: 42_000,
+          blankDetected: true,
+          placeholderVisible: true,
+        }),
+      ),
+    ).toBe('remount-virtualized');
+  });
+
+  it('decide static fallback só como último recurso para blank panel >= 60k', () => {
+    expect(
+      decideTimelineRecoveryMode(
+        snapshot({
+          expectedBotCharsMax: 60_000,
+          blankDetected: true,
+          placeholderVisible: true,
+        }),
+      ),
+    ).toBe('static-fallback');
+  });
+
+  it('detecta handoff preso em placeholder com overlay ausente para dossiê >= 60k', () => {
+    expect(isPostWaterfallStuckHandoff(snapshot({ expectedBotCharsMax: 60_000, placeholderVisible: true }))).toBe(
+      true,
+    );
+  });
+
+  it('detecta painel branco quando bot >= 60k tem texto mas nenhum nó visível', () => {
     expect(
       isPostWaterfallStuckHandoff(
         snapshot({
+          expectedBotCharsMax: 60_000,
           placeholderVisible: false,
           centerElementTestId: null,
           botNodeCount: 1,
@@ -108,8 +146,12 @@ describe('postWaterfallHandoff', () => {
   });
 
   describe('isOverlayStuckPostWaterfall', () => {
-    it('detecta overlay preso com isLoading=false', () => {
-      expect(isOverlayStuckPostWaterfall(snapshot({ loadingOverlayVisible: true, isLoading: false }))).toBe(true);
+    it('detecta overlay preso com isLoading=false para dossiê >= 60k', () => {
+      expect(
+        isOverlayStuckPostWaterfall(
+          snapshot({ expectedBotCharsMax: 60_000, loadingOverlayVisible: true, isLoading: false }),
+        ),
+      ).toBe(true);
     });
 
     it('ignora overlay quando isLoading=true', () => {

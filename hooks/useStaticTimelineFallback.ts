@@ -7,6 +7,7 @@ import {
 } from '../utils/blankPanelTelemetry';
 import {
   buildHandoffPanelDiag,
+  decideTimelineRecoveryMode,
   isOverlayStuckPostWaterfall,
   isPostWaterfallStuckHandoff,
   POST_WATERFALL_WATCHDOG_MS,
@@ -29,15 +30,10 @@ function shouldActivateStaticTimelineFallback(snapshot: BlankPanelSnapshot): boo
     return false;
 
   if (isPostWaterfallStuckHandoff(snapshot)) return true;
-  if (snapshot.blankDetected) return true;
-
-  const panelHasAlmostNoContent =
-    snapshot.mainPanelChars < Math.min(800, Math.max(200, snapshot.expectedBotCharsMax / 10));
-  if (snapshot.botNodeCount === 0 && panelHasAlmostNoContent) return true;
-  if (snapshot.messageCount <= 3 && snapshot.visibleBotWithCharsCount === 0 && panelHasAlmostNoContent) return true;
-
-  return snapshot.panelVisible && snapshot.rowCount > 0 && snapshot.visibleRowCount === 0;
+  return decideTimelineRecoveryMode(snapshot) === 'static-fallback';
 }
+
+const MAX_VIRTUALIZED_TIMELINE_RECOVERY_ATTEMPTS = 2;
 
 export interface UseStaticTimelineFallbackParams {
   currentSession: { id: string; title?: string | null; empresaAlvo?: string | null } | null | undefined;
@@ -64,6 +60,7 @@ export interface UseStaticTimelineFallbackResult {
   preferStaticForLargeDossier: boolean;
   effectiveStaticTimelineFallback: boolean;
   shouldSuspendVirtualizedListForTimeline: boolean;
+  timelineRecoveryNonce: number;
 }
 
 export function useStaticTimelineFallback(params: UseStaticTimelineFallbackParams): UseStaticTimelineFallbackResult {
@@ -83,8 +80,11 @@ export function useStaticTimelineFallback(params: UseStaticTimelineFallbackParam
   } = params;
 
   const [forceStaticTimelineFallback, setForceStaticTimelineFallback] = useState(false);
+  const [timelineRecoveryNonce, setTimelineRecoveryNonce] = useState(0);
   const staticTimelineFallbackSessionRef = useRef<string | null>(null);
   const postWaterfallWatchdogLoggedRef = useRef<string | null>(null);
+  const virtualizedRecoverySessionRef = useRef<string | null>(null);
+  const virtualizedRecoveryAttemptsRef = useRef(0);
   const prevIsLoadingForStaticResetRef = useRef(isLoading);
   const panelSnapshotSignatureRef = useRef('');
   const renderingModeLocked = useRef(false);
@@ -194,8 +194,11 @@ export function useStaticTimelineFallback(params: UseStaticTimelineFallbackParam
   // ── Efeito #3: Reset ao trocar de sessão ──
   useEffect(() => {
     setForceStaticTimelineFallback(false);
+    setTimelineRecoveryNonce(0);
     staticTimelineFallbackSessionRef.current = null;
     postWaterfallWatchdogLoggedRef.current = null;
+    virtualizedRecoverySessionRef.current = null;
+    virtualizedRecoveryAttemptsRef.current = 0;
     renderingModeLocked.current = false;
   }, [currentSession?.id]);
 
@@ -213,6 +216,8 @@ export function useStaticTimelineFallback(params: UseStaticTimelineFallbackParam
       setForceStaticTimelineFallback(false);
       staticTimelineFallbackSessionRef.current = null;
       postWaterfallWatchdogLoggedRef.current = null;
+      virtualizedRecoverySessionRef.current = null;
+      virtualizedRecoveryAttemptsRef.current = 0;
       renderingModeLocked.current = false;
     }
   }, [expectedBotCharsMax, isLoading]);
@@ -302,7 +307,37 @@ export function useStaticTimelineFallback(params: UseStaticTimelineFallbackParam
           shouldSuspendVirtualizedList,
         });
 
-        if (!snapshot || !shouldActivateStaticTimelineFallback(snapshot)) return;
+        if (!snapshot || !shouldActivateStaticTimelineFallback(snapshot)) {
+          const recoveryMode = decideTimelineRecoveryMode(snapshot);
+          if (recoveryMode !== 'remount-virtualized') return;
+          if (staticTimelineFallbackSessionRef.current === currentSession.id) return;
+
+          if (virtualizedRecoverySessionRef.current !== currentSession.id) {
+            virtualizedRecoverySessionRef.current = currentSession.id;
+            virtualizedRecoveryAttemptsRef.current = 0;
+          }
+
+          if (virtualizedRecoveryAttemptsRef.current >= MAX_VIRTUALIZED_TIMELINE_RECOVERY_ATTEMPTS) {
+            scoutDiag.warn('BlankPanel', 'virtualized-timeline-recovery-exhausted', {
+              ...snapshot,
+              delay,
+              recoveryAttempt: virtualizedRecoveryAttemptsRef.current,
+              maxRecoveryAttempts: MAX_VIRTUALIZED_TIMELINE_RECOVERY_ATTEMPTS,
+            } as unknown as Record<string, unknown>);
+            return;
+          }
+
+          virtualizedRecoveryAttemptsRef.current += 1;
+          const recoveryAttempt = virtualizedRecoveryAttemptsRef.current;
+          setTimelineRecoveryNonce(value => value + 1);
+          scoutDiag.warn('BlankPanel', 'virtualized-timeline-recovery', {
+            ...snapshot,
+            delay,
+            recoveryAttempt,
+            maxRecoveryAttempts: MAX_VIRTUALIZED_TIMELINE_RECOVERY_ATTEMPTS,
+          } as unknown as Record<string, unknown>);
+          return;
+        }
         if (staticTimelineFallbackSessionRef.current === currentSession.id) return;
 
         staticTimelineFallbackSessionRef.current = currentSession.id;
@@ -332,5 +367,6 @@ export function useStaticTimelineFallback(params: UseStaticTimelineFallbackParam
     preferStaticForLargeDossier,
     effectiveStaticTimelineFallback,
     shouldSuspendVirtualizedListForTimeline,
+    timelineRecoveryNonce,
   };
 }

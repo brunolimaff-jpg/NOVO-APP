@@ -76,14 +76,14 @@ Um bot é renderizável quando é mensagem de bot, não é erro, tem texto e nã
 
 `ChatInterface` calcula `shouldSuspendVirtualizedList` com `shouldSuspendHeroMessageTimeline`. A timeline só pode suspender durante hero loading sem conteúdo de bot renderizável. Se o bot já é renderizável, a timeline permanece disponível.
 
-O fallback estático é preferido para dossiês grandes. O limite é `LARGE_DOSSIER_STATIC_FALLBACK_CHARS = 4000`.
+O fallback estático é último recurso para dossiês muito grandes. O limite é `LARGE_DOSSIER_STATIC_FALLBACK_CHARS = 60_000`.
 
-| Sinal                                                          | Resultado                                                        |
-| -------------------------------------------------------------- | ---------------------------------------------------------------- |
-| `expectedBotCharsMax >= 4000`, sessão existente e fora da home | `forceStaticTimelineFallback` é ativado proativamente.           |
-| `preferStaticForLargeDossier=true` após loading                | A timeline renderiza `messages-static-fallback` no mesmo render. |
-| `shouldSuspendVirtualizedList=true` e fallback estático ativo  | O fallback estático vence a suspensão.                           |
-| Virtuoso não materializa conteúdo                              | Snapshots podem ativar `static-timeline-fallback-activated`.     |
+| Sinal                                                                | Resultado                                                                 |
+| -------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| Blank panel com `expectedBotCharsMax < 60_000` e sessão fora da home | Remount controlado do Virtuoso via `timelineRecoveryNonce`.               |
+| Blank panel com `expectedBotCharsMax >= 60_000`                      | `forceStaticTimelineFallback` pode ativar `messages-static-fallback`.     |
+| `shouldSuspendVirtualizedList=true` e fallback estático ativo        | O fallback estático vence a suspensão.                                    |
+| Virtuoso não materializa conteúdo                                    | Snapshots reportam `BlankPanel` e escolhem remount leve ou static final.  |
 
 `MessageTimeline` escolhe nesta ordem:
 
@@ -122,8 +122,8 @@ A recuperação combina três camadas:
 | Camada                          | Delay                                         | Ação                                                                                          |
 | ------------------------------- | --------------------------------------------- | --------------------------------------------------------------------------------------------- |
 | `PostCompletion`                | `0`, `100`, `500`, `1000`, `3000`, `10000` ms | Captura overlay, bot, composer, scroller, painel branco e geração waterfall.                  |
-| `BlankPanel` no `ChatInterface` | `750`, `2000`, `5000`, `9000` ms              | Reporta para diagnósticos/Sentry e pode ativar fallback estático.                             |
-| Watchdog pós-waterfall          | `2000` ms                                     | Para dossiê grande, força static fallback se o DOM ainda está preso em placeholder/suspensão. |
+| `BlankPanel` no `ChatInterface` | `750`, `2000`, `5000`, `9000` ms              | Reporta para diagnósticos/Sentry e aciona remount leve ou static final conforme volume.       |
+| Watchdog pós-waterfall          | `2000` ms                                     | Para dossiê >=60k, força static fallback se o DOM ainda está preso em placeholder/suspensão.  |
 
 `MessageTimeline` também tem safety net específico para `messages-static-fallback`: se o elemento montar com `computedStyle.display === 'none'`, o recovery limpa `style.display`; se continuar `none`, aplica `display: block !important` e emite `static-fallback-display-recovery`.
 

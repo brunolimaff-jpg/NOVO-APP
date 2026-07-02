@@ -135,6 +135,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
     preferStaticForLargeDossier,
     effectiveStaticTimelineFallback,
     shouldSuspendVirtualizedListForTimeline,
+    timelineRecoveryNonce,
   } = useStaticTimelineFallback({
     currentSession,
     isLoading,
@@ -243,6 +244,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
                 showInitialHome={showInitialHome}
                 shouldSuspendVirtualizedList={shouldSuspendVirtualizedListForTimeline}
                 forceStaticTimelineFallback={effectiveStaticTimelineFallback}
+                timelineRecoveryNonce={timelineRecoveryNonce}
                 onConfirmOperatorName={(name, email, existingOperatorId) => {
                   if (existingOperatorId) {
                     linkToExistingOperator(existingOperatorId, name, email);
