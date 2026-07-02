@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState, useCallback, useDeferredValue } from 'react';
+import React, { useEffect, useMemo, useRef, useState, useCallback, useTransition } from 'react';
 import { Message } from '../types';
 import MarkdownRenderer from './MarkdownRenderer';
 import { getSellerSectionKind, parseMarkdownSections, type SellerSectionKind } from '../utils/sectionParser';
@@ -275,6 +275,7 @@ function stripUnsafeSocietarySections(markdown: string): string {
 }
 
 const TRUNCATION_SECTION_THRESHOLD = 3;
+const HEAVY_MARKDOWN_CHARS = 4000;
 
 const SectionalBotMessage: React.FC<SectionalBotMessageProps> = ({
   message,
@@ -299,14 +300,16 @@ const SectionalBotMessage: React.FC<SectionalBotMessageProps> = ({
     return stripUnsafeSocietarySections(cleanText);
   }, [cleanText]);
 
-  // Errata 5: useDeferredValue evita que parseMarkdownSections + MarkdownRenderer
-  // bloqueiem a main thread em dossiês grandes (>15KB). React 18 processa o valor
-  // deferred em render de baixa prioridade, mantendo a UI responsiva.
-  const LARGE_DOSSIER_DEFERRED_CHARS = 15_000;
-  const deferredText = useDeferredValue(displayText);
-  const isDeferredPending = deferredText !== displayText && displayText.length > LARGE_DOSSIER_DEFERRED_CHARS;
+  const [effectiveText, setEffectiveText] = useState(displayText);
+  const [isPending, startTransition] = useTransition();
 
-  const effectiveText = isDeferredPending ? deferredText : displayText;
+  useEffect(() => {
+    if (displayText.length > HEAVY_MARKDOWN_CHARS) {
+      startTransition(() => setEffectiveText(displayText));
+    } else {
+      setEffectiveText(displayText);
+    }
+  }, [displayText, message.id]);
 
   const sections = useMemo(() => {
     return parseMarkdownSections(effectiveText);
@@ -398,9 +401,10 @@ const SectionalBotMessage: React.FC<SectionalBotMessageProps> = ({
   // Só mostra o botão copiar se houver conteúdo substancial (dossiê real)
   const showCopyButton = displayText.length > 300;
 
-  // Skeleton enquanto deferred pendente (dossiês >15KB). Rules of Hooks: todos os
-  // hooks já rodaram — este return condicional é seguro (React vê mesma contagem).
-  if (isDeferredPending) {
+  const isHeavyPending = isPending && displayText.length > HEAVY_MARKDOWN_CHARS && effectiveText !== displayText;
+
+  // Skeleton enquanto startTransition pendente (dossiês >4KB).
+  if (isHeavyPending) {
     return (
       <div data-testid="bot-message-content" data-deferred="true" className="flex min-w-0 flex-col gap-3 p-4">
         <div className="animate-pulse space-y-3">

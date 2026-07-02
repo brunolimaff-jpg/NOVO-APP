@@ -1614,50 +1614,33 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
           }
         }
 
-        // Fire-and-forget: persistência no Supabase não deve bloquear o retorno
-        // do waterfall nem atrasar setIsLoading(false) no message-orchestrator.
-        // O dossiê já está no React state — a UI não depende do Supabase.
+        // Persistir no Supabase ANTES do retorno — garante sessão no Supabase
+        // antes de setIsLoading(false) disparar render pesado no message-orchestrator.
         if (sessionToPersist) {
           const dossier = sessionToPersist as ChatSession;
           scoutDiag.info('WaterfallLifecycle', 'pre-save-dossier', { sessionId, waterfallRunId });
-
-          let saveResolved = false;
-          const saveTimeoutId = setTimeout(() => {
-            if (!saveResolved) {
-              scoutDiag.warn('ModularDossier', 'saveDossier demorando mais de 15s — ainda pendente', {
-                sessionId,
-              });
-            }
-          }, 15_000);
-
-          storage
-            .saveDossier(dossier)
-            .then(() => {
-              saveResolved = true;
-              clearTimeout(saveTimeoutId);
-              window.dispatchEvent(
-                new CustomEvent('dossier:completed', {
-                  detail: {
-                    dossierId: dossier.id,
-                    companyName: resolvedMegaCompany || normalizedCompany || '',
-                    cnpj: dossier.cnpj,
-                  },
-                }),
-              );
-            })
-            .catch(error => {
-              saveResolved = true;
-              clearTimeout(saveTimeoutId);
-              scoutDiag.warn('ModularDossier', 'falha ao persistir dossiê final; mantendo sessão em memória', {
-                sessionId,
-                company: resolvedMegaCompany || normalizedCompany || null,
-                error: error instanceof Error ? error.message : String(error),
-              });
-              scoutDiag.warn('WaterfallLifecycle', 'dossier-completed-event-not-dispatched', {
-                sessionId,
-                reason: error instanceof Error ? error.message : String(error),
-              });
+          try {
+            await storage.saveDossier(dossier);
+            window.dispatchEvent(
+              new CustomEvent('dossier:completed', {
+                detail: {
+                  dossierId: dossier.id,
+                  companyName: resolvedMegaCompany || normalizedCompany || '',
+                  cnpj: dossier.cnpj,
+                },
+              }),
+            );
+          } catch (error) {
+            scoutDiag.warn('ModularDossier', 'falha ao persistir dossiê final; mantendo sessão em memória', {
+              sessionId,
+              company: resolvedMegaCompany || normalizedCompany || null,
+              error: error instanceof Error ? error.message : String(error),
             });
+            scoutDiag.warn('WaterfallLifecycle', 'dossier-completed-event-not-dispatched', {
+              sessionId,
+              reason: error instanceof Error ? error.message : String(error),
+            });
+          }
         }
 
         waterfallEndStatus = 'completed';

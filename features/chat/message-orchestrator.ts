@@ -30,6 +30,7 @@ import {
 } from './message-helpers';
 import { useToast } from '../../hooks/useToast';
 import { trackOperatorEvent } from '../../services/operatorTracking';
+import { storage } from '../../services/storage';
 import { getWaterfallGuardState, isAnyWaterfallActive } from '../dossier/waterfall-guard';
 
 interface ResetLoadingProgressOptions {
@@ -781,6 +782,21 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
               flushDurationMs: Math.round(performance.now() - t0),
             });
           }, 0);
+        }
+
+        // Persistir antes do render pesado — evita perda de sessão se main thread bloquear.
+        if (!isAbort && isMegaPrompt) {
+          const session = sessionsRef.current.find(item => item.id === sessionId);
+          if (session) {
+            try {
+              await storage.saveDossier(session);
+            } catch (error) {
+              scoutDiag.warn('MessageOrchestrator', 'saveDossier antes do render falhou', {
+                sessionId,
+                error: error instanceof Error ? error.message : String(error),
+              });
+            }
+          }
         }
 
         // Dispara React render DEPOIS de agendar o setTimeout.
