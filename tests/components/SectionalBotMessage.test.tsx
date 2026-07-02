@@ -1,5 +1,5 @@
 import { render, screen, act } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import React, { useState } from 'react';
 import SectionalBotMessage from '../../components/SectionalBotMessage';
 import { Message, Sender } from '../../types';
@@ -410,6 +410,104 @@ describe('SectionalBotMessage', () => {
 
     // Com novo message.id, deve resetar e truncar novamente
     expect(getByRole('button', { name: /Ver relatório completo/ })).toBeInTheDocument();
+  });
+
+
+  describe('expand progressivo do dossiê (BUG-8 v4)', () => {
+    const makeDossierWithSections = (count: number) => {
+      const parts: string[] = [];
+      for (let i = 1; i <= count; i++) {
+        parts.push(`# Módulo ${i}: Seção ${i}`, '', `Conteúdo exclusivo da seção ${i}.`);
+      }
+      return parts.join('\n');
+    };
+
+    let idleQueue: Array<() => void> = [];
+
+    beforeEach(() => {
+      idleQueue = [];
+      vi.stubGlobal('requestIdleCallback', (cb: IdleRequestCallback) => {
+        idleQueue.push(() => cb({ didTimeout: false, timeRemaining: () => 50 } as IdleDeadline));
+        return idleQueue.length;
+      });
+      vi.stubGlobal('cancelIdleCallback', () => {});
+    });
+
+    afterEach(() => {
+      idleQueue = [];
+      vi.unstubAllGlobals();
+    });
+
+    const flushOneIdle = () => {
+      const next = idleQueue.shift();
+      if (next) next();
+    };
+
+    it('mostra apenas TRUNCATION_SECTION_THRESHOLD seções ao expandir, não todas de uma vez', () => {
+      const message: Message = {
+        id: 'bot-expand-progressive',
+        sender: Sender.Bot,
+        timestamp: new Date(),
+        text: makeDossierWithSections(6),
+      };
+
+      const { container, getByRole } = render(<SectionalBotMessage message={message} isDarkMode={false} />);
+
+      expect(getByRole('button', { name: /Ver relatório completo/ })).toBeInTheDocument();
+      expect(container.querySelectorAll('.section-block')).toHaveLength(3);
+
+      act(() => {
+        getByRole('button', { name: /Ver relatório completo/ }).click();
+      });
+
+      expect(screen.queryByRole('button', { name: /Ver relatório completo/ })).not.toBeInTheDocument();
+      expect(container.querySelectorAll('.section-block')).toHaveLength(3);
+      expect(screen.getByText(/Conteúdo exclusivo da seção 3/)).toBeInTheDocument();
+      expect(screen.queryByText(/Conteúdo exclusivo da seção 4/)).not.toBeInTheDocument();
+    });
+
+    it('revela seções adicionais progressivamente após expandir (+1 por idle)', () => {
+      const message: Message = {
+        id: 'bot-expand-idle',
+        sender: Sender.Bot,
+        timestamp: new Date(),
+        text: makeDossierWithSections(6),
+      };
+
+      const { container, getByRole } = render(<SectionalBotMessage message={message} isDarkMode={false} />);
+
+      act(() => {
+        getByRole('button', { name: /Ver relatório completo/ }).click();
+      });
+
+      expect(container.querySelectorAll('.section-block')).toHaveLength(3);
+      expect(screen.queryByText(/Conteúdo exclusivo da seção 4/)).not.toBeInTheDocument();
+
+      act(() => {
+        flushOneIdle();
+      });
+
+      expect(container.querySelectorAll('.section-block')).toHaveLength(4);
+      expect(screen.getByText(/Conteúdo exclusivo da seção 4/)).toBeInTheDocument();
+      expect(screen.queryByText(/Conteúdo exclusivo da seção 5/)).not.toBeInTheDocument();
+    });
+
+    it('exibe indicador de renderização pendente durante expand progressivo', () => {
+      const message: Message = {
+        id: 'bot-expand-pending',
+        sender: Sender.Bot,
+        timestamp: new Date(),
+        text: makeDossierWithSections(6),
+      };
+
+      const { getByRole } = render(<SectionalBotMessage message={message} isDarkMode={false} />);
+
+      act(() => {
+        getByRole('button', { name: /Ver relatório completo/ }).click();
+      });
+
+      expect(screen.getByText(/Renderizando seções do dossiê/)).toBeInTheDocument();
+    });
   });
 
   describe('deferred rendering (threshold 4K)', () => {

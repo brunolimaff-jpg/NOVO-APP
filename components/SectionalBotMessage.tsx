@@ -504,35 +504,53 @@ const SectionalBotMessageParsed: React.FC<SectionalBotMessageParsedProps> = ({
   }, [message.id, parsedBundle, readyText]);
 
   useEffect(() => {
-    if (!parsedBundle || readyText.length <= CHUNKED_RENDER_CHARS) {
+    if (!parsedBundle) return;
+
+    const totalSections = parsedBundle.sections.length;
+    let cancelled = false;
+    let idleHandle: IdleHandle | null = null;
+
+    const runProgressiveReveal = (startCount: number) => {
+      setRenderedSectionCount(startCount);
+
+      const revealNext = (current: number) => {
+        if (cancelled || current >= totalSections) return;
+        const next = Math.min(current + CHUNKED_SECTIONS_PER_IDLE, totalSections);
+        setRenderedSectionCount(next);
+        if (next < totalSections) {
+          idleHandle = scheduleIdleWork(() => revealNext(next));
+        }
+      };
+
+      if (startCount < totalSections) {
+        idleHandle = scheduleIdleWork(() => revealNext(startCount));
+      }
+    };
+
+    if (isDossierExpanded) {
+      if (totalSections <= TRUNCATION_SECTION_THRESHOLD) {
+        setRenderedSectionCount(totalSections);
+        return;
+      }
+      runProgressiveReveal(TRUNCATION_SECTION_THRESHOLD);
+      return () => {
+        cancelled = true;
+        if (idleHandle !== null) cancelIdleWork(idleHandle);
+      };
+    }
+
+    if (readyText.length <= CHUNKED_RENDER_CHARS) {
       setRenderedSectionCount(Number.MAX_SAFE_INTEGER);
       return;
     }
 
-    let cancelled = false;
-    let idleHandle: IdleHandle | null = null;
-    const totalSections = parsedBundle.sections.length;
-    const initialCount = Math.min(CHUNKED_INITIAL_SECTION_COUNT, totalSections);
-    setRenderedSectionCount(initialCount);
-
-    const revealNext = (current: number) => {
-      if (cancelled || current >= totalSections) return;
-      const next = Math.min(current + CHUNKED_SECTIONS_PER_IDLE, totalSections);
-      setRenderedSectionCount(next);
-      if (next < totalSections) {
-        idleHandle = scheduleIdleWork(() => revealNext(next));
-      }
-    };
-
-    if (initialCount < totalSections) {
-      idleHandle = scheduleIdleWork(() => revealNext(initialCount));
-    }
+    runProgressiveReveal(Math.min(CHUNKED_INITIAL_SECTION_COUNT, totalSections));
 
     return () => {
       cancelled = true;
       if (idleHandle !== null) cancelIdleWork(idleHandle);
     };
-  }, [message.id, parsedBundle, readyText.length]);
+  }, [isDossierExpanded, message.id, parsedBundle, readyText.length]);
 
   useEffect(() => {
     if (!parsedBundle || !teiaTraceEnabled) return;
@@ -595,14 +613,18 @@ const SectionalBotMessageParsed: React.FC<SectionalBotMessageParsedProps> = ({
     }
   };
 
+  const handleExpand = () => {
+    setIsDossierExpanded(true);
+    setRenderedSectionCount(TRUNCATION_SECTION_THRESHOLD);
+  };
+
   const shouldTruncateDossier = sections.length > TRUNCATION_SECTION_THRESHOLD && !isDossierExpanded;
   const maxVisibleByChunk = Math.min(renderedSectionCount, sections.length);
   const maxVisibleByTruncate = shouldTruncateDossier ? TRUNCATION_SECTION_THRESHOLD : sections.length;
   const visibleSections = sections.slice(0, Math.min(maxVisibleByChunk, maxVisibleByTruncate));
   const hiddenSectionCount = sections.length - TRUNCATION_SECTION_THRESHOLD;
   const showCopyButton = displayText.length > 300;
-  const isChunkedRenderPending =
-    readyText.length > CHUNKED_RENDER_CHARS && renderedSectionCount < sections.length && !shouldTruncateDossier;
+  const isChunkedRenderPending = !shouldTruncateDossier && renderedSectionCount < sections.length;
 
   if (sections.length <= 1 && !/^(#{1,3})\s+/m.test(displayText)) {
     return (
@@ -760,7 +782,7 @@ const SectionalBotMessageParsed: React.FC<SectionalBotMessageParsedProps> = ({
 
       {shouldTruncateDossier && (
         <button
-          onClick={() => setIsDossierExpanded(true)}
+          onClick={handleExpand}
           className={`w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl border-2 border-dashed
             font-medium text-sm transition-all duration-200
             ${
