@@ -190,3 +190,22 @@ Re-run Scheffer manual no preview Vercel — critério: sem "Página sem respost
 ---
 
 *Documento gerado em 2026-07-02 — modo documentação, sem alteração de código.*
+---
+
+## Fix v4 (BUG-8) — 2026-07-02
+
+**Commit:** (pendente)  
+**Problema:** Fix v3 (`e8e50a2a`) ainda congelava — diálogo Chrome "Página sem resposta", `domBodyLen` ~432k.
+
+**Causa:** parsing síncrono antes do primeiro yield; `applyDossierLinkIntegrity`/`buildAuditableSources` no `useMemo` do MessageRow; static-fallback proativo montava HTML completo com overlay ainda no DOM.
+
+**Mudanças v4:**
+1. `finalizeWaterfallUI` + `yieldBeforeHandoff` **antes** de `updateSessionById` (purgar LoadingSmart)
+2. Desabilitar `preferStaticForLargeDossier` proativo — Virtuoso + seções incrementais
+3. `shouldApplyProactiveForceStatic` bloqueado enquanto `isLoading`
+4. Parsing com yield **antes** de cada etapa + telemetria `chunked-parse:start|yield|complete`
+5. Escape hatch 3s → markdown bruto sem skeleton eterno
+6. `MessageRow`: auditable sources adiados via `requestIdleCallback` para texto >4K
+
+**Gate:** novo run Scheffer manual no preview Vercel — meta `domBodyLen` <100k, sem diálogo Chrome.
+

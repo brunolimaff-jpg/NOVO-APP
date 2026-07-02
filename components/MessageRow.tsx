@@ -16,6 +16,9 @@ import { applyDossierLinkIntegrity } from '../utils/dossierLinkIntegrity';
 import { coerceGroundingSources, verifiedSourcesToPool } from '../utils/dossierSourcePool';
 import { buildAuditableSources, normalizeSourceUrl, type AuditableSource } from '../utils/textCleaners';
 import { fetchLinkStatuses, type LinkValidationResult } from '../utils/linkValidation';
+import { LARGE_DOSSIER_STATIC_FALLBACK_CHARS } from '../utils/expectedBotContent';
+
+const EMPTY_AUDITABLE_SOURCES_ROW: AuditableSource[] = [];
 
 export interface MessageRowData {
   messages: Message[];
@@ -96,11 +99,50 @@ const MessageRowBody = memo(({ index, msg, data }: MessageRowBodyProps) => {
   const displayScore = isBot ? msg.scorePorta : undefined;
   const groundingSources = useMemo(() => coerceGroundingSources(msg.groundingSources), [msg.groundingSources]);
 
+  const isHeavyBotText = isBot && (msg.text?.length ?? 0) > LARGE_DOSSIER_STATIC_FALLBACK_CHARS;
+  const [deferredAuditableSources, setDeferredAuditableSources] = useState<AuditableSource[] | null>(null);
+
+  useEffect(() => {
+    if (!isHeavyBotText) {
+      setDeferredAuditableSources(null);
+      return;
+    }
+
+    let cancelled = false;
+    let idleHandle: ReturnType<typeof requestIdleCallback> | number | null = null;
+
+    const compute = () => {
+      if (cancelled) return;
+      const pool = verifiedSourcesToPool(groundingSources);
+      const cleaned = applyDossierLinkIntegrity(msg.text || '', { allowedPool: pool });
+      setDeferredAuditableSources(buildAuditableSources(cleaned, groundingSources));
+    };
+
+    if (typeof window !== 'undefined' && typeof window.requestIdleCallback === 'function') {
+      idleHandle = window.requestIdleCallback(compute, { timeout: 2_000 });
+    } else {
+      idleHandle = window.setTimeout(compute, 0);
+    }
+
+    return () => {
+      cancelled = true;
+      if (idleHandle === null) return;
+      if (typeof window !== 'undefined' && typeof window.cancelIdleCallback === 'function') {
+        window.cancelIdleCallback(idleHandle as number);
+      } else {
+        window.clearTimeout(idleHandle as number);
+      }
+    };
+  }, [groundingSources, isHeavyBotText, msg.id, msg.text]);
+
   const auditableSources = useMemo<AuditableSource[]>(() => {
+    if (isHeavyBotText) {
+      return deferredAuditableSources ?? EMPTY_AUDITABLE_SOURCES_ROW;
+    }
     const pool = verifiedSourcesToPool(groundingSources);
     const cleaned = applyDossierLinkIntegrity(msg.text || '', { allowedPool: pool });
     return buildAuditableSources(cleaned, groundingSources);
-  }, [msg.text, groundingSources]);
+  }, [deferredAuditableSources, groundingSources, isHeavyBotText, msg.text]);
 
   const citedInTextSources = useMemo(
     () => auditableSources.filter(source => source.sourceTypes.includes('inline_citation')),

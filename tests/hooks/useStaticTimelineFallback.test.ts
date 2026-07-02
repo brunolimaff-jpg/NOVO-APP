@@ -203,7 +203,7 @@ describe('Efeito #5 — Força proativa para dossiês grandes', () => {
   });
   afterEach(() => vi.useRealTimers());
 
-  it('ativa fallback proativamente quando dossiê atinge ≥4000 chars', async () => {
+  it('BUG-8 v4: NÃO ativa fallback proativo para dossiê ≥4000 chars', async () => {
     const useHook = await loadHook();
     const { rerender } = renderHook(props => useHook(props), {
       initialProps: baseParams({ expectedBotCharsMax: 4000, isLoading: false, showInitialHome: false }),
@@ -216,7 +216,7 @@ describe('Efeito #5 — Força proativa para dossiês grandes', () => {
     });
 
     act(() => vi.advanceTimersByTime(100));
-    expect(result.current.forceStaticTimelineFallback).toBe(true);
+    expect(result.current.forceStaticTimelineFallback).toBe(false);
   });
 
   it('NÃO ativa proativo quando está na home inicial', async () => {
@@ -475,11 +475,10 @@ describe('Valores derivados', () => {
       initialProps: baseParams({ expectedBotCharsMax: 5000, isLoading: false, shouldSuspendVirtualizedList: true }),
     });
 
-    // preferStaticForLargeDossier=true (5000 ≥ 4000, !isLoading, !showInitialHome)
-    // → effectiveStaticTimelineFallback=true
-    // → shouldSuspendVirtualizedListForTimeline = true && !true = false
+    // BUG-8 v4: preferStatic desabilitado → effective=false
+    // → shouldSuspendVirtualizedListForTimeline = true && !false = true
     act(() => vi.advanceTimersByTime(100));
-    expect(result.current.shouldSuspendVirtualizedListForTimeline).toBe(false);
+    expect(result.current.shouldSuspendVirtualizedListForTimeline).toBe(true);
   });
 });
 
@@ -494,7 +493,7 @@ describe('Interações entre efeitos', () => {
   });
   afterEach(() => vi.useRealTimers());
 
-  it('proativo + watchdog não conflitam: proativo ativa primeiro, watchdog não duplica', async () => {
+  it('watchdog ativa fallback reativo quando handoff travado (sem proativo v4)', async () => {
     const { isPostWaterfallStuckHandoff } = await import('../../utils/postWaterfallHandoff');
     vi.mocked(isPostWaterfallStuckHandoff).mockReturnValue(true);
     collectBlankPanelSnapshotMock.mockReturnValue(blankSnapshot());
@@ -504,18 +503,13 @@ describe('Interações entre efeitos', () => {
       initialProps: baseParams({ expectedBotCharsMax: 5000, isLoading: false, showInitialHome: false }),
     });
 
-    // Efeito #5 (proativo) ativa primeiro
+    // BUG-8 v4: proativo desabilitado — force permanece false até watchdog
     act(() => vi.advanceTimersByTime(100));
-    expect(result.current.forceStaticTimelineFallback).toBe(true);
-
-    // Força reset para false
-    act(() => result.current.setForceStaticTimelineFallback(false));
+    expect(result.current.forceStaticTimelineFallback).toBe(false);
 
     // Efeito #6 (watchdog) dispara depois
     act(() => vi.advanceTimersByTime(2000));
     expect(result.current.forceStaticTimelineFallback).toBe(true);
-
-    // Ambos funcionam, sem race condition
   });
 
   it('trocar de sessão cancela todos os timers pendentes', async () => {
@@ -540,7 +534,7 @@ describe('Interações entre efeitos', () => {
     expect(reportBlankPanelIfDetectedMock).toHaveBeenCalled();
   });
 
-  it('fallback proativo ativo impede suspensão do viewport virtualizado', async () => {
+  it('fallback manual ativo impede suspensão do viewport virtualizado', async () => {
     const useHook = await loadHook();
     const { result } = renderHook(props => useHook(props), {
       initialProps: baseParams({
@@ -550,8 +544,7 @@ describe('Interações entre efeitos', () => {
       }),
     });
 
-    // preferStatic ativo → effective=true → shouldSuspendVirtualizedListForTimeline=false
-    act(() => vi.advanceTimersByTime(100));
+    act(() => result.current.setForceStaticTimelineFallback(true));
     expect(result.current.effectiveStaticTimelineFallback).toBe(true);
     expect(result.current.shouldSuspendVirtualizedListForTimeline).toBe(false);
   });
@@ -575,9 +568,9 @@ describe('hasLargeBotMessage — unificação MessageTimeline', () => {
     const useHook = await loadHook();
     const { result } = renderHook(props => useHook(props), { initialProps: baseParams({ expectedBotCharsMax: 5000 }) });
 
-    // expectedBotCharsMax=5000 ≥ 4000 → shouldPreferStaticTimelineForBotVolume=true → preferStatic=true
+    // BUG-8 v4: static proativo desabilitado — Virtuoso + chunked parse
     act(() => vi.advanceTimersByTime(100));
-    expect(result.current.preferStaticForLargeDossier).toBe(true);
+    expect(result.current.preferStaticForLargeDossier).toBe(false);
   });
 
   it('retorna false quando dossiê é pequeno', async () => {

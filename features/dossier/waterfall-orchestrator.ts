@@ -30,7 +30,7 @@ import { storage } from '../../services/storage';
 import { useMaybeChatStore } from '../../stores/chatStore';
 import { type ChatSession, type ClienteSeniorData, Sender, type WebVerificationStatus } from '../../types';
 import { scoutDiag } from '../../utils/diagnosticLog';
-import { finalizeWaterfallUI } from '../../utils/finalizeWaterfallUI';
+import { finalizeWaterfallUI, yieldBeforeHandoff } from '../../utils/finalizeWaterfallUI';
 import { stripPortaMarkers } from '../../utils/porta';
 import { normalizeCnpj } from '../../utils/cnpj';
 import { sanitizeSensitivePersonalData } from '../../utils/privacy';
@@ -1507,6 +1507,23 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
             });
           }
         }
+
+        // BUG-8 v4: purgar overlay/preview ANTES de expor texto final — reduz DOM no handoff.
+        finalizeWaterfallUI({
+          store: {
+            setIsLoading,
+            setLoadingVariant,
+            completeLoadingProgress,
+            setFailureCount,
+            activeGenerationRef,
+          },
+          sessionId,
+          reason: 'waterfall:pre-handoff-purge',
+          waterfallEndStatus: 'pre-handoff',
+          botMsgTextLen: waterfallFinalText.length,
+          log: (area, event, payload) => scoutDiag.info(area, event, payload),
+        });
+        await yieldBeforeHandoff();
 
         const updatedSession = updateSessionById(sessionId, session => applyFinalBotMessage(session));
         if (updatedSession) {

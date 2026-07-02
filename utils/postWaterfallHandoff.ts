@@ -18,7 +18,10 @@ export function shouldApplyProactiveForceStatic(params: {
   expectedBotCharsMax: number;
   showInitialHome: boolean;
   sessionId: string | null | undefined;
+  isLoading?: boolean;
 }): boolean {
+  // BUG-8 v4: não ativar static-fallback proativo durante waterfall/preview.
+  if (params.isLoading) return false;
   return (
     Boolean(params.sessionId) &&
     !params.showInitialHome &&

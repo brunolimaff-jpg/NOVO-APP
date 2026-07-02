@@ -87,15 +87,10 @@ export function useStaticTimelineFallback(params: UseStaticTimelineFallbackParam
   const panelSnapshotSignatureRef = useRef('');
   const renderingModeLocked = useRef(false);
 
-  const proactiveForceStatic = shouldApplyProactiveForceStatic({
-    expectedBotCharsMax,
-    showInitialHome,
-    sessionId: currentSession?.id,
-  });
-  const preferStaticForLargeDossier =
-    !showInitialHome &&
-    !shouldSuspendVirtualizedList &&
-    shouldPreferStaticTimelineForBotVolume(expectedBotCharsMax);
+  // BUG-8 v4: Virtuoso + SectionalBotMessage chunked — static proativo inflava DOM (~432k).
+  // Watchdog/blank-panel ainda pode forçar fallback reativo via setForceStaticTimelineFallback.
+  const preferStaticForLargeDossier = false;
+  const proactiveForceStatic = false;
   if (!shouldSuspendVirtualizedList && shouldPreferStaticTimelineForBotVolume(expectedBotCharsMax)) {
     renderingModeLocked.current = true;
   }

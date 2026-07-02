@@ -269,6 +269,7 @@ const HEAVY_MARKDOWN_CHARS = 4_000;
 const CHUNKED_RENDER_CHARS = 20_000;
 const CHUNKED_SECTIONS_PER_IDLE = 1;
 const CHUNKED_INITIAL_SECTION_COUNT = 1;
+const PARSE_ESCAPE_HATCH_MS = 3_000;
 
 type IdleHandle = number;
 
@@ -334,25 +335,62 @@ function computeParsedMessageBundle(
 }
 
 
+function createRawEscapeBundle(rawText: string): ParsedMessageBundle {
+  return {
+    cleanText: rawText,
+    parsedOptions: [],
+    displayText: rawText,
+    sections: [
+      {
+        key: 'raw-escape',
+        title: 'Dossiê',
+        content: rawText,
+        level: 1,
+        kind: 'module',
+      },
+    ],
+    sectionSourcesMap: [[]],
+    parsedTeiaData: { companies: [], warnings: [] },
+    societaryMapSectionIndex: -1,
+  };
+}
+
 async function computeParsedMessageBundleChunked(
   rawText: string,
   auditableSources: AuditableSource[],
   cnpj?: string | null,
 ): Promise<ParsedMessageBundle> {
-  const { cleanText, options: parsedOptions } = parseSmartOptions(rawText);
-  const displayText = stripUnsafeSocietarySections(cleanText);
-  const sections = parseMarkdownSections(displayText);
+  const textLen = rawText.length;
+  scoutDiag.info('SectionalBotMessage', 'chunked-parse:start', { textLen });
 
   await yieldToMain();
 
-  const sectionSourcesMap = sections.map(section => filterSourcesForSection(auditableSources, section.content));
+  const { cleanText, options: parsedOptions } = parseSmartOptions(rawText);
+  scoutDiag.info('SectionalBotMessage', 'chunked-parse:yield', { stage: 'smartOptions', textLen });
+  await yieldToMain();
 
+  const displayText = stripUnsafeSocietarySections(cleanText);
+  scoutDiag.info('SectionalBotMessage', 'chunked-parse:yield', { stage: 'stripUnsafe', textLen });
+  await yieldToMain();
+
+  const sections = parseMarkdownSections(displayText);
+  scoutDiag.info('SectionalBotMessage', 'chunked-parse:yield', { stage: 'markdownSections', sectionCount: sections.length });
+  await yieldToMain();
+
+  const sectionSourcesMap = sections.map(section => filterSourcesForSection(auditableSources, section.content));
+  scoutDiag.info('SectionalBotMessage', 'chunked-parse:yield', { stage: 'sectionSources', textLen });
   await yieldToMain();
 
   const parsedTeiaData = parseTeiaText(cleanText);
   const societaryMapSectionIndex = sections.findIndex(section =>
     shouldShowSocietaryMap(section.title, section.content, cnpj),
   );
+
+  scoutDiag.info('SectionalBotMessage', 'chunked-parse:complete', {
+    textLen,
+    sectionCount: sections.length,
+    societaryMapSectionIndex,
+  });
 
   return {
     cleanText,
@@ -446,6 +484,24 @@ const SectionalBotMessageParsed: React.FC<SectionalBotMessageParsedProps> = ({
       if (idleHandle !== null) cancelIdleWork(idleHandle);
     };
   }, [cnpj, message.id, readyText]); // auditableSources: intentionally omitted to avoid [] default loop
+
+  useEffect(() => {
+    if (readyText.length <= HEAVY_MARKDOWN_CHARS || parsedBundle) return;
+
+    const timer = window.setTimeout(() => {
+      setParsedBundle(prev => {
+        if (prev) return prev;
+        scoutDiag.warn('SectionalBotMessage', 'chunked-parse:escape-hatch', {
+          messageId: message.id,
+          textLen: readyText.length,
+          timeoutMs: PARSE_ESCAPE_HATCH_MS,
+        });
+        return createRawEscapeBundle(readyText);
+      });
+    }, PARSE_ESCAPE_HATCH_MS);
+
+    return () => window.clearTimeout(timer);
+  }, [message.id, parsedBundle, readyText]);
 
   useEffect(() => {
     if (!parsedBundle || readyText.length <= CHUNKED_RENDER_CHARS) {

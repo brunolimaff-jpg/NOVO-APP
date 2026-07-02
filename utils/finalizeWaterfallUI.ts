@@ -28,6 +28,18 @@ export interface FinalizeWaterfallUIParams {
   log?: (area: string, event: string, payload: Record<string, unknown>) => void;
 }
 
+
+/** Yield duplo rAF para React desmontar overlay antes do handoff pesado. */
+export function yieldBeforeHandoff(): Promise<void> {
+  return new Promise(resolve => {
+    if (typeof requestAnimationFrame === 'function') {
+      requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+      return;
+    }
+    setTimeout(resolve, 0);
+  });
+}
+
 export function finalizeWaterfallUI(params: FinalizeWaterfallUIParams): void {
   const { store, sessionId, reason, waterfallEndStatus, botMsgTextLen, log } = params;
 

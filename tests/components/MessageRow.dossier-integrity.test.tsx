@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import MessageRow from '../../components/MessageRow';
 import { Sender, type Message } from '../../types';
@@ -41,7 +41,7 @@ function makeData(messages: Message[]) {
 }
 
 describe('MessageRow dossier link integrity', () => {
-  it('renderiza dossiê grande com rodapé ## 📚 Fontes sem tela vazia', () => {
+  it('renderiza dossiê grande com rodapé ## 📚 Fontes sem tela vazia', async () => {
     const body =
       '# DOSSIÊ SCHEFFER\n\n' +
       '[Relatório](https://example.com/a)\n\n'.repeat(400) +
@@ -61,7 +61,12 @@ describe('MessageRow dossier link integrity', () => {
 
     const { container } = render(<MessageRow index={0} data={makeData([msg])} />);
 
-    expect(container.textContent).toMatch(/DOSSIÊ SCHEFFER/i);
+    await waitFor(
+      () => {
+        expect(container.textContent).toMatch(/DOSSIÊ SCHEFFER/i);
+      },
+      { timeout: 5_000 },
+    );
     expect(sources.length).toBeGreaterThan(0);
   });
 
