@@ -784,20 +784,8 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
           }, 0);
         }
 
-        // Persistir antes do render pesado — evita perda de sessão se main thread bloquear.
-        if (!isAbort && isMegaPrompt) {
-          const session = sessionsRef.current.find(item => item.id === sessionId);
-          if (session) {
-            try {
-              await storage.saveDossier(session);
-            } catch (error) {
-              scoutDiag.warn('MessageOrchestrator', 'saveDossier antes do render falhou', {
-                sessionId,
-                error: error instanceof Error ? error.message : String(error),
-              });
-            }
-          }
-        }
+        // saveDossier: ponto único no waterfall-orchestrator (await antes de updateSessionById).
+        // useSessionStorage debounce permanece como safety net.
 
         // Dispara React render DEPOIS de agendar o setTimeout.
         // O timer já está na macrotask queue — dispara assim que

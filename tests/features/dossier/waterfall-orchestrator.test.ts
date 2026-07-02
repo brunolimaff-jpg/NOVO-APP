@@ -76,7 +76,16 @@ vi.mock('../../../features/dossier/porta-reconciliation', () => ({
   ensureWaterfallScorePorta: ensureWaterfallScorePortaMock,
 }));
 
-const maybeChatStoreRef = vi.hoisted(() => ({ current: undefined as Record<string, unknown> | undefined }));
+const maybeChatStoreRef = vi.hoisted(() => ({
+  current: undefined as
+    | {
+        sessionsRef?: { current: ChatSession[] };
+        setSessions?: (updater: (prev: ChatSession[]) => ChatSession[]) => void;
+        setIsLoading?: (value: boolean) => void;
+        setLoadingVariant?: (variant: 'hero' | 'inline' | undefined) => void;
+      }
+    | undefined,
+}));
 
 vi.mock('../../../stores/chatStore', () => ({
   useMaybeChatStore: () => maybeChatStoreRef.current,
@@ -257,6 +266,9 @@ function makeHarness(
     state.sessions = state.sessions.map(session =>
       session.id === sessionId ? (updatedSession = { ...updater(session), updatedAt: FIXED_TEST_TIMESTAMP }) : session,
     );
+    if (maybeChatStoreRef.current?.sessionsRef) {
+      maybeChatStoreRef.current.sessionsRef.current = state.sessions;
+    }
     return updatedSession;
   });
 
@@ -267,6 +279,12 @@ function makeHarness(
   const setFailureCount = vi.fn((next: StateUpdater<number>) => {
     state.failureCount = applyStateUpdate(state.failureCount, next);
   });
+
+  const priorChatStore = maybeChatStoreRef.current ?? {};
+  maybeChatStoreRef.current = {
+    ...priorChatStore,
+    sessionsRef: priorChatStore.sessionsRef ?? { current: state.sessions },
+  };
 
   const rendered = renderHook(() =>
     useDossierWaterfallOrchestrator({
@@ -876,6 +894,7 @@ describe('useDossierWaterfallOrchestrator', () => {
     expect(runDossierBenchmarkStageMock).not.toHaveBeenCalled();
     expect(reconcileWaterfallPortaMock).not.toHaveBeenCalled();
     expect(harness.updateSessionById).not.toHaveBeenCalled();
+    expect(saveDossierMock).not.toHaveBeenCalled();
     expect(harness.completeLoadingProgress).not.toHaveBeenCalled();
   });
 
@@ -990,7 +1009,7 @@ describe('useDossierWaterfallOrchestrator', () => {
 
   // ── Testes do fallback de recuperação de sessão ──
 
-  it('recupera sessão pelo sessionsRef quando updateSessionById perde a sessão (Cenário A)', async () => {
+  it('persiste via sessionsRef antes de updateSessionById quando callback falha (Cenário A)', async () => {
     const score = makeScorePorta(72);
     reconcileWaterfallPortaMock.mockResolvedValue({
       accumulatedText: ['Dossiê consolidado da Acme Agro. [[PORTA:72:P7:O7:R6:T8:A6:PRD:NONE]]'].join('\n\n'),
@@ -1025,25 +1044,20 @@ describe('useDossierWaterfallOrchestrator', () => {
       await harness.result.current.runMegaPromptWaterfall(makeRunArgs());
     });
 
-    expect(consoleErrorSpy).toHaveBeenCalledWith(expect.stringContaining('sessionToPersist VAZIO'), expect.any(String));
-
-    expect(setSessionsSpy).toHaveBeenCalled();
-    const updaterFn = setSessionsSpy.mock.calls[0][0];
-    const result = updaterFn([]);
-    expect(result).toHaveLength(1);
-    expect(result[0].id).toBe('session-1');
-    expect(result[0].updatedAt).toBeDefined();
-
-    const recoveredMsg = result[0].messages.find((m: Message) => m.id === 'bot-1');
-    expect(recoveredMsg).toBeDefined();
-    expect(recoveredMsg!.isThinking).toBe(false);
-    expect(recoveredMsg!.text).toBeTruthy();
-
     expect(scoutDiagMock.info).toHaveBeenCalledWith(
       'WaterfallLifecycle',
-      'session-recovered-via-ref',
+      'pre-save-dossier',
       expect.objectContaining({ sessionId: 'session-1' }),
     );
+    expect(saveDossierMock).toHaveBeenCalled();
+    const savedSession = saveDossierMock.mock.calls[0][0] as ChatSession;
+    const savedBot = savedSession.messages.find((m: Message) => m.id === 'bot-1');
+    expect(savedBot?.isThinking).toBe(false);
+    expect(savedBot?.text).toBeTruthy();
+    expect(harness.updateSessionById).toHaveBeenCalled();
+    const saveOrder = saveDossierMock.mock.invocationCallOrder[0];
+    const updateOrder = harness.updateSessionById.mock.invocationCallOrder[0];
+    expect(saveOrder).toBeLessThan(updateOrder);
 
     consoleErrorSpy.mockRestore();
     maybeChatStoreRef.current = undefined;

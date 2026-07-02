@@ -1441,11 +1441,13 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
 
         sessionToPersist = null;
         let originalMsgCount = -1;
-        const updatedSession = updateSessionById(sessionId, session => {
+
+        const applyFinalBotMessage = (session: ChatSession): ChatSession => {
           originalMsgCount = session.messages?.length ?? 0;
           const finalCompany = normalizedCompany || session.empresaAlvo || pickCompanyLabel(session.title);
-          const nextSession: ChatSession = {
+          return {
             ...session,
+            updatedAt: new Date().toISOString(),
             empresaAlvo: finalCompany || session.empresaAlvo,
             scoreOportunidade: waterfallScorePorta?.score ?? session.scoreOportunidade,
             messages: session.messages.map(message =>
@@ -1470,9 +1472,43 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
                 : message,
             ),
           };
-          sessionToPersist = nextSession;
-          return nextSession;
-        });
+        };
+
+        const sessionsSnapshotBeforePersist = chatStore?.sessionsRef?.current ?? [];
+        const baseSessionForPersist = sessionsSnapshotBeforePersist.find((s: ChatSession) => s.id === sessionId);
+        if (baseSessionForPersist) {
+          sessionToPersist = applyFinalBotMessage(baseSessionForPersist);
+        }
+
+        // BUG-7 v2: persistir ANTES de expor ~40k chars ao React state.
+        if (sessionToPersist) {
+          const dossier = sessionToPersist as ChatSession;
+          scoutDiag.info('WaterfallLifecycle', 'pre-save-dossier', { sessionId, waterfallRunId });
+          try {
+            await storage.saveDossier(dossier);
+            window.dispatchEvent(
+              new CustomEvent('dossier:completed', {
+                detail: {
+                  dossierId: dossier.id,
+                  companyName: resolvedMegaCompany || normalizedCompany || '',
+                  cnpj: dossier.cnpj,
+                },
+              }),
+            );
+          } catch (error) {
+            scoutDiag.warn('ModularDossier', 'falha ao persistir dossiê final; mantendo sessão em memória', {
+              sessionId,
+              company: resolvedMegaCompany || normalizedCompany || null,
+              error: error instanceof Error ? error.message : String(error),
+            });
+            scoutDiag.warn('WaterfallLifecycle', 'dossier-completed-event-not-dispatched', {
+              sessionId,
+              reason: error instanceof Error ? error.message : String(error),
+            });
+          }
+        }
+
+        const updatedSession = updateSessionById(sessionId, session => applyFinalBotMessage(session));
         if (updatedSession) {
           sessionToPersist = updatedSession;
         }
@@ -1611,35 +1647,6 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
                 allSessionIds: sessionsSnapshot.map((s: ChatSession) => s.id),
               }),
             );
-          }
-        }
-
-        // Persistir no Supabase ANTES do retorno — garante sessão no Supabase
-        // antes de setIsLoading(false) disparar render pesado no message-orchestrator.
-        if (sessionToPersist) {
-          const dossier = sessionToPersist as ChatSession;
-          scoutDiag.info('WaterfallLifecycle', 'pre-save-dossier', { sessionId, waterfallRunId });
-          try {
-            await storage.saveDossier(dossier);
-            window.dispatchEvent(
-              new CustomEvent('dossier:completed', {
-                detail: {
-                  dossierId: dossier.id,
-                  companyName: resolvedMegaCompany || normalizedCompany || '',
-                  cnpj: dossier.cnpj,
-                },
-              }),
-            );
-          } catch (error) {
-            scoutDiag.warn('ModularDossier', 'falha ao persistir dossiê final; mantendo sessão em memória', {
-              sessionId,
-              company: resolvedMegaCompany || normalizedCompany || null,
-              error: error instanceof Error ? error.message : String(error),
-            });
-            scoutDiag.warn('WaterfallLifecycle', 'dossier-completed-event-not-dispatched', {
-              sessionId,
-              reason: error instanceof Error ? error.message : String(error),
-            });
           }
         }
 

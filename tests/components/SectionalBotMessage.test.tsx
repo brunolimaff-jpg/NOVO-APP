@@ -412,14 +412,14 @@ describe('SectionalBotMessage', () => {
     expect(getByRole('button', { name: /Ver relatório completo/ })).toBeInTheDocument();
   });
 
-  describe('deferred rendering (threshold 15K)', () => {
+  describe('deferred rendering (threshold 4K)', () => {
     const makeLargeText = (targetChars: number) => {
       const line = 'Linha de conteúdo markdown para teste de deferred rendering com dossiê grande.\n';
       const needed = Math.ceil(targetChars / line.length);
       return '# 🦅 DOSSIÊ SCOUT 360\n\n' + Array(needed).fill(line).join('');
     };
 
-    it('renderiza sem crash com texto menor que o threshold (15K)', () => {
+    it('renderiza sem crash com texto menor que o threshold (4K)', () => {
       const message: Message = {
         id: 'bot-small',
         sender: Sender.Bot,
@@ -433,7 +433,7 @@ describe('SectionalBotMessage', () => {
       expect(screen.getByText(/Conteúdo curto/)).toBeInTheDocument();
     });
 
-    it('renderiza sem crash com texto >15K (caminho deferred ou render direto)', () => {
+    it('renderiza sem crash com texto >4K (caminho deferred ou render direto)', () => {
       const largeText = makeLargeText(20_000);
       const message: Message = {
         id: 'bot-large',
@@ -458,18 +458,18 @@ describe('SectionalBotMessage', () => {
       }
     });
 
-    it('boundary: exatamente 15K chars não ativa deferred (> obrigatório)', () => {
-      const exact15k = makeLargeText(15_000);
+    it('boundary: exatamente 4K chars não ativa deferred (> obrigatório)', () => {
+      const exact4k = '# Intro\n' + 'a'.repeat(3_992); // exatamente 4000 chars
       const message: Message = {
         id: 'bot-boundary',
         sender: Sender.Bot,
         timestamp: new Date(),
-        text: exact15k,
+        text: exact4k,
       };
 
       render(<SectionalBotMessage message={message} isDarkMode={false} />);
 
-      // 15.000 não é > 15.000 → deferred NÃO deve ativar
+      // 4.000 não é > 4.000 → deferred NÃO deve ativar
       const deferredEl = screen.queryByTestId('bot-message-content');
       expect(deferredEl?.getAttribute('data-deferred')).not.toBe('true');
     });

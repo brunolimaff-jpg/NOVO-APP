@@ -87,16 +87,20 @@ export function useStaticTimelineFallback(params: UseStaticTimelineFallbackParam
   const panelSnapshotSignatureRef = useRef('');
   const renderingModeLocked = useRef(false);
 
+  const proactiveForceStatic = shouldApplyProactiveForceStatic({
+    expectedBotCharsMax,
+    showInitialHome,
+    sessionId: currentSession?.id,
+  });
   const preferStaticForLargeDossier =
-    !isLoading &&
     !showInitialHome &&
     !shouldSuspendVirtualizedList &&
-    !renderingModeLocked.current &&
     shouldPreferStaticTimelineForBotVolume(expectedBotCharsMax);
-  if (!isLoading && !shouldSuspendVirtualizedList && !renderingModeLocked.current) {
+  if (!shouldSuspendVirtualizedList && shouldPreferStaticTimelineForBotVolume(expectedBotCharsMax)) {
     renderingModeLocked.current = true;
   }
-  const effectiveStaticTimelineFallback = forceStaticTimelineFallback || preferStaticForLargeDossier;
+  const effectiveStaticTimelineFallback =
+    forceStaticTimelineFallback || preferStaticForLargeDossier || proactiveForceStatic;
   const shouldSuspendVirtualizedListForTimeline = shouldSuspendVirtualizedList && !effectiveStaticTimelineFallback;
 
   // ── Efeito #2: Panel snapshot telemetry ──
@@ -217,36 +221,28 @@ export function useStaticTimelineFallback(params: UseStaticTimelineFallbackParam
     }
   }, [expectedBotCharsMax, isLoading]);
 
-  // ── Efeito #5: Força proativa para dossiês grandes ──
+  // ── Efeito #5: Handoff estático proativo (R3 — sync via proactiveForceStatic + state) ──
   useEffect(() => {
-    if (isLoading) return;
-    if (
-      !shouldApplyProactiveForceStatic({
-        expectedBotCharsMax,
-        showInitialHome,
-        sessionId: currentSession?.id,
-      })
-    ) {
-      return;
-    }
-
+    if (!proactiveForceStatic || !currentSession?.id) return;
     setForceStaticTimelineFallback(true);
-    staticTimelineFallbackSessionRef.current = currentSession!.id;
+    if (staticTimelineFallbackSessionRef.current === currentSession.id) return;
+    staticTimelineFallbackSessionRef.current = currentSession.id;
     scoutDiag.info('ChatInterface', 'proactive-static-fallback-large-dossier', {
-      sessionId: currentSession!.id,
+      sessionId: currentSession.id,
       expectedBotCharsMax,
       threshold: 4_000,
       syncOnRender: true,
       preferStaticForLargeDossier,
       shouldSuspendVirtualizedList,
+      isLoading,
     });
   }, [
     currentSession?.id,
     expectedBotCharsMax,
     isLoading,
     preferStaticForLargeDossier,
+    proactiveForceStatic,
     shouldSuspendVirtualizedList,
-    showInitialHome,
   ]);
 
   // ── Efeito #6: Watchdog pós-waterfall ──
