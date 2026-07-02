@@ -23,21 +23,36 @@ export async function braveSearch(query: string, count = 5): Promise<BraveSearch
       signal: AbortSignal.timeout(8000),
     });
 
+    scoutDiag.info('BraveSearch', 'response', {
+      query: query.slice(0, 80),
+      status: response.status,
+      ok: response.ok,
+    });
+
     if (!response.ok) {
-      scoutDiag.warn('BraveSearch', `HTTP ${response.status}`, { query });
+      scoutDiag.warn('BraveSearch', `HTTP ${response.status}`, { query: query.slice(0, 80) });
       return [];
     }
 
     const data = (await response.json()) as {
       web?: { results?: Array<{ title?: string; url?: string; description?: string }> };
     };
-    return (data.web?.results || [])
+    const results = (data.web?.results || [])
       .filter(r => r.url)
       .map(r => ({
         url: r.url!,
         title: r.title || r.url!,
         snippet: r.description || '',
       }));
+
+    scoutDiag.info('BraveSearch', 'parsed', {
+      query: query.slice(0, 80),
+      count: results.length,
+      hasWeb: Boolean(data.web),
+      hasResults: Boolean(data.web?.results),
+    });
+
+    return results;
   } catch (e) {
     scoutDiag.warn('BraveSearch', 'erro', { query, error: String(e).slice(0, 200) });
     return [];

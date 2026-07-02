@@ -48,8 +48,17 @@ async function performResilientSearch(query: string): Promise<{
   const providerStatus: ProviderStatus[] = [];
 
   // Brave como primário (JSON estruturado, server-side)
+  const queryPreview = query.slice(0, 80);
+  scoutDiag.info('OpenWebSearch', 'collector:brave_start', { query: queryPreview });
+
   try {
     const braveResults = await braveSearch(query);
+    scoutDiag.info('OpenWebSearch', 'collector:brave_result', {
+      query: queryPreview,
+      braveCount: braveResults.length,
+      willFallback: braveResults.length === 0,
+    });
+
     if (braveResults.length > 0) {
       providerStatus.push({ provider: 'duckduckgo', ok: true });
       const content = braveResults.map(r => `Título: ${r.title}\nURL: ${r.url}\nResumo: ${r.snippet}\n---`).join('\n');
@@ -60,6 +69,11 @@ async function performResilientSearch(query: string): Promise<{
         providerStatus,
       };
     }
+
+    scoutDiag.warn('OpenWebSearch', 'collector:brave_empty_fallback', {
+      query: queryPreview,
+      braveCount: 0,
+    });
   } catch (e) {
     scoutDiag.warn('OpenWebSearch', 'Brave falhou, fallback para DDG', { error: String(e).slice(0, 200) });
   }

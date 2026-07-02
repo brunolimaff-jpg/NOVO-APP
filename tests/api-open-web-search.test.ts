@@ -45,8 +45,51 @@ describe('api/open-web-search', () => {
     vi.spyOn(globalThis, 'fetch').mockReset();
   });
 
-  it('usa DuckDuckGo mesmo quando BRAVE_SEARCH_API_KEY está configurada', async () => {
+  it('usa Brave quando retorna resultados com BRAVE_SEARCH_API_KEY configurada', async () => {
     process.env.BRAVE_SEARCH_API_KEY = 'brave-key';
+    vi.mocked(fetch).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        web: {
+          results: [
+            {
+              title: 'Grupo Piccini abre usina',
+              url: 'https://example.com/piccini-usina',
+              description: 'Investimento em etanol de milho.',
+            },
+          ],
+        },
+      }),
+    } as Response);
+
+    const { default: handler } = await import('../api/open-web-search');
+    const response = makeResponse();
+
+    await handler(
+      {
+        method: 'POST',
+        body: { query: 'Grupo Piccini RRP Energia Tapurah' },
+      } as VercelRequest,
+      response.res,
+    );
+
+    expect(response.statusCode).toBe(200);
+    expect(response.payload).toMatchObject({
+      content: expect.stringContaining('Grupo Piccini abre usina'),
+      source: 'Brave',
+      degraded: false,
+      providerStatus: [{ provider: 'duckduckgo', ok: true }],
+    });
+    expect(fetch).toHaveBeenCalled();
+    expect(performWebSearchMock).not.toHaveBeenCalled();
+  });
+
+  it('cai em DuckDuckGo quando Brave retorna vazio com BRAVE_SEARCH_API_KEY configurada', async () => {
+    process.env.BRAVE_SEARCH_API_KEY = 'brave-key';
+    vi.mocked(fetch).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ web: { results: [] } }),
+    } as Response);
     performWebSearchMock.mockResolvedValueOnce(
       'Título: Grupo Piccini abre usina\nURL: https://example.com/piccini-usina\nResumo: Investimento em etanol de milho.\n---',
     );
@@ -70,7 +113,7 @@ describe('api/open-web-search', () => {
       sources: [],
       providerStatus: [{ provider: 'duckduckgo', ok: true }],
     });
-    expect(fetch).not.toHaveBeenCalled();
+    expect(fetch).toHaveBeenCalled();
     expect(performWebSearchMock).toHaveBeenCalledWith('Grupo Piccini RRP Energia Tapurah');
   });
 
