@@ -1,6 +1,5 @@
-import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
+import React, { Suspense, useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { Message } from '../types';
-import MarkdownRenderer from './MarkdownRenderer';
 import { getSellerSectionKind, parseMarkdownSections, type ParsedSection, type SellerSectionKind } from '../utils/sectionParser';
 import { ChatMode } from '../constants';
 import SmartOptions, { parseSmartOptions } from './SmartOptions';
@@ -9,6 +8,11 @@ import { FeedbackSection } from './FeedbackSection';
 import SocietaryMap from '../features/dossier/SocietaryMap';
 import { parseTeiaText, type ParsedTeiaData } from '../features/dossier/teiaTextParser';
 import { createScoutTraceId, isScoutTraceEnabled, scoutDiag } from '../utils/diagnosticLog';
+import MarkdownRenderer from './MarkdownRenderer';
+
+const LazyMarkdownRenderer = import.meta.env.VITEST
+  ? MarkdownRenderer
+  : React.lazy(() => import('./MarkdownRenderer'));
 
 const EMPTY_AUDITABLE_SOURCES: AuditableSource[] = [];
 
@@ -263,7 +267,8 @@ function stripUnsafeSocietarySections(markdown: string): string {
 const TRUNCATION_SECTION_THRESHOLD = 3;
 const HEAVY_MARKDOWN_CHARS = 4_000;
 const CHUNKED_RENDER_CHARS = 20_000;
-const CHUNKED_SECTIONS_PER_IDLE = 2;
+const CHUNKED_SECTIONS_PER_IDLE = 1;
+const CHUNKED_INITIAL_SECTION_COUNT = 1;
 
 type IdleHandle = number;
 
@@ -281,6 +286,16 @@ function cancelIdleWork(handle: IdleHandle): void {
     return;
   }
   window.clearTimeout(handle);
+}
+
+function yieldToMain(): Promise<void> {
+  return new Promise(resolve => {
+    if (typeof window !== 'undefined' && typeof window.requestIdleCallback === 'function') {
+      window.requestIdleCallback(() => resolve(), { timeout: 50 });
+      return;
+    }
+    setTimeout(resolve, 0);
+  });
 }
 
 interface ParsedMessageBundle {
@@ -318,6 +333,46 @@ function computeParsedMessageBundle(
   };
 }
 
+
+async function computeParsedMessageBundleChunked(
+  rawText: string,
+  auditableSources: AuditableSource[],
+  cnpj?: string | null,
+): Promise<ParsedMessageBundle> {
+  const { cleanText, options: parsedOptions } = parseSmartOptions(rawText);
+  const displayText = stripUnsafeSocietarySections(cleanText);
+  const sections = parseMarkdownSections(displayText);
+
+  await yieldToMain();
+
+  const sectionSourcesMap = sections.map(section => filterSourcesForSection(auditableSources, section.content));
+
+  await yieldToMain();
+
+  const parsedTeiaData = parseTeiaText(cleanText);
+  const societaryMapSectionIndex = sections.findIndex(section =>
+    shouldShowSocietaryMap(section.title, section.content, cnpj),
+  );
+
+  return {
+    cleanText,
+    parsedOptions,
+    displayText,
+    sections,
+    sectionSourcesMap,
+    parsedTeiaData,
+    societaryMapSectionIndex,
+  };
+}
+
+const SectionSkeleton: React.FC = () => (
+  <div data-testid="section-skeleton" className="animate-pulse space-y-2 py-2">
+    <div className="h-3 bg-slate-200 dark:bg-slate-700 rounded w-3/4" />
+    <div className="h-3 bg-slate-200 dark:bg-slate-800 rounded w-full" />
+    <div className="h-3 bg-slate-200 dark:bg-slate-800 rounded w-5/6" />
+  </div>
+);
+
 const DeferredMessageSkeleton: React.FC = () => (
   <div data-testid="bot-message-content" data-deferred="true" className="flex min-w-0 flex-col gap-3 p-4">
     <div className="animate-pulse space-y-3">
@@ -354,7 +409,7 @@ const SectionalBotMessageParsed: React.FC<SectionalBotMessageParsedProps> = ({
       : null,
   );
   const [renderedSectionCount, setRenderedSectionCount] = useState(() =>
-    readyText.length > CHUNKED_RENDER_CHARS ? TRUNCATION_SECTION_THRESHOLD : Number.MAX_SAFE_INTEGER,
+    readyText.length > CHUNKED_RENDER_CHARS ? CHUNKED_INITIAL_SECTION_COUNT : Number.MAX_SAFE_INTEGER,
   );
   const [isDossierExpanded, setIsDossierExpanded] = useState(false);
 
@@ -377,10 +432,14 @@ const SectionalBotMessageParsed: React.FC<SectionalBotMessageParsedProps> = ({
     }
 
     setParsedBundle(null);
-    idleHandle = scheduleIdleWork(() => {
-      if (cancelled) return;
-      setParsedBundle(computeParsedMessageBundle(readyText, auditableSources, cnpj));
-    });
+    void computeParsedMessageBundleChunked(readyText, auditableSources, cnpj)
+      .then(bundle => {
+        if (!cancelled) setParsedBundle(bundle);
+      })
+      .catch(err => {
+        console.error('SectionalBotMessage: chunked parse failed, fallback sync', err);
+        if (!cancelled) setParsedBundle(computeParsedMessageBundle(readyText, auditableSources, cnpj));
+      });
 
     return () => {
       cancelled = true;
@@ -397,7 +456,7 @@ const SectionalBotMessageParsed: React.FC<SectionalBotMessageParsedProps> = ({
     let cancelled = false;
     let idleHandle: IdleHandle | null = null;
     const totalSections = parsedBundle.sections.length;
-    const initialCount = Math.min(TRUNCATION_SECTION_THRESHOLD, totalSections);
+    const initialCount = Math.min(CHUNKED_INITIAL_SECTION_COUNT, totalSections);
     setRenderedSectionCount(initialCount);
 
     const revealNext = (current: number) => {
@@ -497,12 +556,14 @@ const SectionalBotMessageParsed: React.FC<SectionalBotMessageParsedProps> = ({
             <CopyButton text={displayText} isDarkMode={isDarkMode} />
           </div>
         )}
-        <MarkdownRenderer
-          content={displayText}
-          isDarkMode={isDarkMode}
-          groundingSources={message.groundingSources}
-          auditableSources={auditableSources}
-        />
+        <Suspense fallback={<SectionSkeleton />}>
+          <LazyMarkdownRenderer
+            content={displayText}
+            isDarkMode={isDarkMode}
+            groundingSources={message.groundingSources}
+            auditableSources={auditableSources}
+          />
+        </Suspense>
         {processedOptions.length > 0 && onPreFillInput && !hideSuggestions && (
           <SmartOptions
             options={processedOptions}
@@ -597,24 +658,26 @@ const SectionalBotMessageParsed: React.FC<SectionalBotMessageParsedProps> = ({
                   traceEnabled={teiaTraceEnabled}
                 />
               ) : null}
-              <MarkdownRenderer
-                content={(() => {
-                  const raw =
-                    section.key === 'intro'
-                      ? section.content
-                      : `${'#'.repeat(section.level)} ${section.title}\n\n${section.content}`;
-                  if (idx === societaryMapSectionIndex) {
-                    return stripSocietaryMapDuplicates(stripTabelaMestreCnpjs(raw));
-                  }
-                  if (societaryMapSectionIndex >= 0 && shouldShowSocietaryMap(section.title, section.content, cnpj)) {
-                    return stripSocietaryMapDuplicates(raw);
-                  }
-                  return raw;
-                })()}
-                isDarkMode={isDarkMode}
-                groundingSources={message.groundingSources}
-                auditableSources={sectionSources}
-              />
+              <Suspense fallback={<SectionSkeleton />}>
+                <LazyMarkdownRenderer
+                  content={(() => {
+                    const raw =
+                      section.key === 'intro'
+                        ? section.content
+                        : `${'#'.repeat(section.level)} ${section.title}\n\n${section.content}`;
+                    if (idx === societaryMapSectionIndex) {
+                      return stripSocietaryMapDuplicates(stripTabelaMestreCnpjs(raw));
+                    }
+                    if (societaryMapSectionIndex >= 0 && shouldShowSocietaryMap(section.title, section.content, cnpj)) {
+                      return stripSocietaryMapDuplicates(raw);
+                    }
+                    return raw;
+                  })()}
+                  isDarkMode={isDarkMode}
+                  groundingSources={message.groundingSources}
+                  auditableSources={sectionSources}
+                />
+              </Suspense>
               {sessionId && shouldShowSectionFeedback(section.title) && (
                 <FeedbackSection
                   sectionKey={section.key}

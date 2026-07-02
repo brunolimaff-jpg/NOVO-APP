@@ -124,6 +124,36 @@ Merge da PR #409 **somente** após gate Scheffer verde + palavra **MERGE** expl�
 
 ---
 
+## BUG-8 — Freeze Chrome pós-persistência (fix v3)
+
+**Data:** 2026-07-03  
+**Relacionado:** [relatorio-rastreio-scheffer-pr409-2026-07-03.md](./relatorio-rastreio-scheffer-pr409-2026-07-03.md)
+
+### Sintoma
+
+Após fix v2 (`252b240d`), persistência e `post-render-fired` OK, mas operador ainda vê diálogo Chrome **"Página sem resposta"** (`domBodyLen` ~369k).
+
+### Causa confirmada (SectionalBotMessage)
+
+| # | Problema | Evidência |
+| - | -------- | --------- |
+| 1 | `computeParsedMessageBundle` rodava **síncrono** dentro de `scheduleIdleWork` | Callback idle não fragmenta long tasks |
+| 2 | `initialCount` usava `TRUNCATION_SECTION_THRESHOLD` (3) | 3 seções markdown pesadas de uma vez |
+| 3 | `MarkdownRenderer` import síncrono | react-markdown re-parse bloqueia main thread |
+
+### Fix v3 (SectionalBotMessage)
+
+1. `yieldToMain()` + `computeParsedMessageBundleChunked` — 3 fases com yield entre parse de seções, sources e teia
+2. `CHUNKED_SECTIONS_PER_IDLE = 1`, `CHUNKED_INITIAL_SECTION_COUNT = 1`
+3. `React.lazy(MarkdownRenderer)` + `Suspense` + `SectionSkeleton` por seção
+
+### Gate UX pós-v3
+
+Re-run Scheffer manual no preview Vercel — critério: sem "Página sem resposta" + dossiê scrollável.
+
+
+---
+
 ## Fora de escopo deste bug
 
 | Tema | Motivo |
