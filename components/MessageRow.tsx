@@ -12,6 +12,8 @@ import ClienteSeniorScore from './ClienteSeniorScore';
 import MessageActionsBar from './MessageActionsBar';
 import { DeepDiveTopics } from './DeepDiveTopics';
 import DossierErrorBoundary from '../features/dossier/DossierErrorBoundary';
+import DossierReadyCard from './DossierReadyCard';
+import DossierViewerLite from './DossierViewerLite';
 import { applyDossierLinkIntegrity } from '../utils/dossierLinkIntegrity';
 import { coerceGroundingSources, verifiedSourcesToPool } from '../utils/dossierSourcePool';
 import { buildAuditableSources, normalizeSourceUrl, type AuditableSource } from '../utils/textCleaners';
@@ -101,6 +103,9 @@ const MessageRowBody = memo(({ index, msg, data }: MessageRowBodyProps) => {
 
   const isHeavyBotText = isBot && (msg.text?.length ?? 0) > LARGE_DOSSIER_STATIC_FALLBACK_CHARS;
   const [deferredAuditableSources, setDeferredAuditableSources] = useState<AuditableSource[] | null>(null);
+  const [isViewerOpen, setViewerOpen] = useState(false);
+
+  const isDossierCard = isBot && !!msg.outputMode && (msg.text?.length ?? 0) > 10000;
 
   useEffect(() => {
     if (!isHeavyBotText) {
@@ -355,162 +360,180 @@ const MessageRowBody = memo(({ index, msg, data }: MessageRowBodyProps) => {
             <span>{msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
           </div>
           {isBot ? (
-            <DossierErrorBoundary isDarkMode={isDarkMode}>
-              <>
-                {displayScore && <ScorePorta {...displayScore} isDarkMode={isDarkMode} />}
-                {msg.clienteSeniorData?.encontrado && isFirstBotMessage && (
-                  <ClienteSeniorScore data={msg.clienteSeniorData} cnpj={cnpj} isDarkMode={isDarkMode} />
-                )}
-                <SectionalBotMessage
-                  message={{ ...msg, groundingSources: msg.groundingSources || [] }}
-                  sessionId={sessionId}
-                  userId={userId}
-                  isDarkMode={isDarkMode}
-                  mode={mode}
-                  empresaAlvo={empresaAlvo}
-                  cnpj={cnpj}
-                  auditableSources={auditableSources}
-                  isLoading={isLoading}
-                  onPreFillInput={text => {
-                    if (onSendMessage) {
-                      onSendMessage(text);
-                    } else {
-                      setInput(text);
+            isDossierCard ? (
+              <DossierReadyCard
+                text={msg.text}
+                outputMode={msg.outputMode!}
+                isDarkMode={isDarkMode}
+                empresaAlvo={empresaAlvo}
+                cnpj={cnpj}
+                scorePorta={msg.scorePorta}
+                clienteSeniorData={msg.clienteSeniorData}
+                groundingSources={msg.groundingSources}
+                onViewDossier={() => setViewerOpen(true)}
+                onFeedback={fb => onFeedback(msg.id, fb)}
+                onSubmitFeedback={(fb, comment, content) => onSendFeedback(msg.id, fb, comment, content)}
+                onToggleSources={() => onToggleMessageSources(msg.id)}
+                isSourcesOpen={!!msg.isSourcesOpen}
+              />
+            ) : (
+              <DossierErrorBoundary isDarkMode={isDarkMode}>
+                <>
+                  {displayScore && <ScorePorta {...displayScore} isDarkMode={isDarkMode} />}
+                  {msg.clienteSeniorData?.encontrado && isFirstBotMessage && (
+                    <ClienteSeniorScore data={msg.clienteSeniorData} cnpj={cnpj} isDarkMode={isDarkMode} />
+                  )}
+                  <SectionalBotMessage
+                    message={{ ...msg, groundingSources: msg.groundingSources || [] }}
+                    sessionId={sessionId}
+                    userId={userId}
+                    isDarkMode={isDarkMode}
+                    mode={mode}
+                    empresaAlvo={empresaAlvo}
+                    cnpj={cnpj}
+                    auditableSources={auditableSources}
+                    isLoading={isLoading}
+                    onPreFillInput={text => {
+                      if (onSendMessage) {
+                        onSendMessage(text);
+                      } else {
+                        setInput(text);
+                      }
+                    }}
+                    onRegenerateSuggestions={onRegenerateSuggestions}
+                    hideSuggestions={msg.id === hideSuggestionsForMessageId}
+                  />
+                  {isLast && !isLoading && onDeepDive && !msg.isDeepDiveResult && (
+                    <DeepDiveTopics onSelectTopic={onDeepDive} />
+                  )}
+                  <MessageActionsBar
+                    content={msg.text}
+                    verifiedSourcesCount={consultedNotCitedSources.length}
+                    citedLinksCount={citedInTextSources.length}
+                    currentFeedback={msg.feedback}
+                    onFeedback={fb => onFeedback(msg.id, fb)}
+                    onSubmitFeedback={(fb, comment, content, options) =>
+                      onSendFeedback(msg.id, fb, comment, content, options)
                     }
-                  }}
-                  onRegenerateSuggestions={onRegenerateSuggestions}
-                  hideSuggestions={msg.id === hideSuggestionsForMessageId}
-                />
-                {isLast && !isLoading && onDeepDive && !msg.isDeepDiveResult && (
-                  <DeepDiveTopics onSelectTopic={onDeepDive} />
-                )}
-                <MessageActionsBar
-                  content={msg.text}
-                  verifiedSourcesCount={consultedNotCitedSources.length}
-                  citedLinksCount={citedInTextSources.length}
-                  currentFeedback={msg.feedback}
-                  onFeedback={fb => onFeedback(msg.id, fb)}
-                  onSubmitFeedback={(fb, comment, content, options) =>
-                    onSendFeedback(msg.id, fb, comment, content, options)
-                  }
-                  onToggleSources={() => onToggleMessageSources(msg.id)}
-                  isSourcesVisible={!!msg.isSourcesOpen}
-                  isDarkMode={isDarkMode}
-                />
-                {msg.isSourcesOpen && sourcesCount > 0 && (
-                  <div className={`mt-3 pt-3 border-t ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
-                    {[
-                      { label: 'Citadas no texto', items: citedInTextSources },
-                      { label: 'Consultadas pela IA (não citadas)', items: consultedNotCitedSources },
-                      { label: 'Inferidas sem URL', items: inferredSources },
-                    ].flatMap(group =>
-                      group.items.length > 0
-                        ? [
-                            <div key={group.label} className="mb-3 last:mb-0">
-                              <p
-                                className={`text-xs font-semibold uppercase tracking-wide mb-2 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}
-                              >
-                                {group.label}
-                              </p>
-                              <ol className="space-y-2 list-decimal pl-4">
-                                {group.items.map((s, i) => {
-                                  const status = s.url
-                                    ? linkStatuses[s.url] || linkStatuses[normalizeSourceUrl(s.url)]
-                                    : undefined;
-                                  const statusLabel = !s.url
-                                    ? 'ANÁLISE INFERIDA'
-                                    : status?.status === 'valid'
-                                      ? 'CONFIRMADO'
-                                      : status?.status === 'broken'
-                                        ? (status.note || 'OFF-LINE').toUpperCase()
-                                        : 'AUDITORIA EM CURSO';
-                                  const statusIcon = statusLabel.includes('CONFIRMADO')
-                                    ? '✓'
-                                    : statusLabel.includes('OFF-LINE')
-                                      ? '✕'
-                                      : statusLabel.includes('INFERIDA')
-                                        ? '○'
-                                        : '◌';
-                                  const statusColor = statusLabel.includes('CONFIRMADO')
-                                    ? 'text-emerald-500'
-                                    : statusLabel.includes('OFF-LINE')
-                                      ? 'text-red-500'
-                                      : statusLabel.includes('INFERIDA')
-                                        ? 'text-amber-500'
-                                        : 'text-slate-500';
-                                  const context =
-                                    s.contexts[0] ||
-                                    (s.url
-                                      ? 'Referencia usada para embasar parte da resposta; valide aderencia ao contexto.'
-                                      : 'Mencao inferida sem URL explicita; validacao manual necessaria.');
+                    onToggleSources={() => onToggleMessageSources(msg.id)}
+                    isSourcesVisible={!!msg.isSourcesOpen}
+                    isDarkMode={isDarkMode}
+                  />
+                  {msg.isSourcesOpen && sourcesCount > 0 && (
+                    <div className={`mt-3 pt-3 border-t ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+                      {[
+                        { label: 'Citadas no texto', items: citedInTextSources },
+                        { label: 'Consultadas pela IA (não citadas)', items: consultedNotCitedSources },
+                        { label: 'Inferidas sem URL', items: inferredSources },
+                      ].flatMap(group =>
+                        group.items.length > 0
+                          ? [
+                              <div key={group.label} className="mb-3 last:mb-0">
+                                <p
+                                  className={`text-xs font-semibold uppercase tracking-wide mb-2 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}
+                                >
+                                  {group.label}
+                                </p>
+                                <ol className="space-y-2 list-decimal pl-4">
+                                  {group.items.map((s, i) => {
+                                    const status = s.url
+                                      ? linkStatuses[s.url] || linkStatuses[normalizeSourceUrl(s.url)]
+                                      : undefined;
+                                    const statusLabel = !s.url
+                                      ? 'ANÁLISE INFERIDA'
+                                      : status?.status === 'valid'
+                                        ? 'CONFIRMADO'
+                                        : status?.status === 'broken'
+                                          ? (status.note || 'OFF-LINE').toUpperCase()
+                                          : 'AUDITORIA EM CURSO';
+                                    const statusIcon = statusLabel.includes('CONFIRMADO')
+                                      ? '✓'
+                                      : statusLabel.includes('OFF-LINE')
+                                        ? '✕'
+                                        : statusLabel.includes('INFERIDA')
+                                          ? '○'
+                                          : '◌';
+                                    const statusColor = statusLabel.includes('CONFIRMADO')
+                                      ? 'text-emerald-500'
+                                      : statusLabel.includes('OFF-LINE')
+                                        ? 'text-red-500'
+                                        : statusLabel.includes('INFERIDA')
+                                          ? 'text-amber-500'
+                                          : 'text-slate-500';
+                                    const context =
+                                      s.contexts[0] ||
+                                      (s.url
+                                        ? 'Referencia usada para embasar parte da resposta; valide aderencia ao contexto.'
+                                        : 'Mencao inferida sem URL explicita; validacao manual necessaria.');
 
-                                  return (
-                                    <li key={s.key || i} className="text-xs">
-                                      <div className="flex items-center gap-1 flex-wrap">
-                                        <span className="font-semibold text-[10px] opacity-80">
-                                          {s.citationIndex ? `^${s.citationIndex}` : '^?'}
-                                        </span>
-                                        {s.url ? (
-                                          <a
-                                            href={s.url}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="text-emerald-600 hover:underline break-all"
-                                          >
-                                            {s.title || 'Fonte'}
-                                          </a>
-                                        ) : (
-                                          <span className={`${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>
-                                            {s.title}
+                                    return (
+                                      <li key={s.key || i} className="text-xs">
+                                        <div className="flex items-center gap-1 flex-wrap">
+                                          <span className="font-semibold text-[10px] opacity-80">
+                                            {s.citationIndex ? `^${s.citationIndex}` : '^?'}
                                           </span>
-                                        )}
-                                        <div className="flex items-center gap-1.5">
-                                          <span className={`text-[10px] ${statusColor}`} aria-hidden>
-                                            {statusIcon}
-                                          </span>
-                                          <span
-                                            className={`text-[10px] px-1.5 py-0.5 rounded-full ${
-                                              statusLabel.includes('CONFIRMADO')
-                                                ? isDarkMode
-                                                  ? 'bg-emerald-900/50 text-emerald-300 font-bold'
-                                                  : 'bg-emerald-100 text-emerald-700 font-bold'
-                                                : statusLabel.includes('OFF-LINE')
+                                          {s.url ? (
+                                            <a
+                                              href={s.url}
+                                              target="_blank"
+                                              rel="noopener noreferrer"
+                                              className="text-emerald-600 hover:underline break-all"
+                                            >
+                                              {s.title || 'Fonte'}
+                                            </a>
+                                          ) : (
+                                            <span className={`${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>
+                                              {s.title}
+                                            </span>
+                                          )}
+                                          <div className="flex items-center gap-1.5">
+                                            <span className={`text-[10px] ${statusColor}`} aria-hidden>
+                                              {statusIcon}
+                                            </span>
+                                            <span
+                                              className={`text-[10px] px-1.5 py-0.5 rounded-full ${
+                                                statusLabel.includes('CONFIRMADO')
                                                   ? isDarkMode
-                                                    ? 'bg-red-900/50 text-red-300'
-                                                    : 'bg-red-100 text-red-700'
-                                                  : isDarkMode
-                                                    ? 'bg-amber-900/40 text-amber-300'
-                                                    : 'bg-amber-100 text-amber-700'
-                                            }`}
-                                          >
-                                            {statusLabel}
-                                          </span>
+                                                    ? 'bg-emerald-900/50 text-emerald-300 font-bold'
+                                                    : 'bg-emerald-100 text-emerald-700 font-bold'
+                                                  : statusLabel.includes('OFF-LINE')
+                                                    ? isDarkMode
+                                                      ? 'bg-red-900/50 text-red-300'
+                                                      : 'bg-red-100 text-red-700'
+                                                    : isDarkMode
+                                                      ? 'bg-amber-900/40 text-amber-300'
+                                                      : 'bg-amber-100 text-amber-700'
+                                              }`}
+                                            >
+                                              {statusLabel}
+                                            </span>
+                                          </div>
                                         </div>
-                                      </div>
-                                      {s.url ? (
+                                        {s.url ? (
+                                          <p
+                                            className={`mt-1 text-[10px] break-all ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}
+                                          >
+                                            {s.url}
+                                          </p>
+                                        ) : null}
                                         <p
-                                          className={`mt-1 text-[10px] break-all ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}
+                                          className={`mt-1 text-[10px] leading-snug ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}
                                         >
-                                          {s.url}
+                                          {context}
                                         </p>
-                                      ) : null}
-                                      <p
-                                        className={`mt-1 text-[10px] leading-snug ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}
-                                      >
-                                        {context}
-                                      </p>
-                                    </li>
-                                  );
-                                })}
-                              </ol>
-                            </div>,
-                          ]
-                        : [],
-                    )}
-                  </div>
-                )}
-              </>
-            </DossierErrorBoundary>
+                                      </li>
+                                    );
+                                  })}
+                                </ol>
+                              </div>,
+                            ]
+                          : [],
+                      )}
+                    </div>
+                  )}
+                </>
+              </DossierErrorBoundary>
+            )
           ) : (
             <div className="whitespace-pre-wrap text-sm md:text-base leading-relaxed">{msg.text}</div>
           )}
@@ -520,7 +543,26 @@ const MessageRowBody = memo(({ index, msg, data }: MessageRowBodyProps) => {
   }
 
   const isFirstTimelineMessage = index === 0;
-  return <div className={`pb-3 px-2 md:px-6 lg:px-8 ${isFirstTimelineMessage ? 'pt-6' : ''}`}>{content}</div>;
+  return (
+    <div className={`pb-3 px-2 md:px-6 lg:px-8 ${isFirstTimelineMessage ? 'pt-6' : ''}`}>
+      {content}
+      {isDossierCard && (
+        <DossierViewerLite
+          text={msg.text}
+          outputMode={msg.outputMode!}
+          isDarkMode={isDarkMode}
+          empresaAlvo={empresaAlvo}
+          cnpj={cnpj}
+          scorePorta={msg.scorePorta}
+          clienteSeniorData={msg.clienteSeniorData}
+          groundingSources={msg.groundingSources}
+          auditableSources={auditableSources}
+          isOpen={isViewerOpen}
+          onClose={() => setViewerOpen(false)}
+        />
+      )}
+    </div>
+  );
 });
 
 MessageRowBody.displayName = 'MessageRowBody';

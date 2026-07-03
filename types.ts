@@ -166,6 +166,8 @@ export interface Message {
   ghostDetails?: string;
   // NOVO: Dados de Cliente Senior (Lookup)
   clienteSeniorData?: ClienteSeniorData;
+  // NOVO: Dossier output mode (Pipeline V2)
+  outputMode?: 'FULL_DOSSIER' | 'DISCOVERY_BRIEF' | 'ENRICHMENT_REQUIRED';
   /**
    * false = fallback silencioso foi acionado (grounding falhou, resposta gerada sem busca web).
    * true  = grounding funcionou normalmente com chunks retornados.
