@@ -1508,164 +1508,33 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
           }
         }
 
-        // BUG-8 v4: purgar overlay/preview ANTES de expor texto final — reduz DOM no handoff.
-        finalizeWaterfallUI({
-          store: {
-            setIsLoading,
-            setLoadingVariant,
-            completeLoadingProgress,
-            setFailureCount,
-            activeGenerationRef,
-          },
-          sessionId,
-          reason: 'waterfall:pre-handoff-purge',
-          waterfallEndStatus: 'pre-handoff',
-          botMsgTextLen: waterfallFinalText.length,
-          log: (area, event, payload) => scoutDiag.info(area, event, payload),
-        });
-        await yieldBeforeHandoff();
-
-        const updatedSession = updateSessionById(sessionId, session => applyFinalBotMessage(session));
-        if (updatedSession) {
-          sessionToPersist = updatedSession;
-        }
-
-        const persistMsgCount = (sessionToPersist as ChatSession | null)?.messages?.length ?? 0;
-        const persistBotUpdated =
-          (sessionToPersist as ChatSession | null)?.messages?.some(
-            (m: { id: string; sender: string; isThinking?: boolean; text?: string }) =>
-              m.id === botMessageId && m.sender === 'bot' && !m.isThinking && Boolean(m.text),
-          ) ?? false;
-
-        scoutDiag.info('WaterfallLifecycle', 'messages-state-after-update', {
-          sessionId,
-          waterfallRunId,
-          messageCount: persistMsgCount,
-          botMessageUpdated: persistBotUpdated,
-          waterfallFinalTextLen: waterfallFinalText?.length ?? 0,
-        });
-
-        const finalBotMsg = (sessionToPersist as ChatSession | null)?.messages?.find(
-          (m: { id: string }) => m.id === botMessageId,
-        );
-        scoutDiag.info('WaterfallLifecycle', 'final-bot-message-state', {
-          sessionId,
-          waterfallRunId,
-          messageId: botMessageId,
-          textLen: (finalBotMsg as any)?.text?.length ?? 0,
-          isThinking: (finalBotMsg as any)?.isThinking,
-          loadingVariant: (finalBotMsg as any)?.loadingVariant,
-          isError: (finalBotMsg as any)?.isError,
-          renderShouldBe: 'normal-content',
-        });
-
-        // ⚠ Fallback: updateSessionById pode perder a sessão quando React faz batch
-        // de setState e o cache está limpo (primeira carga / race condition).
-        // Cenário A: prev[] vazio → callback nunca roda → sessionToPersist = null
-        // Cenário B: prev[] tem a sessão mas botMessageId não casa → texto nunca escrito
-        // sessionsRef.current é sincronizado via render-phase (useSessionStorage.ts).
-        if (!sessionToPersist || !persistBotUpdated) {
-          Sentry.captureMessage('Scout360 waterfall session persist failed', {
+        // BUG-8 v6: setSessions direto em vez de updateSessionById.
+        // updateSessionById lê sessionsRef.current (sync só na render-phase) →
+        // ref stale perde a sessão durante handoff do waterfall.
+        // setSessions(func) opera no state real do Zustand — NUNCA falha.
+        const snapshot =
+          chatStore?.sessions?.find((s: ChatSession) => s.id === sessionId) ??
+          chatStore?.sessionsRef?.current?.find((s: ChatSession) => s.id === sessionId);
+        if (snapshot) {
+          const built = applyFinalBotMessage(snapshot);
+          chatStore?.setSessions?.((prev: ChatSession[]) => {
+            const idx = prev.findIndex((s: ChatSession) => s.id === sessionId);
+            if (idx === -1) return [built, ...prev];
+            const next = [...prev];
+            next[idx] = built;
+            return next;
+          });
+          sessionToPersist = built;
+        } else {
+          Sentry.captureMessage('Scout360 waterfall session not found for persist', {
             level: 'warning',
             tags: { area: 'waterfall-session-persist', session_id: sessionId },
-            extra: {
-              sessionToPersistIsNull: sessionToPersist === null,
-              persistBotUpdated,
-              originalMsgCount,
-              botMessageId,
-              waterfallFinalTextLen: waterfallFinalText?.length ?? 0,
-            },
+            extra: { botMessageId, waterfallRunId },
           });
-          if (!persistBotUpdated && persistMsgCount > 0) {
-            console.error(
-              '[Scout360][WaterfallLifecycle] ⚠ botMessageId nao encontrado na sessao',
-              JSON.stringify({
-                sessionId,
-                botMessageId,
-                messageIds: sessionToPersist
-                  ? ((sessionToPersist as ChatSession)?.messages?.map((m: { id: string }) => m.id) ?? [])
-                  : [],
-                waterfallFinalTextLen: waterfallFinalText?.length ?? 0,
-              }),
-            );
-          }
-
-          console.error(
-            '[Scout360][WaterfallLifecycle] ⚠ sessionToPersist VAZIO após updateSessionById',
-            JSON.stringify({
-              sessionId,
-              waterfallRunId,
-              sessionToPersistIsNull: sessionToPersist === null,
-              originalMsgCount,
-              persistMsgCount,
-              persistBotUpdated,
-              waterfallFinalTextLen: waterfallFinalText?.length ?? 0,
-              botMessageId,
-            }),
-          );
-
-          const sessionsSnapshot = chatStore?.sessionsRef?.current ?? [];
-          const fallbackSession = sessionsSnapshot.find((s: ChatSession) => s.id === sessionId);
-          if (fallbackSession) {
-            const finalCompany =
-              normalizedCompany || fallbackSession.empresaAlvo || pickCompanyLabel(fallbackSession.title);
-            const recoveredSession: ChatSession = {
-              ...fallbackSession,
-              updatedAt: new Date().toISOString(),
-              empresaAlvo: finalCompany || fallbackSession.empresaAlvo,
-              scoreOportunidade: waterfallScorePorta?.score ?? fallbackSession.scoreOportunidade,
-              messages: fallbackSession.messages.map(message =>
-                message.id === botMessageId
-                  ? {
-                      ...message,
-                      text: waterfallFinalText,
-                      scorePorta: waterfallScorePorta ?? undefined,
-                      clienteSeniorData: waterfallClienteSeniorData || undefined,
-                      groundingSources: waterfallGroundingSources.length ? waterfallGroundingSources : undefined,
-                      webVerificationStatus,
-                      groundingUsed:
-                        webVerificationStatus === 'not_applicable'
-                          ? undefined
-                          : webVerificationStatus === 'verified' || webVerificationStatus === 'fallback_verified',
-                      suggestions: waterfallSuggestions,
-                      isThinking: false,
-                      loadingVariant: undefined,
-                      isError: false,
-                      errorDetails: undefined,
-                    }
-                  : message,
-              ),
-            };
-            sessionToPersist = recoveredSession;
-            // findIndex + prepend garante que a sessão NUNCA seja perdida,
-            // mesmo se prev[] estiver vazio (race condition do React 18 batching).
-            chatStore?.setSessions?.((prev: ChatSession[]) => {
-              const idx = prev.findIndex((s: ChatSession) => s.id === sessionId);
-              if (idx === -1) {
-                return [recoveredSession, ...prev];
-              }
-              const next = [...prev];
-              next[idx] = recoveredSession;
-              return next;
-            });
-            scoutDiag.info('WaterfallLifecycle', 'session-recovered-via-ref', {
-              sessionId,
-              waterfallRunId,
-              recoveredMsgCount: recoveredSession.messages.length,
-              sessionsSnapshotLen: sessionsSnapshot.length,
-            });
-          } else {
-            console.error(
-              '[Scout360][WaterfallLifecycle] FALLBACK TAMBEM VAZIO — sessao irrecuperavel',
-              JSON.stringify({
-                sessionId,
-                waterfallRunId,
-                refCount: sessionsSnapshot.length,
-                allSessionIds: sessionsSnapshot.map((s: ChatSession) => s.id),
-              }),
-            );
-          }
         }
+        await yieldBeforeHandoff();
+        // finalizeWaterfallUI chamado UMA vez no finally block (~linha 1755).
+        // v6 removeu pre-handoff-purge duplicado — uma chamada basta.
 
         waterfallEndStatus = 'completed';
       } finally {
