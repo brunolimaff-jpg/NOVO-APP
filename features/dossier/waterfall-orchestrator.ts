@@ -1575,7 +1575,9 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
 
         // Health-check final: snapshot completo do sistema pós-waterfall.
         // Se algo quebrou, este único log responde "o quê, onde, por quê".
-        const healthSession = chatStore?.sessionsRef?.current?.find((s: ChatSession) => s.id === sessionId);
+        const healthSession =
+          chatStore?.sessions?.find((s: ChatSession) => s.id === sessionId) ??
+          chatStore?.sessionsRef?.current?.find((s: ChatSession) => s.id === sessionId);
         const healthBotMsg = healthSession?.messages?.find(
           (m: { id: string; sender: string }) => m.id === botMessageId,
         ) as { id: string; sender: string; isThinking?: boolean; text?: string } | undefined;
