@@ -1,4 +1,4 @@
-export type FeatureFlagName = 'deepDive' | 'warRoom' | 'newExportFlow' | 'radarV2' | 'inlineLoading';
+export type FeatureFlagName = 'deepDive' | 'warRoom' | 'newExportFlow' | 'radarV2' | 'inlineLoading' | 'dossierCard';
 
 interface FeatureFlagConfig {
   default: boolean;
@@ -12,6 +12,7 @@ export const FEATURE_FLAGS: Record<FeatureFlagName, FeatureFlagConfig> = {
   newExportFlow: { default: false, removeBy: 'Sprint 12', envOverride: 'VITE_FF_NEW_EXPORT' },
   radarV2: { default: false, removeBy: 'Sprint 13', envOverride: 'VITE_FF_RADAR_V2' },
   inlineLoading: { default: true, removeBy: 'Sprint 16', envOverride: 'VITE_FF_INLINE_LOADING' },
+  dossierCard: { default: false, removeBy: 'BUG-8 v6 follow-up — DossierReadyCard carregando infinito', envOverride: 'VITE_FF_DOSSIER_CARD' },
 };
 
 function readQueryOverride(name: string): boolean | null {

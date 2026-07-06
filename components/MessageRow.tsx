@@ -2,6 +2,7 @@ import React, { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { scoutDiag } from '../utils/diagnosticLog';
 import { Message, Sender, AppError, Feedback, FeedbackSubmissionOptions } from '../types';
 import { ChatMode } from '../constants';
+import { getFlag } from '../utils/featureFlags';
 import GhostMessageBlock from './GhostMessageBlock';
 import ErrorMessageCard from './ErrorMessageCard';
 import SectionalBotMessage from './SectionalBotMessage';
@@ -105,7 +106,7 @@ const MessageRowBody = memo(({ index, msg, data }: MessageRowBodyProps) => {
   const [deferredAuditableSources, setDeferredAuditableSources] = useState<AuditableSource[] | null>(null);
   const [isViewerOpen, setViewerOpen] = useState(false);
 
-  const isDossierCard = isBot && !!msg.outputMode && (msg.text?.length ?? 0) > 10000;
+  const isDossierCard = getFlag('dossierCard') && isBot && !!msg.outputMode && (msg.text?.length ?? 0) > 10000;
 
   useEffect(() => {
     if (!isHeavyBotText) {
