@@ -2,6 +2,7 @@ import React, { Suspense, useEffect, useMemo, useRef, useState, useCallback } fr
 import { Message } from '../types';
 import { getSellerSectionKind, parseMarkdownSections, type ParsedSection, type SellerSectionKind } from '../utils/sectionParser';
 import { ChatMode } from '../constants';
+import { getFlag } from '../utils/featureFlags';
 import SmartOptions, { parseSmartOptions } from './SmartOptions';
 import type { AuditableSource } from '../utils/textCleaners';
 import { FeedbackSection } from './FeedbackSection';
@@ -820,7 +821,7 @@ const SectionalBotMessageParsed: React.FC<SectionalBotMessageParsedProps> = ({
 
 const SectionalBotMessage: React.FC<SectionalBotMessageProps> = ({ auditableSources = EMPTY_AUDITABLE_SOURCES, ...props }) => {
   const content = props.message.text || '';
-  const isHeavyContent = content.length > HEAVY_MARKDOWN_CHARS;
+  const isHeavyContent = getFlag('heavyDefer') && content.length > HEAVY_MARKDOWN_CHARS;
   const [readyText, setReadyText] = useState(() => (isHeavyContent ? '' : content));
   const [textReady, setTextReady] = useState(() => !isHeavyContent);
 
