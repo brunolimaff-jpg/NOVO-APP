@@ -8,7 +8,12 @@ describe('buildCacheKey', () => {
     const opB = buildCacheKey('04733767000180', 'Scheffer', 'Guilherme M Scheffer', 'operator-b');
 
     expect(opA).not.toBe(opB);
-    expect(base).toContain('::anonymous::');
-    expect(opA).toContain('::operator a::');
+    expect(opA).toContain('::operator a');
+    expect(opB).toContain('::operator b');
+  });
+
+  it('preserva chave exata quando operatorId é omitido', () => {
+    const key = buildCacheKey('04733767000180', 'Scheffer', 'Guilherme M Scheffer');
+    expect(key).toBe('v7-structured-lateral-cnpj::04733767000180::guilherme m scheffer');
   });
 });

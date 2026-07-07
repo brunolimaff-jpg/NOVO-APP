@@ -1,13 +1,12 @@
 import type { SocietaryCompanyInput } from './societaryGraph.types';
 import { formatSocietaryCnpj } from './societaryGraph';
-import {
-  SOCIO_SEARCH_BATCH_SIZE,
-  SOCIO_SEARCH_CLIENT_TIMEOUT_MS,
-  type SocioSearchResponse,
-} from './SocietaryMap/utils';
+import type { SocioSearchResponse } from './SocietaryMap/utils';
 import { isValidCnpj, normalizeCnpj } from '../../utils/cnpj';
 import { scoutDiag } from '../../utils/diagnosticLog';
 import { isAbortLikeError } from '../../utils/abortHelpers';
+
+const SOCIO_SEARCH_BATCH_SIZE = 3;
+const SOCIO_SEARCH_CLIENT_TIMEOUT_MS = 52_000;
 
 const MAX_WATERFALL_SOCIO_PARTNERS = 12;
 
