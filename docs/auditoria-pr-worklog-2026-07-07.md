@@ -41,6 +41,8 @@ Este arquivo registra o andamento operacional das PRs abertas para executar o pl
 - `review-branch`: achado de segurança no bypass E2E foi mitigado antes do push; verdict local atual: pronto para push após build final.
 - Decisão Bruno: validação final de UX/live deve rodar no Vercel preview com auth real; local serve apenas como triagem técnica.
 - Ajuste pós-decisão: helpers `setupE2EAuth` usam login real quando `E2E_REAL_AUTH=1`, permitindo rodar critical UX no preview Vercel sem bypass em produção.
+- Evidência remota `42b4bc8a`: CI/Build/Tests/E2E Critical/Smoke preview passaram; Golden live e E2E Preview manual travaram no fluxo de auth real. Golden publicou `error-context.md` mostrando tela "Recuperação de acesso / Criar minha senha".
+- Correção aplicada: fluxo Scheffer com `E2E_REAL_AUTH=1` não semeia `operator_email` local antes do login; workflows live agora usam `reporter=line`, timeout de comando controlado e upload de artefatos.
 
 ### Pendências Antes do Push
 

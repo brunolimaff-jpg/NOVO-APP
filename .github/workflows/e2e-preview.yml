@@ -24,7 +24,7 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: mcr.microsoft.com/playwright:v1.59.1-noble
-    timeout-minutes: 15
+    timeout-minutes: 35
 
     steps:
       - name: Checkout
@@ -58,6 +58,7 @@ jobs:
         run: npm ci
 
       - name: E2E critical-ux contra preview Vercel
+        shell: bash
         env:
           BASE_URL: ${{ steps.resolve_url.outputs.preview_url }}
           E2E_REAL_AUTH: '1'
@@ -65,7 +66,20 @@ jobs:
           E2E_AUTH_PASSWORD: ${{ secrets.GOLDEN_E2E_AUTH_PASSWORD }}
           VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
           PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
-        run: npm run test:e2e:preview
+        run: |
+          set -euo pipefail
+          timeout --foreground 30m npm run test:e2e:preview -- --reporter=line --retries=0
+
+      - name: Publicar evidências E2E preview
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-preview-${{ github.sha }}
+          path: |
+            playwright-report/
+            test-results/
+          if-no-files-found: warn
+          retention-days: 14
 
       - name: Comentar falha no PR (manual)
         if: failure() && inputs.pr_number != ''

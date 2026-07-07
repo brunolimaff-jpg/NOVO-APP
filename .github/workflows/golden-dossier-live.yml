@@ -33,7 +33,7 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: mcr.microsoft.com/playwright:v1.59.1-noble
-    timeout-minutes: 20
+    timeout-minutes: 45
 
     steps:
       - name: Resolver e validar deployment
@@ -90,6 +90,7 @@ jobs:
         run: npm ci
 
       - name: Executar duas rodadas Golden live
+        shell: bash
         env:
           BASE_URL: ${{ steps.deployment.outputs.preview_url }}
           E2E_DEPLOYMENT_SHA: ${{ steps.deployment.outputs.deployment_sha }}
@@ -98,7 +99,9 @@ jobs:
           E2E_AUTH_PASSWORD: ${{ secrets.GOLDEN_E2E_AUTH_PASSWORD }}
           VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
           PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
-        run: npm run test:e2e:golden-live
+        run: |
+          set -euo pipefail
+          timeout --foreground 40m npm run test:e2e:golden-live -- --reporter=line --retries=0
 
       - name: Publicar evidências Golden
         if: always()

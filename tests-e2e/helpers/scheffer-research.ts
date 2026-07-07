@@ -40,7 +40,6 @@ export interface SessionMetadata {
 
 export async function setupSchefferResearchAuth(page: Page) {
   if (USE_REAL_AUTH) {
-    await preventMigrationNotice(page);
     await setupRealSupabaseAuthFromEnv(page, { email: OPERATOR_EMAIL });
     return;
   }
