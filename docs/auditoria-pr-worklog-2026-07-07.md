@@ -43,6 +43,8 @@ Este arquivo registra o andamento operacional das PRs abertas para executar o pl
 - Ajuste pós-decisão: helpers `setupE2EAuth` usam login real quando `E2E_REAL_AUTH=1`, permitindo rodar critical UX no preview Vercel sem bypass em produção.
 - Evidência remota `42b4bc8a`: CI/Build/Tests/E2E Critical/Smoke preview passaram; Golden live e E2E Preview manual travaram no fluxo de auth real. Golden publicou `error-context.md` mostrando tela "Recuperação de acesso / Criar minha senha".
 - Correção aplicada: fluxo Scheffer com `E2E_REAL_AUTH=1` não semeia `operator_email` local antes do login; workflows live agora usam `reporter=line`, timeout de comando controlado e upload de artefatos.
+- Evidência remota `4cd57e04`: CI completa passou; Golden live falhou em 14 min ainda na tela "Acesso temporariamente bloqueado", indicando que o helper podia pular abertura do modal e ficar aguardando input sem timeout de ação.
+- Correção aplicada: `setupRealSupabaseAuthFromEnv` agora espera explicitamente o botão de auth, abre o modal, valida campos de email/senha e falha cedo com mensagem clara se o modal não abrir.
 
 ### Pendências Antes do Push
 

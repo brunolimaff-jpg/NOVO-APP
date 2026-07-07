@@ -78,19 +78,31 @@ export async function setupRealSupabaseAuthFromEnv(page: Page, options: { email?
 
   await page.goto('/');
 
-  const openAuth = page.getByRole('button', { name: /entrar|criar minha senha|criar minha conta/i }).first();
-  if (await openAuth.isVisible({ timeout: 10_000 }).catch(() => false)) {
-    await openAuth.click({ force: true });
+  if (await page.getByTestId('operator-menu-button').isVisible({ timeout: 5_000 }).catch(() => false)) {
+    return;
   }
+
+  const openAuth = page
+    .getByRole('button', { name: /entrar|criar minha senha|criar minha conta(?: agora)?/i })
+    .first();
+  await expect(openAuth, 'botão para abrir autenticação real precisa aparecer').toBeVisible({ timeout: 30_000 });
+  await openAuth.click({ force: true });
 
   const loginTab = page.getByRole('button', { name: /^entrar$/i }).first();
   if (await loginTab.isVisible({ timeout: 5_000 }).catch(() => false)) {
     await loginTab.click({ force: true });
   }
 
-  await page.getByPlaceholder(/email/i).fill(email);
-  await page.getByPlaceholder(/senha|sua senha/i).fill(password);
-  await page.getByRole('button', { name: /^entrar$/i }).last().click({ force: true });
+  const emailInput = page.getByPlaceholder(/email/i).first();
+  const passwordInput = page.getByPlaceholder(/senha|sua senha/i).first();
+  await expect(emailInput, 'modal de login precisa abrir com campo de email').toBeVisible({ timeout: 15_000 });
+  await emailInput.fill(email, { timeout: 5_000 });
+  await expect(passwordInput, 'modal de login precisa abrir com campo de senha').toBeVisible({ timeout: 5_000 });
+  await passwordInput.fill(password, { timeout: 5_000 });
+
+  const submitLogin = page.getByRole('button', { name: /^entrar$/i }).last();
+  await expect(submitLogin, 'botão Entrar do modal precisa estar visível').toBeVisible({ timeout: 5_000 });
+  await submitLogin.click({ force: true, timeout: 5_000 });
 
   await expect(page.getByText(/email ou senha incorretos/i)).toHaveCount(0, { timeout: 5_000 });
   await page.getByTestId('operator-menu-button').waitFor({ state: 'visible', timeout: 30_000 });
