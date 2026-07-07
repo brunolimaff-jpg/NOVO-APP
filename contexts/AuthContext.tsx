@@ -33,6 +33,15 @@ interface AuthContextType extends AuthState {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+function isE2EAuthBypassEnabled(): boolean {
+  return (
+    import.meta.env.MODE !== 'production' &&
+    import.meta.env.VITE_E2E_AUTH_BYPASS === 'true' &&
+    typeof navigator !== 'undefined' &&
+    navigator.webdriver
+  );
+}
+
 export const SupabaseAuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
@@ -43,6 +52,21 @@ export const SupabaseAuthProvider: React.FC<{ children: ReactNode }> = ({ childr
   useEffect(() => {
     if (initRef.current) return;
     initRef.current = true;
+
+    if (isE2EAuthBypassEnabled()) {
+      const testUser = {
+        id: 'e2e-auth-bypass-user',
+        aud: 'authenticated',
+        app_metadata: {},
+        created_at: new Date(0).toISOString(),
+        email: 'qa.e2e@senior.com.br',
+        user_metadata: { name: 'QA E2E Bot' },
+      } as User;
+      setSession(null);
+      setUser(testUser);
+      setLoading(false);
+      return;
+    }
 
     if (!supabase) {
       setLoading(false);

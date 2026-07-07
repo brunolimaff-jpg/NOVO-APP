@@ -61,6 +61,7 @@ jobs:
         env:
           BASE_URL: ${{ steps.resolve_url.outputs.preview_url }}
           VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+          VITE_E2E_AUTH_BYPASS: 'true'
           PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
         run: npm run test:e2e:preview
 

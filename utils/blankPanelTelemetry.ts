@@ -127,7 +127,7 @@ function isVisible(element: Element | null): boolean {
   return getNodeMetric(element).visible;
 }
 
-function getElements(selector: string, root: ParentNode = document): Element[] {
+function getElements(selector: string, root: Document | Element = document): Element[] {
   return Array.from(root.querySelectorAll(selector));
 }
 

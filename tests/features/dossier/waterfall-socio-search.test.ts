@@ -166,7 +166,7 @@ describe('waterfall-socio-search', () => {
       let nowCalls = 0;
       vi.spyOn(Date, 'now').mockImplementation(() => {
         nowCalls += 1;
-        // 1: startedAt, 2: cap check lote 0, 3: cap check lote 1 → excede
+        // 1: startedAt, 2: cap check lote 0, 3: cap check lote 1 -> excede
         if (nowCalls <= 2) return 0;
         return WATERFALL_SOCIO_SEARCH_AGGREGATE_CAP_MS + 1;
       });
@@ -183,18 +183,18 @@ describe('waterfall-socio-search', () => {
         signal: new AbortController().signal,
       });
 
-      expect(fetchMock).toHaveBeenCalledTimes(2);
+      expect(fetchMock).toHaveBeenCalledTimes(3);
       expect(result.degraded).toBe(true);
       expect(result.partnersSearched).toBe(4);
-      expect(result.text).toContain('Sócio C');
+      expect(result.text).toContain('Sócio D');
       expect(result.text).toContain('busca degradada');
       expect(scoutDiagMock.warn).toHaveBeenCalledWith(
         'TeiaSocietaria',
         'socio-search waterfall interrompido por cap agregado',
         expect.objectContaining({
           capMs: WATERFALL_SOCIO_SEARCH_AGGREGATE_CAP_MS,
-          partnersSkipped: 2,
-          partnersCompleted: 2,
+          partnersSkipped: 1,
+          partnersCompleted: 3,
         }),
       );
     });

@@ -124,6 +124,14 @@ vi.mock('../contexts/OperatorContext', () => ({
   }),
 }));
 
+vi.mock('../contexts/AuthContext', () => ({
+  useMaybeAuth: () => ({
+    isGuest: false,
+    loading: false,
+    user: { id: 'test-user' },
+  }),
+}));
+
 vi.mock('../contexts/ModeContext', () => ({
   useMode: () => ({
     mode: 'investigacao',

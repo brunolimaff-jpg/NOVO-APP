@@ -23,10 +23,10 @@ interface OpenWebSearchSource {
   title: string;
   url: string;
   snippet?: string;
-  provider: 'duckduckgo' | 'url';
+  provider: 'brave' | 'duckduckgo' | 'url';
 }
 
-type ProviderName = 'duckduckgo';
+type ProviderName = 'brave' | 'duckduckgo';
 type ProviderFailureReason = 'empty_result' | 'unknown';
 
 interface ProviderStatus {
@@ -51,12 +51,12 @@ async function performResilientSearch(query: string): Promise<{
   try {
     const braveResults = await braveSearch(query);
     if (braveResults.length > 0) {
-      providerStatus.push({ provider: 'duckduckgo', ok: true });
+      providerStatus.push({ provider: 'brave', ok: true });
       const content = braveResults.map(r => `Título: ${r.title}\nURL: ${r.url}\nResumo: ${r.snippet}\n---`).join('\n');
       return {
         content,
-        source: 'Brave',
-        sources: braveResults.map(r => ({ title: r.title, url: r.url, provider: 'url' as const })),
+        source: 'OpenWebSearch/Brave',
+        sources: braveResults.map(r => ({ title: r.title, url: r.url, snippet: r.snippet, provider: 'brave' as const })),
         providerStatus,
       };
     }

@@ -101,3 +101,23 @@ export function validateDossierGolden(
 
   return errors;
 }
+
+export function withSchefferGoldenRubric(dossierCase: DossierGoldenCase): DossierGoldenCase {
+  return dossierCase;
+}
+
+export async function evaluateDossierGolden(
+  actualMarkdown: string,
+  expectedMarkdown: string,
+  dossierCase: DossierGoldenCase,
+): Promise<{ passed: boolean; errors: string[]; sources: string[] }> {
+  const errors = validateDossierGolden(actualMarkdown, expectedMarkdown, dossierCase);
+  const sources = [...actualMarkdown.matchAll(/https?:\/\/[^\s)>\]]+/g)].map(match =>
+    match[0].replace(/[.,;:]+$/, ''),
+  );
+  return {
+    passed: errors.length === 0,
+    errors,
+    sources,
+  };
+}

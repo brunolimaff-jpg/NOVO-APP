@@ -57,6 +57,8 @@ function renderGate() {
 
 describe('AuthGate — antes do prazo de migracao', () => {
   beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-06-17T12:00:00-03:00'));
     vi.clearAllMocks();
     window.localStorage.clear();
     mockUseMaybeAuth.mockReturnValue(GUEST_STATE);

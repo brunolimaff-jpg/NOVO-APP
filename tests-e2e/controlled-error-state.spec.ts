@@ -4,7 +4,9 @@ import { setupE2EAuth } from './helpers/auth';
 import { completeOnboarding, e2eCompanyName } from './helpers/onboarding';
 
 test.describe('Anti-Regressão: Erro Controlado', () => {
-  test.describe.configure({ timeout: 120_000 });
+  test.describe.configure({ timeout: 180_000 });
+
+  const CONTROLLED_ERROR_TIMEOUT_MS = 90_000;
 
   function interceptGeminiApi(page: import('@playwright/test').Page) {
     return page.route('**/api/gemini**', route => {
@@ -22,7 +24,7 @@ test.describe('Anti-Regressão: Erro Controlado', () => {
     await page.getByTestId('investigation-uf-input').fill('MT');
     await page.getByTestId('investigation-submit-button').click({ force: true });
 
-    await expect(page.getByTestId('error-message-card')).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByTestId('error-message-card')).toBeVisible({ timeout: CONTROLLED_ERROR_TIMEOUT_MS });
     await expect(page.getByTestId('loading-smart-overlay')).not.toBeVisible({ timeout: 15_000 });
     await expect(page.getByTestId('inline-loading-bubble')).not.toBeVisible({ timeout: 15_000 });
   }

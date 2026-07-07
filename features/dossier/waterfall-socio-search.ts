@@ -248,7 +248,6 @@ export async function buildWaterfallSocioSearchContext(
     }
 
     const batch = partners.slice(index, index + SOCIO_SEARCH_BATCH_SIZE);
-    const batchStartedAt = Date.now();
     const batchResults = await Promise.all(
       batch.map(async partner => {
         try {
@@ -293,17 +292,6 @@ export async function buildWaterfallSocioSearchContext(
         }
       }),
     );
-
-    console.error('[TRACE] socio-search-batch', {
-      batchIndex: Math.floor(index / SOCIO_SEARCH_BATCH_SIZE),
-      elapsedMs: Date.now() - startedAt,
-      batchMs: Date.now() - batchStartedAt,
-      partnersInBatch: batch.length,
-      signalAborted: params.signal.aborted,
-      liteLLMExperiment: Boolean(params.liteLLMExperiment),
-      aggregateCapMs,
-      partnerTimeoutMs,
-    });
 
     partnerResults.push(...batchResults);
     companiesFound += batchResults.reduce((sum, result) => sum + result.companies.length, 0);

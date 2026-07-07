@@ -41,7 +41,7 @@ async function stubGeminiApi(route: Route) {
   try {
     payload = route.request().postDataJSON() as GeminiRequestBody;
   } catch {
-    payload = {};
+    // Mantém payload vazio quando o corpo não é JSON.
   }
 
   switch (payload.action) {

@@ -1,4 +1,4 @@
-import { expect, type Page, type Response } from '@playwright/test';
+import { expect, type APIResponse, type Page, type Response } from '@playwright/test';
 import { setupE2EAuth, setupRealSupabaseAuthFromEnv } from './auth';
 import {
   completeOnboarding,
@@ -75,7 +75,7 @@ export function captureCnpjLookup(page: Page, timeoutMs = CNPJ_LOOKUP_TIMEOUT_MS
   });
 }
 
-export async function assertCnpjLivePayload(response: Response) {
+export async function assertCnpjLivePayload(response: Response | APIResponse) {
   expect(response.ok(), `CNPJ lookup falhou com HTTP ${response.status()}`).toBeTruthy();
   const payload = (await response.json()) as CnpjLivePayload;
   expect(payload.qsa?.length ?? 0).toBeGreaterThanOrEqual(2);

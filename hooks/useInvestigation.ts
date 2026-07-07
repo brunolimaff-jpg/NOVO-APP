@@ -27,6 +27,7 @@ interface UseInvestigationParams {
   radar?: RadarProps;
   operatorId: string;
   onSelectSession: (sessionId: string) => void;
+  toast?: { error: (message: string) => void };
 }
 
 export function useInvestigation({
@@ -36,6 +37,7 @@ export function useInvestigation({
   radar,
   operatorId,
   onSelectSession,
+  toast,
 }: UseInvestigationParams) {
   const [duplicateDossier, setDuplicateDossier] = useState<ExistingDossier | null>(null);
   const pendingPayloadRef = useRef<StartInvestigationPayload | null>(null);
@@ -128,9 +130,21 @@ export function useInvestigation({
     try {
       let dossier = await storage.getDossier(dossierId);
       if (!dossier) {
-        if (!supabase) return;
-        const { data } = await supabase.from('dossies').select('content').eq('id', dossierId).maybeSingle();
-        if (!data || !data.content) return;
+        if (!supabase) {
+          toast?.error('Não foi possível carregar esta sessão');
+          scoutDiag.warn('Investigation', 'Falha ao carregar dossiê remoto', { dossierId, reason: 'supabase_unavailable' });
+          return;
+        }
+        const { data, error } = await supabase.from('dossies').select('content').eq('id', dossierId).maybeSingle();
+        if (error || !data || !data.content) {
+          toast?.error('Não foi possível carregar esta sessão');
+          scoutDiag.warn('Investigation', 'Falha ao carregar dossiê remoto', {
+            dossierId,
+            reason: error ? 'supabase_error' : 'missing_content',
+            error: error instanceof Error ? error.message : String(error || ''),
+          });
+          return;
+        }
         dossier = data.content as ChatSession;
         await storage.saveDossier(dossier!);
       }
@@ -147,7 +161,7 @@ export function useInvestigation({
     } finally {
       processingRef.current = false;
     }
-  }, [duplicateDossier, operatorId, onSelectSession]);
+  }, [duplicateDossier, operatorId, onSelectSession, toast]);
 
   const handleNewResearchOverride = useCallback(async () => {
     if (processingRef.current) return;
