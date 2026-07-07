@@ -16,4 +16,11 @@ describe('buildCacheKey', () => {
     const key = buildCacheKey('04733767000180', 'Scheffer', 'Guilherme M Scheffer');
     expect(key).toBe('v7-structured-lateral-cnpj::04733767000180::guilherme m scheffer');
   });
+
+  it('ignora operatorId que normaliza para vazio', () => {
+    const withoutOperator = buildCacheKey('04733767000180', 'Scheffer', 'Guilherme M Scheffer');
+    const emptyOperator = buildCacheKey('04733767000180', 'Scheffer', 'Guilherme M Scheffer', '---!!!');
+
+    expect(emptyOperator).toBe(withoutOperator);
+  });
 });

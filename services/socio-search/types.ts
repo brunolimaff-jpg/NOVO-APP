@@ -153,8 +153,8 @@ export function normalizeText(value: string): string {
 export function buildCacheKey(rootCnpj: string, rootCompanyName: string, socioName: string, operatorId?: string): string {
   const cnpj = normalizeCnpj(rootCnpj);
   const base = `${CACHE_KEY_VERSION}::${cnpj || normalizeText(rootCompanyName)}::${normalizeText(socioName)}`;
-  if (!operatorId) return base;
-  return `${base}::${normalizeText(operatorId.replace(/-/g, ' '))}`;
+  const normalizedOperatorId = normalizeText((operatorId || '').replace(/-/g, ' '));
+  return normalizedOperatorId ? `${base}::${normalizedOperatorId}` : base;
 }
 
 export function buildPersistentCacheId(key: string): string {

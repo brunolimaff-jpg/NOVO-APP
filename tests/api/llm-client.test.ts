@@ -102,6 +102,7 @@ describe('callLiteLLM', () => {
   });
 
   it('repete erro transitório uma vez', async () => {
+    vi.useFakeTimers();
     process.env.LITELLM_BASE_URL = 'https://litellm.example';
     process.env.LITELLM_API_KEY = 'sk-test';
 
@@ -113,13 +114,20 @@ describe('callLiteLLM', () => {
         json: async () => ({ choices: [{ message: { content: '# Recuperado' } }] }),
       });
 
-    const result = await callLiteLLM({
-      model: 'model',
-      messages: [{ role: 'user', content: 'prompt' }],
-    });
+    try {
+      const resultPromise = callLiteLLM({
+        model: 'model',
+        messages: [{ role: 'user', content: 'prompt' }],
+      });
 
-    expect(result).toBe('# Recuperado');
-    expect(fetchMock).toHaveBeenCalledTimes(2);
+      await vi.advanceTimersByTimeAsync(1_000);
+      const result = await resultPromise;
+
+      expect(result).toBe('# Recuperado');
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('lança erro em resposta 4xx sem repetir', async () => {
