@@ -47,6 +47,8 @@ Este arquivo registra o andamento operacional das PRs abertas para executar o pl
 - Correção aplicada: `setupRealSupabaseAuthFromEnv` agora espera explicitamente o botão de auth, abre o modal, valida campos de email/senha e falha cedo com mensagem clara se o modal não abrir.
 - Evidência remota `1daafa5b`: CI completa passou; Golden live falhou rápido esperando `operator-menu-button`. O seletor existia nos helpers, mas o botão real do `UserMenu` não expunha esse `data-testid`.
 - Correção aplicada: botão principal do `UserMenu` agora expõe `data-testid="operator-menu-button"` para estabilizar auth real em gates E2E.
+- Evidência remota `d74c9ed2`: Golden live passou pelo login real e falhou em `completeOnboarding`, que esperava `greeting-card`/form de guest mesmo com usuário autenticado.
+- Correção aplicada: fluxo Scheffer com auth real agora espera shell/menu autenticado e chama `startNewInvestigation` diretamente, sem passar pelo onboarding guest.
 
 ### Pendências Antes do Push
 

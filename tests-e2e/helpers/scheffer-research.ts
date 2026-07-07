@@ -49,7 +49,14 @@ export async function setupSchefferResearchAuth(page: Page) {
 }
 
 export async function prepareSchefferInvestigationForm(page: Page) {
-  await completeOnboarding(page, { email: OPERATOR_EMAIL, name: OPERATOR_NAME });
+  if (USE_REAL_AUTH) {
+    await expect(page.getByTestId('app-shell').or(page.getByTestId('operator-menu-button')).first()).toBeVisible({
+      timeout: 30_000,
+    });
+  } else {
+    await completeOnboarding(page, { email: OPERATOR_EMAIL, name: OPERATOR_NAME });
+  }
+
   await dismissMigrationNotice(page);
   await startNewInvestigation(page);
   await expect(page.getByTestId('investigation-cnpj-input')).toBeVisible({ timeout: 15_000 });
