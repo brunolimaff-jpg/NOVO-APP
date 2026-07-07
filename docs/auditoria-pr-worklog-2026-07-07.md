@@ -25,7 +25,8 @@ Este arquivo registra o andamento operacional das PRs abertas para executar o pl
 - Removido `console.error('[TRACE] socio-search-batch')` de produção.
 - Helpers E2E ganharam `setupRealSupabaseAuthFromEnv`, `startNewInvestigation` e `dismissDuplicateDossierModal`.
 - Helper golden ganhou wrapper `evaluateDossierGolden` compatível com o spec live.
-- `test:e2e:preview` foi adicionado como alias do critical UX; workflow manual `e2e-preview.yml` também passa `VITE_E2E_AUTH_BYPASS=true`.
+- `test:e2e:preview` foi adicionado como alias do critical UX.
+- Workflow manual `e2e-preview.yml` roda contra preview Vercel com `E2E_REAL_AUTH=1` e secrets do GitHub; o bypass E2E fica restrito ao CI local/não-production.
 
 ### Validação Local
 
@@ -39,6 +40,7 @@ Este arquivo registra o andamento operacional das PRs abertas para executar o pl
 - `npm run lint`: passou sem erros; restam 62 warnings existentes/fora de escopo.
 - `review-branch`: achado de segurança no bypass E2E foi mitigado antes do push; verdict local atual: pronto para push após build final.
 - Decisão Bruno: validação final de UX/live deve rodar no Vercel preview com auth real; local serve apenas como triagem técnica.
+- Ajuste pós-decisão: helpers `setupE2EAuth` usam login real quando `E2E_REAL_AUTH=1`, permitindo rodar critical UX no preview Vercel sem bypass em produção.
 
 ### Pendências Antes do Push
 

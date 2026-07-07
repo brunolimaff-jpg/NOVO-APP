@@ -60,8 +60,10 @@ jobs:
       - name: E2E critical-ux contra preview Vercel
         env:
           BASE_URL: ${{ steps.resolve_url.outputs.preview_url }}
+          E2E_REAL_AUTH: '1'
+          E2E_OPERATOR_EMAIL: ${{ secrets.GOLDEN_E2E_OPERATOR_EMAIL }}
+          E2E_AUTH_PASSWORD: ${{ secrets.GOLDEN_E2E_AUTH_PASSWORD }}
           VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
-          VITE_E2E_AUTH_BYPASS: 'true'
           PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
         run: npm run test:e2e:preview
 

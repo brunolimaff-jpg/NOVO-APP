@@ -23,6 +23,11 @@ export function e2eOperatorIdentity(options: E2EAuthOptions = {}) {
  * Usar no topo de cada test ou como fixture global.
  */
 export async function setupE2EAuth(page: Page, options: E2EAuthOptions = {}) {
+  if (process.env.E2E_REAL_AUTH === '1') {
+    await setupRealSupabaseAuthFromEnv(page, { email: options.email });
+    return;
+  }
+
   const identity = e2eOperatorIdentity(options);
   await page.addInitScript(({ email, name, operatorId }) => {
     const PREFIX = 'scout360:';
