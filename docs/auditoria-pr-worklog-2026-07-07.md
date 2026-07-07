@@ -45,6 +45,8 @@ Este arquivo registra o andamento operacional das PRs abertas para executar o pl
 - Correção aplicada: fluxo Scheffer com `E2E_REAL_AUTH=1` não semeia `operator_email` local antes do login; workflows live agora usam `reporter=line`, timeout de comando controlado e upload de artefatos.
 - Evidência remota `4cd57e04`: CI completa passou; Golden live falhou em 14 min ainda na tela "Acesso temporariamente bloqueado", indicando que o helper podia pular abertura do modal e ficar aguardando input sem timeout de ação.
 - Correção aplicada: `setupRealSupabaseAuthFromEnv` agora espera explicitamente o botão de auth, abre o modal, valida campos de email/senha e falha cedo com mensagem clara se o modal não abrir.
+- Evidência remota `1daafa5b`: CI completa passou; Golden live falhou rápido esperando `operator-menu-button`. O seletor existia nos helpers, mas o botão real do `UserMenu` não expunha esse `data-testid`.
+- Correção aplicada: botão principal do `UserMenu` agora expõe `data-testid="operator-menu-button"` para estabilizar auth real em gates E2E.
 
 ### Pendências Antes do Push
 

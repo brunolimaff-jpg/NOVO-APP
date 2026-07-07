@@ -59,6 +59,7 @@ const UserMenu: React.FC<UserMenuProps> = ({
     <div className="relative flex-shrink-0" ref={rootRef}>
       <button
         type="button"
+        data-testid="operator-menu-button"
         onClick={() => setOpen(v => !v)}
         className={`flex items-center gap-2 rounded-full pl-0.5 pr-1 py-0.5 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${
           isDarkMode ? 'hover:bg-slate-800' : 'hover:bg-slate-100'
