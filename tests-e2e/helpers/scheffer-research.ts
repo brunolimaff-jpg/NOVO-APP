@@ -209,9 +209,24 @@ export async function submitSchefferInvestigation(page: Page, _runLabel?: string
   await page.getByTestId('investigation-company-input').fill(companyName);
   await page.getByTestId('investigation-city-input').fill(city);
   await page.getByTestId('investigation-uf-input').fill(state);
-  await page.getByTestId('investigation-submit-button').click({ force: true });
+  const submitButton = page.getByTestId('investigation-submit-button');
+  await expect(submitButton).toBeVisible({ timeout: 10_000 });
+  await submitButton.click();
 
-  await dismissDuplicateDossierModal(page);
+  const locationStatus = page.getByTestId('investigation-location-status');
+  await expect(locationStatus)
+    .toContainText(/validando|validada|não encontrada/i, { timeout: 15_000 })
+    .catch(() => undefined);
+
+  const invalidLocation = await locationStatus
+    .filter({ hasText: /não encontrada/i })
+    .isVisible({ timeout: 500 })
+    .catch(() => false);
+  if (invalidLocation) {
+    throw new Error(`Localização Scheffer recusada antes do waterfall: ${await locationStatus.innerText()}`);
+  }
+
+  await dismissDuplicateDossierModal(page, { timeoutMs: 30_000 });
 
   await expect(
     page

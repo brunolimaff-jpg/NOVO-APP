@@ -106,9 +106,10 @@ export async function startNewInvestigation(page: Page) {
   throw new Error('Não encontrei ação para iniciar nova investigação');
 }
 
-export async function dismissDuplicateDossierModal(page: Page) {
+export async function dismissDuplicateDossierModal(page: Page, options: { timeoutMs?: number } = {}) {
+  const timeoutMs = options.timeoutMs ?? 3_000;
   const newResearch = page.getByRole('button', { name: /nova pesquisa do zero|pesquisar novamente|nova pesquisa/i }).first();
-  if (await newResearch.isVisible({ timeout: 3_000 }).catch(() => false)) {
+  if (await newResearch.isVisible({ timeout: timeoutMs }).catch(() => false)) {
     await newResearch.click({ force: true });
     await expect(newResearch)
       .toBeHidden({ timeout: 5_000 })

@@ -458,7 +458,11 @@ const EmptyStateHome: React.FC<EmptyStateHomeProps> = ({
                     Preencha empresa, cidade e UF válida para iniciar.
                   </p>
                 )}
-                {locationStatus && <p className={`text-[11px] ${textMuted}`}>{locationStatus}</p>}
+                {locationStatus && (
+                  <p data-testid="investigation-location-status" className={`text-[11px] ${textMuted}`}>
+                    {locationStatus}
+                  </p>
+                )}
 
                 {previewDemoPayload && (
                   <button

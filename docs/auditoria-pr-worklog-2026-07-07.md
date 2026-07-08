@@ -49,6 +49,8 @@ Este arquivo registra o andamento operacional das PRs abertas para executar o pl
 - Correção aplicada: botão principal do `UserMenu` agora expõe `data-testid="operator-menu-button"` para estabilizar auth real em gates E2E.
 - Evidência remota `d74c9ed2`: Golden live passou pelo login real e falhou em `completeOnboarding`, que esperava `greeting-card`/form de guest mesmo com usuário autenticado.
 - Correção aplicada: fluxo Scheffer com auth real agora espera shell/menu autenticado e chama `startNewInvestigation` diretamente, sem passar pelo onboarding guest.
+- Evidência remota `df398a72`: CI, Build, Typecheck, Tests, E2E Critical Browser, Smoke preview, CodeQL, CodeRabbit, GitGuardian e Vercel passaram; Golden live falhou após submit porque nenhum overlay de waterfall apareceu em 45s.
+- Correção aplicada: helper Scheffer deixou de clicar no submit com `force`, expôs/observa `investigation-location-status` e aguarda por mais tempo o modal de dossiê duplicado antes de exigir o overlay do waterfall.
 
 ### Pendências Antes do Push
 
