@@ -53,6 +53,8 @@ Este arquivo registra o andamento operacional das PRs abertas para executar o pl
 - Correção aplicada: helper Scheffer deixou de clicar no submit com `force`, expôs/observa `investigation-location-status` e aguarda por mais tempo o modal de dossiê duplicado antes de exigir o overlay do waterfall.
 - Review PR #410: resolvidos comentários pendentes sobre docs-mode do RAG baseado no payload Zod, mensagem real de `PostgrestError`, `@types/node` alinhado ao Node 24 e login E2E com falha clara quando credencial é recusada.
 - Correção aplicada: lookup de dossiê duplicado antes do waterfall agora tem teto de 6s e segue com nova investigação se o Supabase não responder, evitando formulário parado sem overlay.
+- Evidência remota `624adb35`: CI, E2E Critical Browser, Smoke preview e Vercel passaram; Golden live ainda falhou antes do overlay do waterfall, sem diagnóstico suficiente no artefato padrão.
+- Correção aplicada: helper Golden agora coleta diagnóstico não sensível do submit quando a validação/localização ou o overlay não aparecem.
 
 ### Pendências Antes do Push
 
@@ -73,3 +75,4 @@ Este arquivo registra o andamento operacional das PRs abertas para executar o pl
 - Frequência: a cada 30 minutos.
 - Escopo: checar PRs abertas, checks, reviews/comentários e falhas acionáveis.
 - Guardrail: nunca executar merge; merge exige Bruno escrever `MERGE`.
+- Removida em 2026-07-08 a pedido do Bruno; acompanhamento passa a ser manual nesta execução.

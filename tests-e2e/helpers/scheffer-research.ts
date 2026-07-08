@@ -128,6 +128,34 @@ export async function assertCnpjApiLive(page: Page) {
   return assertCnpjLivePayload(response);
 }
 
+async function collectSubmitDiagnostics(page: Page) {
+  return page.evaluate(() => {
+    const getText = (selector: string) => document.querySelector(selector)?.textContent?.trim().slice(0, 500) ?? null;
+    const getValue = (selector: string) => (document.querySelector(selector) as HTMLInputElement | null)?.value ?? null;
+    const bodyText = document.body?.textContent?.replace(/\s+/g, ' ').trim() ?? '';
+
+    return {
+      url: location.href,
+      cnpjValue: getValue('[data-testid="investigation-cnpj-input"]'),
+      companyValue: getValue('[data-testid="investigation-company-input"]'),
+      cityValue: getValue('[data-testid="investigation-city-input"]'),
+      ufValue: getValue('[data-testid="investigation-uf-input"]'),
+      locationStatus: getText('[data-testid="investigation-location-status"]'),
+      validationHint: bodyText.match(/Preencha empresa[^.]+|Cidade não encontrada[^.]+|Localização validada/iu)?.[0] ?? null,
+      duplicateModalVisible: /Dossiê existente|Dossie existente|Nova Pesquisa do Zero/i.test(bodyText),
+      loadingVisible: Boolean(
+        document.querySelector(
+          '[data-testid="cofre-overlay"], [data-testid="loading-smart-overlay"], [data-testid="inline-loading-bubble"]',
+        ),
+      ),
+      appShellVisible: Boolean(document.querySelector('[data-testid="app-shell"]')),
+      operatorMenuVisible: Boolean(document.querySelector('[data-testid="operator-menu-button"]')),
+      localOperatorIdPresent: Boolean(localStorage.getItem('scout360:operator_id')),
+      mainPanelText: getText('[data-testid="chat-main-panel"]'),
+    };
+  });
+}
+
 export async function ensureInvestigationForm(page: Page) {
   const cnpjInput = page.getByTestId('investigation-cnpj-input');
   if (await cnpjInput.isVisible({ timeout: 2_000 }).catch(() => false)) {
@@ -214,9 +242,15 @@ export async function submitSchefferInvestigation(page: Page, _runLabel?: string
   await submitButton.click();
 
   const locationStatus = page.getByTestId('investigation-location-status');
-  await expect(locationStatus)
+  const statusSeen = await expect(locationStatus)
     .toContainText(/validando|validada|não encontrada/i, { timeout: 15_000 })
-    .catch(() => undefined);
+    .then(() => true)
+    .catch(() => false);
+  if (!statusSeen) {
+    throw new Error(
+      `Submit Scheffer não iniciou validação de localização: ${JSON.stringify(await collectSubmitDiagnostics(page))}`,
+    );
+  }
 
   const invalidLocation = await locationStatus
     .filter({ hasText: /não encontrada/i })
@@ -234,7 +268,13 @@ export async function submitSchefferInvestigation(page: Page, _runLabel?: string
       .or(page.getByTestId('loading-smart-overlay'))
       .or(page.getByTestId('inline-loading-bubble'))
       .first(),
-  ).toBeVisible({ timeout: 45_000 });
+  )
+    .toBeVisible({ timeout: 45_000 })
+    .catch(async error => {
+      throw new Error(
+        `Waterfall Scheffer não iniciou após submit: ${JSON.stringify(await collectSubmitDiagnostics(page))}\n${error}`,
+      );
+    });
 
   return companyName;
 }
