@@ -143,3 +143,14 @@ Este arquivo registra o andamento operacional das PRs abertas para executar o pl
   - `npm run build`: passou; houve upload local de sourcemaps ao Sentry porque o ambiente local tinha configuracao de Sentry ativa.
   - `npm run test`: passou, 159 arquivos e 1489 testes.
   - `git diff --check`: passou.
+
+### Rodada CI Remoto da PR #411 — 2026-07-08
+
+- Evidência remota `2567d3c3`: `Build`, `Typecheck`, `Dossier Golden`, `Smoke preview`, `Vercel`, `GitGuardian` e `CodeRabbit` passaram; `Tests` falhou apesar de 159 arquivos/1489 testes passarem.
+- Causa do job `Tests`: unhandled async timer em `utils/layoutTraceTelemetry.ts` acessava `document` depois do teardown do jsdom (`ReferenceError: document is not defined`), originado durante `tests/components/ChatInterface.test.tsx`.
+- Correção aplicada: `debugStaticFallbackDisplay` agora revalida `document`/`getComputedStyle` dentro do `probe` agendado por `requestAnimationFrame`/`setTimeout`, evitando acesso a DOM após teardown.
+- Validação local pós-correção:
+  - `npm run test`: passou, 159 arquivos e 1489 testes, sem unhandled error.
+  - `npm run typecheck`: passou.
+  - `npm run lint`: passou sem erros; restam 61 warnings existentes/fora de escopo.
+  - `npm run build`: passou; houve upload local de sourcemaps ao Sentry porque o ambiente local tinha configuracao de Sentry ativa.

@@ -365,6 +365,8 @@ export function debugStaticFallbackDisplay(
   if (typeof document === 'undefined') return;
 
   const probe = (label: string) => {
+    if (typeof document === 'undefined' || typeof getComputedStyle === 'undefined') return;
+
     const fallbackEl = document.querySelector('[data-testid="messages-static-fallback"]');
     const panelEl = document.querySelector('[data-testid="chat-main-panel"]');
     const mainEl = document.querySelector('[data-testid="chat-shell"]');
