@@ -85,3 +85,41 @@ Este arquivo registra o andamento operacional das PRs abertas para executar o pl
 - Escopo: checar PRs abertas, checks, reviews/comentários e falhas acionáveis.
 - Guardrail: nunca executar merge; merge exige Bruno escrever `MERGE`.
 - Removida em 2026-07-08 a pedido do Bruno; acompanhamento passa a ser manual nesta execução.
+
+## PR Hotfix Segurança Pequeno
+
+### Status Local
+
+- Worktree local: `/Users/brunolima/.config/superpowers/worktrees/NOVO-APP/hotfix-security-small`
+- Branch: `codex/hotfix-security-small`
+- Base empilhada: `fix/main-typecheck-pr408` / PR #410.
+- Objetivo: aplicar hotfix pequeno de seguranca sem misturar cron, RLS/Auth ou BUG-8.
+- Fora de escopo por decisao do Bruno: cron/review-cron.
+- Golden live: permanece em quarentena conforme PR #410; se voltar a bloquear a casa, a prioridade e estabilizar o app antes de reativar o gate como bloqueante.
+
+### Correções Aplicadas
+
+- Sentry Replay passou para `maskAllText: true` e `blockAllMedia: true`.
+- `beforeSend` do Sentry ganhou scrubber para CPF, CNPJ e email em eventos antes do envio.
+- `/api/gemini` agora valida `recordDiagnostics` com schema Zod estrito antes de gravar diagnosticos.
+- Score PORTA passou a clampar notas `P/O/R/T/A` em 0-10 e score bruto/final em 0-100, incluindo marker explicito e estado consolidado.
+- Corrigido caractere CJK acidental no contrato de prompt do seller brief.
+- CNPJ Aberto agora descarta registros sem CNPJ valido no extractor.
+- CNPJ Aberto estruturado so entra no inventario principal se lookup oficial confirmar o mesmo CNPJ e o QSA confirmar o socio; falha/mismatch vira rejeitado.
+
+### Validação Local
+
+- `npm exec vitest run tests/utils/sentryScrubber.test.ts tests/api-gemini.test.ts tests/utils/porta.test.ts tests/services/portaStateService.test.ts tests/utils/documentExtractor.test.ts tests/api-socio-search.test.ts tests/prompts/megaPrompts.test.ts`: passou, 100 testes.
+- `npm run typecheck`: passou.
+- `npm run lint`: passou sem erros; restam 61 warnings existentes/fora de escopo.
+- `npm run validate:prompts`: passou, 71 testes.
+- `npm run build`: passou; houve upload local de sourcemaps ao Sentry porque o ambiente local tinha configuracao de Sentry ativa.
+- `npm run test`: passou, 159 arquivos e 1486 testes.
+- `git diff --check origin/fix/main-typecheck-pr408`: passou.
+
+### Proximos Gates Remotos
+
+- Abrir PR empilhada contra `fix/main-typecheck-pr408`.
+- Aguardar Vercel preview e checks GitHub.
+- Conferir comentários/reviews da PR e resolver antes de considerar pronta.
+- Nenhum merge sem Bruno escrever `MERGE`.

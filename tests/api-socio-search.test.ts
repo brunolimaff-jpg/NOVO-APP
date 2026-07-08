@@ -204,6 +204,51 @@ describe('api/socio-search', () => {
     expect(lookupCnpjMock).not.toHaveBeenCalled();
   });
 
+  it('rejeita CNPJ Aberto sem confirmacao oficial do lookup/QSA', async () => {
+    searchCnpjAbertoCompaniesMock.mockResolvedValueOnce([
+      {
+        name: 'E.Z.M.S. Participações Ltda',
+        cnpj: '09.567.366/0001-11',
+        role: 'Sócio-administrador',
+        sourceTitle: 'CNPJ Aberto — Elizeu Zulmar Maggi Scheffer',
+        sourceUrl: 'https://cnpjaberto.com.br/09567366000111',
+        snippet: 'Elizeu Zulmar Maggi Scheffer aparece como sócio.',
+      },
+    ]);
+    performWebSearchMock.mockResolvedValue('Nenhum resultado encontrado.');
+    lookupCnpjMock.mockRejectedValueOnce(new Error('lookup indisponivel'));
+
+    const { default: handler } = await import('../api/socio-search');
+    const response = makeResponse();
+
+    await handler(
+      {
+        method: 'POST',
+        body: {
+          socioName: 'Elizeu Zulmar Maggi Scheffer',
+          rootCompanyName: 'Scheffer & Cia Ltda',
+          rootCnpj: '04.733.767/0001-80',
+        },
+      } as VercelRequest,
+      response.res,
+    );
+
+    const payload = response.payload as {
+      companies: unknown[];
+      rejected: Array<{ reason: string; sourceTitle?: string }>;
+    };
+    expect(response.statusCode).toBe(200);
+    expect(payload.companies).toHaveLength(0);
+    expect(payload.rejected).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          sourceTitle: 'CNPJ Aberto — Elizeu Zulmar Maggi Scheffer',
+          reason: expect.stringMatching(/sem confirmacao oficial/i),
+        }),
+      ]),
+    );
+  });
+
   it('retorna diagnostico ampliado quando trace e solicitado', async () => {
     searchCnpjAbertoCompaniesMock.mockResolvedValueOnce([
       {

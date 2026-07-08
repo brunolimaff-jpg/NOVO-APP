@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest';
-import { universalExtract, isValidPublicUrl, extractHtml } from '../../utils/documentExtractor';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { universalExtract, isValidPublicUrl, extractHtml, searchCnpjAbertoCompanies } from '../../utils/documentExtractor';
 
 describe('isValidPublicUrl', () => {
   it('aceita URLs publicas validas com https', () => {
@@ -145,6 +145,46 @@ describe('universalExtract', () => {
       text: '',
       length: 0,
       error: 'URL restrita ou inválida por segurança.',
+    });
+  });
+});
+
+describe('searchCnpjAbertoCompanies', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.unstubAllGlobals();
+  });
+
+  it('ignora registros sem CNPJ valido antes de aceitar resultado do CNPJ Aberto', async () => {
+    vi.stubEnv('CNPJABERTO_API_KEY', 'test-key');
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          empresas: [
+            {
+              razao_social: 'Empresa Invalida LTDA',
+              cnpj: '12.345.678/0001-00',
+              qualificacao: 'Sócio-administrador',
+            },
+            {
+              razao_social: 'E.Z.M.S. Participacoes LTDA',
+              cnpj: '09.567.366/0001-11',
+              qualificacao: 'Sócio-administrador',
+            },
+          ],
+        }),
+      }),
+    );
+
+    const results = await searchCnpjAbertoCompanies('Elizeu Zulmar Maggi Scheffer');
+
+    expect(results).toHaveLength(1);
+    expect(results?.[0]).toMatchObject({
+      name: 'E.Z.M.S. Participacoes LTDA',
+      cnpj: '09567366000111',
+      sourceUrl: 'https://cnpjaberto.com.br/09567366000111',
     });
   });
 });

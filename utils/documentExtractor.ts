@@ -1,4 +1,4 @@
-import { normalizeCnpj } from './cnpj.js';
+import { isValidCnpj, normalizeCnpj } from './cnpj.js';
 import { scoutDiag } from './diagnosticLog.js';
 
 /**
@@ -433,6 +433,7 @@ export async function searchCnpjAbertoCompanies(socioName: string): Promise<Cnpj
       const name = readString(company, ['razao_social', 'razão_social', 'nome', 'name']);
       const cnpjRaw = readString(company, ['cnpj', 'cnpj_formatado']);
       const cnpj = normalizeCnpj(cnpjRaw);
+      if (!isValidCnpj(cnpj)) continue;
       const role = readString(company, ['qualificacao', 'qualificacao_socio', 'qualificação', 'cargo', 'role']);
       const registrationStatus = readString(company, [
         'situacao',
@@ -443,12 +444,9 @@ export async function searchCnpjAbertoCompanies(socioName: string): Promise<Cnpj
         'status',
         'status_receita',
       ]);
-      if (!name && !cnpj) continue;
 
       const sourceTitle = `CNPJ Aberto — ${name || `CNPJ ${cnpjRaw}`}${cnpjRaw ? ` (CNPJ ${cnpjRaw})` : ''}`;
-      const sourceUrl = cnpj
-        ? `https://cnpjaberto.com.br/${cnpj}`
-        : `https://cnpjaberto.com.br/api/socio/empresas?nome=${encodeURIComponent(socioName)}`;
+      const sourceUrl = `https://cnpjaberto.com.br/${cnpj}`;
       const summaryParts = [name];
       if (cnpjRaw) summaryParts.push(`CNPJ ${cnpjRaw}`);
       if (role) summaryParts.push(role);

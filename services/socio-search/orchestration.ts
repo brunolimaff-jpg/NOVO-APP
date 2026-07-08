@@ -16,7 +16,6 @@ import {
   type SocioSearchResponse,
   type SocioSearchDiagnostics,
   type SocioSearchTraceProvider,
-  type SocioSearchTraceDiagnostics,
   type SocioSearchCacheSource,
   type SocioSearchSourceDepth,
   SEARCH_DEADLINE_MS,
@@ -323,6 +322,21 @@ export async function runSearch(
             message: error instanceof Error ? error.message : String(error),
           });
         }
+      }
+
+      const officialCnpj = normalizeCnpj(official?.cnpj || '');
+      if (!official || officialCnpj !== cnpj || qsaConfirmsSocio !== true) {
+        rejected.push({
+          sourceTitle: candidate.sourceTitle,
+          sourceUrl: candidate.sourceUrl,
+          snippet: candidate.snippet,
+          reason: !official
+            ? 'CNPJ Aberto sem confirmacao oficial da Receita/lookup.'
+            : officialCnpj !== cnpj
+              ? 'CNPJ Aberto divergente do CNPJ confirmado pela Receita/lookup.'
+              : `QSA oficial nao confirmou o socio ${params.socioName} neste CNPJ.`,
+        });
+        continue;
       }
 
       addCompany(

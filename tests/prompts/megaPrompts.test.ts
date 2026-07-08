@@ -173,6 +173,14 @@ describe('PORTA mega prompts', () => {
     expect(SHARED_FOUNDATION_BLOCK).toContain(SELLER_BRIEF_MODULE_OUTPUT_CONTRACT);
   });
 
+  it('nao contem caracteres CJK acidentais nos prompts principais', () => {
+    const promptBundle = [SHARED_FOUNDATION_BLOCK, SELLER_BRIEF_MODULE_OUTPUT_CONTRACT, ...ALL_SPECIALIST_PROMPTS].join(
+      '\n',
+    );
+
+    expect(promptBundle).not.toMatch(/[\u3400-\u9fff\u3040-\u30ff\uac00-\ud7af]/u);
+  });
+
   it('keeps the facade metadata and specialist prompt collection stable', () => {
     expect(PROMPT_VERSION).toBe('Scout360_v5.0_ExecutiveCommitteeGrade');
     expect(ALL_SPECIALIST_PROMPTS).toHaveLength(8);
@@ -260,9 +268,9 @@ describe('PORTA mega prompts', () => {
       [
         {
           "label": "shared-foundation",
-          "length": 43717,
+          "length": 43719,
           "lines": 1037,
-          "sha256": "9a49b8acf031e31fea34e3ba1b6a5cf1daf7f9f9f76a6f1ac207fb9efab72c30",
+          "sha256": "825b122f779b47d1017e19307fe45b08f4cfddc0ebe5269ac7332160fb910c9c",
         },
         {
           "label": "specialist-1",
@@ -314,21 +322,21 @@ describe('PORTA mega prompts', () => {
         },
         {
           "label": "legacy-compatible-hidden-prompt",
-          "length": 110574,
+          "length": 110576,
           "lines": 2737,
-          "sha256": "11b5b33482575fec037901eacb7e1979cb6337397e2c682b8d61b4bb934195b6",
+          "sha256": "5c0dc5bdecb49a12b247a8ef26430e5d4368190b22e34eaaa090ae636ac5b9a7",
         },
         {
           "label": "executive-full-hidden-prompt",
-          "length": 119445,
+          "length": 119447,
           "lines": 2996,
-          "sha256": "e5bc14e2b5a4f15e78bf97165ce32644350b6f6c6fe44c83982e8da102966886",
+          "sha256": "8145571207e0d326f2523f00e0e52087e1ffb41b1c3d09ce81c2aa3c2745c790",
         },
         {
           "label": "war-mode-minimal-hidden-prompt",
-          "length": 111048,
+          "length": 111050,
           "lines": 2757,
-          "sha256": "331788191b407e13c847f2a8c6bc2f0ea71d877f763d37699314986d63f68e79",
+          "sha256": "012b9dc5ac1916a6662207ab9b8e6a40ecd83a6b45623d49d80545b8dd462e4c",
         },
       ]
     `);

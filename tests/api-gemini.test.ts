@@ -469,4 +469,86 @@ describe('api/gemini handler', () => {
     expect(deleteCacheMock).toHaveBeenCalledWith({ name: 'cachedContents/test-cache' });
     expect(res.json).toHaveBeenCalledWith({ ok: true });
   });
+
+  it('aceita recordDiagnostics validado por schema sem chamar Gemini', async () => {
+    vi.stubEnv('SUPABASE_URL', '');
+    vi.stubEnv('SUPABASE_SERVICE_ROLE_KEY', '');
+
+    const { default: handler } = await import('../api/gemini');
+    const req = {
+      method: 'POST',
+      body: {
+        action: 'recordDiagnostics',
+        runId: 'run-1',
+        sessionId: 'session-1',
+        operatorId: 'operator-1',
+        environment: 'test',
+        route: '/',
+        userAgent: 'vitest',
+        events: [
+          {
+            at: '2026-07-08T00:00:00.000Z',
+            t: 123,
+            runId: 'run-1',
+            sessionId: 'session-1',
+            area: 'PostCompletion',
+            event: 'check',
+            severity: 'info',
+            elapsedMs: 10,
+            payload: { bodyLen: 42 },
+          },
+        ],
+      },
+    } as VercelRequest;
+
+    const res = {
+      setHeader: vi.fn(),
+      status: vi.fn().mockReturnThis(),
+      json: vi.fn().mockReturnThis(),
+    } as unknown as VercelResponse;
+
+    await handler(req, res);
+
+    expect(createChatMock).not.toHaveBeenCalled();
+    expect(generateContentMock).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({ inserted: 0, degraded: true, reason: 'Supabase not configured' });
+
+    vi.unstubAllEnvs();
+  });
+
+  it('rejeita recordDiagnostics com campos fora do contrato', async () => {
+    const { default: handler } = await import('../api/gemini');
+    const req = {
+      method: 'POST',
+      body: {
+        action: 'recordDiagnostics',
+        runId: 'run-1',
+        events: [
+          {
+            at: '2026-07-08T00:00:00.000Z',
+            t: 123,
+            runId: 'run-1',
+            area: 'PostCompletion',
+            event: 'check',
+            severity: 'info',
+            rawDossier: 'nao deve passar',
+          },
+        ],
+      },
+    } as VercelRequest;
+
+    const res = {
+      setHeader: vi.fn(),
+      status: vi.fn().mockReturnThis(),
+      json: vi.fn().mockReturnThis(),
+    } as unknown as VercelResponse;
+
+    await handler(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ error: 'Invalid diagnostics request' }));
+    expect(createChatMock).not.toHaveBeenCalled();
+    expect(generateContentMock).not.toHaveBeenCalled();
+  });
 });

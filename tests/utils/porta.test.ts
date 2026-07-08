@@ -158,6 +158,22 @@ describe('PORTA helpers', () => {
     expect(calculatePortaFlagMultiplier(['TRAD', 'LOCK'])).toBe(0.6);
   });
 
+  it('clampa notas e scores PORTA quando o marker traz T fora da escala', () => {
+    const parsed = parsePortaMarkerV2('[[PORTA:173:P7:O6:R4:T62:A8:AGI:NONE]]');
+
+    expect(parsed).toEqual({
+      score: 69,
+      p: 7,
+      o: 6,
+      r: 4,
+      t: 10,
+      a: 8,
+      segmento: 'AGI',
+      flags: [],
+      scoreBruto: 69,
+    });
+  });
+
   it('resolves a waterfall score from feed markers when the explicit marker is absent', () => {
     const resolved = resolvePortaScore(`
 [[PORTA_FEED_O:[8]:ELOS:[Plantio,Armazenagem,Beneficiamento,Exportacao,Logistica]]]

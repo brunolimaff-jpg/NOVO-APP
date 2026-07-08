@@ -63,6 +63,33 @@ describe('portaStateService', () => {
     expect(state?.feedAdjustments).toHaveLength(1);
   });
 
+  it('clampa ajuste T fora da escala antes de consolidar o score', () => {
+    initPortaState('Grupo Scheffer', 'session-1');
+    setBaseScore({
+      score: 75,
+      p: 9,
+      o: 8,
+      r: 8,
+      t: 6,
+      a: 8,
+      segmento: 'PRD',
+      flags: [],
+      scoreBruto: 75,
+    });
+
+    addFeedAdjustment({
+      source: 'TECH_STACK',
+      dimension: 'T',
+      suggestedValue: 62,
+      justification: 'valor bruto fora da escala recebido do deep dive',
+    });
+
+    const state = getPortaState();
+    expect(state?.consolidatedScore?.t).toBe(10);
+    expect(state?.consolidatedScore?.score).toBe(87);
+    expect(state?.consolidatedScore?.scoreBruto).toBe(87);
+  });
+
   it('replaces previous feed from same source and dimension', () => {
     initPortaState('Grupo Scheffer', 'session-1');
     setBaseScore({

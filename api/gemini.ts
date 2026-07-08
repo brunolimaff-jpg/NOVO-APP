@@ -13,6 +13,34 @@ const HistoryItemSchema = z.object({
   text: z.string(),
 });
 const ThinkingLevelSchema = z.enum(['low', 'medium', 'high']);
+const DiagnosticPayloadSchema = z.record(z.string().min(1).max(128), z.unknown());
+const DiagnosticEventSchema = z
+  .object({
+    at: z.string().min(1).max(64),
+    t: z.number().finite(),
+    runId: z.string().min(1).max(128),
+    sessionId: z.string().max(128).optional(),
+    area: z.string().min(1).max(128),
+    event: z.string().min(1).max(128),
+    severity: z.string().max(32).optional(),
+    elapsedMs: z.number().finite().nonnegative().optional(),
+    payload: DiagnosticPayloadSchema.optional(),
+  })
+  .strict();
+
+const RecordDiagnosticsRequestSchema = z
+  .object({
+    action: z.literal('recordDiagnostics'),
+    runId: z.string().min(1).max(128),
+    sessionId: z.string().max(128).optional(),
+    operatorId: z.string().max(128).optional(),
+    environment: z.string().max(64).optional(),
+    appVersion: z.string().max(128).optional(),
+    route: z.string().max(512).optional(),
+    userAgent: z.string().max(1024).optional(),
+    events: z.array(DiagnosticEventSchema).min(1).max(500),
+  })
+  .strict();
 
 const GeminiRequestSchema = z.discriminatedUnion('action', [
   z.object({ action: z.literal('health') }),
@@ -605,22 +633,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   // ── recordDiagnostics: early return antes de qualquer validação Gemini ──
   if (req.body?.action === 'recordDiagnostics') {
-    const body = req.body as {
-      runId?: string;
-      sessionId?: string;
-      operatorId?: string;
-      environment?: string;
-      appVersion?: string;
-      route?: string;
-      userAgent?: string;
-      events?: unknown[];
-    };
-
-    if (!body.runId || !Array.isArray(body.events) || body.events.length === 0) {
-      return res.status(400).json({ error: 'Missing runId or events' });
+    const parsed = RecordDiagnosticsRequestSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: 'Invalid diagnostics request', details: parsed.error.flatten() });
     }
 
-    const events = body.events.slice(0, MAX_EVENTS_PER_BATCH) as unknown as Parameters<
+    const body = parsed.data;
+    const events = body.events.slice(0, MAX_EVENTS_PER_BATCH) as Parameters<
       typeof insertDiagnosticsBatch
     >[1];
 

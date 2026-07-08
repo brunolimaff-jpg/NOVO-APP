@@ -1,6 +1,4 @@
 import {
-  PORTA_FLAG_PENALTIES,
-  PORTA_WEIGHTS,
   PortaDimension,
   PortaFeedAdjustment,
   PortaFlag,
@@ -10,7 +8,13 @@ import {
   PortaState,
   ScorePortaData,
 } from '../types';
-import { calculatePortaFlagMultiplier, calculatePortaScoreBruto, normalizePortaFlags } from '../utils/porta';
+import {
+  calculatePortaFlagMultiplier,
+  calculatePortaScoreBruto,
+  clampPortaNote,
+  clampPortaScore,
+  normalizePortaFlags,
+} from '../utils/porta';
 
 let currentPortaState: PortaState | null = null;
 
@@ -40,16 +44,23 @@ export function resetPortaState(): void {
 export function setBaseScore(score: ScorePortaData): void {
   if (!currentPortaState) return;
   const normalizedFlags = normalizePortaFlags(score.flags || []);
-  const scoreBruto =
-    typeof score.scoreBruto === 'number'
-      ? score.scoreBruto
-      : calculatePortaScoreBruto(score.p, score.o, score.r, score.t, score.a, score.segmento);
+  const p = clampPortaNote(score.p);
+  const o = clampPortaNote(score.o);
+  const r = clampPortaNote(score.r);
+  const t = clampPortaNote(score.t);
+  const a = clampPortaNote(score.a);
+  const scoreBruto = calculatePortaScoreBruto(p, o, r, t, a, score.segmento);
 
   currentPortaState.baseScore = {
     ...score,
+    p,
+    o,
+    r,
+    t,
+    a,
     flags: normalizedFlags,
     scoreBruto,
-    score: Math.round(scoreBruto * calculatePortaFlagMultiplier(normalizedFlags)),
+    score: clampPortaScore(scoreBruto * calculatePortaFlagMultiplier(normalizedFlags)),
   };
   currentPortaState.baseScoreTimestamp = Date.now();
   consolidateScore();
@@ -103,11 +114,11 @@ function consolidateScore(): void {
 
   const base = currentPortaState.baseScore;
 
-  let p = base.p;
-  let o = base.o;
-  let r = base.r;
-  let t = base.t;
-  let a = base.a;
+  let p = clampPortaNote(base.p);
+  let o = clampPortaNote(base.o);
+  let r = clampPortaNote(base.r);
+  let t = clampPortaNote(base.t);
+  let a = clampPortaNote(base.a);
 
   const latestByDimension = new Map<PortaDimension, PortaFeedAdjustment>();
   for (const feed of currentPortaState.feedAdjustments) {
@@ -118,23 +129,24 @@ function consolidateScore(): void {
   }
 
   for (const [dimension, feed] of latestByDimension.entries()) {
-    const diff = Math.abs(feed.suggestedValue - getDimensionValue(base, dimension));
+    const suggestedValue = clampPortaNote(feed.suggestedValue);
+    const diff = Math.abs(suggestedValue - clampPortaNote(getDimensionValue(base, dimension)));
     if (diff < 1) continue;
     switch (dimension) {
       case 'P':
-        p = feed.suggestedValue;
+        p = suggestedValue;
         break;
       case 'O':
-        o = feed.suggestedValue;
+        o = suggestedValue;
         break;
       case 'R':
-        r = feed.suggestedValue;
+        r = suggestedValue;
         break;
       case 'T':
-        t = feed.suggestedValue;
+        t = suggestedValue;
         break;
       case 'A':
-        a = feed.suggestedValue;
+        a = suggestedValue;
         break;
       default:
         break;
@@ -156,17 +168,9 @@ function consolidateScore(): void {
   }
   const flags = normalizePortaFlags(Array.from(activeFlags) as PortaFlag[]);
 
-  const weights = PORTA_WEIGHTS[segmento];
-  const scoreBruto = Math.round((p * weights.p + o * weights.o + r * weights.r + t * weights.t + a * weights.a) * 10);
-
-  let multiplier = 1;
-  for (const flag of flags) {
-    const penalty = PORTA_FLAG_PENALTIES[flag];
-    if (typeof penalty === 'number' && !isNaN(penalty)) {
-      multiplier *= penalty;
-    }
-  }
-  const score = Math.round(scoreBruto * multiplier);
+  const scoreBruto = calculatePortaScoreBruto(p, o, r, t, a, segmento);
+  const multiplier = calculatePortaFlagMultiplier(flags);
+  const score = clampPortaScore(scoreBruto * multiplier);
 
   currentPortaState.consolidatedScore = {
     score,

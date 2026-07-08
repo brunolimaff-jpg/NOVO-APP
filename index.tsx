@@ -11,6 +11,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ChatStoreProvider } from './stores/chatStore';
 import { DossierStoreProvider } from './stores/dossierStore';
 import { flushDiagnosticsNow, setupHeartbeat, setupVisibilityTracking } from './utils/diagnosticLog';
+import { scrubSentryEvent } from './utils/sentryScrubber';
 
 // ── Sentry: monitoramento de erros em producao ──
 const sentryRelease =
@@ -27,8 +28,8 @@ Sentry.init({
   integrations: [
     Sentry.browserTracingIntegration(),
     Sentry.replayIntegration({
-      maskAllText: false,
-      blockAllMedia: false,
+      maskAllText: true,
+      blockAllMedia: true,
     }),
   ],
   tracesSampleRate: import.meta.env.PROD ? 0.05 : 1.0,
@@ -47,7 +48,7 @@ Sentry.init({
     ) {
       return null;
     }
-    return event;
+    return scrubSentryEvent(event);
   },
 });
 
