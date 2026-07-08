@@ -55,6 +55,8 @@ Este arquivo registra o andamento operacional das PRs abertas para executar o pl
 - Correção aplicada: lookup de dossiê duplicado antes do waterfall agora tem teto de 6s e segue com nova investigação se o Supabase não responder, evitando formulário parado sem overlay.
 - Evidência remota `624adb35`: CI, E2E Critical Browser, Smoke preview e Vercel passaram; Golden live ainda falhou antes do overlay do waterfall, sem diagnóstico suficiente no artefato padrão.
 - Correção aplicada: helper Golden agora coleta diagnóstico não sensível do submit quando a validação/localização ou o overlay não aparecem.
+- Evidência remota `63ba125e`: diagnóstico confirmou `duplicateModalVisible=true` após submit; modal de dossiê existente ficava aberto e bloqueava o nascimento do waterfall.
+- Correção aplicada: `DuplicateDossierModal` expõe testids estáveis e o Golden agora espera overlay ou modal duplicado; se aparecer modal, clica "Nova Pesquisa do Zero" e volta a aguardar o waterfall.
 
 ### Pendências Antes do Push
 

@@ -156,6 +156,38 @@ async function collectSubmitDiagnostics(page: Page) {
   });
 }
 
+async function waitForWaterfallStartAfterSubmit(page: Page) {
+  const overlay = page
+    .getByTestId('cofre-overlay')
+    .or(page.getByTestId('loading-smart-overlay'))
+    .or(page.getByTestId('inline-loading-bubble'))
+    .first();
+  const duplicateModal = page.getByTestId('duplicate-dossier-modal');
+  const duplicateNewResearch = page
+    .getByTestId('duplicate-dossier-new-research-button')
+    .or(page.getByRole('button', { name: /nova pesquisa do zero|pesquisar novamente|nova pesquisa/i }))
+    .first();
+  const deadline = Date.now() + 45_000;
+
+  while (Date.now() < deadline) {
+    if (await overlay.isVisible({ timeout: 500 }).catch(() => false)) {
+      return;
+    }
+
+    if (await duplicateNewResearch.isVisible({ timeout: 1_000 }).catch(() => false)) {
+      await duplicateNewResearch.click();
+      await expect(duplicateModal)
+        .toBeHidden({ timeout: 5_000 })
+        .catch(() => undefined);
+      continue;
+    }
+
+    await page.waitForTimeout(500);
+  }
+
+  throw new Error(`Waterfall Scheffer não iniciou após submit: ${JSON.stringify(await collectSubmitDiagnostics(page))}`);
+}
+
 export async function ensureInvestigationForm(page: Page) {
   const cnpjInput = page.getByTestId('investigation-cnpj-input');
   if (await cnpjInput.isVisible({ timeout: 2_000 }).catch(() => false)) {
@@ -262,19 +294,7 @@ export async function submitSchefferInvestigation(page: Page, _runLabel?: string
 
   await dismissDuplicateDossierModal(page, { timeoutMs: 30_000 });
 
-  await expect(
-    page
-      .getByTestId('cofre-overlay')
-      .or(page.getByTestId('loading-smart-overlay'))
-      .or(page.getByTestId('inline-loading-bubble'))
-      .first(),
-  )
-    .toBeVisible({ timeout: 45_000 })
-    .catch(async error => {
-      throw new Error(
-        `Waterfall Scheffer não iniciou após submit: ${JSON.stringify(await collectSubmitDiagnostics(page))}\n${error}`,
-      );
-    });
+  await waitForWaterfallStartAfterSubmit(page);
 
   return companyName;
 }

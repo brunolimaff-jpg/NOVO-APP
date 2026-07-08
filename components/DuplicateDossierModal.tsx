@@ -24,6 +24,7 @@ export function DuplicateDossierModal({
       onClick={onDismiss}
     >
       <div
+        data-testid="duplicate-dossier-modal"
         className="bg-white dark:bg-gray-900 rounded-xl shadow-2xl p-6 max-w-md w-full mx-4 border border-gray-200 dark:border-gray-700"
         onClick={e => e.stopPropagation()}
       >
@@ -48,6 +49,7 @@ export function DuplicateDossierModal({
             Acessar Dossiê Existente
           </button>
           <button
+            data-testid="duplicate-dossier-new-research-button"
             onClick={onNewResearch}
             className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300 font-medium rounded-lg transition-colors"
           >
