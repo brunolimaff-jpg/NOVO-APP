@@ -62,8 +62,9 @@ Este arquivo registra o andamento operacional das PRs abertas para executar o pl
 
 ### Status Pos-Push
 
-- HEAD remoto validado: `91eeeb55`.
 - PR: <https://github.com/brunolimaff-jpg/NOVO-APP/pull/410>.
+- Evidencia funcional do baseline: `91eeeb55` validou codigo + workflow da quarentena; `18e74ca3` foi docs-only e repetiu os mesmos gates verdes no rollup da PR.
+- Como commits de documentacao geram novo SHA, o rollup atual da PR #410 continua sendo a fonte viva para o HEAD mais recente.
 - CI remoto passou: `Typecheck`, `Tests`, `Build`, `Dossier Golden` e `E2E Critical Browser`.
 - CodeQL passou nos escopos `actions`, `javascript-typescript` e `python`.
 - Vercel preview passou; `Smoke (preview)` passou no deployment do mesmo SHA.
