@@ -93,6 +93,8 @@ Este arquivo registra o andamento operacional das PRs abertas para executar o pl
 - Worktree local: `/Users/brunolima/.config/superpowers/worktrees/NOVO-APP/hotfix-security-small`
 - Branch: `codex/hotfix-security-small`
 - Base empilhada: `fix/main-typecheck-pr408` / PR #410.
+- PR: <https://github.com/brunolimaff-jpg/NOVO-APP/pull/411>
+- Primeiro commit da PR: `6289adb0`.
 - Objetivo: aplicar hotfix pequeno de seguranca sem misturar cron, RLS/Auth ou BUG-8.
 - Fora de escopo por decisao do Bruno: cron/review-cron.
 - Golden live: permanece em quarentena conforme PR #410; se voltar a bloquear a casa, a prioridade e estabilizar o app antes de reativar o gate como bloqueante.
