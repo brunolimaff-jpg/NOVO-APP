@@ -58,8 +58,8 @@ function formatTextBackedMatch(metadata: Record<string, unknown>): string | null
   return `### ${categoria}: ${titulo}\n${texto}\n(Fonte: ${url})`;
 }
 
-function isDocsMode(body: unknown): boolean {
-  return Boolean(body && typeof body === 'object' && 'namespace' in body);
+function isDocsMode(namespace: string | undefined): boolean {
+  return namespace !== undefined;
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -74,7 +74,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     const { query, namespace } = parsed.data;
-    const docsMode = isDocsMode(req.body);
+    const docsMode = isDocsMode(namespace);
 
     if (docsMode) {
       const docsNamespace = resolveOptionalNamespace(namespace);

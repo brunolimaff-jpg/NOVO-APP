@@ -141,7 +141,7 @@ export function useInvestigation({
           scoutDiag.warn('Investigation', 'Falha ao carregar dossiê remoto', {
             dossierId,
             reason: error ? 'supabase_error' : 'missing_content',
-            error: error instanceof Error ? error.message : String(error || ''),
+            error: error && typeof error === 'object' && 'message' in error ? String(error.message) : String(error || ''),
           });
           return;
         }

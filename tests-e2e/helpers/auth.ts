@@ -104,6 +104,15 @@ export async function setupRealSupabaseAuthFromEnv(page: Page, options: { email?
   await expect(submitLogin, 'botão Entrar do modal precisa estar visível').toBeVisible({ timeout: 5_000 });
   await submitLogin.click({ force: true, timeout: 5_000 });
 
-  await expect(page.getByText(/email ou senha incorretos/i)).toHaveCount(0, { timeout: 5_000 });
-  await page.getByTestId('operator-menu-button').waitFor({ state: 'visible', timeout: 30_000 });
+  const errorLocator = page.getByText(/email ou senha incorretos/i);
+  const successLocator = page.getByTestId('operator-menu-button');
+
+  await Promise.race([
+    successLocator.waitFor({ state: 'visible', timeout: 30_000 }),
+    errorLocator.waitFor({ state: 'visible', timeout: 30_000 }),
+  ]);
+
+  if (await errorLocator.isVisible()) {
+    throw new Error('Login falhou: email ou senha incorretos');
+  }
 }
