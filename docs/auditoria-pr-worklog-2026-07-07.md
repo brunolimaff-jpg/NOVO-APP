@@ -60,16 +60,20 @@ Este arquivo registra o andamento operacional das PRs abertas para executar o pl
 - Evidência remota `6bf7a44c`: CI completo, E2E Critical Browser, Smoke preview e Vercel passaram; Golden live avançou além do modal duplicado, mas falhou depois em fluxo live longo.
 - Decisão Bruno/Codex: Golden Dossier Live fica em quarentena não bloqueante na PR #410 para arrumar a casa primeiro; evidências continuam sendo publicadas como artefato.
 
-### Pendências Antes do Push
+### Status Pos-Push
 
-- Rodar build final após correções de lint.
-- Subagente validator concluiu: achados remotos eram do HEAD antigo; item extra `test:e2e:preview` ausente foi corrigido localmente.
-- Commitar e pushar branch `fix/main-typecheck-pr408`.
-- Após push: monitorar checks da PR #410, pegar preview Vercel e rodar gates live/remotos.
+- HEAD remoto validado: `91eeeb55`.
+- PR: <https://github.com/brunolimaff-jpg/NOVO-APP/pull/410>.
+- CI remoto passou: `Typecheck`, `Tests`, `Build`, `Dossier Golden` e `E2E Critical Browser`.
+- CodeQL passou nos escopos `actions`, `javascript-typescript` e `python`.
+- Vercel preview passou; `Smoke (preview)` passou no deployment do mesmo SHA.
+- `Golden Dossier Live (blocking)` passou como check, mas apenas porque esta PR colocou o gate em quarentena: o teste interno falhou com exit code 1, publicou warning e manteve artefatos.
+- `gh pr view`: `mergeStateStatus=BLOCKED`; nenhum merge foi feito e continua exigindo comando explicito `MERGE` do Bruno.
 
 ### Riscos Remanescentes
 
-- Golden live depende de preview Vercel HTTPS, `E2E_REAL_AUTH=1`, senha Supabase e `E2E_DEPLOYMENT_SHA`; local só validou compilação/helper, não execução live.
+- Golden live depende de preview Vercel HTTPS, `E2E_REAL_AUTH=1`, senha Supabase e `E2E_DEPLOYMENT_SHA`; nesta rodada virou evidência/quarentena, não gate de merge.
+- BUG-8/UX de dossiê longo permanece fora desta PR; a falha interna do Golden live confirma que esse fluxo precisa ser tratado em PR própria antes de reativar o gate como bloqueante.
 - `npm audit` continua fora do gate desta PR por decisão do plano: precisa classificação antes de virar bloqueio.
 - O bypass E2E agora falha fechado em `production`, mas qualquer tentativa de configurar `VITE_E2E_AUTH_BYPASS` fora de teste continua sendo erro operacional.
 
