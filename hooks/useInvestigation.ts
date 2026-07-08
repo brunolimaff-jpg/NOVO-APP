@@ -11,12 +11,40 @@ import { supabase } from '../lib/supabaseClient';
 import type { ChatSession } from '../types';
 import type { RadarProps, StartInvestigationPayload } from '../components/chat/contracts';
 
+const DUPLICATE_LOOKUP_TIMEOUT_MS = 6_000;
+
 /** Telemetria best-effort — nunca bloqueia reopen/override. */
 async function safeLogDossierAccess(dossierId: string, operatorId: string, cnpj?: string | null): Promise<void> {
   try {
     await logDossierAccess(dossierId, operatorId, cnpj);
   } catch {
     // logDossierAccess já faz warn interno; exceções inesperadas não travam UX.
+  }
+}
+
+async function findExistingDossierBounded(
+  cnpj: string | null | undefined,
+  empresaAlvo: string | null | undefined,
+  operatorId: string,
+): Promise<ExistingDossier | null> {
+  let timeoutId: ReturnType<typeof setTimeout> | null = null;
+  try {
+    return await Promise.race([
+      findExistingDossier(cnpj, empresaAlvo, operatorId),
+      new Promise<null>(resolve => {
+        timeoutId = setTimeout(() => {
+          scoutDiag.warn('Investigation', 'duplicate lookup timeout; seguindo com nova investigação', {
+            cnpj: cnpj ? cnpj.replace(/\D/g, '') : null,
+            empresaAlvo: empresaAlvo || null,
+            operatorId,
+            timeoutMs: DUPLICATE_LOOKUP_TIMEOUT_MS,
+          });
+          resolve(null);
+        }, DUPLICATE_LOOKUP_TIMEOUT_MS);
+      }),
+    ]);
+  } finally {
+    if (timeoutId) clearTimeout(timeoutId);
   }
 }
 
@@ -95,7 +123,7 @@ export function useInvestigation({
       if (payload.cnpj || payload.companyName) {
         processingRef.current = true;
         try {
-          const existing = await findExistingDossier(payload.cnpj, payload.companyName, operatorId || '');
+          const existing = await findExistingDossierBounded(payload.cnpj, payload.companyName, operatorId || '');
           if (existing) {
             pendingPayloadRef.current = payload;
             setDuplicateDossier(existing);
