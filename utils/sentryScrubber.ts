@@ -29,6 +29,23 @@ function scrubValue(value: unknown, seen: WeakSet<object>): unknown {
     return value.map(item => scrubValue(item, seen));
   }
 
+  if (value instanceof Error) {
+    const scrubbedError: Record<string, unknown> = {
+      name: scrubSensitiveText(value.name),
+      message: scrubSensitiveText(value.message),
+    };
+    if (value.stack) scrubbedError.stack = scrubSensitiveText(value.stack);
+    if ('cause' in value) scrubbedError.cause = scrubValue(value.cause, seen);
+    for (const [key, entry] of Object.entries(value)) {
+      scrubbedError[key] = isSensitiveKey(key) ? REDACTED_FIELD : scrubValue(entry, seen);
+    }
+    return scrubbedError;
+  }
+
+  if (value instanceof Date || value instanceof RegExp) {
+    return value;
+  }
+
   return Object.fromEntries(
     Object.entries(value as Record<string, unknown>).map(([key, entry]) => [
       key,

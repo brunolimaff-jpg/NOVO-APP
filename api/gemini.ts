@@ -13,13 +13,21 @@ const HistoryItemSchema = z.object({
   text: z.string(),
 });
 const ThinkingLevelSchema = z.enum(['low', 'medium', 'high']);
+const optionalTelemetryString = (maxLength: number) =>
+  z.preprocess(
+    value => (value === null ? undefined : value),
+    z
+      .string()
+      .transform(value => value.slice(0, maxLength))
+      .optional(),
+  );
 const DiagnosticPayloadSchema = z.record(z.string().min(1).max(128), z.unknown());
 const DiagnosticEventSchema = z
   .object({
     at: z.string().min(1).max(64),
     t: z.number().finite(),
     runId: z.string().min(1).max(128),
-    sessionId: z.string().max(128).optional(),
+    sessionId: optionalTelemetryString(128),
     area: z.string().min(1).max(128),
     event: z.string().min(1).max(128),
     severity: z.string().max(32).optional(),
@@ -32,12 +40,12 @@ const RecordDiagnosticsRequestSchema = z
   .object({
     action: z.literal('recordDiagnostics'),
     runId: z.string().min(1).max(128),
-    sessionId: z.string().max(128).optional(),
-    operatorId: z.string().max(128).optional(),
-    environment: z.string().max(64).optional(),
-    appVersion: z.string().max(128).optional(),
-    route: z.string().max(512).optional(),
-    userAgent: z.string().max(1024).optional(),
+    sessionId: optionalTelemetryString(128),
+    operatorId: optionalTelemetryString(128),
+    environment: optionalTelemetryString(64),
+    appVersion: optionalTelemetryString(128),
+    route: optionalTelemetryString(2048),
+    userAgent: optionalTelemetryString(2048),
     events: z.array(DiagnosticEventSchema).min(1).max(500),
   })
   .strict();

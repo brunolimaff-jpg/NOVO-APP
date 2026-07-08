@@ -174,6 +174,10 @@ describe('PORTA helpers', () => {
     });
   });
 
+  it('usa pesos PRD como fallback defensivo para segmento desconhecido', () => {
+    expect(calculatePortaScoreBruto(7, 6, 4, 10, 8, 'DESCONHECIDO' as never)).toBe(76);
+  });
+
   it('resolves a waterfall score from feed markers when the explicit marker is absent', () => {
     const resolved = resolvePortaScore(`
 [[PORTA_FEED_O:[8]:ELOS:[Plantio,Armazenagem,Beneficiamento,Exportacao,Logistica]]]

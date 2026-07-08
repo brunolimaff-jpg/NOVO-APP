@@ -125,3 +125,21 @@ Este arquivo registra o andamento operacional das PRs abertas para executar o pl
 - Aguardar Vercel preview e checks GitHub.
 - Conferir comentários/reviews da PR e resolver antes de considerar pronta.
 - Nenhum merge sem Bruno escrever `MERGE`.
+
+### Rodada de Review da PR #411 — 2026-07-08
+
+- Comentarios recebidos: 5 inline comments.
+- Correções aplicadas:
+  - Sentry scrubber agora preserva `Error` com `name`, `message`, `stack`, `cause` e propriedades enumeraveis, mantendo scrub em dados sensiveis.
+  - `recordDiagnostics` aceita `null` em campos opcionais vindos do cliente e normaliza para `undefined`; `route` e `userAgent` passam por truncamento defensivo em 2048 chars.
+  - PORTA usa pesos `PRD` como fallback defensivo se um segmento invalido chegar ao calculo.
+- Decisão mantida:
+  - CNPJ Aberto estruturado continua rejeitado quando lookup oficial falha; no hotfix de seguranca, evidencia oficial exige confirmacao Receita/lookup + QSA do socio pesquisado.
+- Validação local pós-review:
+  - `npm exec vitest run tests/utils/sentryScrubber.test.ts tests/api-gemini.test.ts tests/utils/porta.test.ts tests/services/portaStateService.test.ts tests/utils/documentExtractor.test.ts tests/api-socio-search.test.ts tests/prompts/megaPrompts.test.ts`: passou, 103 testes.
+  - `npm run typecheck`: passou.
+  - `npm run lint`: passou sem erros; restam 61 warnings existentes/fora de escopo.
+  - `npm run validate:prompts`: passou, 71 testes.
+  - `npm run build`: passou; houve upload local de sourcemaps ao Sentry porque o ambiente local tinha configuracao de Sentry ativa.
+  - `npm run test`: passou, 159 arquivos e 1489 testes.
+  - `git diff --check`: passou.

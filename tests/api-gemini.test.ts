@@ -517,6 +517,49 @@ describe('api/gemini handler', () => {
     vi.unstubAllEnvs();
   });
 
+  it('aceita metadata nula e trunca route/userAgent longos em recordDiagnostics', async () => {
+    vi.stubEnv('SUPABASE_URL', '');
+    vi.stubEnv('SUPABASE_SERVICE_ROLE_KEY', '');
+
+    const { default: handler } = await import('../api/gemini');
+    const req = {
+      method: 'POST',
+      body: {
+        action: 'recordDiagnostics',
+        runId: 'run-1',
+        sessionId: null,
+        operatorId: null,
+        environment: 'test',
+        route: '/'.repeat(3000),
+        userAgent: 'a'.repeat(3000),
+        events: [
+          {
+            at: '2026-07-08T00:00:00.000Z',
+            t: 123,
+            runId: 'run-1',
+            sessionId: null,
+            area: 'PostCompletion',
+            event: 'check',
+            severity: 'info',
+          },
+        ],
+      },
+    } as VercelRequest;
+
+    const res = {
+      setHeader: vi.fn(),
+      status: vi.fn().mockReturnThis(),
+      json: vi.fn().mockReturnThis(),
+    } as unknown as VercelResponse;
+
+    await handler(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({ inserted: 0, degraded: true, reason: 'Supabase not configured' });
+
+    vi.unstubAllEnvs();
+  });
+
   it('rejeita recordDiagnostics com campos fora do contrato', async () => {
     const { default: handler } = await import('../api/gemini');
     const req = {

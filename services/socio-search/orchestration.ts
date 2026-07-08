@@ -324,6 +324,8 @@ export async function runSearch(
         }
       }
 
+      // Resultado estruturado do CNPJ Aberto só vira evidência oficial quando a Receita/lookup
+      // confirma o mesmo CNPJ e o QSA confirma o sócio pesquisado.
       const officialCnpj = normalizeCnpj(official?.cnpj || '');
       if (!official || officialCnpj !== cnpj || qsaConfirmsSocio !== true) {
         rejected.push({

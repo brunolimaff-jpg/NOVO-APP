@@ -38,4 +38,17 @@ describe('sentryScrubber', () => {
     expect(scrubbed.user.email).toBe('[field-redacted]');
     expect(scrubbed.extra.cpf).toBe('[field-redacted]');
   });
+
+  it('preserva mensagem e stack de Error enquanto redige dados sensiveis', () => {
+    const error = new Error('Falha para bruno@example.com no CNPJ 09.567.366/0001-11');
+    error.stack = 'Error: contato bruno@example.com\n    at test';
+
+    const scrubbed = scrubSentryEvent({ extra: { error } });
+
+    expect(scrubbed.extra.error).toMatchObject({
+      name: 'Error',
+      message: 'Falha para [email-redacted] no CNPJ [cnpj-redacted]',
+      stack: 'Error: contato [email-redacted]\n    at test',
+    });
+  });
 });

@@ -214,7 +214,7 @@ export function calculatePortaScoreBruto(
   a: number,
   segmento: PortaSegmento,
 ): number {
-  const weights = PORTA_WEIGHTS[segmento];
+  const weights = PORTA_WEIGHTS[segmento] || PORTA_WEIGHTS.PRD;
   const pSafe = clampPortaNote(p);
   const oSafe = clampPortaNote(o);
   const rSafe = clampPortaNote(r);
