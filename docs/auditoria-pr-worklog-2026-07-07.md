@@ -57,6 +57,8 @@ Este arquivo registra o andamento operacional das PRs abertas para executar o pl
 - Correção aplicada: helper Golden agora coleta diagnóstico não sensível do submit quando a validação/localização ou o overlay não aparecem.
 - Evidência remota `63ba125e`: diagnóstico confirmou `duplicateModalVisible=true` após submit; modal de dossiê existente ficava aberto e bloqueava o nascimento do waterfall.
 - Correção aplicada: `DuplicateDossierModal` expõe testids estáveis e o Golden agora espera overlay ou modal duplicado; se aparecer modal, clica "Nova Pesquisa do Zero" e volta a aguardar o waterfall.
+- Evidência remota `6bf7a44c`: CI completo, E2E Critical Browser, Smoke preview e Vercel passaram; Golden live avançou além do modal duplicado, mas falhou depois em fluxo live longo.
+- Decisão Bruno/Codex: Golden Dossier Live fica em quarentena não bloqueante na PR #410 para arrumar a casa primeiro; evidências continuam sendo publicadas como artefato.
 
 ### Pendências Antes do Push
 
