@@ -220,3 +220,8 @@ Este arquivo registra o andamento operacional das PRs abertas para executar o pl
   - `npm run lint`: passou sem erros; restam 60 warnings existentes/fora de escopo.
   - `env -u SENTRY_AUTH_TOKEN npm run build`: passou.
   - `npm run test -- --maxWorkers=4 --reporter=dot`: passou, 159 arquivos e 1500 testes.
+- Evidência remota pós-review `5be4aae2`:
+  - `Build`, `Typecheck`, `Tests`, `Dossier Golden`, `E2E Critical Browser`, `Smoke preview`, `Golden Dossier Live (blocking)`, `Vercel`, `GitGuardian`, `Vercel Preview Comments` e `CodeRabbit` passaram.
+  - `Supabase Preview` ficou `skipped`; validação multiusuário em Supabase remoto/staging segue como gate manual antes de produção.
+  - Thread Gemini resolvido no GitHub.
+  - `gh pr view`: `mergeStateStatus=CLEAN`; nenhum merge executado.
