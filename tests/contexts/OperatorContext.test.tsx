@@ -368,6 +368,29 @@ describe('OperatorProvider — auth resolution (Phase 1)', () => {
     expect(getAuthenticatedOperatorId()).toBe('op_second_auth');
   });
 
+  it('falha temporaria em profiles permite nova tentativa de resolução', async () => {
+    mockProfileError();
+
+    const view = renderProvider();
+
+    await waitFor(() => {
+      expect(mockMaybeSingle).toHaveBeenCalledTimes(1);
+    });
+    expect(getAuthenticatedOperatorId()).toBeNull();
+
+    mockProfileResult({ operator_id: 'op_retry_auth', email: 'auth@agro.com', name: 'Auth User' });
+    view.rerender(
+      <OperatorProvider>
+        <Probe />
+      </OperatorProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('operator-id')).toHaveTextContent('op_retry_auth');
+    });
+    expect(getAuthenticatedOperatorId()).toBe('op_retry_auth');
+  });
+
   it('logout limpa operator_id local e cria identidade guest nova', async () => {
     window.localStorage.setItem('scout360:operator_id', 'op_auth');
     window.localStorage.setItem('scout360:operator_name', 'Auth User');

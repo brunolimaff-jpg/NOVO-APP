@@ -201,3 +201,22 @@ Este arquivo registra o andamento operacional das PRs abertas para executar o pl
 - Abrir PR empilhada contra `codex/hotfix-security-small`.
 - Aguardar Vercel preview/checks GitHub e conferir reviews/comentários.
 - Gate que precisa ambiente remoto: dois usuários Supabase autenticados, um dossiê/cache/feedback por operador e tentativa cross-tenant negada.
+
+### Rodada de Review da PR #412 — 2026-07-09
+
+- PR: <https://github.com/brunolimaff-jpg/NOVO-APP/pull/412>
+- Evidência remota inicial `24b83be6`: `Typecheck`, `Tests`, `Build`, `Dossier Golden`, `E2E Critical Browser`, `Vercel`, `Smoke preview`, `Golden Dossier Live`, `GitGuardian` e `CodeRabbit` passaram; `mergeStateStatus=CLEAN`.
+- Review Gemini: apontou que falha temporária em `resolveOperatorFromAuth` deixava refs em estado que bloqueava nova tentativa de resolução para o mesmo usuário.
+- Correção aplicada:
+  - Reset de refs quando `resolveOperatorFromAuth` retorna `null` ou lança erro.
+  - Retry curto e limitado para uma nova tentativa por `authUser.id`, sem loop infinito.
+  - Separação entre `lastAuthUserIdRef` e `resolvedAuthUserIdRef` para troca de usuário não confundir retry com novo usuário.
+  - Limpeza do timer de retry no unmount.
+  - Teste cobrindo falha temporária em `profiles` seguida de resolução bem-sucedida.
+- Validação local pós-review:
+  - `npm run test -- tests/contexts/OperatorContext.test.tsx`: passou, 17 testes.
+  - `npm run typecheck`: passou.
+  - `npm run test -- tests/contracts/supabaseMigrations.contract.test.ts tests/contexts/OperatorContext.test.tsx tests/services/storage.test.ts tests/services/storage-failure-scenarios.test.ts tests/services/feedbackRemoteStore.test.ts`: passou, 5 arquivos e 104 testes.
+  - `npm run lint`: passou sem erros; restam 60 warnings existentes/fora de escopo.
+  - `env -u SENTRY_AUTH_TOKEN npm run build`: passou.
+  - `npm run test -- --maxWorkers=4 --reporter=dot`: passou, 159 arquivos e 1500 testes.

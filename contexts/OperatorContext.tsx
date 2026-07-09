@@ -208,6 +208,7 @@ export const OperatorProvider: React.FC<{ children: ReactNode }> = ({ children }
     if (authUser?.email) return authUser.email;
     return getSavedOperatorEmail();
   });
+  const [authResolutionRetryNonce, setAuthResolutionRetryNonce] = useState(0);
   const shouldBackfillSavedProfileRef = useRef(name.trim().length > 0 && email.trim().length > 0);
   const didBackfillRef = useRef(false);
   const didTrackAppOpenRef = useRef(false);
@@ -215,6 +216,28 @@ export const OperatorProvider: React.FC<{ children: ReactNode }> = ({ children }
   const didBackfillInFlightRef = useRef(false);
   const operatorResolvedRef = useRef(false); // Ja resolveu operator_id do auth?
   const resolvedAuthUserIdRef = useRef<string | null>(null);
+  const lastAuthUserIdRef = useRef<string | null>(null);
+  const authResolutionRetryCountRef = useRef(0);
+  const authResolutionRetryTimerRef = useRef<number | null>(null);
+
+  const scheduleAuthResolutionRetry = useCallback(() => {
+    if (authResolutionRetryCountRef.current >= 1 || authResolutionRetryTimerRef.current !== null) return;
+
+    authResolutionRetryCountRef.current += 1;
+    authResolutionRetryTimerRef.current = window.setTimeout(() => {
+      authResolutionRetryTimerRef.current = null;
+      setAuthResolutionRetryNonce(nonce => nonce + 1);
+    }, 250);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (authResolutionRetryTimerRef.current !== null) {
+        window.clearTimeout(authResolutionRetryTimerRef.current);
+        authResolutionRetryTimerRef.current = null;
+      }
+    };
+  }, []);
 
   const setName = useCallback(
     (nextName: string) => {
@@ -382,12 +405,16 @@ export const OperatorProvider: React.FC<{ children: ReactNode }> = ({ children }
       setAuthenticatedOperatorId(null);
       operatorResolvedRef.current = false;
       resolvedAuthUserIdRef.current = null;
+      lastAuthUserIdRef.current = null;
+      authResolutionRetryCountRef.current = 0;
       return;
     }
-    if (resolvedAuthUserIdRef.current !== authUser.id) {
+    if (lastAuthUserIdRef.current !== authUser.id) {
       setAuthenticatedOperatorId(null);
       operatorResolvedRef.current = false;
       resolvedAuthUserIdRef.current = null;
+      authResolutionRetryCountRef.current = 0;
+      lastAuthUserIdRef.current = authUser.id;
     }
     if (!authUser || operatorResolvedRef.current || authLoading) return;
 
@@ -402,11 +429,15 @@ export const OperatorProvider: React.FC<{ children: ReactNode }> = ({ children }
         if (!resolved) {
           // Nao conseguiu resolver — mantem valores atuais do localStorage
           setAuthenticatedOperatorId(null);
+          operatorResolvedRef.current = false;
+          resolvedAuthUserIdRef.current = null;
+          scheduleAuthResolutionRetry();
           return;
         }
 
         const currentOpId = operatorIdRef.current;
         const needsRelink = resolved.operatorId !== currentOpId;
+        authResolutionRetryCountRef.current = 0;
 
         // Sessao autenticada persiste pelo Supabase Auth. Nao duplicar dados
         // derivados do login no localStorage proprio do app.
@@ -455,12 +486,16 @@ export const OperatorProvider: React.FC<{ children: ReactNode }> = ({ children }
           }
         }
       } catch (err) {
+        setAuthenticatedOperatorId(null);
+        operatorResolvedRef.current = false;
+        resolvedAuthUserIdRef.current = null;
+        scheduleAuthResolutionRetry();
         warnOperator('[OperatorContext] operator resolution error:', err);
       }
     })();
 
     return () => abort.abort();
-  }, [authUser?.id, authLoading]);
+  }, [authUser?.id, authLoading, authResolutionRetryNonce, scheduleAuthResolutionRetry]);
 
   // ===================================================================
   // Backfill — apenas para usuarios nao autenticados (guest)
@@ -533,6 +568,8 @@ export const OperatorProvider: React.FC<{ children: ReactNode }> = ({ children }
       const nextGuestOperatorId = getOrCreateOperatorId();
       operatorResolvedRef.current = false;
       resolvedAuthUserIdRef.current = null;
+      lastAuthUserIdRef.current = null;
+      authResolutionRetryCountRef.current = 0;
       didBackfillRef.current = false;
       didTrackAppOpenRef.current = false;
       setOperatorName('');
