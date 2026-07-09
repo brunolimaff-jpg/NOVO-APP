@@ -117,8 +117,11 @@ Este arquivo registra o andamento operacional das PRs abertas para executar o pl
 - Não houve erro de runtime em `/api/gemini` no intervalo da validação.
 - CI, build, testes, E2E crítico, smoke e Preview passaram. Golden Live permanece em quarentena e não é aceite deste card.
 
-### Follow-up de review — pendente de novo Preview
+### Follow-up de review — aceito no Preview
 
 - Um review identificou que o filtro inicial do identificador de modelo ainda aceitaria um CNPJ puro. O caminho de telemetria passou a aceitar somente modelos conhecidos; modelos externos ou malformados agora aparecem como `null`.
 - O teste de regressão usa `12.345.678/0001-90` como `model` e exige `model=null` no evento de falha.
-- Próximo passo: publicar o SHA do follow-up e repetir a chamada controlada no Preview antes de declarar a PR pronta para `MERGE`.
+- A thread de review foi resolvida após o commit `a4b5f6ee`.
+- Deployment Vercel do follow-up: `dpl_6fWz7tdGGmpYjYi9npPiAG2iuo6d`; a mesma chamada controlada retornou Sonnet e registrou `provider=litellm`, `reason=litellm_enabled`, `module=Caminho de Venda` e `durationMs=1200`.
+- Não houve erro de runtime em `/api/gemini` no Preview do follow-up. O comportamento de roteamento permaneceu igual; apenas o campo de modelo passou a ser conservador.
+- Status do card: aceite de runtime concluído. A PR aguarda somente o término do Golden em quarentena e o comando explícito `MERGE` do Bruno; não houve merge.
