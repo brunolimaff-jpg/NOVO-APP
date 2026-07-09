@@ -32,6 +32,7 @@ vi.mock('../../lib/supabaseClient', () => ({
 }));
 
 import { storage } from '../../services/storage';
+import { setAuthenticatedOperatorId } from '../../services/storage/_shared';
 import { get, set } from 'idb-keyval';
 import { isSupabaseAvailable } from '../../lib/supabaseClient';
 import { Sender, type ChatSession } from '../../types';
@@ -54,6 +55,7 @@ describe('storage (simplificado — Supabase direto)', () => {
     vi.clearAllMocks();
     localStorage.clear();
     localStorage.setItem('scout360:operator_id', 'op_test123');
+    setAuthenticatedOperatorId(null);
     vi.mocked(isSupabaseAvailable).mockReturnValue(true);
   });
 
@@ -206,6 +208,22 @@ describe('storage (simplificado — Supabase direto)', () => {
           id: mockSession.id,
           title: mockSession.title,
           operator_id: 'op_test123',
+        }),
+      );
+    });
+
+    it('prefere operator_id autenticado quando localStorage diverge', async () => {
+      localStorage.setItem('scout360:operator_id', 'op_spoofed');
+      setAuthenticatedOperatorId('op_auth_profile');
+      supabaseMock.upsert.mockResolvedValue({ error: null });
+      supabaseMock.from.mockReturnValue({ upsert: supabaseMock.upsert });
+
+      await storage.saveDossier(mockSession);
+
+      expect(supabaseMock.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: mockSession.id,
+          operator_id: 'op_auth_profile',
         }),
       );
     });

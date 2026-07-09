@@ -154,3 +154,50 @@ Este arquivo registra o andamento operacional das PRs abertas para executar o pl
   - `npm run typecheck`: passou.
   - `npm run lint`: passou sem erros; restam 61 warnings existentes/fora de escopo.
   - `npm run build`: passou; houve upload local de sourcemaps ao Sentry porque o ambiente local tinha configuracao de Sentry ativa.
+
+## PR RLS/Auth
+
+### Status Local — 2026-07-08
+
+- Worktree local: `/Users/brunolima/.config/superpowers/worktrees/NOVO-APP/rls-auth-hardening`
+- Branch: `codex/rls-auth-hardening`
+- Base empilhada: `codex/hotfix-security-small` / PR #411.
+- Objetivo: fechar o vazamento cross-tenant por `operator_id` auto-reportado em tabelas sensíveis e reduzir dependência de `localStorage` como autoridade no storage autenticado.
+- Fora de escopo: cron/review-cron, troca de usuário como prioridade de produto, BUG-8/UX, audit/npm vulnerabilities, políticas amplas de analytics write-only.
+- Bloqueio esperado: prova multiusuário real depende de Supabase remoto/staging com dois usuários autenticados; contrato local valida SQL, mas não substitui execução no banco remoto.
+
+### Mapeamento Validado
+
+- `profiles`, `user_context` e `radar_*` já tinham policies autenticadas baseadas em `auth.uid() -> profiles.operator_id`.
+- `dossies`, `extract_cache` e `feedback_events` mantinham herança fraca baseada em `operator_id IS NOT NULL` no schema legado; `dossies` ainda tinha migration posterior ampliando a policy para `anon, authenticated` sem trocar o predicado.
+- `services/storage/_shared.ts` retornava apenas `localStorage['operator_id']`, então `services/storage/dossiers.ts`, `extractCache.ts` e `radar.ts` dependiam desse valor para filtro e escrita.
+- Cache persistente server-side de socio-search usa `SUPABASE_SERVICE_ROLE_KEY`, então a restrição de RLS em `extract_cache` não deve quebrar o cache server-side.
+- `findExistingDossier` fazia busca por CNPJ/empresa sem filtro de `operator_id`; com RLS forte, a busca fica naturalmente limitada ao tenant autenticado.
+
+### Correções Aplicadas
+
+- Criada migration `20260708213147_rls_auth_hardening_sensitive_tables.sql`.
+- `dossies`, `extract_cache` e `feedback_events` passam a revogar `anon`, dropar policies legadas `operator_own_*` e criar policies `authenticated_*_own_*` com `EXISTS (SELECT 1 FROM public.profiles p WHERE p.id = (SELECT auth.uid()) AND p.operator_id = <table>.operator_id)`.
+- Escritas em `dossies`, `extract_cache` e `feedback_events` usam `WITH CHECK` com a mesma amarração de profile.
+- `services/storage/_shared.ts` ganhou identidade autenticada em memória; `getOperatorId()` agora prefere o `operator_id` resolvido por Auth/profile e só usa `localStorage` como fallback legado/guest.
+- `OperatorContext` define a identidade autenticada quando resolve `profiles.operator_id` e limpa essa identidade em logout ou ausência de usuário.
+- Removida a regravação de `operator_id` autenticado no localStorage que existia para contornar o sidebar vazio.
+- Teste de regressão garante que storage autenticado vence `localStorage` adulterado.
+
+### Validação Local
+
+- `npm ci`: passou com warnings conhecidos de engine local Node 26 vs package Node 24 e 33 vulnerabilidades já inventariadas.
+- `npm run test -- tests/contracts/supabaseMigrations.contract.test.ts tests/contexts/OperatorContext.test.tsx tests/services/storage.test.ts tests/services/storage-failure-scenarios.test.ts tests/services/feedbackRemoteStore.test.ts`: passou, 5 arquivos e 102 testes.
+- `npm run typecheck`: passou.
+- `npm run lint`: passou sem erros; restam 61 warnings existentes/fora de escopo.
+- `env -u SENTRY_AUTH_TOKEN npm run build`: passou.
+- `npm run test -- tests/contexts/OperatorContext.test.tsx tests/services/storage.test.ts tests/contracts/supabaseMigrations.contract.test.ts`: passou, 3 arquivos e 85 testes, após blindagem de troca de `authUser.id`.
+- `npm run test`: primeira repetição pós-ajuste saturou o pool local de forks; os dois testes reportados por timeout passaram focados em 0,7s.
+- `npm run test -- --maxWorkers=4 --reporter=dot`: passou, 159 arquivos e 1499 testes.
+- `git diff --check`: passou.
+
+### Proximos Gates Remotos
+
+- Abrir PR empilhada contra `codex/hotfix-security-small`.
+- Aguardar Vercel preview/checks GitHub e conferir reviews/comentários.
+- Gate que precisa ambiente remoto: dois usuários Supabase autenticados, um dossiê/cache/feedback por operador e tentativa cross-tenant negada.

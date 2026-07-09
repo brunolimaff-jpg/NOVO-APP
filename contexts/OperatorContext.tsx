@@ -10,6 +10,7 @@ import React, {
 } from 'react';
 import { storageGet, storageRemove, storageSet } from '../utils/localStorage';
 import { storage } from '../services/storage';
+import { setAuthenticatedOperatorId } from '../services/storage/_shared';
 import { initSessionTracking, trackOperatorEvent, endOperatorSession } from '../services/operatorTracking';
 import { useMaybeAuth } from './AuthContext';
 import { supabase } from '../lib/supabaseClient';
@@ -213,6 +214,7 @@ export const OperatorProvider: React.FC<{ children: ReactNode }> = ({ children }
   const didTrackInFlightRef = useRef(false);
   const didBackfillInFlightRef = useRef(false);
   const operatorResolvedRef = useRef(false); // Ja resolveu operator_id do auth?
+  const resolvedAuthUserIdRef = useRef<string | null>(null);
 
   const setName = useCallback(
     (nextName: string) => {
@@ -377,12 +379,20 @@ export const OperatorProvider: React.FC<{ children: ReactNode }> = ({ children }
   // ===================================================================
   useEffect(() => {
     if (!authUser) {
+      setAuthenticatedOperatorId(null);
       operatorResolvedRef.current = false;
+      resolvedAuthUserIdRef.current = null;
       return;
+    }
+    if (resolvedAuthUserIdRef.current !== authUser.id) {
+      setAuthenticatedOperatorId(null);
+      operatorResolvedRef.current = false;
+      resolvedAuthUserIdRef.current = null;
     }
     if (!authUser || operatorResolvedRef.current || authLoading) return;
 
     operatorResolvedRef.current = true; // Sincrono — protege backfill effect abaixo
+    resolvedAuthUserIdRef.current = authUser.id;
     const abort = new AbortController();
 
     void (async () => {
@@ -391,6 +401,7 @@ export const OperatorProvider: React.FC<{ children: ReactNode }> = ({ children }
         if (abort.signal.aborted) return;
         if (!resolved) {
           // Nao conseguiu resolver — mantem valores atuais do localStorage
+          setAuthenticatedOperatorId(null);
           return;
         }
 
@@ -402,6 +413,7 @@ export const OperatorProvider: React.FC<{ children: ReactNode }> = ({ children }
         storageRemove(OPERATOR_ID_KEY);
         storageRemove(OPERATOR_NAME_KEY);
         storageRemove(OPERATOR_EMAIL_KEY);
+        setAuthenticatedOperatorId(resolved.operatorId);
 
         if (abort.signal.aborted) return;
 
@@ -409,13 +421,6 @@ export const OperatorProvider: React.FC<{ children: ReactNode }> = ({ children }
         if (needsRelink) setOperatorId(resolved.operatorId);
         if (resolved.name && resolved.name !== nameRef.current) setOperatorName(resolved.name);
         if (resolved.email && resolved.email !== emailRef.current) setOperatorEmail(resolved.email);
-
-        // O storage layer (getOperatorId em _shared.ts) só lê do localStorage.
-        // Sem esta escrita, loadSessions() → getDossiers() → getOperatorId()
-        // retorna null após a resolução de auth e o sidebar fica vazio (PR #376).
-        storageSet(OPERATOR_ID_KEY, resolved.operatorId);
-
-        if (abort.signal.aborted) return;
 
         // Persiste user_context com operator_id canonico (NUNCA com ID temporario)
         void storage
@@ -524,8 +529,10 @@ export const OperatorProvider: React.FC<{ children: ReactNode }> = ({ children }
       storageRemove(OPERATOR_ID_KEY);
       storageRemove(OPERATOR_NAME_KEY);
       storageRemove(OPERATOR_EMAIL_KEY);
+      setAuthenticatedOperatorId(null);
       const nextGuestOperatorId = getOrCreateOperatorId();
       operatorResolvedRef.current = false;
+      resolvedAuthUserIdRef.current = null;
       didBackfillRef.current = false;
       didTrackAppOpenRef.current = false;
       setOperatorName('');

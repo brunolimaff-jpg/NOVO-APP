@@ -39,6 +39,7 @@ vi.mock('../../lib/supabaseClient', () => ({
 }));
 
 import { storage } from '../../services/storage';
+import { setAuthenticatedOperatorId } from '../../services/storage/_shared';
 import { Sender, type ChatSession } from '../../types';
 
 function makeSession(overrides: Partial<ChatSession> = {}): ChatSession {
@@ -62,6 +63,7 @@ describe('storage — cenários de falha silenciosa', () => {
     vi.clearAllMocks();
     localStorage.clear();
     localStorage.setItem('scout360:operator_id', 'op_test_123');
+    setAuthenticatedOperatorId(null);
     isSupabaseAvailableMock.mockReturnValue(true);
   });
 

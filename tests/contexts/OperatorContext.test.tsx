@@ -47,6 +47,7 @@ vi.mock('../../services/operatorTracking', () => ({
 }));
 
 import { OperatorProvider, useOperator } from '../../contexts/OperatorContext';
+import { getAuthenticatedOperatorId, setAuthenticatedOperatorId } from '../../services/storage/_shared';
 
 const Probe: React.FC = () => {
   const { name, email, operatorId, clearName, setName, registerOperator, loading } = useOperator();
@@ -90,6 +91,7 @@ describe('OperatorProvider', () => {
     mockSupabaseRpc.mockReset();
     mockSupabaseRpc.mockResolvedValue({ data: null, error: null });
     mockSupabaseFrom.mockClear();
+    setAuthenticatedOperatorId(null);
   });
 
   it('starts without a name but with a stable operator id', () => {
@@ -229,6 +231,7 @@ describe('OperatorProvider — auth resolution (Phase 1)', () => {
     mockSupabaseRpc.mockReset();
     mockSupabaseRpc.mockResolvedValue({ data: null, error: null });
     mockUseMaybeAuth.mockReturnValue(AUTH_STATE);
+    setAuthenticatedOperatorId(null);
   });
 
   it('authUser com storage limpo — resolve operador canonico via profiles', async () => {
@@ -244,9 +247,8 @@ describe('OperatorProvider — auth resolution (Phase 1)', () => {
 
     // Deve ter consultado profiles via Supabase
     expect(mockSupabaseFrom).toHaveBeenCalledWith('profiles');
-    // PR #376: operator_id é restaurado no localStorage após resolução de auth
-    // para que getOperatorId() em _shared.ts consiga ler (loadSessions depende disso)
-    expect(window.localStorage.getItem('scout360:operator_id')).toBe('op_canonical_via_auth');
+    expect(getAuthenticatedOperatorId()).toBe('op_canonical_via_auth');
+    expect(window.localStorage.getItem('scout360:operator_id')).toBeNull();
     expect(window.localStorage.getItem('scout360:operator_name')).toBeNull();
     expect(window.localStorage.getItem('scout360:operator_email')).toBeNull();
   });
@@ -334,6 +336,38 @@ describe('OperatorProvider — auth resolution (Phase 1)', () => {
     });
   });
 
+  it('troca de authUser força nova resolução e limpa operador autenticado anterior', async () => {
+    const secondAuthUser = { id: 'auth-uuid-456', email: 'second@agro.com', user_metadata: { name: 'Second User' } };
+    mockMaybeSingle
+      .mockResolvedValueOnce({
+        data: { operator_id: 'op_first_auth', email: 'auth@agro.com', name: 'Auth User' },
+        error: null,
+      })
+      .mockResolvedValueOnce({
+        data: { operator_id: 'op_second_auth', email: 'second@agro.com', name: 'Second User' },
+        error: null,
+      });
+
+    const view = renderProvider();
+
+    await waitFor(() => {
+      expect(screen.getByTestId('operator-id')).toHaveTextContent('op_first_auth');
+    });
+    expect(getAuthenticatedOperatorId()).toBe('op_first_auth');
+
+    mockUseMaybeAuth.mockReturnValue({ isGuest: false, loading: false, user: secondAuthUser });
+    view.rerender(
+      <OperatorProvider>
+        <Probe />
+      </OperatorProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('operator-id')).toHaveTextContent('op_second_auth');
+    });
+    expect(getAuthenticatedOperatorId()).toBe('op_second_auth');
+  });
+
   it('logout limpa operator_id local e cria identidade guest nova', async () => {
     window.localStorage.setItem('scout360:operator_id', 'op_auth');
     window.localStorage.setItem('scout360:operator_name', 'Auth User');
@@ -355,6 +389,7 @@ describe('OperatorProvider — auth resolution (Phase 1)', () => {
     });
     expect(window.localStorage.getItem('scout360:operator_name')).toBeNull();
     expect(window.localStorage.getItem('scout360:operator_id')).not.toBe('op_auth');
+    expect(getAuthenticatedOperatorId()).toBeNull();
     expect(screen.getByTestId('email')).toHaveTextContent('empty');
   });
 

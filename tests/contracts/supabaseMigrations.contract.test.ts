@@ -6,6 +6,7 @@ import { resolve } from 'path';
 const MIGRATIONS_DIR = resolve(__dirname, '../../supabase/migrations');
 
 const CRITICAL_MIGRATIONS = ['20260528_operator_tracking.sql', '20260603_blank_panel_observability.sql'];
+const RLS_AUTH_HARDENING_MIGRATION = '20260708213147_rls_auth_hardening_sensitive_tables.sql';
 
 const CRITICAL_INDEXES = [
   'idx_scout_diagnostics_session_created',
@@ -49,6 +50,10 @@ describe('supabaseMigrations contract — estrutura', () => {
 
   it('migration 20260612_cron_cleanup_function.sql existe (Phase 3)', () => {
     expect(existsSync(resolve(MIGRATIONS_DIR, '20260612_cron_cleanup_function.sql'))).toBe(true);
+  });
+
+  it('migration RLS/Auth para tabelas sensíveis existe', () => {
+    expect(existsSync(resolve(MIGRATIONS_DIR, RLS_AUTH_HARDENING_MIGRATION))).toBe(true);
   });
 });
 
@@ -213,5 +218,53 @@ describe('supabaseMigrations contract — auth remediation (Phase 2-4)', () => {
     expect(allContent).toContain('authenticated_update_own_radar_configs');
     expect(allContent).toContain('p.operator_id = radar_alerts.operator_id');
     expect(allContent).toContain('p.operator_id = radar_configs.operator_id');
+  });
+});
+
+describe('supabaseMigrations contract — RLS/Auth hardening sensitive tables', () => {
+  const hardeningFile = resolve(MIGRATIONS_DIR, RLS_AUTH_HARDENING_MIGRATION);
+  const hardeningSql = existsSync(hardeningFile) ? readFileSync(hardeningFile, 'utf-8') : '';
+
+  it.each([
+    ['dossies', 'operator_own_dossies'],
+    ['extract_cache', 'operator_own_extract_cache'],
+    ['feedback_events', 'operator_own_feedback_events'],
+  ])('remove policy legada baseada em operator_id auto-reportado: %s', (table, policy) => {
+    expect(hardeningSql).toContain(`REVOKE ALL ON TABLE public.${table} FROM anon`);
+    expect(hardeningSql).toContain(`DROP POLICY IF EXISTS ${policy} ON public.${table}`);
+  });
+
+  it.each([
+    ['dossies', ['SELECT', 'INSERT', 'UPDATE']],
+    ['extract_cache', ['SELECT', 'INSERT', 'UPDATE']],
+    ['feedback_events', ['SELECT', 'INSERT']],
+  ])('cria policies authenticated por profiles.operator_id: %s', (table, operations) => {
+    for (const operation of operations) {
+      const operationName = operation.toLowerCase();
+      expect(hardeningSql).toContain(`authenticated_${operationName}_own_${table}`);
+      expect(hardeningSql).toContain(`FOR ${operation}`);
+    }
+
+    expect(hardeningSql).toContain('FROM public.profiles p');
+    expect(hardeningSql).toContain('p.id = (SELECT auth.uid())');
+    expect(hardeningSql).toContain(`p.operator_id = ${table}.operator_id`);
+  });
+
+  it('usa WITH CHECK nas escritas de dossies e extract_cache', () => {
+    const writePolicySections = [
+      'authenticated_insert_own_dossies',
+      'authenticated_update_own_dossies',
+      'authenticated_insert_own_extract_cache',
+      'authenticated_update_own_extract_cache',
+      'authenticated_insert_own_feedback_events',
+    ];
+
+    for (const policyName of writePolicySections) {
+      const policyStart = hardeningSql.indexOf(`CREATE POLICY ${policyName}`);
+      expect(policyStart).toBeGreaterThanOrEqual(0);
+      const nextPolicyStart = hardeningSql.indexOf('CREATE POLICY', policyStart + policyName.length);
+      const policySql = hardeningSql.slice(policyStart, nextPolicyStart === -1 ? undefined : nextPolicyStart);
+      expect(policySql).toContain('WITH CHECK');
+    }
   });
 });
