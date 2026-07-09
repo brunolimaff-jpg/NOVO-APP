@@ -21,11 +21,7 @@ export function isLiteLLMEnabled(): boolean {
   const provider = process.env.LLM_PROVIDER;
   const hasKey = !!process.env.LITELLM_API_KEY;
   const hasUrl = !!process.env.LITELLM_BASE_URL;
-  const enabled = provider === 'litellm' && hasKey && hasUrl;
-
-  console.log('[LiteLLM:gate]', { provider, hasKey, hasUrl, enabled });
-
-  return enabled;
+  return provider === 'litellm' && hasKey && hasUrl;
 }
 
 /* ------------------------------------------------------------------ */

@@ -6,7 +6,7 @@ import { insertDiagnosticsBatch, MAX_EVENTS_PER_BATCH } from '../utils/serverDia
 import { isQuotaExhausted, isBillingOrPermissionDenied } from './_gemini-key-utils.js';
 import { applyCors } from './_cors-headers.js';
 import { isLiteLLMEnabled, callLiteLLM } from './_llm-client.js';
-import { selectModelForModule } from '../utils/llm/modelRouter.js';
+import { executeLlmRoute, selectGenerateContentRoute } from './_llm-routing.js';
 
 const HistoryItemSchema = z.object({
   role: z.enum(['user', 'model']),
@@ -252,12 +252,21 @@ async function executeGeminiAction(ai: GoogleGenAI, body: ParsedBody, res: Verce
       const hasGrounding =
         Array.isArray(cfg.tools) &&
         cfg.tools.some((t: unknown) => t && typeof t === 'object' && 'googleSearch' in (t as Record<string, unknown>));
+      const model = modelFromClient ?? DEFAULT_GEMINI_MODEL;
+      const route = selectGenerateContentRoute({
+        liteLlmEnabled: isLiteLLMEnabled(),
+        requestedModel: model,
+        moduleName: srvModuleName,
+        hasCachedContent,
+        hasSystemInstruction: hasSystemInstr,
+        hasGrounding,
+      });
 
       // ── LiteLLM branch ──
       // cachedContent sem systemInstruction = foundation cache ativo (recurso Gemini).
       // tools com googleSearch = chat usa grounding (default false). LiteLLM
       // nao suporta googleSearch nativo — delegamos ao Gemini.
-      if (isLiteLLMEnabled() && !(hasCachedContent && !hasSystemInstr) && !hasGrounding) {
+      if (route.provider === 'litellm') {
         try {
           const sysInstr = hasSystemInstr ? (cfg.systemInstruction as string) : undefined;
           const msgs: Array<{ role: string; content: string }> = [];
@@ -291,18 +300,19 @@ async function executeGeminiAction(ai: GoogleGenAI, body: ParsedBody, res: Verce
                 : JSON.stringify(contents);
           msgs.push({ role: 'user', content: userContent });
 
-          const resolvedModel = selectModelForModule(srvModuleName || '');
           const temperature = typeof cfg.temperature === 'number' ? cfg.temperature : undefined;
           const maxTokens = typeof cfg.maxOutputTokens === 'number' ? cfg.maxOutputTokens : undefined;
           // tools (grounding) nao suportado via LiteLLM — sprint futura
 
-          const text = await callLiteLLM({
-            model: resolvedModel,
-            messages: msgs,
-            temperature: temperature,
-            maxTokens: maxTokens,
-          });
-          return res.status(200).json({ text, _model: resolvedModel });
+          const text = await executeLlmRoute(route, () =>
+            callLiteLLM({
+              model: route.model,
+              messages: msgs,
+              temperature: temperature,
+              maxTokens: maxTokens,
+            }),
+          );
+          return res.status(200).json({ text, _model: route.model });
         } catch (err) {
           console.error('LiteLLM call failed:', err);
           return res
@@ -311,18 +321,6 @@ async function executeGeminiAction(ai: GoogleGenAI, body: ParsedBody, res: Verce
         }
       }
 
-      const model = modelFromClient ?? DEFAULT_GEMINI_MODEL;
-      if (isLiteLLMEnabled()) {
-        const skipReason = hasGrounding
-          ? 'grounding_required'
-          : hasCachedContent && !hasSystemInstr
-            ? 'foundation_cache'
-            : 'unknown';
-        console.warn('[LlmProxy] Gemini fallback ativo', {
-          model,
-          reason: skipReason,
-        });
-      }
       const srvRunId = `srv-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
 
       if (srvModuleName) {
@@ -369,11 +367,13 @@ async function executeGeminiAction(ai: GoogleGenAI, body: ParsedBody, res: Verce
         if (configIn.toolConfig !== undefined) genConfig.toolConfig = configIn.toolConfig;
       }
 
-      const response = await ai.models.generateContent({
-        model,
-        contents,
-        config: genConfig,
-      });
+      const response = await executeLlmRoute(route, () =>
+        ai.models.generateContent({
+          model,
+          contents,
+          config: genConfig,
+        }),
+      );
 
       if (srvModuleName) {
         void insertDiagnosticsBatch({ runId: srvRunId, route: '/api/gemini', events: [] }, [

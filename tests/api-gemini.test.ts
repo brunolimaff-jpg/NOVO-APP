@@ -10,6 +10,8 @@ const createChatMock = vi.hoisted(() =>
 const generateContentMock = vi.hoisted(() => vi.fn());
 const createCacheMock = vi.hoisted(() => vi.fn());
 const deleteCacheMock = vi.hoisted(() => vi.fn());
+const isLiteLLMEnabledMock = vi.hoisted(() => vi.fn());
+const callLiteLLMMock = vi.hoisted(() => vi.fn());
 
 vi.mock('@google/genai', () => ({
   ThinkingLevel: {
@@ -33,11 +35,17 @@ vi.mock('@google/genai', () => ({
   },
 }));
 
+vi.mock('../api/_llm-client.js', () => ({
+  isLiteLLMEnabled: isLiteLLMEnabledMock,
+  callLiteLLM: callLiteLLMMock,
+}));
+
 describe('api/gemini handler', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.resetModules();
     process.env.GEMINI_API_KEY = 'test-key';
+    isLiteLLMEnabledMock.mockReturnValue(false);
   });
 
   it('transforma erro HTTP do open-web-search em functionResponse de erro', async () => {
@@ -241,6 +249,69 @@ describe('api/gemini handler', () => {
         }),
       }),
     );
+  });
+
+  it('usa LiteLLM e registra o modulo configurado quando a chamada e elegivel', async () => {
+    isLiteLLMEnabledMock.mockReturnValue(true);
+    callLiteLLMMock.mockResolvedValueOnce('resposta LiteLLM');
+
+    const { default: handler } = await import('../api/gemini');
+    const req = {
+      method: 'POST',
+      body: {
+        action: 'generateContent',
+        model: 'gemini-3-flash-preview',
+        contents: 'Gere APENAS o bloco de Caminho de Venda com extrema precisao.',
+        config: { systemInstruction: 'instrucao segura' },
+      },
+    } as VercelRequest;
+    const res = {
+      setHeader: vi.fn(),
+      status: vi.fn().mockReturnThis(),
+      json: vi.fn().mockReturnThis(),
+    } as unknown as VercelResponse;
+
+    await handler(req, res);
+
+    expect(callLiteLLMMock).toHaveBeenCalledWith(
+      expect.objectContaining({ model: 'bedrock/us.anthropic.claude-sonnet-4-6' }),
+    );
+    expect(generateContentMock).not.toHaveBeenCalled();
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({ text: 'resposta LiteLLM', _model: 'bedrock/us.anthropic.claude-sonnet-4-6' }),
+    );
+  });
+
+  it('usa Gemini com razao foundation_cache quando o cache e ativo', async () => {
+    isLiteLLMEnabledMock.mockReturnValue(true);
+    generateContentMock.mockResolvedValueOnce({ text: 'resposta Gemini' });
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+
+    const { default: handler } = await import('../api/gemini');
+    const req = {
+      method: 'POST',
+      body: {
+        action: 'generateContent',
+        model: 'gemini-3-flash-preview',
+        contents: 'Gere APENAS o bloco de Caminho de Venda com extrema precisao.',
+        config: { cachedContent: 'cachedContents/foundation' },
+      },
+    } as VercelRequest;
+    const res = {
+      setHeader: vi.fn(),
+      status: vi.fn().mockReturnThis(),
+      json: vi.fn().mockReturnThis(),
+    } as unknown as VercelResponse;
+
+    await handler(req, res);
+
+    expect(callLiteLLMMock).not.toHaveBeenCalled();
+    expect(generateContentMock).toHaveBeenCalledOnce();
+    expect(warn).toHaveBeenCalledWith(
+      '[LlmRoute]',
+      expect.objectContaining({ provider: 'gemini', reason: 'foundation_cache', module: 'Caminho de Venda' }),
+    );
+    warn.mockRestore();
   });
 
   it('extrai texto de candidates quando o SDK não preenche response.text em generateContent', async () => {

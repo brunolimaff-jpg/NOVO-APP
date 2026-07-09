@@ -95,3 +95,16 @@ Este arquivo registra o andamento operacional das PRs abertas para executar o pl
 - Escopo: checar PRs abertas, checks, reviews/comentários e falhas acionáveis.
 - Guardrail: nunca executar merge; merge exige Bruno escrever `MERGE`.
 - Removida em 2026-07-08 a pedido do Bruno; acompanhamento passa a ser manual nesta execução.
+
+## PR pendente — Observabilidade do Roteamento LLM
+
+- Branch: `codex/litellm-routing-observability`.
+- Base: `fix/main-typecheck-pr408` (PR #410), para manter a cadeia de correções pequena e revisável.
+- Objetivo: tornar visível no runtime o provedor e o modelo efetivos de `generateContent`; `LiteLLM enabled=true` sozinho não prova que a chamada saiu pelo LiteLLM.
+- Evidência que motivou o card: logs de produção mostraram LiteLLM habilitado, enquanto Foundation Cache e grounding ainda usavam Gemini diretamente. A alteração não muda essa regra; ela a registra.
+- Contrato: cada chamada registra somente `event`, `provider`, `reason`, `model` sanitizado, módulo conhecido e duração. Prompt, conteúdo, CNPJ, empresa e mensagem de erro não entram no evento.
+- Escopo: `api/gemini.ts` no caminho `generateContent`, o gate LiteLLM e testes de contrato. Chat legado e demais endpoints Gemini continuam fora deste card.
+- Invariantes: Foundation Cache e grounding continuam em Gemini; chamadas elegíveis continuam usando LiteLLM; não há env, migration, produção, watcher ou alteração de provedor nesta PR.
+- Triagem local executada: testes focados, typecheck, lint, build e `validate:prompts` passaram. Isso não é aceite funcional.
+- Aceite obrigatório: Preview Vercel do SHA da PR, com uma chamada controlada e logs `[LlmRoute]` mostrando provider, motivo, modelo e módulo sem PII. Nenhuma chamada em produção será usada como validação.
+- Status: preparação para push; sem PR, deploy ou merge neste ponto.
