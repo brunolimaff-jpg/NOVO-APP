@@ -225,3 +225,13 @@ Este arquivo registra o andamento operacional das PRs abertas para executar o pl
   - `Supabase Preview` ficou `skipped`; validação multiusuário em Supabase remoto/staging segue como gate manual antes de produção.
   - Thread Gemini resolvido no GitHub.
   - `gh pr view`: `mergeStateStatus=CLEAN`; nenhum merge executado.
+
+### Loop Ultra — confirmação remota de RLS (sem aplicar migration)
+
+- O Supabase remoto ainda não lista a migration `20260708213147_rls_auth_hardening_sensitive_tables`; ela permanece somente nesta PR.
+- Policies ativas no remoto confirmam o risco P0: `dossies`, `extract_cache` e `feedback_events` ainda usam `operator_id IS NOT NULL`; `dossies` aceita `anon, authenticated` e as outras duas tabelas aceitam `anon`.
+- A migration proposta revoga todas as permissões de `anon`, remove as policies legadas e limita `SELECT`/escritas a `auth.uid() -> profiles.operator_id`. O cache persistente de socio-search continua com `service_role`, fora do caminho RLS do navegador.
+- Revisão de regressão: exclusão de dossiê é soft delete por `UPDATE`, coberta pela policy proposta; o cache browser faz upsert com o operador autenticado; feedback continua somente `INSERT` autenticado.
+- O Supabase Advisor também mostrou itens preexistentes fora desta PR, incluindo `scout_diagnostics` com RLS sem policy e views SECURITY DEFINER. Foram registrados para a trilha Operação/DevEx, sem mudança remota nesta rodada.
+- Bloqueio objetivo de merge: executar em staging/remoto autorizado, com dois usuários autenticados, os cenários A próprio `SELECT/INSERT/UPDATE`, B cross-tenant negado para `dossies`/`extract_cache`/`feedback_events`, anon negado, soft delete próprio e feedback/cache próprios. Capturar o Preview Vercel do SHA e as respostas sem expor dados de outro tenant.
+- Status: código e Preview atuais estão verdes, mas esta PR não está pronta para `MERGE` até o teste multiusuário e uma migration reversível/corretiva serem aprovados. Nenhuma migration, env ou dado remoto foi alterado.
