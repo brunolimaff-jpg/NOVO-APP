@@ -80,6 +80,7 @@ Este arquivo registra o andamento operacional das PRs abertas para executar o pl
 - Validacao local deste delta: `npm run test -- tests/services/socio-search-cache-key.test.ts` (3/3), `npm run typecheck` e `git diff --check` passaram. Lint terminou sem erros e com os 61 warnings conhecidos fora de escopo.
 - O ambiente local deste worktree usa Node 26 enquanto o projeto exige Node 24; e um warning de ambiente, nao uma alteracao desta PR.
 - Proximo passo: publicar o delta, resolver as duas threads e aguardar os checks/Preview do novo SHA. Nenhum merge foi feito.
+- A ultima thread aberta era apenas de rastreabilidade da quarentena do Golden Live. O workflow agora referencia explicitamente o BUG-8 e este worklog junto do `exit 0`; o comportamento continua nao bloqueante por decisao registrada.
 
 ### Riscos Remanescentes
 
