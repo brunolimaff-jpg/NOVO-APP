@@ -101,7 +101,7 @@ describe('executeLlmRoute', () => {
 
   it('registra falha sem vazar erro, modelo ou modulo nao confiaveis', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
-    const unsafeModel = 'gemini-3\nCNPJ 12.345.678/0001-90';
+    const unsafeModel = '12.345.678/0001-90';
     const unsafeModule = 'Empresa 12.345.678/0001-90';
     const upstreamError = 'upstream rejected CNPJ 12.345.678/0001-90';
 

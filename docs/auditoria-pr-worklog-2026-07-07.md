@@ -107,4 +107,18 @@ Este arquivo registra o andamento operacional das PRs abertas para executar o pl
 - Invariantes: Foundation Cache e grounding continuam em Gemini; chamadas elegíveis continuam usando LiteLLM; não há env, migration, produção, watcher ou alteração de provedor nesta PR.
 - Triagem local executada: testes focados, typecheck, lint, build e `validate:prompts` passaram. Isso não é aceite funcional.
 - Aceite obrigatório: Preview Vercel do SHA da PR, com uma chamada controlada e logs `[LlmRoute]` mostrando provider, motivo, modelo e módulo sem PII. Nenhuma chamada em produção será usada como validação.
-- Status: preparação para push; sem PR, deploy ou merge neste ponto.
+- PR aberta: <https://github.com/brunolimaff-jpg/NOVO-APP/pull/413>.
+
+### Evidência Preview — SHA `57dd58b1`
+
+- Deployment Vercel: `dpl_Fwjcx5i5HeVxmULbm55iadJdSwZm`, branch `codex/litellm-routing-observability`.
+- Chamada controlada no Preview, sem empresa ou CNPJ e com saída limitada a 10 tokens, retornou `OK.` com `_model=bedrock/us.anthropic.claude-sonnet-4-6`.
+- Logs de runtime do mesmo deployment registraram `provider:selected` e `provider:completed` com `provider=litellm`, `reason=litellm_enabled`, `module=Caminho de Venda` e `durationMs=1134`.
+- Não houve erro de runtime em `/api/gemini` no intervalo da validação.
+- CI, build, testes, E2E crítico, smoke e Preview passaram. Golden Live permanece em quarentena e não é aceite deste card.
+
+### Follow-up de review — pendente de novo Preview
+
+- Um review identificou que o filtro inicial do identificador de modelo ainda aceitaria um CNPJ puro. O caminho de telemetria passou a aceitar somente modelos conhecidos; modelos externos ou malformados agora aparecem como `null`.
+- O teste de regressão usa `12.345.678/0001-90` como `model` e exige `model=null` no evento de falha.
+- Próximo passo: publicar o SHA do follow-up e repetir a chamada controlada no Preview antes de declarar a PR pronta para `MERGE`.

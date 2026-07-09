@@ -19,14 +19,20 @@ export interface GenerateContentRoutingInput {
   hasGrounding: boolean;
 }
 
-const SAFE_MODEL_ID = /^[a-z0-9._/-]{1,200}$/i;
+const SAFE_TELEMETRY_MODEL_IDS = new Set([
+  'gemini-2.5-flash',
+  'gemini-3-flash-preview',
+  'gemini-3.5-flash',
+  'gemini-embedding-001',
+  ...Object.values(HYBRID_MODEL_MAP),
+]);
 
 function getKnownModuleName(moduleName: string | null): string | null {
   return moduleName && Object.hasOwn(HYBRID_MODEL_MAP, moduleName) ? moduleName : null;
 }
 
 function getSafeModelId(model: string): string | null {
-  return SAFE_MODEL_ID.test(model) ? model : null;
+  return SAFE_TELEMETRY_MODEL_IDS.has(model) ? model : null;
 }
 
 export function selectGenerateContentRoute(input: GenerateContentRoutingInput): LlmRouteDecision {
