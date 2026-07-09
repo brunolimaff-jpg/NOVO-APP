@@ -8,6 +8,7 @@ describe('buildCacheKey', () => {
     const opB = buildCacheKey('04733767000180', 'Scheffer', 'Guilherme M Scheffer', 'operator-b');
 
     expect(opA).not.toBe(opB);
+    expect(opA).not.toBe(base);
     expect(opA).toContain('::operator a');
     expect(opB).toContain('::operator b');
   });

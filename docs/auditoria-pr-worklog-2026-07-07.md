@@ -71,6 +71,16 @@ Este arquivo registra o andamento operacional das PRs abertas para executar o pl
 - `Golden Dossier Live (blocking)` passou como check, mas apenas porque esta PR colocou o gate em quarentena: o teste interno falhou com exit code 1, publicou warning e manteve artefatos.
 - `gh pr view`: `mergeStateStatus=BLOCKED`; nenhum merge foi feito e continua exigindo comando explicito `MERGE` do Bruno.
 
+### Loop Ultra 2026-07-09
+
+- Causa do `BLOCKED` confirmada na protecao de `main`: `required_conversation_resolution=true`; nao ha status check obrigatorio, regra de aprovacao ou merge queue pendente.
+- Duas threads estavam abertas: uma outdated em `services/socio-search/types.ts` e uma ativa em `tests/services/socio-search-cache-key.test.ts`.
+- A implementacao atual ja normaliza `operatorId` e omite o sufixo quando o valor normaliza para vazio; o teste existente cobre `---!!!` e evita chave terminada em `::`.
+- O teste de isolamento passou a afirmar tambem que a chave de operador difere da chave base, cobrindo a segunda thread de review.
+- Validacao local deste delta: `npm run test -- tests/services/socio-search-cache-key.test.ts` (3/3), `npm run typecheck` e `git diff --check` passaram. Lint terminou sem erros e com os 61 warnings conhecidos fora de escopo.
+- O ambiente local deste worktree usa Node 26 enquanto o projeto exige Node 24; e um warning de ambiente, nao uma alteracao desta PR.
+- Proximo passo: publicar o delta, resolver as duas threads e aguardar os checks/Preview do novo SHA. Nenhum merge foi feito.
+
 ### Riscos Remanescentes
 
 - Golden live depende de preview Vercel HTTPS, `E2E_REAL_AUTH=1`, senha Supabase e `E2E_DEPLOYMENT_SHA`; nesta rodada virou evidência/quarentena, não gate de merge.
