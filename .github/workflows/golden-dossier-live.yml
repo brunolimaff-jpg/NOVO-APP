@@ -101,7 +101,7 @@ jobs:
           PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
         run: |
           set +e
-          timeout --foreground 40m npm run test:e2e:golden-live -- --reporter=line --retries=0
+          timeout --foreground 40m npm run test:e2e:golden-live -- --reporter=line,html --retries=0
           status=$?
           if [[ "$status" -ne 0 ]]; then
             # TODO(BUG-8): remover a quarentena e restaurar `exit "$status"` apos

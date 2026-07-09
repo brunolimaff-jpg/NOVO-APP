@@ -5,7 +5,7 @@ Este arquivo registra o andamento operacional das PRs abertas para executar o pl
 ## PR #410 — Baseline CI/Main Verde
 
 - Branch: `fix/main-typecheck-pr408`
-- Worktree local: `/Users/brunolima/.config/superpowers/worktrees/NOVO-APP/fix-main-typecheck-pr408`
+- Worktree: `fix/main-typecheck-pr408`
 - Objetivo: destravar baseline de CI herdado do PR #408/#410 antes das próximas PRs de segurança, RLS/Auth e BUG-8.
 - Escopo aceito: corrigir dependências faltantes, Node skew, testes quebrados por deadline de auth, contratos stale de RAG/Open Web Search, helper E2E live quebrado e E2E crítico bloqueado pelo AuthGate.
 - Fora de escopo: cron/review-cron, RLS/Auth estrutural, Sentry masking, BUG-8 completo, LiteLLM produção, vulnerabilidades npm audit.
@@ -80,7 +80,7 @@ Este arquivo registra o andamento operacional das PRs abertas para executar o pl
 - Validacao local deste delta: `npm run test -- tests/services/socio-search-cache-key.test.ts` (3/3), `npm run typecheck` e `git diff --check` passaram. Lint terminou sem erros e com os 61 warnings conhecidos fora de escopo.
 - O ambiente local deste worktree usa Node 26 enquanto o projeto exige Node 24; e um warning de ambiente, nao uma alteracao desta PR.
 - Proximo passo: publicar o delta, resolver as duas threads e aguardar os checks/Preview do novo SHA. Nenhum merge foi feito.
-- A ultima thread aberta era apenas de rastreabilidade da quarentena do Golden Live. O workflow agora referencia explicitamente o BUG-8 e este worklog junto do `exit 0`; o comportamento continua nao bloqueante por decisao registrada.
+- A última thread aberta era apenas de rastreabilidade da quarentena do Golden Live. O workflow agora referencia explicitamente o BUG-8 e este worklog junto do `exit 0`; o comportamento continua nao bloqueante por decisao registrada.
 
 ### Riscos Remanescentes
 
