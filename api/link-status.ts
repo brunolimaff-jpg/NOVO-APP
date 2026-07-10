@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { isValidPublicUrl } from '../utils/documentExtractor.js';
+import { requestPublicUrl } from './_safe-public-request.js';
 
 type ValidationState = 'valid' | 'broken' | 'unknown';
 
@@ -13,56 +13,28 @@ export const config = {
   runtime: 'nodejs',
 };
 
-const REQUEST_TIMEOUT_MS = 5000;
 const MAX_URLS_PER_REQUEST = 25;
 
-function withTimeout(ms: number): { signal: AbortSignal; clear: () => void } {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), ms);
-  return {
-    signal: controller.signal,
-    clear: () => clearTimeout(timeoutId),
-  };
-}
-
-async function fetchUrlWithTimeout(url: string, method: 'HEAD' | 'GET'): Promise<Response> {
-  const timeout = withTimeout(REQUEST_TIMEOUT_MS);
-  try {
-    return await fetch(url, {
-      method,
-      redirect: 'follow',
-      signal: timeout.signal,
-    });
-  } finally {
-    timeout.clear();
-  }
-}
-
 async function checkUrl(url: string): Promise<ValidationResult> {
-  // isValidPublicUrl bloqueia localhost, ranges privados e metadados cloud.
-  if (!isValidPublicUrl(url)) {
-    return { status: 'unknown', note: 'URL inválida ou restrita para validação.' };
-  }
-
   try {
-    let res = await fetchUrlWithTimeout(url, 'HEAD');
+    let res = await requestPublicUrl(url, 'HEAD');
 
-    if (res.status === 405 || res.status === 403) {
-      res = await fetchUrlWithTimeout(url, 'GET');
+    if (res.statusCode === 405 || res.statusCode === 403) {
+      res = await requestPublicUrl(url, 'GET');
     }
 
-    if (res.status >= 200 && res.status < 400) {
-      return { status: 'valid', httpStatus: res.status };
+    if (res.statusCode >= 200 && res.statusCode < 400) {
+      return { status: 'valid', httpStatus: res.statusCode };
     }
 
-    if (res.status === 404) {
+    if (res.statusCode === 404) {
       return { status: 'broken', httpStatus: 404, note: 'Link indisponível (404).' };
     }
 
     return {
       status: 'broken',
-      httpStatus: res.status,
-      note: `Link indisponível (HTTP ${res.status}).`,
+      httpStatus: res.statusCode,
+      note: `Link indisponível (HTTP ${res.statusCode}).`,
     };
   } catch {
     return { status: 'unknown', note: 'Não foi possível validar agora; revisar manualmente.' };
