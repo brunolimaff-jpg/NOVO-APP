@@ -35,6 +35,7 @@ describe('api/_safe-public-request', () => {
 
   it('aceita endereco publico roteavel', () => {
     expect(isPublicIpAddress(PUBLIC_IPV4.address)).toBe(true);
+    expect(isPublicIpAddress(`::ffff:${PUBLIC_IPV4.address}`)).toBe(true);
   });
 
   it('rejeita DNS que mistura endereco publico e restrito', async () => {

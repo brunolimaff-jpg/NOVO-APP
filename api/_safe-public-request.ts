@@ -70,7 +70,6 @@ function addBlockedSubnets(): void {
   for (const [network, prefix] of [
     ['::', 128],
     ['::1', 128],
-    ['::ffff:0:0', 96],
     ['100::', 64],
     ['2001:db8::', 32],
     ['fc00::', 7],
