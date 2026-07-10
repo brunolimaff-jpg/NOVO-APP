@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
-const WORKFLOW_PATH = resolve(__dirname, '../../.github/workflows/preview-smoke.yml');
+const WORKFLOW_PATH = resolve(import.meta.dirname, '../../.github/workflows/preview-smoke.yml');
 const workflow = readFileSync(WORKFLOW_PATH, 'utf-8');
 
 describe('preview-smoke workflow contract', () => {
