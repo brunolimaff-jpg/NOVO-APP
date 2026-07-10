@@ -90,6 +90,17 @@ Este arquivo registra o andamento operacional das PRs abertas para executar o pl
 - `npm audit` continua fora do gate desta PR por decisão do plano: precisa classificação antes de virar bloqueio.
 - O bypass E2E agora falha fechado em `production`, mas qualquer tentativa de configurar `VITE_E2E_AUTH_BYPASS` fora de teste continua sendo erro operacional.
 
+## PR #414 — Segurança do Preview Smoke
+
+- Branch: `codex/security-preview-smoke-input`, baseada na #410.
+- Objetivo: fechar o alerta crítico `actions/code-injection` no workflow que resolve e testa URLs de Preview.
+- Correção: `/smoke` exige autor `OWNER`, `MEMBER` ou `COLLABORATOR`; valores do evento passam por `env`, sem interpolação em Bash ou JavaScript; a URL precisa ser HTTPS de Preview deste projeto antes de receber o header de bypass; `pr_number` é validado e o runtime foi alinhado ao Node 24.
+- Regressão: `tests/contracts/previewSmokeWorkflow.contract.test.ts` protege associação do autor, ausência das interpolações perigosas, allowlist de Preview e Node 24.
+- Evidência remota `64acf951`: Preview Vercel `dpl_131pANKqB6w45r4hYi89jBmgmMjN` ficou `READY`; CI, Smoke automático, E2E Critical Browser, Golden em quarentena, CodeRabbit e GitGuardian passaram. O `workflow_dispatch` 29123830523 executou o workflow da própria branch contra esse Preview com sucesso.
+- Review: única thread sobre `__dirname` foi corrigida com `import.meta.dirname` e está resolvida.
+- Risco residual: o CodeQL deste repositório é gerenciado fora de `.github/workflows`; o alerta #6 só pode ficar `fixed` após merge autorizado no branch padrão e nova análise. Nenhum secret, env, migration, produção ou merge foi alterado.
+- Estado: `CLEAN`/`MERGEABLE`, aguardando a cadeia #410 e `MERGE` explícito do Bruno.
+
 ## Watcher
 
 - Automação criada: `novo-app-pr-watcher-auditoria`.
