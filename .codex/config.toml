@@ -1,0 +1,6 @@
+# Configuração Codex project-scoped — Senior Scout 360
+# Esta config mescla com ~/.codex/config.toml (global).
+
+[agents]
+max_threads = 6
+max_depth = 1
