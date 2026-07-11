@@ -28,9 +28,11 @@ export type SafePublicRequestTransport = (
 export interface SafePublicRequestDependencies {
   resolve?: (hostname: string) => Promise<SafePublicAddress[]>;
   transport?: SafePublicRequestTransport;
+  now?: () => number;
+  deadline?: number;
 }
 
-type SafePublicRequestErrorCode = 'invalid_url' | 'restricted_hostname' | 'restricted_address' | 'too_many_redirects';
+type SafePublicRequestErrorCode = 'invalid_url' | 'restricted_hostname' | 'restricted_address' | 'timeout' | 'too_many_redirects';
 
 export class SafePublicRequestError extends Error {
   constructor(
@@ -42,7 +44,7 @@ export class SafePublicRequestError extends Error {
   }
 }
 
-const REQUEST_TIMEOUT_MS = 5000;
+export const SAFE_PUBLIC_REQUEST_TIMEOUT_MS = 5000;
 const MAX_REDIRECTS = 5;
 const REDIRECT_STATUS_CODES = new Set([301, 302, 303, 307, 308]);
 const BLOCKED_ADDRESSES = new BlockList();
@@ -68,8 +70,9 @@ function addBlockedSubnets(): void {
   }
 
   for (const [network, prefix] of [
-    ['::', 128],
-    ['::1', 128],
+    ['::', 96],
+    ['64:ff9b::', 96],
+    ['64:ff9b:1::', 48],
     ['100::', 64],
     ['2001:db8::', 32],
     ['fc00::', 7],
@@ -177,6 +180,7 @@ const requestPinnedTarget: SafePublicRequestTransport = (target, method, timeout
       method,
       lookup: createPinnedLookup(target.address, target.family),
       headers: { 'User-Agent': 'ScoutAgro Link Validator/1.0' },
+      agent: false,
     };
     const onResponse = (response: import('node:http').IncomingMessage) => {
       const rawLocation = response.headers.location;
@@ -205,11 +209,17 @@ export async function requestPublicUrl(
 ): Promise<SafePublicResponse> {
   const resolve = dependencies.resolve ?? resolveHost;
   const transport = dependencies.transport ?? requestPinnedTarget;
+  const now = dependencies.now ?? Date.now;
+  const deadline = dependencies.deadline ?? now() + SAFE_PUBLIC_REQUEST_TIMEOUT_MS;
   let url = parseSafePublicUrl(value);
 
   for (let redirectCount = 0; redirectCount <= MAX_REDIRECTS; redirectCount += 1) {
     const target = await resolveValidatedTarget(url, resolve);
-    const response = await transport(target, method, REQUEST_TIMEOUT_MS);
+    const remainingTimeoutMs = deadline - now();
+    if (remainingTimeoutMs <= 0) {
+      throw new SafePublicRequestError('timeout', 'Tempo limite excedido.');
+    }
+    const response = await transport(target, method, remainingTimeoutMs);
 
     if (!REDIRECT_STATUS_CODES.has(response.statusCode) || !response.location) {
       return response;

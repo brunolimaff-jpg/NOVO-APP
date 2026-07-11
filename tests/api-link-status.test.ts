@@ -91,8 +91,11 @@ describe('api/link-status', () => {
       response.res,
     );
 
-    expect(requestPublicUrlMock).toHaveBeenNthCalledWith(1, 'https://ok.test/fonte', 'HEAD');
-    expect(requestPublicUrlMock).toHaveBeenNthCalledWith(2, 'https://ok.test/fonte', 'GET');
+    const [firstCall, secondCall] = requestPublicUrlMock.mock.calls;
+    expect(firstCall?.slice(0, 2)).toEqual(['https://ok.test/fonte', 'HEAD']);
+    expect(secondCall?.slice(0, 2)).toEqual(['https://ok.test/fonte', 'GET']);
+    expect(firstCall?.[2]).toEqual(secondCall?.[2]);
+    expect(firstCall?.[2]).toMatchObject({ deadline: expect.any(Number) });
     expect(response.payload).toMatchObject({
       results: { 'https://ok.test/fonte': { status: 'valid', httpStatus: 200 } },
     });

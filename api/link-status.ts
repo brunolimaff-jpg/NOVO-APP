@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { requestPublicUrl } from './_safe-public-request.js';
+import { requestPublicUrl, SAFE_PUBLIC_REQUEST_TIMEOUT_MS } from './_safe-public-request.js';
 
 type ValidationState = 'valid' | 'broken' | 'unknown';
 
@@ -17,10 +17,11 @@ const MAX_URLS_PER_REQUEST = 25;
 
 async function checkUrl(url: string): Promise<ValidationResult> {
   try {
-    let res = await requestPublicUrl(url, 'HEAD');
+    const deadline = Date.now() + SAFE_PUBLIC_REQUEST_TIMEOUT_MS;
+    let res = await requestPublicUrl(url, 'HEAD', { deadline });
 
     if (res.statusCode === 405 || res.statusCode === 403) {
-      res = await requestPublicUrl(url, 'GET');
+      res = await requestPublicUrl(url, 'GET', { deadline });
     }
 
     if (res.statusCode >= 200 && res.statusCode < 400) {

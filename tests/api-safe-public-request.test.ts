@@ -29,6 +29,9 @@ describe('api/_safe-public-request', () => {
     'fc00::1',
     'fe80::1',
     '::ffff:127.0.0.1',
+    '::127.0.0.1',
+    '64:ff9b::10.0.0.1',
+    '64:ff9b:1::1',
   ])('rejeita endereco nao publico: %s', address => {
     expect(isPublicIpAddress(address)).toBe(false);
   });
@@ -118,5 +121,22 @@ describe('api/_safe-public-request', () => {
         }
       });
     });
+  });
+
+  it('consome um unico budget de timeout ao seguir redirects', async () => {
+    const transport = vi
+      .fn<SafePublicRequestTransport>()
+      .mockResolvedValueOnce({ statusCode: 302, location: 'https://next.test' })
+      .mockResolvedValueOnce({ statusCode: 204 });
+    const now = vi.fn().mockReturnValueOnce(0).mockReturnValueOnce(4500);
+
+    await requestPublicUrl(
+      'https://redirect.test',
+      'HEAD',
+      dependencies({ transport, now, deadline: 5000 }),
+    );
+
+    expect(transport.mock.calls[0]?.[2]).toBe(5000);
+    expect(transport.mock.calls[1]?.[2]).toBe(500);
   });
 });
