@@ -5,6 +5,7 @@ const requestPublicUrlMock = vi.hoisted(() => vi.fn());
 
 vi.mock('../api/_safe-public-request.js', () => ({
   requestPublicUrl: requestPublicUrlMock,
+  SAFE_PUBLIC_REQUEST_TIMEOUT_MS: 5000,
 }));
 
 function makeResponse() {
