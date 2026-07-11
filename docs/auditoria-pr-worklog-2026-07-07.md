@@ -90,6 +90,34 @@ Este arquivo registra o andamento operacional das PRs abertas para executar o pl
 - `npm audit` continua fora do gate desta PR por decisão do plano: precisa classificação antes de virar bloqueio.
 - O bypass E2E agora falha fechado em `production`, mas qualquer tentativa de configurar `VITE_E2E_AUTH_BYPASS` fora de teste continua sendo erro operacional.
 
+## PR #415 — SSRF de `link-status`
+
+- Branch: `codex/security-link-status-ssrf`.
+- Objetivo: fechar o achado CodeQL #58 em `api/link-status.ts`, que aceitava URLs arbitrárias em POST e fazia `fetch` com validação apenas lexical do host.
+- Fora de escopo: `api/open-web-search` e `universalExtract` mantêm dívida de validação de URL para uma PR própria; o alerta #25 de `lib/cnpjLookup.ts` foi classificado como falso positivo local, pois a entrada é reduzida a dígitos e os hosts são constantes.
+
+### Correções Aplicadas
+
+- Criado `api/_safe-public-request.ts` para aceitar somente HTTP(S), sem credenciais e em portas padrão.
+- A resolução DNS valida todos os IPs retornados, rejeita faixas privadas, loopback, link-local, documentação, multicast e formas IPv6 que encapsulam destinos internos.
+- A conexão é fixada no IP validado e redirects são manuais, limitados e revalidados antes de cada nova conexão.
+- HEAD, fallback GET e redirects compartilham um único orçamento de cinco segundos; conexões não usam pool persistente.
+- Cobertura adicionada para DNS misto, redirect para destino restrito, IP fixado, portas/credenciais, IPv4-mapped, IPv4-compatible, NAT64 e orçamento de timeout.
+
+### Evidência Remota
+
+- Primeira rodada do commit `cf3da3f9`: Preview Vercel ficou pronto, mas os testes remotos expuseram que a regra IPv6 inicial bloqueava IPv4 público. Corrigido no commit `57a5b92e` sem reabrir IPs privados encapsulados.
+- Segunda rodada do commit `3949e067`: os testes remotos expuseram somente um mock incompleto da constante de timeout. Corrigido no commit `62e68c6d`.
+- Evidência do SHA final `62e68c6d`: Vercel `dpl_EwV2kFwhpHy6TEcB4d3Xswg9H1ZR` em `READY`; `Build`, `Typecheck`, `Tests`, `E2E Critical Browser` e `Smoke (preview)` passaram.
+- O smoke automático do mesmo SHA confirmou resposta 200 do Preview para `/api/link-status` e `/api/cnpj`.
+- `Golden Dossier Live (blocking)` permanece em quarentena por decisão registrada na PR #410; não é usado como gate desta correção de segurança.
+
+### Estado e Próximo Passo
+
+- Todas as quatro threads de review que geraram os reforços acima foram resolvidas.
+- O CodeQL #58 só poderá ser marcado como fechado depois de merge e nova análise do branch padrão. Nenhum merge foi feito.
+- Próximo passo: concluir o Preview deste commit documental, verificar rollup/reviews da PR e manter a #415 aguardando `MERGE` explícito do Bruno.
+
 ## Watcher
 
 - Automação criada: `novo-app-pr-watcher-auditoria`.
