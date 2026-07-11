@@ -29,7 +29,15 @@ ao trunk principal (não tem git próprio).
 2. A "worktree" é na verdade um diretório órfão sem associação git funcional
 3. **Backup seguro:** `tar czf fix-consolidando-backup.tar.gz .claude/worktrees/fix-consolidando-stuck-monitoring/`
 4. **Recuperação:** `tar xzf fix-consolidando-backup.tar.gz`
-5. **Remoção segura (fase posterior):** `rm -rf .claude/worktrees/fix-consolidando-stuck-monitoring/` + `git worktree prune`
+5. **Remoção segura (fase posterior):** `rm -rf .claude/worktrees/fix-consolidando-stuck-monitoring/` seguido de `git worktree prune`
+
+## Esclarecimento sobre `git worktree prune`
+
+> **Importante:** `git worktree prune` remove apenas **metadados administrativos
+> obsoletos** (entradas no diretório `.git/worktrees/`). Ele **não** remove
+> fisicamente a pasta órfã nem os arquivos em `test-results/`. A remoção
+> física do diretório depende de `rm -rf`, executado **somente depois** do
+> backup documentado acima.
 
 ## Recomendação
 
@@ -38,4 +46,4 @@ Esta worktree pode ser removida com segurança em uma fase posterior pois:
 - Não tem commits exclusivos
 - Não tem PR
 - Não tem código-fonte (apenas test-results)
-- O `git worktree prune` já a removeria automaticamente
+- Remoção física requer `rm -rf` + `git worktree prune` (nesta ordem)

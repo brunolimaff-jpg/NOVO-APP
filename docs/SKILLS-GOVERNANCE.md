@@ -54,7 +54,7 @@ Skills globais podem existir na máquina do usuário e podem ser usadas por conv
 ## Estado esperado do repo
 
 - `.agents/skills/` contém `delivery-loop/` (ativa), `archive/` (referência histórica) e skills de conveniência
-- `skills-lock.json` reflete ausência de skills locais ativas
+- `skills-lock.json` registra `delivery-loop` como única skill local ativa
 - `.mcp.json` não declara servidores extras
 - `README.md`, `CLAUDE.md`, `AGENTS.md` e `HANDOFF_AI.md` contam a mesma história
 - `docs/obsidian/00-MASTER.md` aponta para arquitetura + roadmap e deixa explícitas as fontes canônicas reais
