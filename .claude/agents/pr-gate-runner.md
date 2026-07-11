@@ -27,7 +27,7 @@ Invocar quando:
 | Comando                    | O que faz                       | Duração típica |
 | -------------------------- | ------------------------------- | -------------- |
 | `npm run typecheck`        | Verificação de tipos TypeScript | ~15s           |
-| `npm run test`             | Vitest (854 testes)             | ~30s           |
+| `npm run test`             | Vitest (executar para contagem) | ~30s           |
 | `npm run test:contracts`   | Testes de contrato Supabase/API | ~10s           |
 | `npm run test:e2e:blank`   | E2E regressão blank panel       | ~20s           |
 | `npm run validate:prompts` | Valida estrutura de prompts     | ~5s            |
@@ -59,7 +59,7 @@ wait
 🏁 PR Gate Results
 ━━━━━━━━━━━━━━━━━━━━━
 ✅ typecheck         — 0 errors
-✅ test (854)        — 854 passed, 0 failed
+✅ test              — {N} passed, 0 failed
 ✅ test:contracts    — 12 passed
 ✅ test:e2e:blank    — 5 passed
 ✅ validate:prompts  — OK

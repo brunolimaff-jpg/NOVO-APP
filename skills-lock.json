@@ -1,5 +1,13 @@
 {
   "version": 1,
-  "allowlist": [],
-  "skills": {}
+  "allowlist": [
+    "delivery-loop"
+  ],
+  "skills": {
+    "delivery-loop": {
+      "path": ".agents/skills/delivery-loop/SKILL.md",
+      "type": "operational",
+      "description": "Orquestrador canonico do ciclo de entrega (fases 0-8, REPORT_READY)"
+    }
+  }
 }
