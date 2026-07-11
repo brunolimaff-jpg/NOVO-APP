@@ -1,17 +1,17 @@
-# 🚀 Scout 360 — Servidor Local (macOS)
+# Scout 360 - Desenvolvimento Local (macOS)
 
 ## Executar com 1 Clique
 
-### Método 1: Duplo-clique no Finder ⭐ (Recomendado)
+### Metodo 1: Duplo-clique no Finder
 
 ```
 1. Abra Finder
 2. Navegue até: Documents/NOVO-APP/
 3. Duplo-clique em: dev-local.command
-4. O app abre automaticamente em http://localhost:5173
+4. O app abre automaticamente em http://localhost:3000
 ```
 
-**Pronto!** O servidor está rodando. Edite os arquivos em `src/` e veja as mudanças em tempo real (HMR).
+O servidor esta rodando. Edite `App.tsx`, `components/`, `hooks/`, `services/`, `api/` ou `utils/` e veja as mudancas em tempo real (HMR).
 
 ---
 
@@ -24,18 +24,17 @@ cd ~/Documents/NOVO-APP
 
 ---
 
-## ⚡ O que o Script Faz
+## O que o Script Faz
 
-✅ Verifica Node.js e npm  
-✅ Instala dependências se faltarem  
-✅ Inicia `npm run dev` (Vite)  
-✅ Aguarda o servidor ficar pronto  
-✅ Abre automaticamente o navegador  
-✅ Mostra feedback visual colorido
+- Verifica Node.js e npm.
+- Instala dependencias se faltarem.
+- Inicia `npm run dev` (Vite).
+- Aguarda o servidor ficar pronto.
+- Abre automaticamente o navegador.
 
 ---
 
-## 🛑 Parar o Servidor
+## Parar o Servidor
 
 **No Terminal:**
 
@@ -47,7 +46,7 @@ Ou feche a janela do Terminal.
 
 ---
 
-## 📝 Variáveis de Ambiente
+## Variaveis de Ambiente
 
 Se precisar de `.env`:
 
@@ -60,26 +59,26 @@ O script carrega automaticamente.
 
 ---
 
-## 💡 Hot Module Reload (HMR)
+## Hot Module Reload (HMR)
 
-Todas as mudanças em `src/` recarregam **automaticamente** no navegador — nenhum F5 necessário!
+Todas as mudancas nos arquivos de aplicacao recarregam automaticamente no navegador.
 
 ```
-✨ Edite → Salve → Veja em tempo real
+Edite -> salve -> veja em tempo real
 ```
 
 ---
 
 ## 🔧 Troubleshooting
 
-### Porta 5173 já está em uso
+### Porta 3000 ja esta em uso
 
 ```bash
 # Verifique qual processo está usando
-lsof -i :5173
+lsof -i :3000
 
 # Ou use outra porta:
-VITE_PORT=5174 npm run dev
+npm run dev -- --port 3001
 ```
 
 ### Node não encontrado
@@ -100,29 +99,29 @@ npm install
 
 ---
 
-## 📊 Comparação: Local vs Vercel Deploy
+## Local vs Vercel Preview
 
-|                     | Local               | Vercel                 |
+|                     | Local                  | Vercel Preview              |
 | ------------------- | ------------------- | ---------------------- |
-| **Tempo de reload** | ~200ms (HMR)        | ~30-60s (build+deploy) |
-| **Iteração UX**     | ⚡ Instantâneo      | ⏳ Lento               |
-| **Debugging**       | 🔍 DevTools local   | 🌐 Remote              |
-| **Ambiente**        | Dev (sem auth real) | Produção               |
+| **Tempo de reload** | HMR imediato        | build e deploy remoto  |
+| **Uso**             | triagem de frontend | gate de runtime e UX   |
+| **APIs**            | proxy para alvo     | handlers da branch     |
+| **Aceite de PR**    | nao                 | sim                    |
 
-**Use local para desenvolvimento rápido!**
-
----
-
-## 🎯 Workflow Recomendado
-
-1. **Desenvolvimento Local**: `./dev-local.command`
-2. **Testes Locais**: `npm run test:watch`
-3. **Build Final**: `npm run build`
-4. **Deploy**: Push para `main` (Vercel auto-deploy)
+O Vite local nao emula as serverless functions. Mudancas em `api/`, seguranca, LLM ou UX so estao validadas depois do Preview Vercel da PR.
 
 ---
 
-## 📞 Logs
+## Workflow Recomendado
+
+1. Desenvolvimento local: `./dev-local.command` ou `npm run dev`.
+2. Triagem tecnica: comandos focados do repositorio.
+3. Push para branch/PR: Vercel cria Preview automaticamente.
+4. Aceite: checks remotos e Preview da mesma SHA; producao so apos `MERGE` explicito.
+
+---
+
+## Logs
 
 Se algo der errado, o log está em:
 
@@ -134,4 +133,4 @@ Verifique para diagnosticar problemas.
 
 ---
 
-**Happy coding! 🎉**
+Para diagnostico de Preview, use logs Vercel, Sentry e `scout_diagnostics`; nao conclua por comportamento do Vite local.

@@ -56,7 +56,7 @@ echo -e "${YELLOW}🚀 Iniciando servidor Vite...${NC}"
 echo ""
 
 # Função para detectar quando o servidor está pronto
-PORT=5173
+PORT=3000
 MAX_WAIT=30
 WAIT_COUNT=0
 
@@ -97,7 +97,7 @@ open "http://localhost:$PORT"
 echo -e "${GREEN}📱 Navegador aberto em http://localhost:$PORT${NC}"
 echo ""
 echo -e "${YELLOW}💡 Dicas:${NC}"
-echo -e "  • Edite os arquivos em src/ — HMR (Hot Module Reload) atualiza automático"
+echo -e "  • Edite App.tsx, components/, hooks/, services/ ou utils/ - HMR atualiza automaticamente"
 echo -e "  • Abra DevTools: ${BLUE}Cmd + Option + I${NC}"
 echo -e "  • Para parar o servidor: ${BLUE}Ctrl + C${NC}"
 echo ""
