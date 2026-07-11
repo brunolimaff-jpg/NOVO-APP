@@ -15,13 +15,13 @@ Objetivo: manter o repo operável sem depender de skills versionadas dentro do r
 
 ## Allowlist oficial
 
-Nenhuma skill local ativa e nenhuma integração externa são obrigatórias neste repo.
+A skill `delivery-loop` é a única skill operacional ativa e versionada no repo. Nenhuma integração externa é obrigatória.
 
 ## Classificação operacional
 
 ### `active`
 
-- Nenhuma skill operacional fica versionada em `.agents/skills/`
+- `delivery-loop` — orquestrador canônico do ciclo de entrega (fases 0–8, estado terminal `REPORT_READY`). Fonte: `.agents/skills/delivery-loop/SKILL.md`. Spec: `docs/plans/2026-06-23-delivery-loop-design.md`. Wrappers que apenas a invocam: `~/.claude/commands/delivery-loop.md`, `~/.agents/skills/source-command-delivery-loop/SKILL.md`. O repo prevalece sobre definições globais.
 
 ### `archived`
 
@@ -53,7 +53,7 @@ Skills globais podem existir na máquina do usuário e podem ser usadas por conv
 
 ## Estado esperado do repo
 
-- `.agents/skills/` contém apenas materiais históricos e de referência
+- `.agents/skills/` contém `delivery-loop/` (ativa), `archive/` (referência histórica) e skills de conveniência
 - `skills-lock.json` reflete ausência de skills locais ativas
 - `.mcp.json` não declara servidores extras
 - `README.md`, `CLAUDE.md`, `AGENTS.md` e `HANDOFF_AI.md` contam a mesma história
