@@ -75,6 +75,20 @@ Regras:
 
 Papéis canônicos: `explorador`, `investigador-incidentes`, `planejador-solucao`, `executor-escopo`, `revisor-contratos`, `validador-entrega`, `revisor-evidencias-dossie`.
 
+### Adaptadores de ferramenta (Fase 2)
+
+Adaptadores conectam mecanismos de cada ferramenta aos papéis canônicos. São camadas finas que apontam para `.agents/papeis/` e aplicam permissões.
+
+- **Registry completo**: `.agents/adaptadores/mapa-adaptadores.yaml`
+- **Contrato dos adaptadores**: `.agents/adaptadores/README.md`
+- **Claude Code**: 7 adaptadores em `.claude/agents/` (Markdown com frontmatter YAML, `permissionMode` e `disallowedTools`)
+- **Codex**: 7 adaptadores em `.codex/agents/` (TOML com `developer_instructions` e `sandbox_mode`)
+- **Cursor**: 7 adaptadores nativos em `.cursor/agents/` (precedência sobre compatibilidade `.claude/agents/` e `.codex/agents/`)
+- **OpenCode**: 7 adaptadores nativos em `.opencode/agents/` (`mode: subagent`, permissões por agente)
+- **Cline**: suporte varia por superfície; IDE tem subagentes experimentais read-only, CLI/SDK/Kanban têm Agent Teams. `.cline/agents/` ficou documentado, mas sem materialização nesta PR por falta de prova local de carregamento.
+
+Adaptadores não prevalecem sobre os papéis canônicos em caso de conflito.
+
 ## Banco de Padrões (PatternBank) — status Fase 1
 
 Inventário de linha de base realizado para a Fase 1:

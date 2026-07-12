@@ -1,0 +1,655 @@
+versao: 2
+data_auditoria: "2026-07-12"
+
+ferramentas:
+  claude-code:
+    documentacao_oficial:
+      - https://docs.anthropic.com/en/docs/claude-code/sub-agents
+    versao_local: 2.1.200
+    superficie: cli
+  codex:
+    documentacao_oficial:
+      - https://developers.openai.com/codex/llms.txt
+      - https://developers.openai.com/codex/agent-configuration/subagents.md
+      - https://developers.openai.com/codex/agent-approvals-security.md
+      - https://developers.openai.com/codex/config-file/config-reference.md
+      - https://developers.openai.com/codex/sandboxing.md
+    versao_local: 0.144.0
+    superficie: cli
+  cursor:
+    documentacao_oficial:
+      - https://cursor.com/docs/subagents
+      - https://cursor.com/docs/subagents.md
+    versao_local: nao-detectada-via-cli
+    superficie: editor-cli-cloud
+  cline:
+    documentacao_oficial:
+      - https://docs.cline.bot/features/subagents.md
+      - https://docs.cline.bot/cli/agent-teams.md
+      - https://docs.cline.bot/getting-started/config.md
+    versao_local: 3.0.39
+    superficie: ide-cli-sdk-kanban
+  opencode:
+    documentacao_oficial:
+      - https://opencode.ai/docs/agents
+      - https://opencode.ai/docs/permissions/
+    versao_local: 1.17.18
+    superficie: tui-cli-ide-web
+
+papeis:
+  explorador:
+    fonte: .agents/papeis/explorador.md
+    classe_execucao: leitor
+    acesso_padrao: somente-leitura
+    adaptadores:
+      - ferramenta: claude-code
+        caminho: .claude/agents/explorador.md
+        formato: markdown+yaml-frontmatter
+        status: ativo-sem-smoke-test
+        documentacao_oficial: https://docs.anthropic.com/en/docs/claude-code/sub-agents
+        versao_local: 2.1.200
+        descoberta_validada: true
+        permissao_validada: true
+        delegacao: proibida
+        delegacao_validada: true
+        garantia_tecnica: omitindo Agent e usando disallowedTools
+        herda_modelo: true
+        limitacoes:
+          - sem Bash neste adaptador
+      - ferramenta: codex
+        caminho: .codex/agents/explorador.toml
+        formato: toml
+        status: ativo-sem-smoke-test
+        documentacao_oficial: https://developers.openai.com/codex/agent-configuration/subagents.md
+        versao_local: 0.144.0
+        descoberta_validada: true
+        permissao_validada: true
+        delegacao: proibida
+        delegacao_validada: true
+        garantia_tecnica: agents.max_depth=1 + sem configuracao de spawn neste papel
+        herda_modelo: true
+        limitacoes:
+          - sessao principal ainda influencia approvals
+      - ferramenta: cursor
+        caminho: .cursor/agents/explorador.md
+        formato: markdown+yaml-frontmatter
+        status: ativo-sem-smoke-test
+        documentacao_oficial: https://cursor.com/docs/subagents
+        versao_local: nao-detectada-via-cli
+        descoberta_validada: false
+        permissao_validada: parcialmente
+        delegacao: proibida-por-contrato
+        delegacao_validada: false
+        garantia_tecnica: nao comprovada localmente
+        herda_modelo: true
+        limitacoes:
+          - readonly documentado, sem smoke local
+      - ferramenta: cline-ide
+        caminho: null
+        formato: subagente-experimental-nativo
+        status: parcial-por-superficie
+        documentacao_oficial: https://docs.cline.bot/features/subagents.md
+        versao_local: 3.0.39
+        descoberta_validada: false
+        permissao_validada: true
+        delegacao: proibida
+        delegacao_validada: true
+        garantia_tecnica: documentada pela superficie IDE
+        herda_modelo: nao-conclusivo
+        limitacoes:
+          - sem browser, sem MCP, sem edicao
+      - ferramenta: cline-cli-sdk-kanban
+        caminho: null
+        formato: teams-ou-agents
+        status: suporte-documentado-nao-validado-localmente
+        documentacao_oficial: https://docs.cline.bot/cli/agent-teams.md
+        versao_local: 3.0.39
+        descoberta_validada: false
+        permissao_validada: false
+        delegacao: depende-da-superficie
+        delegacao_validada: false
+        garantia_tecnica: nao comprovada nesta rodada
+        herda_modelo: nao-conclusivo
+        limitacoes:
+          - arquivos .cline/agents nao materializados nesta PR
+      - ferramenta: opencode
+        caminho: .opencode/agents/explorador.md
+        formato: markdown+yaml-frontmatter
+        status: ativo-sem-smoke-test
+        documentacao_oficial: https://opencode.ai/docs/agents
+        versao_local: 1.17.18
+        descoberta_validada: false
+        permissao_validada: true
+        delegacao: proibida
+        delegacao_validada: true
+        garantia_tecnica: permission.task=deny
+        herda_modelo: true
+        limitacoes:
+          - sem smoke local do carregamento
+
+  investigador-incidentes:
+    fonte: .agents/papeis/investigador-incidentes.md
+    classe_execucao: leitor
+    acesso_padrao: somente-leitura
+    adaptadores:
+      - ferramenta: claude-code
+        caminho: .claude/agents/investigador-incidentes.md
+        formato: markdown+yaml-frontmatter
+        status: ativo-sem-smoke-test
+        documentacao_oficial: https://docs.anthropic.com/en/docs/claude-code/sub-agents
+        versao_local: 2.1.200
+        descoberta_validada: true
+        permissao_validada: true
+        delegacao: proibida
+        delegacao_validada: true
+        garantia_tecnica: omitindo Agent e usando disallowedTools
+        herda_modelo: true
+        limitacoes:
+          - Bash removido por falta de hook confiavel nesta rodada
+      - ferramenta: codex
+        caminho: .codex/agents/investigador-incidentes.toml
+        formato: toml
+        status: ativo-sem-smoke-test
+        documentacao_oficial: https://developers.openai.com/codex/agent-configuration/subagents.md
+        versao_local: 0.144.0
+        descoberta_validada: true
+        permissao_validada: true
+        delegacao: proibida
+        delegacao_validada: true
+        garantia_tecnica: agents.max_depth=1 + sandbox_mode=read-only
+        herda_modelo: true
+        limitacoes: []
+      - ferramenta: cursor
+        caminho: .cursor/agents/investigador-incidentes.md
+        formato: markdown+yaml-frontmatter
+        status: ativo-sem-smoke-test
+        documentacao_oficial: https://cursor.com/docs/subagents
+        versao_local: nao-detectada-via-cli
+        descoberta_validada: false
+        permissao_validada: parcialmente
+        delegacao: proibida-por-contrato
+        delegacao_validada: false
+        garantia_tecnica: nao comprovada localmente
+        herda_modelo: true
+        limitacoes: []
+      - ferramenta: cline-ide
+        caminho: null
+        formato: subagente-experimental-nativo
+        status: parcial-por-superficie
+        documentacao_oficial: https://docs.cline.bot/features/subagents.md
+        versao_local: 3.0.39
+        descoberta_validada: false
+        permissao_validada: true
+        delegacao: proibida
+        delegacao_validada: true
+        garantia_tecnica: documentada pela superficie IDE
+        herda_modelo: nao-conclusivo
+        limitacoes:
+          - sem MCP, browser ou edicao
+      - ferramenta: cline-cli-sdk-kanban
+        caminho: null
+        formato: teams-ou-agents
+        status: suporte-documentado-nao-validado-localmente
+        documentacao_oficial: https://docs.cline.bot/cli/agent-teams.md
+        versao_local: 3.0.39
+        descoberta_validada: false
+        permissao_validada: false
+        delegacao: depende-da-superficie
+        delegacao_validada: false
+        garantia_tecnica: nao comprovada nesta rodada
+        herda_modelo: nao-conclusivo
+        limitacoes:
+          - arquivos .cline/agents nao materializados nesta PR
+      - ferramenta: opencode
+        caminho: .opencode/agents/investigador-incidentes.md
+        formato: markdown+yaml-frontmatter
+        status: ativo-sem-smoke-test
+        documentacao_oficial: https://opencode.ai/docs/permissions/
+        versao_local: 1.17.18
+        descoberta_validada: false
+        permissao_validada: true
+        delegacao: proibida
+        delegacao_validada: true
+        garantia_tecnica: permission.task=deny
+        herda_modelo: true
+        limitacoes:
+          - bash permitido apenas para git status/log/show por politica declarada
+
+  planejador-solucao:
+    fonte: .agents/papeis/planejador-solucao.md
+    classe_execucao: leitor
+    acesso_padrao: somente-leitura
+    adaptadores:
+      - ferramenta: claude-code
+        caminho: .claude/agents/planejador-solucao.md
+        formato: markdown+yaml-frontmatter
+        status: ativo-sem-smoke-test
+        documentacao_oficial: https://docs.anthropic.com/en/docs/claude-code/sub-agents
+        versao_local: 2.1.200
+        descoberta_validada: true
+        permissao_validada: true
+        delegacao: proibida
+        delegacao_validada: true
+        garantia_tecnica: omitindo Agent e usando disallowedTools
+        herda_modelo: true
+        limitacoes:
+          - sem Bash neste adaptador
+      - ferramenta: codex
+        caminho: .codex/agents/planejador-solucao.toml
+        formato: toml
+        status: ativo-sem-smoke-test
+        documentacao_oficial: https://developers.openai.com/codex/agent-configuration/subagents.md
+        versao_local: 0.144.0
+        descoberta_validada: true
+        permissao_validada: true
+        delegacao: proibida
+        delegacao_validada: true
+        garantia_tecnica: agents.max_depth=1 + sandbox_mode=read-only
+        herda_modelo: true
+        limitacoes: []
+      - ferramenta: cursor
+        caminho: .cursor/agents/planejador-solucao.md
+        formato: markdown+yaml-frontmatter
+        status: ativo-sem-smoke-test
+        documentacao_oficial: https://cursor.com/docs/subagents
+        versao_local: nao-detectada-via-cli
+        descoberta_validada: false
+        permissao_validada: parcialmente
+        delegacao: proibida-por-contrato
+        delegacao_validada: false
+        garantia_tecnica: nao comprovada localmente
+        herda_modelo: true
+        limitacoes: []
+      - ferramenta: cline-ide
+        caminho: null
+        formato: subagente-experimental-nativo
+        status: parcial-por-superficie
+        documentacao_oficial: https://docs.cline.bot/features/subagents.md
+        versao_local: 3.0.39
+        descoberta_validada: false
+        permissao_validada: true
+        delegacao: proibida
+        delegacao_validada: true
+        garantia_tecnica: documentada pela superficie IDE
+        herda_modelo: nao-conclusivo
+        limitacoes:
+          - sem edicao, browser ou MCP
+      - ferramenta: cline-cli-sdk-kanban
+        caminho: null
+        formato: teams-ou-agents
+        status: suporte-documentado-nao-validado-localmente
+        documentacao_oficial: https://docs.cline.bot/cli/agent-teams.md
+        versao_local: 3.0.39
+        descoberta_validada: false
+        permissao_validada: false
+        delegacao: depende-da-superficie
+        delegacao_validada: false
+        garantia_tecnica: nao comprovada nesta rodada
+        herda_modelo: nao-conclusivo
+        limitacoes:
+          - arquivos .cline/agents nao materializados nesta PR
+      - ferramenta: opencode
+        caminho: .opencode/agents/planejador-solucao.md
+        formato: markdown+yaml-frontmatter
+        status: ativo-sem-smoke-test
+        documentacao_oficial: https://opencode.ai/docs/agents
+        versao_local: 1.17.18
+        descoberta_validada: false
+        permissao_validada: true
+        delegacao: proibida
+        delegacao_validada: true
+        garantia_tecnica: permission.task=deny
+        herda_modelo: true
+        limitacoes: []
+
+  executor-escopo:
+    fonte: .agents/papeis/executor-escopo.md
+    classe_execucao: executor
+    acesso_padrao: escrita-no-workspace
+    adaptadores:
+      - ferramenta: claude-code
+        caminho: .claude/agents/executor-escopo.md
+        formato: markdown+yaml-frontmatter
+        status: ativo-sem-smoke-test
+        documentacao_oficial: https://docs.anthropic.com/en/docs/claude-code/sub-agents
+        versao_local: 2.1.200
+        descoberta_validada: true
+        permissao_validada: true
+        delegacao: proibida
+        delegacao_validada: true
+        garantia_tecnica: disallowedTools=Agent
+        herda_modelo: true
+        limitacoes:
+          - approval/sandbox da sessao principal ainda prevalecem
+      - ferramenta: codex
+        caminho: .codex/agents/executor-escopo.toml
+        formato: toml
+        status: ativo-sem-smoke-test
+        documentacao_oficial: https://developers.openai.com/codex/agent-configuration/subagents.md
+        versao_local: 0.144.0
+        descoberta_validada: true
+        permissao_validada: true
+        delegacao: proibida
+        delegacao_validada: true
+        garantia_tecnica: agents.max_depth=1 + sandbox_mode=workspace-write
+        herda_modelo: true
+        limitacoes:
+          - approvals da sessao principal ainda influenciam
+      - ferramenta: cursor
+        caminho: .cursor/agents/executor-escopo.md
+        formato: markdown+yaml-frontmatter
+        status: ativo-sem-smoke-test
+        documentacao_oficial: https://cursor.com/docs/subagents
+        versao_local: nao-detectada-via-cli
+        descoberta_validada: false
+        permissao_validada: parcialmente
+        delegacao: proibida-por-contrato
+        delegacao_validada: false
+        garantia_tecnica: nao comprovada localmente
+        herda_modelo: true
+        limitacoes:
+          - readonly=false nao prova permissao total sem smoke local
+      - ferramenta: cline-ide
+        caminho: null
+        formato: subagente-experimental-nativo
+        status: parcial-por-superficie
+        documentacao_oficial: https://docs.cline.bot/features/subagents.md
+        versao_local: 3.0.39
+        descoberta_validada: false
+        permissao_validada: true
+        delegacao: nao-suportado-nesta-superficie
+        delegacao_validada: true
+        garantia_tecnica: IDE subagents sao read-only e sem edicao
+        herda_modelo: nao-conclusivo
+        limitacoes:
+          - nao atende executor por ausencia de edicao
+      - ferramenta: cline-cli-sdk-kanban
+        caminho: null
+        formato: teams-ou-agents
+        status: suporte-documentado-nao-validado-localmente
+        documentacao_oficial: https://docs.cline.bot/cli/agent-teams.md
+        versao_local: 3.0.39
+        descoberta_validada: false
+        permissao_validada: false
+        delegacao: depende-da-superficie
+        delegacao_validada: false
+        garantia_tecnica: nao comprovada nesta rodada
+        herda_modelo: nao-conclusivo
+        limitacoes:
+          - formato .cline/agents e carregamento local nao comprovados
+      - ferramenta: opencode
+        caminho: .opencode/agents/executor-escopo.md
+        formato: markdown+yaml-frontmatter
+        status: ativo-sem-smoke-test
+        documentacao_oficial: https://opencode.ai/docs/permissions/
+        versao_local: 1.17.18
+        descoberta_validada: false
+        permissao_validada: true
+        delegacao: proibida
+        delegacao_validada: true
+        garantia_tecnica: permission.task=deny
+        herda_modelo: true
+        limitacoes:
+          - edit e bash em ask dependem do Cartao de Missao e aprovacao humana
+
+  revisor-contratos:
+    fonte: .agents/papeis/revisor-contratos.md
+    classe_execucao: leitor
+    acesso_padrao: somente-leitura
+    adaptadores:
+      - ferramenta: claude-code
+        caminho: .claude/agents/revisor-contratos.md
+        formato: markdown+yaml-frontmatter
+        status: ativo-sem-smoke-test
+        documentacao_oficial: https://docs.anthropic.com/en/docs/claude-code/sub-agents
+        versao_local: 2.1.200
+        descoberta_validada: true
+        permissao_validada: true
+        delegacao: proibida
+        delegacao_validada: true
+        garantia_tecnica: omitindo Agent e usando disallowedTools
+        herda_modelo: true
+        limitacoes:
+          - sem Bash neste adaptador
+      - ferramenta: codex
+        caminho: .codex/agents/revisor-contratos.toml
+        formato: toml
+        status: ativo-sem-smoke-test
+        documentacao_oficial: https://developers.openai.com/codex/agent-configuration/subagents.md
+        versao_local: 0.144.0
+        descoberta_validada: true
+        permissao_validada: true
+        delegacao: proibida
+        delegacao_validada: true
+        garantia_tecnica: agents.max_depth=1 + sandbox_mode=read-only
+        herda_modelo: true
+        limitacoes: []
+      - ferramenta: cursor
+        caminho: .cursor/agents/revisor-contratos.md
+        formato: markdown+yaml-frontmatter
+        status: ativo-sem-smoke-test
+        documentacao_oficial: https://cursor.com/docs/subagents
+        versao_local: nao-detectada-via-cli
+        descoberta_validada: false
+        permissao_validada: parcialmente
+        delegacao: proibida-por-contrato
+        delegacao_validada: false
+        garantia_tecnica: nao comprovada localmente
+        herda_modelo: true
+        limitacoes: []
+      - ferramenta: cline-ide
+        caminho: null
+        formato: subagente-experimental-nativo
+        status: parcial-por-superficie
+        documentacao_oficial: https://docs.cline.bot/features/subagents.md
+        versao_local: 3.0.39
+        descoberta_validada: false
+        permissao_validada: true
+        delegacao: proibida
+        delegacao_validada: true
+        garantia_tecnica: documentada pela superficie IDE
+        herda_modelo: nao-conclusivo
+        limitacoes:
+          - sem browser, MCP ou edicao
+      - ferramenta: cline-cli-sdk-kanban
+        caminho: null
+        formato: teams-ou-agents
+        status: suporte-documentado-nao-validado-localmente
+        documentacao_oficial: https://docs.cline.bot/cli/agent-teams.md
+        versao_local: 3.0.39
+        descoberta_validada: false
+        permissao_validada: false
+        delegacao: depende-da-superficie
+        delegacao_validada: false
+        garantia_tecnica: nao comprovada nesta rodada
+        herda_modelo: nao-conclusivo
+        limitacoes:
+          - arquivos .cline/agents nao materializados nesta PR
+      - ferramenta: opencode
+        caminho: .opencode/agents/revisor-contratos.md
+        formato: markdown+yaml-frontmatter
+        status: ativo-sem-smoke-test
+        documentacao_oficial: https://opencode.ai/docs/agents
+        versao_local: 1.17.18
+        descoberta_validada: false
+        permissao_validada: true
+        delegacao: proibida
+        delegacao_validada: true
+        garantia_tecnica: permission.task=deny
+        herda_modelo: true
+        limitacoes: []
+
+  validador-entrega:
+    fonte: .agents/papeis/validador-entrega.md
+    classe_execucao: leitor
+    acesso_padrao: somente-leitura
+    adaptadores:
+      - ferramenta: claude-code
+        caminho: .claude/agents/validador-entrega.md
+        formato: markdown+yaml-frontmatter
+        status: ativo-sem-smoke-test
+        documentacao_oficial: https://docs.anthropic.com/en/docs/claude-code/sub-agents
+        versao_local: 2.1.200
+        descoberta_validada: true
+        permissao_validada: true
+        delegacao: proibida
+        delegacao_validada: true
+        garantia_tecnica: omitindo Agent e usando disallowedTools
+        herda_modelo: true
+        limitacoes:
+          - sem Bash neste adaptador
+      - ferramenta: codex
+        caminho: .codex/agents/validador-entrega.toml
+        formato: toml
+        status: ativo-sem-smoke-test
+        documentacao_oficial: https://developers.openai.com/codex/agent-configuration/subagents.md
+        versao_local: 0.144.0
+        descoberta_validada: true
+        permissao_validada: true
+        delegacao: proibida
+        delegacao_validada: true
+        garantia_tecnica: agents.max_depth=1 + sandbox_mode=read-only
+        herda_modelo: true
+        limitacoes: []
+      - ferramenta: cursor
+        caminho: .cursor/agents/validador-entrega.md
+        formato: markdown+yaml-frontmatter
+        status: ativo-sem-smoke-test
+        documentacao_oficial: https://cursor.com/docs/subagents
+        versao_local: nao-detectada-via-cli
+        descoberta_validada: false
+        permissao_validada: parcialmente
+        delegacao: proibida-por-contrato
+        delegacao_validada: false
+        garantia_tecnica: nao comprovada localmente
+        herda_modelo: true
+        limitacoes: []
+      - ferramenta: cline-ide
+        caminho: null
+        formato: subagente-experimental-nativo
+        status: parcial-por-superficie
+        documentacao_oficial: https://docs.cline.bot/features/subagents.md
+        versao_local: 3.0.39
+        descoberta_validada: false
+        permissao_validada: true
+        delegacao: proibida
+        delegacao_validada: true
+        garantia_tecnica: documentada pela superficie IDE
+        herda_modelo: nao-conclusivo
+        limitacoes:
+          - sem browser, MCP ou edicao
+      - ferramenta: cline-cli-sdk-kanban
+        caminho: null
+        formato: teams-ou-agents
+        status: suporte-documentado-nao-validado-localmente
+        documentacao_oficial: https://docs.cline.bot/cli/agent-teams.md
+        versao_local: 3.0.39
+        descoberta_validada: false
+        permissao_validada: false
+        delegacao: depende-da-superficie
+        delegacao_validada: false
+        garantia_tecnica: nao comprovada nesta rodada
+        herda_modelo: nao-conclusivo
+        limitacoes:
+          - arquivos .cline/agents nao materializados nesta PR
+      - ferramenta: opencode
+        caminho: .opencode/agents/validador-entrega.md
+        formato: markdown+yaml-frontmatter
+        status: ativo-sem-smoke-test
+        documentacao_oficial: https://opencode.ai/docs/permissions/
+        versao_local: 1.17.18
+        descoberta_validada: false
+        permissao_validada: true
+        delegacao: proibida
+        delegacao_validada: true
+        garantia_tecnica: permission.task=deny
+        herda_modelo: true
+        limitacoes:
+          - bash em ask; validacao por shell exige aprovacao explicita e worktree descartavel
+
+  revisor-evidencias-dossie:
+    fonte: .agents/papeis/revisor-evidencias-dossie.md
+    classe_execucao: leitor
+    acesso_padrao: somente-leitura
+    adaptadores:
+      - ferramenta: claude-code
+        caminho: .claude/agents/revisor-evidencias-dossie.md
+        formato: markdown+yaml-frontmatter
+        status: ativo-sem-smoke-test
+        documentacao_oficial: https://docs.anthropic.com/en/docs/claude-code/sub-agents
+        versao_local: 2.1.200
+        descoberta_validada: true
+        permissao_validada: true
+        delegacao: proibida
+        delegacao_validada: true
+        garantia_tecnica: omitindo Agent e usando disallowedTools
+        herda_modelo: true
+        limitacoes:
+          - sem Bash neste adaptador
+      - ferramenta: codex
+        caminho: .codex/agents/revisor-evidencias-dossie.toml
+        formato: toml
+        status: ativo-sem-smoke-test
+        documentacao_oficial: https://developers.openai.com/codex/agent-configuration/subagents.md
+        versao_local: 0.144.0
+        descoberta_validada: true
+        permissao_validada: true
+        delegacao: proibida
+        delegacao_validada: true
+        garantia_tecnica: agents.max_depth=1 + sandbox_mode=read-only
+        herda_modelo: true
+        limitacoes: []
+      - ferramenta: cursor
+        caminho: .cursor/agents/revisor-evidencias-dossie.md
+        formato: markdown+yaml-frontmatter
+        status: ativo-sem-smoke-test
+        documentacao_oficial: https://cursor.com/docs/subagents
+        versao_local: nao-detectada-via-cli
+        descoberta_validada: false
+        permissao_validada: parcialmente
+        delegacao: proibida-por-contrato
+        delegacao_validada: false
+        garantia_tecnica: nao comprovada localmente
+        herda_modelo: true
+        limitacoes: []
+      - ferramenta: cline-ide
+        caminho: null
+        formato: subagente-experimental-nativo
+        status: parcial-por-superficie
+        documentacao_oficial: https://docs.cline.bot/features/subagents.md
+        versao_local: 3.0.39
+        descoberta_validada: false
+        permissao_validada: true
+        delegacao: proibida
+        delegacao_validada: true
+        garantia_tecnica: documentada pela superficie IDE
+        herda_modelo: nao-conclusivo
+        limitacoes:
+          - sem browser, MCP ou edicao
+      - ferramenta: cline-cli-sdk-kanban
+        caminho: null
+        formato: teams-ou-agents
+        status: suporte-documentado-nao-validado-localmente
+        documentacao_oficial: https://docs.cline.bot/cli/agent-teams.md
+        versao_local: 3.0.39
+        descoberta_validada: false
+        permissao_validada: false
+        delegacao: depende-da-superficie
+        delegacao_validada: false
+        garantia_tecnica: nao comprovada nesta rodada
+        herda_modelo: nao-conclusivo
+        limitacoes:
+          - arquivos .cline/agents nao materializados nesta PR
+      - ferramenta: opencode
+        caminho: .opencode/agents/revisor-evidencias-dossie.md
+        formato: markdown+yaml-frontmatter
+        status: ativo-sem-smoke-test
+        documentacao_oficial: https://opencode.ai/docs/agents
+        versao_local: 1.17.18
+        descoberta_validada: false
+        permissao_validada: true
+        delegacao: proibida
+        delegacao_validada: true
+        garantia_tecnica: permission.task=deny
+        herda_modelo: true
+        limitacoes: []
