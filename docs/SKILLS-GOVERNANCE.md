@@ -59,6 +59,32 @@ Skills globais podem existir na máquina do usuário e podem ser usadas por conv
 - `README.md`, `CLAUDE.md`, `AGENTS.md` e `HANDOFF_AI.md` contam a mesma história
 - `docs/obsidian/00-MASTER.md` aponta para arquitetura + roadmap e deixa explícitas as fontes canônicas reais
 
+## Papéis dos agentes (roles)
+
+Os papéis operacionais dos agentes são definidos em `.agents/papeis/` e governados por `.agents/papeis/README.md`. O contrato de comunicação com o Bruno está em `.agents/governanca/contrato-comunicacao-bruno.md`.
+
+Regras:
+
+- **Papéis não são skills.** Não entram em `skills-lock.json` e não alteram a allowlist deste documento.
+- `.agents/papeis/` é a fonte canônica; adaptadores específicos de ferramenta apenas resumem e direcionam.
+- A configuração do repositório (`AGENTS.md`, `.agents/papeis/`) prevalece sobre configuração global da ferramenta.
+- O coordenador principal interpreta a missão, escolhe o papel e integra resultados; agentes filhos não delegam.
+- Apenas um papel tem escrita no workspace: `executor-escopo`. Os demais são leitores.
+- Decisões estruturais, merge e deploy continuam humanas (níveis A5 e A6).
+- `delivery-loop` permanece inalterado; a integração dos papéis ao ciclo de entrega fica para Fase 2.
+
+Papéis canônicos: `explorador`, `investigador-incidentes`, `planejador-solucao`, `executor-escopo`, `revisor-contratos`, `validador-entrega`, `revisor-evidencias-dossie`.
+
+## Banco de Padrões (PatternBank) — status Fase 1
+
+Inventário realizado (somente leitura) antes da Fase 1:
+
+- `.agents/patterns/` **não existe em `main`** — a seção PatternBank de `AGENTS.md` que afirma o contrário está obsoleta e foi corrigida.
+- Banco de Padrões **global** (`~/.claude/memory/patterns/pattern-index.json`, 12 padrões) é a implementação operacional comprovada, com hooks `pattern-retrieve.sh` (SessionStart) e `pattern-store.sh` (SessionEnd).
+- Obsidian é biblioteca de referência, não fonte operacional executável.
+- Precedência: padrão local do repositório (quando criado) prevalece sobre global; global é fallback; Obsidian é referência.
+- **Não migrar, copiar, apagar ou sincronizar padrões nesta fase.** Consolidação fica para tarefa separada.
+
 ## Short roadmap
 
 No curto prazo, este setup cobre o necessário para:
