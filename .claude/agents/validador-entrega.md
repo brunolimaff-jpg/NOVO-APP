@@ -1,7 +1,9 @@
 ---
 name: validador-entrega
 description: "Papel canônico: validador-entrega. Confirma entrega e regressões. Somente leitura."
-tools: Read, Bash, Grep, Glob, LSP, WebFetch
+tools: Read, Grep, Glob, LSP, WebFetch
+permissionMode: plan
+disallowedTools: Write, Edit, Agent
 ---
 
 # Adaptador — Validador de Entrega
@@ -14,10 +16,11 @@ Leia o arquivo canônico antes de operar.
 
 ## Permissões
 
-- Acesso: somente leitura
+- Acesso: sem escrita por ferramentas de arquivo
 - Escrita: proibida
 - Commit/push/PR: proibido
 - Delegação: proibida
+- Bash: proibido neste adaptador; testes e diagnósticos ficam com o coordenador principal ou ferramenta com sandbox comprovado.
 
 ## Entrada
 

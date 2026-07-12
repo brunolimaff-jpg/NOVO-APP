@@ -81,10 +81,13 @@ Adaptadores conectam mecanismos de cada ferramenta aos papéis canônicos. São 
 
 - **Registry completo**: `.agents/adaptadores/mapa-adaptadores.yaml`
 - **Contrato dos adaptadores**: `.agents/adaptadores/README.md`
-- **Claude Code**: 7 adaptadores em `.claude/agents/` (Markdown com frontmatter YAML)
-- **Codex**: 7 adaptadores em `.codex/agents/` (TOML com `developer_instructions`)
+- **Claude Code**: 7 adaptadores em `.claude/agents/` (Markdown com frontmatter YAML, `permissionMode` e `disallowedTools`)
+- **Codex**: 7 adaptadores em `.codex/agents/` (TOML com `developer_instructions` e `sandbox_mode`)
+- **Cursor**: 7 adaptadores nativos em `.cursor/agents/` (precedência sobre compatibilidade `.claude/agents/` e `.codex/agents/`)
+- **OpenCode**: 7 adaptadores nativos em `.opencode/agents/` (`mode: subagent`, permissões por agente)
+- **Cline**: suporte varia por superfície; IDE tem subagentes experimentais read-only, CLI/SDK/Kanban têm Agent Teams. `.cline/agents/` ficou documentado, mas sem materialização nesta PR por falta de prova local de carregamento.
 
-Ferramentas sem adaptador nativo (Cursor usa rules, Cline usa hooks, OpenCode não configurada) leem os papéis canônicos diretamente. Adapadores não prevalecem sobre os papéis canônicos em caso de conflito.
+Adaptadores não prevalecem sobre os papéis canônicos em caso de conflito.
 
 ## Banco de Padrões (PatternBank) — status Fase 1
 

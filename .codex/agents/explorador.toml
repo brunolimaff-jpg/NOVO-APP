@@ -1,5 +1,6 @@
 name = "explorador"
 description = "Papel canônico: explorador. Localiza arquivos, mapeia arquitetura, produz Pacote de Evidências. Somente leitura."
+sandbox_mode = "read-only"
 developer_instructions = """
 # Adaptador — Explorador
 

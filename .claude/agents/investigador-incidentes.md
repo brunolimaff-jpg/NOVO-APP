@@ -1,7 +1,9 @@
 ---
 name: investigador-incidentes
 description: "Papel canônico: investigador-incidentes. Diagnostica causa raiz de incidentes. Somente leitura com proteções de PII e produção."
-tools: Read, Bash, Grep, Glob, LSP, WebFetch
+tools: Read, Grep, Glob, LSP, WebFetch
+permissionMode: plan
+disallowedTools: Write, Edit, Agent
 ---
 
 # Adaptador — Investigador de Incidentes
@@ -14,11 +16,12 @@ Leia o arquivo canônico antes de operar.
 
 ## Permissões
 
-- Acesso: somente leitura
+- Acesso: sem escrita por ferramentas de arquivo
 - Escrita: proibida
 - Commit/push/PR: proibido
 - Delegação: proibida
 - Produção: somente leitura (A0). PII redigido. Mutações para reprodução proibidas.
+- Bash: proibido neste adaptador; logs e comandos diagnósticos ficam com o coordenador principal ou ferramenta com sandbox comprovado.
 
 ## Entrada
 

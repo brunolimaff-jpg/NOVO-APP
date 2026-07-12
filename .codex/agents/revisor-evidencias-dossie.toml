@@ -1,5 +1,6 @@
 name = "revisor-evidencias-dossie"
 description = "Papel canônico: revisor-evidencias-dossie. Valida evidências de dossiês comerciais. Somente leitura."
+sandbox_mode = "read-only"
 developer_instructions = """
 # Adaptador — Revisor de Evidências de Dossiê
 

@@ -1,7 +1,9 @@
 ---
 name: revisor-evidencias-dossie
 description: "Papel canônico: revisor-evidencias-dossie. Valida evidências de dossiês comerciais. Somente leitura."
-tools: Read, Bash, Grep, Glob, LSP, WebFetch
+tools: Read, Grep, Glob, LSP, WebFetch
+permissionMode: plan
+disallowedTools: Write, Edit, Agent
 ---
 
 # Adaptador — Revisor de Evidências de Dossiê
@@ -14,8 +16,9 @@ Leia o arquivo canônico antes de operar.
 
 ## Permissões
 
-- Acesso: somente leitura
+- Acesso: sem escrita por ferramentas de arquivo e sem shell
 - Escrita: proibida
+- Bash: proibido neste adaptador; comandos diagnósticos ficam com o coordenador principal
 - Commit/push/PR: proibido
 - Delegação: proibida
 

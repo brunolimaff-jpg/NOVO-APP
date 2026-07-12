@@ -1,5 +1,6 @@
 name = "planejador-solucao"
 description = "Papel canônico: planejador-solucao. Produz proposta e Cartão de Missão. Somente leitura."
+sandbox_mode = "read-only"
 developer_instructions = """
 # Adaptador — Planejador de Solução
 

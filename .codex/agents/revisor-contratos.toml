@@ -1,5 +1,6 @@
 name = "revisor-contratos"
 description = "Papel canônico: revisor-contratos. Examina contratos, riscos e falhas silenciosas. Somente leitura."
+sandbox_mode = "read-only"
 developer_instructions = """
 # Adaptador — Revisor de Contratos
 

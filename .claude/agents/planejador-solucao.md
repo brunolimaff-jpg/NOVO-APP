@@ -1,7 +1,9 @@
 ---
 name: planejador-solucao
 description: "Papel canônico: planejador-solucao. Produz proposta e Cartão de Missão. Somente leitura."
-tools: Read, Bash, Grep, Glob, LSP, WebFetch
+tools: Read, Grep, Glob, LSP, WebFetch
+permissionMode: plan
+disallowedTools: Write, Edit, Agent
 ---
 
 # Adaptador — Planejador de Solução
@@ -14,8 +16,9 @@ Leia o arquivo canônico antes de operar.
 
 ## Permissões
 
-- Acesso: somente leitura
+- Acesso: sem escrita por ferramentas de arquivo e sem shell
 - Escrita: proibida
+- Bash: proibido neste adaptador; comandos diagnósticos ficam com o coordenador principal
 - Commit/push/PR: proibido
 - Delegação: proibida
 

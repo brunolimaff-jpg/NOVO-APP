@@ -2,6 +2,7 @@
 name: executor-escopo
 description: "Papel canônico: executor-escopo. Executa Cartão de Missão aprovado. Único papel com escrita no workspace."
 tools: Read, Write, Edit, Bash, Grep, Glob, LSP, WebFetch
+disallowedTools: Agent
 ---
 
 # Adaptador — Executor de Escopo

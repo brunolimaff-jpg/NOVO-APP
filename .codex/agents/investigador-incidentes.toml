@@ -1,5 +1,6 @@
 name = "investigador-incidentes"
 description = "Papel canônico: investigador-incidentes. Diagnostica causa raiz de incidentes. Somente leitura com proteções de PII e produção."
+sandbox_mode = "read-only"
 developer_instructions = """
 # Adaptador — Investigador de Incidentes
 

@@ -1,7 +1,9 @@
 ---
 name: revisor-contratos
 description: "Papel canônico: revisor-contratos. Examina contratos, riscos e falhas silenciosas. Somente leitura."
-tools: Read, Bash, Grep, Glob, LSP, WebFetch
+tools: Read, Grep, Glob, LSP, WebFetch
+permissionMode: plan
+disallowedTools: Write, Edit, Agent
 ---
 
 # Adaptador — Revisor de Contratos
@@ -14,8 +16,9 @@ Leia o arquivo canônico antes de operar.
 
 ## Permissões
 
-- Acesso: somente leitura
+- Acesso: sem escrita por ferramentas de arquivo e sem shell
 - Escrita: proibida
+- Bash: proibido neste adaptador; comandos diagnósticos ficam com o coordenador principal
 - Commit/push/PR: proibido
 - Delegação: proibida
 
