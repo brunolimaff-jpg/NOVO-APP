@@ -1,0 +1,113 @@
+versao: 1
+
+skills:
+  - id: delivery-loop
+    nome: delivery-loop
+    descricao: Orquestrador do ciclo de entrega até REPORT_READY, tratado como fluxo empacotado como skill.
+    status: aprovada-com-restricoes
+    origem: repo-local
+    escopo: local
+    caminho: .agents/skills/delivery-loop/SKILL.md
+    ferramentas_compativeis:
+      - claude-code
+      - codex
+      - cursor
+      - opencode
+      - cline
+    papeis_permitidos: []
+    tecnologias:
+      - git
+      - vercel
+      - playwright
+      - workflow
+    versao: semver-nao-declarado
+    hash: 1ebb47ea925f1ee33e2a569cb73239cf746628909b77649890ac320071d302b4
+    possui_scripts: false
+    acesso_rede: true
+    pode_escrever: true
+    pode_executar_shell: true
+    pode_delegar: false
+    riscos:
+      - fluxo com commit/push e preview live no texto
+      - não elegível à seleção automática por papel
+    restricoes:
+      - tratar como fluxo, não como skill genérica
+      - uso apenas com autorização explícita do coordenador principal
+      - merge continua fora da skill e exige A5 + MERGE
+    validacao: auditoria manual de conteúdo em 2026-07-12
+    rollback: reverter o arquivo da skill e remover a entrada do registry
+
+  - id: validate-gates
+    nome: validate-gates
+    descricao: Executa gates locais corretos conforme os arquivos alterados.
+    status: aprovada-com-restricoes
+    origem: repo-local-claude-compat
+    escopo: local
+    caminho: .claude/skills/validate-gates/SKILL.md
+    ferramentas_compativeis:
+      - claude-code
+      - cursor
+      - opencode
+      - cline
+    papeis_permitidos:
+      - executor-escopo
+      - validador-entrega
+      - revisor-contratos
+    tecnologias:
+      - typescript
+      - vitest
+      - playwright
+      - ci
+    versao: semver-nao-declarado
+    hash: 9058d4095f8ad69d0ce434a5a1f40e04840bd7ffb8712b5c3e30e287ced4cfc0
+    possui_scripts: false
+    acesso_rede: false
+    pode_escrever: true
+    pode_executar_shell: true
+    pode_delegar: false
+    riscos:
+      - scripts chamados podem gerar artefatos de teste
+      - pode acionar gates pesados fora de worktree descartável
+    restricoes:
+      - proibida para papéis leitores
+      - usar preferencialmente em worktree descartável ou contexto pré-PR
+      - não amplia autorização de escrita ou merge
+    validacao: auditoria manual de conteúdo em 2026-07-12
+    rollback: remover entrada e restaurar ponteiros documentais
+
+  - id: supabase-migration
+    nome: supabase-migration
+    descricao: Cria, valida e aplica migrations Supabase com foco em RLS e segurança.
+    status: aprovada-com-restricoes
+    origem: repo-local-claude-compat
+    escopo: local
+    caminho: .claude/skills/supabase-migration/SKILL.md
+    ferramentas_compativeis:
+      - claude-code
+      - cursor
+      - opencode
+      - cline
+    papeis_permitidos:
+      - executor-escopo
+      - revisor-contratos
+    tecnologias:
+      - supabase
+      - postgres
+      - sql
+      - rls
+    versao: semver-nao-declarado
+    hash: 9a3b0f130d4879c1359b6477f0ae0371dbb0d1ca3d3299d4c54c23b064de10d7
+    possui_scripts: false
+    acesso_rede: true
+    pode_escrever: true
+    pode_executar_shell: true
+    pode_delegar: false
+    riscos:
+      - pode alterar schema remoto via MCP Supabase
+      - pode induzir mudanças irreversíveis se usada sem autorização adequada
+    restricoes:
+      - nunca usar por papel leitor
+      - requer autorização explícita para mudanças de schema/dados
+      - não concede A5/A6; só opera dentro da autorização vigente
+    validacao: auditoria manual de conteúdo em 2026-07-12
+    rollback: reverter a skill local e retirar do registry canônico
