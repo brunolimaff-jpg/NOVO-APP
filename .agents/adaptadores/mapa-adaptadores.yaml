@@ -1,0 +1,503 @@
+versao: 1
+
+papeis:
+  explorador:
+    fonte: .agents/papeis/explorador.md
+    classe_execucao: leitor
+    acesso_padrao: somente-leitura
+    adaptadores:
+      - ferramenta: claude-code
+        nome: explorador
+        caminho: .claude/agents/explorador.md
+        formato: markdown
+        tipo: adaptador-direto
+        status: ativo
+        herda_modelo: true
+        delegacao: proibida
+        acesso: somente-leitura
+        observacoes: tools restritas a leitura e diagnóstico não mutante
+      - ferramenta: codex
+        nome: explorador
+        caminho: .codex/agents/explorador.toml
+        formato: toml
+        tipo: adaptador-direto
+        status: ativo
+        herda_modelo: true
+        delegacao: proibida
+        acesso: somente-leitura
+        observacoes: null
+      - ferramenta: cursor
+        nome: null
+        caminho: null
+        formato: mdc-rules
+        tipo: nao-compativel
+        status: sem-adaptador
+        herda_modelo: null
+        delegacao: null
+        acesso: null
+        observacoes: Cursor usa rules não agentes; papéis lidos diretamente
+      - ferramenta: cline
+        nome: null
+        caminho: null
+        formato: hooks
+        tipo: nao-compativel
+        status: sem-adaptador
+        herda_modelo: null
+        delegacao: null
+        acesso: null
+        observacoes: Cline não suporta agentes nomeados
+      - ferramenta: opencode
+        nome: null
+        caminho: null
+        formato: null
+        tipo: nao-encontrado
+        status: pendente
+        herda_modelo: null
+        delegacao: null
+        acesso: null
+        observacoes: Ferramenta não configurada neste projeto
+    agentes_especializados:
+      - nome: Explore
+        ferramenta: claude-code-global
+        caminho: ~/.claude/agents/Explore.md
+        classificacao: adaptador-direto
+        observacoes: Agente global preservado; mapeia para explorador
+
+  investigador-incidentes:
+    fonte: .agents/papeis/investigador-incidentes.md
+    classe_execucao: leitor
+    acesso_padrao: somente-leitura
+    adaptadores:
+      - ferramenta: claude-code
+        nome: investigador-incidentes
+        caminho: .claude/agents/investigador-incidentes.md
+        formato: markdown
+        tipo: adaptador-direto
+        status: ativo
+        herda_modelo: true
+        delegacao: proibida
+        acesso: somente-leitura
+        observacoes: Inclui proteções de PII e produção
+      - ferramenta: codex
+        nome: investigador-incidentes
+        caminho: .codex/agents/investigador-incidentes.toml
+        formato: toml
+        tipo: adaptador-direto
+        status: ativo
+        herda_modelo: true
+        delegacao: proibida
+        acesso: somente-leitura
+        observacoes: null
+      - ferramenta: cursor
+        nome: null
+        caminho: null
+        formato: mdc-rules
+        tipo: nao-compativel
+        status: sem-adaptador
+        herda_modelo: null
+        delegacao: null
+        acesso: null
+        observacoes: Cursor usa rules não agentes
+      - ferramenta: cline
+        nome: null
+        caminho: null
+        formato: hooks
+        tipo: nao-compativel
+        status: sem-adaptador
+        herda_modelo: null
+        delegacao: null
+        acesso: null
+        observacoes: Cline não suporta agentes nomeados
+      - ferramenta: opencode
+        nome: null
+        caminho: null
+        formato: null
+        tipo: nao-encontrado
+        status: pendente
+        herda_modelo: null
+        delegacao: null
+        acesso: null
+        observacoes: Ferramenta não configurada neste projeto
+    agentes_especializados:
+      - nome: debugger
+        ferramenta: claude-code-global
+        caminho: ~/.claude/agents/debugger.md
+        classificacao: adaptador-direto
+        observacoes: Agente global preservado; mapeia para investigador-incidentes
+
+  planejador-solucao:
+    fonte: .agents/papeis/planejador-solucao.md
+    classe_execucao: leitor
+    acesso_padrao: somente-leitura
+    adaptadores:
+      - ferramenta: claude-code
+        nome: planejador-solucao
+        caminho: .claude/agents/planejador-solucao.md
+        formato: markdown
+        tipo: adaptador-direto
+        status: ativo
+        herda_modelo: true
+        delegacao: proibida
+        acesso: somente-leitura
+        observacoes: Produz proposta e Cartão de Missão; não executa
+      - ferramenta: codex
+        nome: planejador-solucao
+        caminho: .codex/agents/planejador-solucao.toml
+        formato: toml
+        tipo: adaptador-direto
+        status: ativo
+        herda_modelo: true
+        delegacao: proibida
+        acesso: somente-leitura
+        observacoes: null
+      - ferramenta: cursor
+        nome: null
+        caminho: null
+        formato: mdc-rules
+        tipo: nao-compativel
+        status: sem-adaptador
+        herda_modelo: null
+        delegacao: null
+        acesso: null
+        observacoes: Cursor usa rules não agentes
+      - ferramenta: cline
+        nome: null
+        caminho: null
+        formato: hooks
+        tipo: nao-compativel
+        status: sem-adaptador
+        herda_modelo: null
+        delegacao: null
+        acesso: null
+        observacoes: Cline não suporta agentes nomeados
+      - ferramenta: opencode
+        nome: null
+        caminho: null
+        formato: null
+        tipo: nao-encontrado
+        status: pendente
+        herda_modelo: null
+        delegacao: null
+        acesso: null
+        observacoes: Ferramenta não configurada neste projeto
+    agentes_especializados:
+      - nome: planner
+        ferramenta: claude-code-global
+        caminho: ~/.claude/agents/planner.md
+        classificacao: adaptador-direto
+        observacoes: Agente global preservado; mapeia para planejador-solucao
+      - nome: ideator
+        ferramenta: claude-code-global
+        caminho: ~/.claude/agents/ideator.md
+        classificacao: modo-especializado
+        observacoes: Permanece como modo de ideação do planejador; não é papel separado
+
+  executor-escopo:
+    fonte: .agents/papeis/executor-escopo.md
+    classe_execucao: executor
+    acesso_padrao: escrita-no-workspace
+    adaptadores:
+      - ferramenta: claude-code
+        nome: executor-escopo
+        caminho: .claude/agents/executor-escopo.md
+        formato: markdown
+        tipo: adaptador-direto
+        status: ativo
+        herda_modelo: true
+        delegacao: proibida
+        acesso: escrita-no-workspace
+        observacoes: Único papel com escrita padrão; sem merge/deploy
+      - ferramenta: codex
+        nome: executor-escopo
+        caminho: .codex/agents/executor-escopo.toml
+        formato: toml
+        tipo: adaptador-direto
+        status: ativo
+        herda_modelo: true
+        delegacao: proibida
+        acesso: escrita-no-workspace
+        observacoes: null
+      - ferramenta: cursor
+        nome: null
+        caminho: null
+        formato: mdc-rules
+        tipo: nao-compativel
+        status: sem-adaptador
+        herda_modelo: null
+        delegacao: null
+        acesso: null
+        observacoes: Cursor usa rules não agentes
+      - ferramenta: cline
+        nome: null
+        caminho: null
+        formato: hooks
+        tipo: nao-compativel
+        status: sem-adaptador
+        herda_modelo: null
+        delegacao: null
+        acesso: null
+        observacoes: Cline não suporta agentes nomeados
+      - ferramenta: opencode
+        nome: null
+        caminho: null
+        formato: null
+        tipo: nao-encontrado
+        status: pendente
+        herda_modelo: null
+        delegacao: null
+        acesso: null
+        observacoes: Ferramenta não configurada neste projeto
+    agentes_especializados:
+      - nome: implementer
+        ferramenta: claude-code-global
+        caminho: ~/.claude/agents/implementer.md
+        classificacao: adaptador-direto
+        observacoes: Agente global preservado; mapeia para executor-escopo
+      - nome: ui-ux
+        ferramenta: claude-code-global
+        caminho: ~/.claude/agents/ui-ux.md
+        classificacao: modo-especializado
+        observacoes: Permanece como modo UI/UX do executor
+      - nome: doc-handoff
+        ferramenta: claude-code-global
+        caminho: ~/.claude/agents/doc-handoff.md
+        classificacao: modo-especializado
+        observacoes: Perfil documental do executor; sem autorização para código funcional
+
+  revisor-contratos:
+    fonte: .agents/papeis/revisor-contratos.md
+    classe_execucao: leitor
+    acesso_padrao: somente-leitura
+    adaptadores:
+      - ferramenta: claude-code
+        nome: revisor-contratos
+        caminho: .claude/agents/revisor-contratos.md
+        formato: markdown
+        tipo: adaptador-direto
+        status: ativo
+        herda_modelo: true
+        delegacao: proibida
+        acesso: somente-leitura
+        observacoes: Inclui revisão de segurança e falhas silenciosas
+      - ferramenta: codex
+        nome: revisor-contratos
+        caminho: .codex/agents/revisor-contratos.toml
+        formato: toml
+        tipo: adaptador-direto
+        status: ativo
+        herda_modelo: true
+        delegacao: proibida
+        acesso: somente-leitura
+        observacoes: null
+      - ferramenta: cursor
+        nome: null
+        caminho: null
+        formato: mdc-rules
+        tipo: nao-compativel
+        status: sem-adaptador
+        herda_modelo: null
+        delegacao: null
+        acesso: null
+        observacoes: Cursor usa rules não agentes
+      - ferramenta: cline
+        nome: null
+        caminho: null
+        formato: hooks
+        tipo: nao-compativel
+        status: sem-adaptador
+        herda_modelo: null
+        delegacao: null
+        acesso: null
+        observacoes: Cline não suporta agentes nomeados
+      - ferramenta: opencode
+        nome: null
+        caminho: null
+        formato: null
+        tipo: nao-encontrado
+        status: pendente
+        herda_modelo: null
+        delegacao: null
+        acesso: null
+        observacoes: Ferramenta não configurada neste projeto
+    agentes_especializados:
+      - nome: reviewer
+        ferramenta: claude-code-global
+        caminho: ~/.claude/agents/reviewer.md
+        classificacao: adaptador-direto
+        observacoes: Agente global preservado; mapeia para revisor-contratos
+      - nome: security-reviewer
+        ferramenta: claude-code-local
+        caminho: .claude/agents/security-reviewer.md
+        classificacao: modo-especializado
+        observacoes: Modo de revisão de segurança do revisor-contratos
+      - nome: security-reviewer
+        ferramenta: codex-local
+        caminho: .codex/agents/security-reviewer.toml
+        classificacao: modo-especializado
+        observacoes: Mesmo agente no Codex; preservado
+      - nome: silent-failure-hunter
+        ferramenta: hook-cline
+        caminho: .clinerules/hooks/PostToolUse/silent-failure-hunter.sh
+        classificacao: modo-especializado
+        observacoes: Hook que opera como modo do revisor-contratos
+
+  validador-entrega:
+    fonte: .agents/papeis/validador-entrega.md
+    classe_execucao: leitor
+    acesso_padrao: somente-leitura
+    adaptadores:
+      - ferramenta: claude-code
+        nome: validador-entrega
+        caminho: .claude/agents/validador-entrega.md
+        formato: markdown
+        tipo: adaptador-direto
+        status: ativo
+        herda_modelo: true
+        delegacao: proibida
+        acesso: somente-leitura
+        observacoes: Executa gates mas não corrige problemas
+      - ferramenta: codex
+        nome: validador-entrega
+        caminho: .codex/agents/validador-entrega.toml
+        formato: toml
+        tipo: adaptador-direto
+        status: ativo
+        herda_modelo: true
+        delegacao: proibida
+        acesso: somente-leitura
+        observacoes: null
+      - ferramenta: cursor
+        nome: null
+        caminho: null
+        formato: mdc-rules
+        tipo: nao-compativel
+        status: sem-adaptador
+        herda_modelo: null
+        delegacao: null
+        acesso: null
+        observacoes: Cursor usa rules não agentes
+      - ferramenta: cline
+        nome: null
+        caminho: null
+        formato: hooks
+        tipo: nao-compativel
+        status: sem-adaptador
+        herda_modelo: null
+        delegacao: null
+        acesso: null
+        observacoes: Cline não suporta agentes nomeados
+      - ferramenta: opencode
+        nome: null
+        caminho: null
+        formato: null
+        tipo: nao-encontrado
+        status: pendente
+        herda_modelo: null
+        delegacao: null
+        acesso: null
+        observacoes: Ferramenta não configurada neste projeto
+    agentes_especializados:
+      - nome: validator
+        ferramenta: claude-code-global
+        caminho: ~/.claude/agents/validator.md
+        classificacao: adaptador-direto
+        observacoes: Agente global preservado; mapeia para validador-entrega
+      - nome: pr-gate-runner
+        ferramenta: claude-code-local
+        caminho: .claude/agents/pr-gate-runner.md
+        classificacao: modo-especializado
+        observacoes: Modo de gates CI do validador-entrega
+      - nome: pr-gate-runner
+        ferramenta: codex-local
+        caminho: .codex/agents/pr-gate-runner.toml
+        classificacao: modo-especializado
+        observacoes: Mesmo agente no Codex; preservado
+
+  revisor-evidencias-dossie:
+    fonte: .agents/papeis/revisor-evidencias-dossie.md
+    classe_execucao: leitor
+    acesso_padrao: somente-leitura
+    adaptadores:
+      - ferramenta: claude-code
+        nome: revisor-evidencias-dossie
+        caminho: .claude/agents/revisor-evidencias-dossie.md
+        formato: markdown
+        tipo: adaptador-direto
+        status: ativo
+        herda_modelo: true
+        delegacao: proibida
+        acesso: somente-leitura
+        observacoes: Valida evidências de dossiês comerciais
+      - ferramenta: codex
+        nome: revisor-evidencias-dossie
+        caminho: .codex/agents/revisor-evidencias-dossie.toml
+        formato: toml
+        tipo: adaptador-direto
+        status: ativo
+        herda_modelo: true
+        delegacao: proibida
+        acesso: somente-leitura
+        observacoes: null
+      - ferramenta: cursor
+        nome: null
+        caminho: null
+        formato: mdc-rules
+        tipo: nao-compativel
+        status: sem-adaptador
+        herda_modelo: null
+        delegacao: null
+        acesso: null
+        observacoes: Cursor usa rules não agentes
+      - ferramenta: cline
+        nome: null
+        caminho: null
+        formato: hooks
+        tipo: nao-compativel
+        status: sem-adaptador
+        herda_modelo: null
+        delegacao: null
+        acesso: null
+        observacoes: Cline não suporta agentes nomeados
+      - ferramenta: opencode
+        nome: null
+        caminho: null
+        formato: null
+        tipo: nao-encontrado
+        status: pendente
+        herda_modelo: null
+        delegacao: null
+        acesso: null
+        observacoes: Ferramenta não configurada neste projeto
+    agentes_especializados: []
+
+fluxos_auxiliares:
+  - nome: commit-pr
+    ferramenta: claude-code-skill
+    caminho: ~/.claude/skills/commit-pr/
+    classificacao: fluxo-auxiliar
+    observacoes: Fluxo de entrega; chamado após executor-escopo com autorização A3+
+  - nome: gh-resolve-pr-comments
+    ferramenta: claude-code-skill
+    caminho: ~/.claude/skills/gh-resolve-pr-comments/
+    classificacao: fluxo-auxiliar
+    observacoes: Fluxo de remediação de comentários de PR
+  - nome: doc-handoff
+    ferramenta: claude-code-skill
+    caminho: ~/.claude/skills/doc-handoff/
+    classificacao: fluxo-auxiliar
+    observacoes: Fechamento documental e memória
+  - nome: analise-dossie
+    ferramenta: claude-code-skill
+    caminho: ~/.claude/skills/analise-dossie/
+    classificacao: fluxo-auxiliar
+    observacoes: Análise de dossiê comercial; apoia revisor-evidencias-dossie
+  - nome: validate-gates
+    ferramenta: claude-code-skill
+    caminho: ~/.claude/skills/validate-gates/
+    classificacao: fluxo-auxiliar
+    observacoes: Executa gates de validação
+  - nome: review-branch
+    ferramenta: claude-code-skill
+    caminho: .agents/skills/review-branch/
+    classificacao: fluxo-auxiliar
+    observacoes: Revisão antes de PR; utiliza revisor-contratos e validador-entrega
