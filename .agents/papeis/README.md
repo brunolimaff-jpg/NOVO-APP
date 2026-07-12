@@ -379,10 +379,20 @@ Ação recomendada: rotação e remoção segura
 
 ---
 
-## Itens deixados para Fase 2
+## Adaptadores de ferramenta (Fase 2)
 
-- Adaptadores específicos por ferramenta (Codex `.toml`, Claude `.md`, etc.).
-- `sandbox_mode` por agente.
+Os adaptadores que conectam ferramentas aos papéis canônicos estão em `.agents/adaptadores/`:
+
+- `README.md` — contrato do adaptador, precedência, permissões, sandbox, herança de modelo
+- `mapa-adaptadores.yaml` — registro completo de papéis, ferramentas e agentes especializados
+
+Ferramentas com adaptadores ativos: Claude Code (`.claude/agents/`), Codex (`.codex/agents/`).
+
+Ferramentas sem adaptador nativo: Cursor (usa rules), Cline (usa hooks), OpenCode (não configurada).
+
+## Itens para fases futuras
+
+- `sandbox_mode` nativo por agente.
 - Configuração de modelo ou esforço por papel.
 - Integração dos papéis no `delivery-loop`.
 - Consolidação do Banco de Padrões.
