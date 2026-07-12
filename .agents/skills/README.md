@@ -44,6 +44,8 @@ Fluxos **não** são papéis. Quando um fluxo estiver empacotado como skill por 
 
 Uma skill nunca prevalece sobre autorização, condição de parada, papel, escopo de escrita ou instrução explícita do Bruno.
 
+Entradas `tipo: fluxo` não participam da futura seleção automática por missão, mesmo quando tecnicamente estão empacotadas como skill.
+
 ## Descoberta
 
 ### Escopo local do repositório
@@ -110,6 +112,13 @@ Uma skill só pode ser `aprovada` ou `aprovada-com-restricoes` quando houver:
 - enquadramento correto por papel canônico
 
 Sem isso, ela deve ficar como `bloqueada`, `não-auditada`, `candidata` ou `legada`.
+
+## Tipo e seleção
+
+- `tipo: skill` representa conhecimento ou procedimento reutilizável elegível à seleção futura por Cartão de Missão.
+- `tipo: fluxo` representa coordenação multi-etapa e deve ter `selecionavel_por_missao: false`.
+- Fluxo não pode possuir `papeis_permitidos`.
+- Só `skill` com status `aprovada` ou `aprovada-com-restricoes` pode ser `selecionavel_por_missao: true`.
 
 ## Regras de autorização
 

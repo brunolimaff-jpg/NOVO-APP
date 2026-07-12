@@ -2,82 +2,158 @@
 require 'yaml'
 require 'json'
 require 'set'
-require 'shellwords'
+require 'open3'
+require 'digest'
 
-ROOT = File.expand_path('..', __dir__)
+module SkillsGovernanceValidator
+  module_function
 
-def fail!(msg)
-  warn msg
-  exit 1
-end
+  ALLOWED_STATUS = Set.new(%w[aprovada aprovada-com-restricoes bloqueada legada não-auditada candidata desativada]).freeze
+  ALLOWED_TYPES = Set.new(%w[skill fluxo]).freeze
+  ALLOWED_TOOLS = Set.new(%w[codex claude-code cursor opencode cline]).freeze
+  ALLOWED_ROLES = Set.new(%w[explorador investigador-incidentes planejador-solucao executor-escopo revisor-contratos validador-entrega revisor-evidencias-dossie]).freeze
+  WRITER_ROLES = Set.new(%w[executor-escopo]).freeze
+  ALLOWED_DIRECTORIES = ['.agents/skills/'].freeze
+  ALLOWED_EXACT_FILES = [
+    'docs/SKILLS-GOVERNANCE.md',
+    'AGENTS.md',
+    '.agents/papeis/README.md',
+    'scripts/validate-skills-governance.rb',
+    'scripts/test-validate-skills-governance.rb',
+    '.github/workflows/ci.yml'
+  ].freeze
 
-registry_path = File.join(ROOT, '.agents/skills/registry.yaml')
-compat_path = File.join(ROOT, '.agents/skills/compatibilidade.yaml')
-policy_path = File.join(ROOT, '.agents/skills/politica-seguranca.md')
-readme_path = File.join(ROOT, '.agents/skills/README.md')
-lockfile_path = File.join(ROOT, 'skills-lock.json')
-
-[registry_path, compat_path, policy_path, readme_path, lockfile_path].each do |path|
-  fail!("missing required file: #{path}") unless File.exist?(path)
-end
-
-registry = YAML.safe_load(File.read(registry_path), aliases: false)
-compat = YAML.safe_load(File.read(compat_path), aliases: false)
-lockfile = JSON.parse(File.read(lockfile_path))
-
-allowed_status = Set.new(%w[aprovada aprovada-com-restricoes bloqueada legada não-auditada candidata desativada])
-allowed_tools = Set.new(%w[codex claude-code cursor opencode cline])
-allowed_roles = Set.new(%w[explorador investigador-incidentes planejador-solucao executor-escopo revisor-contratos validador-entrega revisor-evidencias-dossie])
-
-skills = registry.fetch('skills') { fail!('registry missing skills') }
-fail!('skills must be an array') unless skills.is_a?(Array)
-
-ids = Set.new
-paths = Set.new
-
-skills.each do |skill|
-  %w[id nome descricao status origem escopo caminho ferramentas_compativeis papeis_permitidos tecnologias versao hash possui_scripts acesso_rede pode_escrever pode_executar_shell pode_delegar riscos restricoes validacao rollback].each do |key|
-    fail!("skill missing key #{key}") unless skill.key?(key)
+  def fail!(msg)
+    raise RuntimeError, msg
   end
 
-fail!("duplicate skill id #{skill['id']}") unless ids.add?(skill['id'])
-  fail!("invalid status #{skill['status']}") unless allowed_status.include?(skill['status'])
-  fail!("missing path #{skill['caminho']}") unless File.exist?(File.join(ROOT, skill['caminho']))
-  paths.add?(skill['caminho'])
-  fail!("hash format invalid for #{skill['id']}") unless skill['hash'].is_a?(String) && skill['hash'].match?(/\A[a-f0-9]{64}\z/)
-  fail!("ferramentas_compativeis invalid for #{skill['id']}") unless skill['ferramentas_compativeis'].is_a?(Array) && skill['ferramentas_compativeis'].all? { |t| allowed_tools.include?(t) }
-  fail!("papeis_permitidos invalid for #{skill['id']}") unless skill['papeis_permitidos'].is_a?(Array) && skill['papeis_permitidos'].all? { |r| allowed_roles.include?(r) }
-  fail!("no approved skill without origin: #{skill['id']}") if %w[aprovada aprovada-com-restricoes].include?(skill['status']) && skill['origem'].to_s.strip.empty?
-  fail!("no approved skill without validation: #{skill['id']}") if %w[aprovada aprovada-com-restricoes].include?(skill['status']) && skill['validacao'].to_s.strip.empty?
-  fail!("skill cannot permit delegation: #{skill['id']}") if skill['pode_delegar'] == true
-  if skill['pode_executar_shell'] == true && skill['papeis_permitidos'].any? { |r| r != 'executor-escopo' && r != 'validador-entrega' && r != 'revisor-contratos' }
-    fail!("mutating or shell-capable skill mapped to forbidden role in #{skill['id']}")
+  def required_files(root)
+    {
+      registry: File.join(root, '.agents/skills/registry.yaml'),
+      compat: File.join(root, '.agents/skills/compatibilidade.yaml'),
+      policy: File.join(root, '.agents/skills/politica-seguranca.md'),
+      readme: File.join(root, '.agents/skills/README.md'),
+      lockfile: File.join(root, 'skills-lock.json')
+    }
+  end
+
+  def load_data(root)
+    paths = required_files(root)
+    paths.each_value do |path|
+      fail!("missing required file: #{path}") unless File.exist?(path)
+    end
+
+    {
+      registry: YAML.safe_load(File.read(paths[:registry]), aliases: false),
+      compat: YAML.safe_load(File.read(paths[:compat]), aliases: false),
+      lockfile: JSON.parse(File.read(paths[:lockfile])),
+      paths: paths
+    }
+  end
+
+  def resolve_diff_base(root, explicit_base_ref = nil)
+    candidates = []
+    candidates << "origin/#{explicit_base_ref}" if explicit_base_ref && !explicit_base_ref.empty?
+    candidates << 'origin/main'
+    candidates << 'main'
+
+    candidates.each do |base|
+      out, err, status = Open3.capture3('git', '-C', root, 'diff', '--name-only', "#{base}...HEAD")
+      return [base, out] if status.success?
+    end
+
+    fail!('git diff failed — cannot verify changed-file policy')
+  end
+
+  def file_allowed?(path)
+    return true if ALLOWED_EXACT_FILES.include?(path)
+    ALLOWED_DIRECTORIES.any? { |prefix| path.start_with?(prefix) }
+  end
+
+  def validate_skill!(root, skill, ids, paths)
+    required_keys = %w[id nome descricao tipo selecionavel_por_missao status origem escopo caminho ferramentas_compativeis papeis_permitidos tecnologias versao hash possui_scripts acesso_rede pode_escrever pode_executar_shell pode_delegar riscos restricoes validacao rollback]
+    required_keys.each do |key|
+      fail!("skill missing key #{key}") unless skill.key?(key)
+    end
+
+    fail!("duplicate skill id #{skill['id']}") unless ids.add?(skill['id'])
+    fail!("invalid type #{skill['tipo']}") unless ALLOWED_TYPES.include?(skill['tipo'])
+    fail!("invalid status #{skill['status']}") unless ALLOWED_STATUS.include?(skill['status'])
+    fail!("selecionavel_por_missao must be boolean for #{skill['id']}") unless [true, false].include?(skill['selecionavel_por_missao'])
+
+    caminho = skill['caminho']
+    fail!("skill caminho must be a non-empty string for #{skill['id']}") unless caminho.is_a?(String) && !caminho.strip.empty?
+    fail!("duplicate skill path #{caminho}") unless paths.add?(caminho)
+
+    absolute_path = File.join(root, caminho)
+    fail!("missing path #{caminho}") unless File.exist?(absolute_path)
+    fail!("path is not a regular file #{caminho}") unless File.file?(absolute_path)
+
+    fail!("hash format invalid for #{skill['id']}") unless skill['hash'].is_a?(String) && skill['hash'].match?(/\A[a-f0-9]{64}\z/)
+    actual_hash = Digest::SHA256.file(absolute_path).hexdigest
+    fail!("hash mismatch for #{skill['id']}") unless actual_hash == skill['hash']
+
+    fail!("ferramentas_compativeis invalid for #{skill['id']}") unless skill['ferramentas_compativeis'].is_a?(Array) && skill['ferramentas_compativeis'].all? { |t| ALLOWED_TOOLS.include?(t) }
+    fail!("papeis_permitidos invalid for #{skill['id']}") unless skill['papeis_permitidos'].is_a?(Array) && skill['papeis_permitidos'].all? { |r| ALLOWED_ROLES.include?(r) }
+    fail!("no approved skill without origin: #{skill['id']}") if %w[aprovada aprovada-com-restricoes].include?(skill['status']) && skill['origem'].to_s.strip.empty?
+    fail!("no approved skill without validation: #{skill['id']}") if %w[aprovada aprovada-com-restricoes].include?(skill['status']) && skill['validacao'].to_s.strip.empty?
+    fail!("skill cannot permit delegation: #{skill['id']}") if skill['pode_delegar'] == true
+
+    mutating = skill['pode_escrever'] == true || skill['pode_executar_shell'] == true
+    if mutating
+      fail!("mutating or shell-capable skill mapped to forbidden role in #{skill['id']}") unless skill['papeis_permitidos'].all? { |r| WRITER_ROLES.include?(r) }
+    end
+
+    if skill['tipo'] == 'fluxo'
+      fail!("flow cannot be selectable #{skill['id']}") if skill['selecionavel_por_missao'] == true
+      fail!("flow cannot have allowed roles #{skill['id']}") unless skill['papeis_permitidos'].empty?
+    end
+
+    if skill['selecionavel_por_missao'] == true
+      fail!("selectable entry must be skill #{skill['id']}") unless skill['tipo'] == 'skill'
+      fail!("selectable entry must be approved or approved with restrictions #{skill['id']}") unless %w[aprovada aprovada-com-restricoes].include?(skill['status'])
+    end
+  end
+
+  def validate!(root:, base_ref: ENV['GITHUB_BASE_REF'])
+    data = load_data(root)
+    registry = data[:registry]
+    compat = data[:compat]
+    lockfile = data[:lockfile]
+
+    skills = registry.fetch('skills') { fail!('registry missing skills') }
+    fail!('skills must be an array') unless skills.is_a?(Array)
+
+    ids = Set.new
+    paths = Set.new
+    skills.each { |skill| validate_skill!(root, skill, ids, paths) }
+
+    fail!('compatibilidade missing ferramentas') unless compat['ferramentas'].is_a?(Hash)
+    %w[codex claude-code cursor opencode cline].each do |tool|
+      fail!("compatibilidade missing #{tool}") unless compat['ferramentas'].key?(tool)
+    end
+
+    used_base, changed_output = resolve_diff_base(root, base_ref)
+    changed_files = changed_output.split("\n").reject(&:empty?)
+    forbidden = changed_files.reject { |f| file_allowed?(f) }
+    fail!("forbidden changed files: #{forbidden.join(', ')}") unless forbidden.empty?
+
+    lock_skills = lockfile['skills'] || {}
+    fail!('lockfile skills must be object') unless lock_skills.is_a?(Hash)
+
+    {
+      used_base: used_base,
+      skills_count: skills.length,
+      changed_files: changed_files
+    }
   end
 end
 
-fail!('compatibilidade missing ferramentas') unless compat['ferramentas'].is_a?(Hash)
-%w[codex claude-code cursor opencode cline].each do |tool|
-  fail!("compatibilidade missing #{tool}") unless compat['ferramentas'].key?(tool)
+if $PROGRAM_NAME == __FILE__
+  root = File.expand_path('..', __dir__)
+  result = SkillsGovernanceValidator.validate!(root: root)
+  puts 'OK registry.yaml'
+  puts 'OK compatibilidade.yaml'
+  puts 'OK skills-lock.json'
+  puts "OK changed-file policy (base=#{result[:used_base]})"
 end
-
-changed = `git -C #{Shellwords.escape(ROOT)} diff --name-only origin/main...HEAD 2>/dev/null`
-changed_files = changed.split("\n").reject(&:empty?)
-allowed_prefixes = [
-  '.agents/skills/',
-  'docs/SKILLS-GOVERNANCE.md',
-  'AGENTS.md',
-  '.agents/papeis/README.md',
-  'scripts/validate-skills-governance.rb'
-]
-forbidden = changed_files.reject do |f|
-  allowed_prefixes.any? { |p| f == p || f.start_with?(p) }
-end
-fail!("forbidden changed files: #{forbidden.join(', ')}") unless forbidden.empty?
-
-lock_skills = lockfile['skills'] || {}
-fail!('lockfile skills must be object') unless lock_skills.is_a?(Hash)
-
-puts 'OK registry.yaml'
-puts 'OK compatibilidade.yaml'
-puts 'OK skills-lock.json'
-puts 'OK changed-file policy'

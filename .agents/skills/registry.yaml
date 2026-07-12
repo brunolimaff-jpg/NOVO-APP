@@ -4,6 +4,8 @@ skills:
   - id: delivery-loop
     nome: delivery-loop
     descricao: Orquestrador do ciclo de entrega até REPORT_READY, tratado como fluxo empacotado como skill.
+    tipo: fluxo
+    selecionavel_por_missao: false
     status: aprovada-com-restricoes
     origem: repo-local
     escopo: local
@@ -40,6 +42,8 @@ skills:
   - id: validate-gates
     nome: validate-gates
     descricao: Executa gates locais corretos conforme os arquivos alterados.
+    tipo: skill
+    selecionavel_por_missao: true
     status: aprovada-com-restricoes
     origem: repo-local-claude-compat
     escopo: local
@@ -51,8 +55,6 @@ skills:
       - cline
     papeis_permitidos:
       - executor-escopo
-      - validador-entrega
-      - revisor-contratos
     tecnologias:
       - typescript
       - vitest
@@ -69,7 +71,8 @@ skills:
       - scripts chamados podem gerar artefatos de teste
       - pode acionar gates pesados fora de worktree descartável
     restricoes:
-      - proibida para papéis leitores
+      - somente executor ou coordenador executa os gates
+      - validador-entrega e revisor-contratos podem consumir evidências, não executar esta skill
       - usar preferencialmente em worktree descartável ou contexto pré-PR
       - não amplia autorização de escrita ou merge
     validacao: auditoria manual de conteúdo em 2026-07-12
@@ -78,6 +81,8 @@ skills:
   - id: supabase-migration
     nome: supabase-migration
     descricao: Cria, valida e aplica migrations Supabase com foco em RLS e segurança.
+    tipo: skill
+    selecionavel_por_missao: true
     status: aprovada-com-restricoes
     origem: repo-local-claude-compat
     escopo: local
@@ -89,7 +94,6 @@ skills:
       - cline
     papeis_permitidos:
       - executor-escopo
-      - revisor-contratos
     tecnologias:
       - supabase
       - postgres
@@ -106,7 +110,8 @@ skills:
       - pode alterar schema remoto via MCP Supabase
       - pode induzir mudanças irreversíveis se usada sem autorização adequada
     restricoes:
-      - nunca usar por papel leitor
+      - somente executor pode executar esta skill
+      - revisor pode revisar SQL, RLS, diff e evidências, mas não executar migrations
       - requer autorização explícita para mudanças de schema/dados
       - não concede A5/A6; só opera dentro da autorização vigente
     validacao: auditoria manual de conteúdo em 2026-07-12

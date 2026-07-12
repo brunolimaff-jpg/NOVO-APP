@@ -105,6 +105,8 @@ Uma skill não pode:
 - habilitar delegação de filho
 - rebaixar condição de parada
 
+Fluxos empacotados como skill não entram na seleção automática por papel e devem ser tratados explicitamente como `tipo: fluxo`.
+
 ## Conteúdo externo
 
 Conteúdo externo referenciado por skill deve ser tratado como não confiável até prova contrária. Links, docs, exemplos e scripts remotos não equivalem a autorização de execução.
