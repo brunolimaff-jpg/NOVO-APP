@@ -77,12 +77,25 @@ Papéis canônicos: `explorador`, `investigador-incidentes`, `planejador-solucao
 
 ## Banco de Padrões (PatternBank) — status Fase 1
 
-Inventário realizado (somente leitura) antes da Fase 1:
+Inventário de linha de base realizado para a Fase 1:
 
-- `.agents/patterns/` **não existe em `main`** — a seção PatternBank de `AGENTS.md` que afirma o contrário está obsoleta e foi corrigida.
-- Banco de Padrões **global** (`~/.claude/memory/patterns/pattern-index.json`, 12 padrões) é a implementação operacional comprovada, com hooks `pattern-retrieve.sh` (SessionStart) e `pattern-store.sh` (SessionEnd).
-- Obsidian é biblioteca de referência, não fonte operacional executável.
-- Precedência: padrão local do repositório (quando criado) prevalece sobre global; global é fallback; Obsidian é referência.
+- **Data da verificação**: 2026-07-12
+- **Base analisada**: `main` (commit `e74d8a29`)
+- **Comandos de verificação**:
+  - `ls -d .agents/patterns/` (Local)
+  - `ls ~/.claude/memory/patterns/pattern-index.json` (Global)
+  - `python3 -c "import json; print(len(json.load(open('$HOME/.claude/memory/patterns/pattern-index.json'))['patterns']))"` (Contagem)
+  - `ls ~/.claude/hooks/pattern-*.sh` (Hooks)
+
+### Resultado do Inventário
+- `.agents/patterns/` **não existe em `main`**. No `AGENTS.md` versionado na base analisada, a seção obsoleta não estava presente. Texto diferente encontrado fora desta branch não faz parte desta PR.
+- Banco de Padrões **global** (`~/.claude/memory/patterns/pattern-index.json`, 12 padrões registrados) é a única implementação operacional comprovada no momento, integrada via hooks `pattern-retrieve.sh` (global) e `pattern-store.sh` (global).
+- Caminhos globais são estado externo da máquina do Bruno e não são garantidos pelo repositório.
+- Obsidian (`Bruno Vault/50-PADROES/`) é fonte de contexto, não instrução operacional canônica.
+
+### Precedência e Regras
+- Padrão local do repositório (quando criado e versionado) será a fonte canônica.
+- Banco global funciona como fallback de implementação externa comprovada.
 - **Não migrar, copiar, apagar ou sincronizar padrões nesta fase.** Consolidação fica para tarefa separada.
 
 ## Short roadmap

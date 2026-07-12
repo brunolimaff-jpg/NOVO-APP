@@ -139,7 +139,7 @@ Worktree, branch e PR:
 | Decisão principal | A decisão que guia a execução. |
 | Referente ativo | Entidade sobre a qual a missão versa (PR, arquivo, bug, CNPJ). |
 | Contexto conhecido | Informação já estabelecida que o agente recebe. |
-| Suposição de comunicação | Interpretação de指令 ambíguos, declarada explicitamente. |
+| Suposição de comunicação | Interpretação de instruções ambíguas, declarada explicitamente. |
 | Nível de autorização | A0 a A6 (ver contrato de comunicação). |
 | Branch e SHA-base | Ponto de partida no Git. |
 | Destino de integração | Onde o resultado deve chegar (branch, PR, arquivo). |
@@ -171,7 +171,7 @@ Worktree, branch e PR:
 | Inferência | Conclusão baseada em evidência indireta, sem prova direta. |
 | Hipótese | Explicação plausível ainda não testada. |
 | Não encontrado | Consulta realizada, resultado negativo no escopo pesquisado. |
-| Contradição | Duas fontes divergem; requires resolução. |
+| Contradição | Duas fontes divergem; requer resolução. |
 | Não conclusivo | Não há evidência suficiente para classificar. |
 | Bloqueado | Não foi possível acessar a fonte. |
 

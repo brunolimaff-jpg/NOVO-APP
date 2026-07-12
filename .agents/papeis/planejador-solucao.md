@@ -66,7 +66,7 @@ Transformar evidências em opções de solução comparadas, recomendar a melhor
 
 ## Fluxo de execução
 
-1. Receber evidências e Cartão de Missão.
+1. Receber missão, contexto conhecido e Pacote de Evidências do coordenador.
 2. Confirmar premissas com o coordenador.
 3. Levantar opções de solução.
 4. Comparar cada opção.
@@ -75,7 +75,7 @@ Transformar evidências em opções de solução comparadas, recomendar a melhor
 7. Listar contratos a preservar.
 8. Definir validações.
 9. Criar plano de reversão.
-10. Preencher Cartão de Missão do executor.
+10. Produzir proposta de Cartão de Missão do executor para despacho pelo coordenador.
 
 ## Evidências obrigatórias
 

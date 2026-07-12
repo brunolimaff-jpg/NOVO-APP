@@ -67,7 +67,7 @@ Executar a missão aprovada no escopo exclusivo de escrita, preservando contrato
 
 ## Fluxo de execução
 
-1. Receber Cartão de Missão do executor.
+1. Receber do coordenador o Cartão de Missão aprovado.
 2. Confirmar branch e SHA da base.
 3. Criar worktree ou branch se necessário.
 4. Escrever apenas no escopo exclusivo.
