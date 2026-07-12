@@ -3,13 +3,7 @@ description: "Papel canônico: validador-entrega. Confirma entrega e regressões
 mode: subagent
 permission:
   edit: deny
-  bash:
-    "*": deny
-    "git status*": allow
-    "git diff*": allow
-    "npm test*": allow
-    "npm run test*": allow
-    "npm run typecheck*": allow
+  bash: ask
   task: deny
   external_directory: deny
 ---
@@ -17,3 +11,5 @@ permission:
 # Adaptador — Validador de Entrega
 
 Fonte canônica: `.agents/papeis/validador-entrega.md`. Em caso de conflito, prevalece o papel canônico.
+
+Validação por shell exige aprovação explícita nesta fase; não há garantia automática de read-only para comandos aprovados fora de worktree descartável.

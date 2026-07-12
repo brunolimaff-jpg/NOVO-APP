@@ -30,6 +30,8 @@ Cartão de Missão do coordenador.
 
 Veredito de validação com evidências conforme contrato canônico.
 
+Este adaptador não executa validações shell, preview real ou consulta direta de telemetria localmente. Quando esses passos forem necessários, a execução fica com o coordenador principal ou com outra ferramenta cuja superfície observável tenha sido comprovada.
+
 ## Precedência
 
 Em caso de conflito, prevalece o papel canônico em `.agents/papeis/validador-entrega.md`.

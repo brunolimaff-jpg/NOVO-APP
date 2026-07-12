@@ -213,7 +213,7 @@ papeis:
         garantia_tecnica: permission.task=deny
         herda_modelo: true
         limitacoes:
-          - bash permitido apenas para git/rg read-only por politica declarada
+          - bash permitido apenas para git status/log/show por politica declarada
 
   planejador-solucao:
     fonte: .agents/papeis/planejador-solucao.md
@@ -565,7 +565,7 @@ papeis:
         garantia_tecnica: permission.task=deny
         herda_modelo: true
         limitacoes:
-          - bash restrito por politica declarada; sem smoke local
+          - bash em ask; validacao por shell exige aprovacao explicita e worktree descartavel
 
   revisor-evidencias-dossie:
     fonte: .agents/papeis/revisor-evidencias-dossie.md
