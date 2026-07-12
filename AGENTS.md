@@ -53,6 +53,7 @@ npm run lint
 - Auth in this repo is local-only via `contexts/OperatorContext.tsx`; Clerk is not active in runtime.
 - No standard external AI integration is required for this repo.
 - Skill governance for this repo lives in `docs/SKILLS-GOVERNANCE.md`.
+- Agent role governance lives in `.agents/papeis/README.md` (canonical roles) and `.agents/governanca/contrato-comunicacao-bruno.md` (communication contract). Roles are not skills and are not listed in `skills-lock.json`.
 - Do not assume any specific global skill set is available or required.
 
 ## Working rules

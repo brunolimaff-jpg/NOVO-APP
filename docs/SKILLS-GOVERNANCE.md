@@ -59,6 +59,45 @@ Skills globais podem existir na máquina do usuário e podem ser usadas por conv
 - `README.md`, `CLAUDE.md`, `AGENTS.md` e `HANDOFF_AI.md` contam a mesma história
 - `docs/obsidian/00-MASTER.md` aponta para arquitetura + roadmap e deixa explícitas as fontes canônicas reais
 
+## Papéis dos agentes (roles)
+
+Os papéis operacionais dos agentes são definidos em `.agents/papeis/` e governados por `.agents/papeis/README.md`. O contrato de comunicação com o Bruno está em `.agents/governanca/contrato-comunicacao-bruno.md`.
+
+Regras:
+
+- **Papéis não são skills.** Não entram em `skills-lock.json` e não alteram a allowlist deste documento.
+- `.agents/papeis/` é a fonte canônica; adaptadores específicos de ferramenta apenas resumem e direcionam.
+- A configuração do repositório (`AGENTS.md`, `.agents/papeis/`) prevalece sobre configuração global da ferramenta.
+- O coordenador principal interpreta a missão, escolhe o papel e integra resultados; agentes filhos não delegam.
+- Apenas um papel tem escrita no workspace: `executor-escopo`. Os demais são leitores.
+- Decisões estruturais, merge e deploy continuam humanas (níveis A5 e A6).
+- `delivery-loop` permanece inalterado; a integração dos papéis ao ciclo de entrega fica para Fase 2.
+
+Papéis canônicos: `explorador`, `investigador-incidentes`, `planejador-solucao`, `executor-escopo`, `revisor-contratos`, `validador-entrega`, `revisor-evidencias-dossie`.
+
+## Banco de Padrões (PatternBank) — status Fase 1
+
+Inventário de linha de base realizado para a Fase 1:
+
+- **Data da verificação**: 2026-07-12
+- **Base analisada**: `main` (commit `e74d8a29`)
+- **Comandos de verificação**:
+  - `ls -d .agents/patterns/` (Local)
+  - `ls ~/.claude/memory/patterns/pattern-index.json` (Global)
+  - `python3 -c "import json; print(len(json.load(open('$HOME/.claude/memory/patterns/pattern-index.json'))['patterns']))"` (Contagem)
+  - `ls ~/.claude/hooks/pattern-*.sh` (Hooks)
+
+### Resultado do Inventário
+- `.agents/patterns/` **não existe em `main`**. No `AGENTS.md` versionado na base analisada, a seção obsoleta não estava presente. Texto diferente encontrado fora desta branch não faz parte desta PR.
+- Banco de Padrões **global** (`~/.claude/memory/patterns/pattern-index.json`, 12 padrões registrados) é a única implementação operacional comprovada no momento, integrada via hooks `pattern-retrieve.sh` (global) e `pattern-store.sh` (global).
+- Caminhos globais são estado externo da máquina do Bruno e não são garantidos pelo repositório.
+- Obsidian (`Bruno Vault/50-PADROES/`) é fonte de contexto, não instrução operacional canônica.
+
+### Precedência e Regras
+- Padrão local do repositório (quando criado e versionado) será a fonte canônica.
+- Banco global funciona como fallback de implementação externa comprovada.
+- **Não migrar, copiar, apagar ou sincronizar padrões nesta fase.** Consolidação fica para tarefa separada.
+
 ## Short roadmap
 
 No curto prazo, este setup cobre o necessário para:
