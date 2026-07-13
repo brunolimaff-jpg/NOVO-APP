@@ -55,6 +55,7 @@ npm run lint
 - Skill governance for this repo lives in `docs/SKILLS-GOVERNANCE.md`.
 - Skill registry and security policy live in `.agents/skills/README.md`, `.agents/skills/registry.yaml`, and `.agents/skills/politica-seguranca.md`.
 - Agent role governance lives in `.agents/papeis/README.md` (canonical roles), `.agents/governanca/contrato-comunicacao-bruno.md` (communication contract), and `.agents/adaptadores/README.md` (tool adapters validated against official docs for Claude Code, Codex, Cursor, Cline, and OpenCode). Roles are not skills and are not listed in `skills-lock.json`.
+- Agent orchestration (dry-run mission planning) lives in `.agents/orquestracao/README.md` with schemas, routing, dispatch policy, and evidence contract. Scripts: `scripts/plan-agent-mission.rb` (deterministic planner), `scripts/validate-agent-orchestration.rb` (validator), `scripts/test-agent-orchestration.rb` (35 tests).
 - Do not assume any specific global skill set is available or required.
 
 ## Working rules

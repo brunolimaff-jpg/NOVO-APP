@@ -16,6 +16,7 @@
 8. Leitores podem executar em paralelo (2 a 4 por padrão, 6 no teto).
 9. Apenas **um executor** pode atuar por fluxo crítico.
 10. Dois executores somente em worktrees, branches e caminhos comprovadamente disjuntos.
+11. **Orquestração determinística (Fase 3A):** todo despacho de missão deve passar pelo planner dry-run em `.agents/orquestracao/` antes da execução. Ver `.agents/orquestracao/README.md`.
 
 ---
 
