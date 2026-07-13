@@ -1,5 +1,28 @@
 # decisions.md — NOVO-APP
 
+## Novas Decisões (Sessão 2026-07-13 — Fase 3B.1 / PR #424)
+
+### DI-2026-07-13-03: Só `planejado` é executável na Fase 3B.1 (fail-closed)
+
+- **Decisão:** O executor aceita execução apenas com `plan.status == planejado`. `planejado-com-restricoes`, `negado` e `incompleto` retornam `PLAN_STATUS_INVALID`.
+- **Contexto:** O executor 3B.1 ainda não interpreta semanticamente restrições. Aceitar `planejado-com-restricoes` criaria falsa sensação de conformidade.
+- **Impacto:** Missões com restrições precisam de planner/executor 3B.2+ ou remoção das restrições antes da execução controlada.
+- **Referência:** `scripts/run-agent-mission.rb`, `.agents/orquestracao/executor/README.md`, PR #424
+
+### DI-2026-07-13-02: Hook Cursor de branch-health é higiene, não fronteira de segurança
+
+- **Decisão:** `.cursor/hooks.json` usa `failClosed: false` e matcher só em `git commit`. O hook deve `cd` na raiz do repo antes de `check-branch-health.sh`. Autorizações do executor não dependem dele.
+- **Contexto:** `failClosed: true` + hook quebrado bloqueava Shell/Write no Cursor; cwd externo fazia o health check falhar silenciosamente e liberar commit.
+- **Impacto:** DX preservada; proteção de acúmulo de commits continua best-effort.
+- **Referência:** `.cursor/hooks/branch-health-json.sh`, PR #424
+
+### DI-2026-07-13-01: Propagação planner→comandos e schema condicional ficam para 3B.2
+
+- **Decisão:** Na 3B.1, cartão e plano devem trazer manualmente o mesmo conjunto de IDs de catálogo. Runtime rejeita `planejado` sem `comandos` (`PLANEJADO_REQUIRES_COMMANDS`). Não exige `if/then` no schema ainda.
+- **Contexto:** `plan-agent-mission.rb` (3A) não emite `comandos`; exigir no schema quebraria planos do planner sem integração.
+- **Impacto:** Documentado no README do executor; threads de review deferidas explicitamente para 3B.2.
+- **Referência:** `.agents/orquestracao/executor/README.md`, PR #424 squash `9c8b3228`
+
 ## Novas Decisoes (Sessao 2026-06-26 — Sprint 2: infraestrutura LiteLLM)
 
 ### DI-2026-06-26-06: Foundation cache desliga com pipeline hibrido ativo

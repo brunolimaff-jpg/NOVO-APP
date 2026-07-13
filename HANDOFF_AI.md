@@ -1,84 +1,104 @@
-# Handoff — Fase 3B.1 Execução Controlada
+# Handoff — Fase 3B.1 mergeada (PR #424)
 
-> **Fase 3A:** concluída e mergeada.
-> **PR:** #423
-> **Squash:** `0f9858a1e37c95bb9a711faea0b34a2887f77f5f`
-> **Ruby:** 3.3.7
-> **Planner dry-run:** ativo
-> **Próxima etapa:** Fase 3B.1 — execução local controlada
-> **Branch atual:** `feat/fase-3b-execucao-controlada`
-> **Vault:** `[[2026-07-13T08-40-20-novo-app-pr423-fase3a-handoff]]`
+> **Atualizado:** 2026-07-13  
+> **PR #424:** MERGED (squash)  
+> **Squash em main:** `9c8b3228cc601965ff687ec82c6d0eadc547a73d`  
+> **Head pré-merge:** `ebdf1f5ff8966e18a1eda4ce679b80b5b37b14f5`  
+> **Base da PR:** `0f9858a1` (squash Fase 3A / PR #423)  
+> **Ruby baseline:** 3.3.7  
+> **Próxima etapa:** Fase 3B.2 (propagação planner→plano + schema condicional)
 
-## Contexto
+## Estado atual (fonte da verdade)
 
-- A Fase 3B.1 entrega executor local controlado para gates de governança.
-- Não executa LLM, agentes reais, shell arbitrário, rede, commit, push, PR, merge, deploy ou banco.
-- Execução real exige `--execute` e `AGENT_ORCHESTRATION_EXECUTE=1`.
-- Catálogo inicial limitado a validações Ruby da governança/orquestração e `git diff --check`.
+A camada de governança/orquestração de agentes está em `main` até a **Fase 3B.1**:
 
-## O que foi feito nesta retomada
+| Fase  | Status                           | Entrega                                                                           |
+| ----- | -------------------------------- | --------------------------------------------------------------------------------- |
+| 0–2.5 | em main                          | governança, papéis, adaptadores, registry de skills                               |
+| 3A    | mergeada (#423 → `0f9858a1`)     | Cartão de Missão, Plano, A0–A6, planner dry-run                                   |
+| 3B.1  | **mergeada (#424 → `9c8b3228`)** | executor local controlado + relatório + CI                                        |
+| 3B.2  | **não iniciada**                 | propagação automática `executor.comandos` → `plano.comandos`; `if/then` no schema |
 
-- Consolidado contexto dos reviews: path traversal, permissões efetivas, autorização de escrita, `acoes_solicitadas`, schema validation, tests helpers, allowlist Skills Governance.
-- Alterado `scripts/plan-agent-mission.rb`:
-  - `require 'tmpdir'` e path safety real por `File.expand_path`, `File.realpath`, `REPO_ROOT` e `Dir.tmpdir`;
-  - validador JSON Schema interno;
-  - `acoes_solicitadas` separado de `acoes_permitidas`;
-  - ação solicitada e não permitida vira negação;
-  - gate A2+ e `executor-escopo` para escrita;
-  - permissões efetivas para rede/shell;
-  - skills com `pode_escrever` ou `pode_executar_shell` exigem A2;
-  - `ACTION_MIN_AUTH` em loop;
-  - negações estruturadas `{codigo,mensagem}`;
-  - remoção do load redundante de `compatibilidade.yaml`.
-- Alterado `cartao-missao.schema.json` para exigir `autorizacao.acoes_solicitadas`.
-- Alterado `contrato-plano.schema.json` para `negacoes` estruturadas e campos `acoes_solicitadas`/`acoes_permitidas`.
-- Atualizados 5 exemplos com `acoes_solicitadas`.
-- Alterado `scripts/validate-agent-orchestration.rb`:
-  - `YAML.safe_load`;
-  - regex de `require` com indentação;
-  - allowlist stdlib com `tempfile` e `tmpdir`;
-  - `git diff --name-only` para alterações funcionais;
-  - check real de delivery-loop no diff;
-  - valida exemplos contra schema e planos gerados contra `contrato-plano.schema.json`.
-- Alterado `scripts/validate-skills-governance.rb` para permitir artefatos Fase 3A.
-- Alterado `scripts/test-agent-orchestration.rb`: 57 testes, incluindo escrita A0/A1/A2, ação permitida vs solicitada, schema, paths/symlinks, hash e compatibilidade comportamental.
-- Alterado `scripts/test-validate-skills-governance.rb`: 28 testes, incluindo negativos para evitar liberação genérica de `scripts/`, `docs/`, `.github/` e `.agents/`.
+## O que a Fase 3B.1 entrega
 
-## Validação local
+Fluxo:
 
-- `ruby scripts/validate-skills-governance.rb` → OK.
-- `ruby scripts/test-validate-skills-governance.rb` → OK, 28 tests.
-- `ruby scripts/validate-agent-orchestration.rb` → OK.
-- `ruby scripts/test-agent-orchestration.rb` → OK, 57 tests.
-- `git diff --check` → OK.
+```text
+Cartão de Missão → Planner 3A → Plano `planejado` → Executor controlado
+  → catálogo fixo → Relatório (schema)
+```
 
-## Estado atual do worktree
+### Artefatos principais
 
-Arquivos modificados localmente, não commitados:
+- `scripts/run-agent-mission.rb` — executor
+- `scripts/validate-agent-execution.rb` / `scripts/test-agent-execution.rb` — gates (54 testes)
+- `.agents/orquestracao/executor/` — catálogo, contrato de relatório, README
+- Job CI `Agent Execution Control` (Ruby 3.3.7, actions pinadas, `persist-credentials: false`)
+- Hooks Cursor: `.cursor/hooks.json` + `.cursor/hooks/branch-health-json.sh`
 
-- `.agents/orquestracao/cartao-missao.schema.json`
-- `.agents/orquestracao/contrato-plano.schema.json`
-- `.agents/orquestracao/exemplos/exploracao-readonly.json`
-- `.agents/orquestracao/exemplos/implementacao-autorizada.json`
-- `.agents/orquestracao/exemplos/investigacao-incidente.json`
-- `.agents/orquestracao/exemplos/merge-negado.json`
-- `.agents/orquestracao/exemplos/skill-mutante-negada.json`
-- `scripts/plan-agent-mission.rb`
-- `scripts/test-agent-orchestration.rb`
-- `scripts/test-validate-skills-governance.rb`
-- `scripts/validate-agent-orchestration.rb`
-- `scripts/validate-skills-governance.rb`
+### Contrato fail-closed de status
+
+| status do plano            | executável na 3B.1?              |
+| -------------------------- | -------------------------------- |
+| `planejado`                | sim (exige `comandos` não vazio) |
+| `planejado-com-restricoes` | não → `PLAN_STATUS_INVALID`      |
+| `negado` / `incompleto`    | não                              |
+
+### Segurança operacional do executor
+
+- Dry-run por padrão; real só com `--execute` **e** `AGENT_ORCHESTRATION_EXECUTE=1`
+- Sem shell arbitrário / rede / install / git mutante / banco
+- `Open3.popen3` + process group: `TERM` → `KILL` + `wait` (timeout 120s)
+- Exit codes: dry-run/success=0, failure=1, denied=2, timeout=3, internal-error=4
+- Ambiente sanitizado (`unsetenv_others: true`)
+- `safe_path` anti-symlink; truncamento 1 MB com UTF-8 `scrub`
+- Cartão e plano: mesmo conjunto de IDs (uniq+sort); mismatch → `COMMAND_PLAN_MISMATCH`
+- Plano `planejado` sem comandos → `PLANEJADO_REQUIRES_COMMANDS`
+
+### Catálogo permitido (não expandir sem decisão)
+
+- `validate-skills-governance`
+- `test-skills-governance`
+- `validate-agent-orchestration`
+- `test-agent-orchestration`
+- `git-diff-check`
+
+### Hooks Cursor (higiene, não fronteira de segurança)
+
+- Só `beforeShellExecution` com matcher `git commit`
+- `failClosed: false` intencional (não trava o ambiente se o hook falhar)
+- `check-branch-health.sh` roda com `cd` explícito na raiz do repo
+- Autorizações do executor **não** dependem desse hook
+
+## Limitações conhecidas (ficar para 3B.2)
+
+1. Planner 3A **não** propaga `executor.comandos` → `plano.comandos` (manual na 3B.1).
+2. Exigência condicional de `comandos` no JSON Schema (`if/then`) deferida — runtime cobre com `PLANEJADO_REQUIRES_COMMANDS`.
+3. `planejado-com-restricoes` não é interpretado semanticamente.
+
+## Validação canônica (gates próprios)
+
+```bash
+ruby scripts/validate-skills-governance.rb
+ruby scripts/test-validate-skills-governance.rb   # 32
+ruby scripts/validate-agent-orchestration.rb
+ruby scripts/test-agent-orchestration.rb          # 57
+ruby scripts/validate-agent-execution.rb
+ruby scripts/test-agent-execution.rb              # 54
+git diff --check
+```
+
+Gates Scout globais (Typecheck/Tests/Dossier/E2E) ficaram vermelhos na PR e **foram tratados como fora de escopo** desta entrega de governança.
 
 ## Próximos passos
 
-1. Commitar correção na mesma branch.
-2. Push para PR #423.
-3. Aguardar `Agent Orchestration`, `Skills Governance`, `Build`, CodeQL/Analyze/CodeRabbit/GitGuardian.
-4. Responder threads da PR com evidência dos testes.
+1. Fase 3B.2: planner emite `comandos`; schema condicional; (opcional) interpretar restrições.
+2. Não expandir catálogo sem decisão explícita.
+3. WIP local stashed na worktree `fase-3b-execucao-controlada` (não faz parte do merge).
 
-## Não fazer
+## Não fazer agora
 
-- Não mexer em `.agents/skills/delivery-loop/SKILL.md`.
-- Não criar Fase 3B.
-- Não mergear/deployar.
-- Não declarar pronto para merge antes dos checks remotos e threads.
+- Reabrir escopo Scout funcional nesta trilha
+- Expandir catálogo com shell/rede
+- Tratar hook Cursor como controle de segurança do executor
+- Merge/deploy automático sem pedido explícito
