@@ -1,0 +1,36 @@
+{
+  "versao": 1,
+  "id": "ex-05-skill-mutante-negada",
+  "titulo": "Skill mutante atribuída a papel leitor",
+  "objetivo": "Executar migration Supabase como revisor",
+  "contexto": "Teste: supabase-migration (pode_escrever=true) não pode ser atribuída a revisor-contratos (leitor).",
+  "resultado_esperado": "Plano deve negar skill mutante para leitor",
+  "autorizacao": {
+    "nivel": "A2",
+    "acoes_permitidas": ["ler", "editar"],
+    "acoes_proibidas": ["commit", "push", "merge", "deploy"]
+  },
+  "escopo": {
+    "leitura": ["supabase/migrations/"],
+    "escrita": []
+  },
+  "restricoes": [
+    "Revisor não executa migrations"
+  ],
+  "verificacao": [
+    "Skill supabase-migration deve ser negada"
+  ],
+  "evidencias_requeridas": [
+    "Motivo da negação: skill mutante para leitor"
+  ],
+  "condicoes_parada": [
+    "Negação documentada"
+  ],
+  "ferramentas_permitidas": ["claude-code"],
+  "skills_solicitadas": ["supabase-migration"],
+  "papel_preferido": "revisor-contratos",
+  "rede_permitida": false,
+  "shell_permitido": false,
+  "delegacao_permitida": false,
+  "instrucao_atual": "Revisa e roda a migration do Supabase"
+}

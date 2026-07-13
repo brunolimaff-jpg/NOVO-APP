@@ -1,0 +1,140 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://novo-app.local/.agents/orquestracao/cartao-missao.schema.json",
+  "title": "Cartão de Missão",
+  "description": "Entrada canônica para o planejador determinístico de missões de agente.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "versao",
+    "id",
+    "titulo",
+    "objetivo",
+    "contexto",
+    "resultado_esperado",
+    "autorizacao",
+    "escopo",
+    "restricoes",
+    "verificacao",
+    "evidencias_requeridas",
+    "condicoes_parada"
+  ],
+  "properties": {
+    "versao": {
+      "type": "integer",
+      "const": 1
+    },
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[a-z0-9][a-z0-9-]*$"
+    },
+    "titulo": {
+      "type": "string",
+      "minLength": 1
+    },
+    "objetivo": {
+      "type": "string",
+      "minLength": 1
+    },
+    "contexto": {
+      "type": "string"
+    },
+    "resultado_esperado": {
+      "type": "string",
+      "minLength": 1
+    },
+    "autorizacao": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["nivel", "acoes_permitidas", "acoes_proibidas"],
+      "properties": {
+        "nivel": {
+          "type": "string",
+          "enum": ["A0", "A1", "A2", "A3", "A4", "A5", "A6"]
+        },
+        "acoes_permitidas": {
+          "type": "array",
+          "items": { "type": "string" },
+          "uniqueItems": true
+        },
+        "acoes_proibidas": {
+          "type": "array",
+          "items": { "type": "string" },
+          "uniqueItems": true
+        }
+      }
+    },
+    "escopo": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["leitura", "escrita"],
+      "properties": {
+        "leitura": {
+          "type": "array",
+          "items": { "type": "string" },
+          "uniqueItems": true
+        },
+        "escrita": {
+          "type": "array",
+          "items": { "type": "string" },
+          "uniqueItems": true
+        }
+      }
+    },
+    "restricoes": {
+      "type": "array",
+      "items": { "type": "string" },
+      "uniqueItems": true
+    },
+    "verificacao": {
+      "type": "array",
+      "items": { "type": "string" },
+      "uniqueItems": true
+    },
+    "evidencias_requeridas": {
+      "type": "array",
+      "items": { "type": "string" },
+      "uniqueItems": true
+    },
+    "condicoes_parada": {
+      "type": "array",
+      "items": { "type": "string" },
+      "uniqueItems": true
+    },
+    "ferramentas_permitidas": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": ["claude-code", "codex", "cursor", "cline", "cline-ide", "cline-cli-sdk-kanban", "opencode"]
+      },
+      "uniqueItems": true
+    },
+    "skills_solicitadas": {
+      "type": "array",
+      "items": { "type": "string" },
+      "uniqueItems": true
+    },
+    "papel_preferido": {
+      "type": "string",
+      "enum": [
+        "explorador",
+        "investigador-incidentes",
+        "planejador-solucao",
+        "executor-escopo",
+        "revisor-contratos",
+        "validador-entrega",
+        "revisor-evidencias-dossie"
+      ]
+    },
+    "rede_permitida": { "type": "boolean" },
+    "shell_permitido": { "type": "boolean" },
+    "delegacao_permitida": { "type": "boolean" },
+    "fluxo_solicitado": {
+      "type": "string"
+    },
+    "instrucao_atual": {
+      "type": "string"
+    }
+  }
+}

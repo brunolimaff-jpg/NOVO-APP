@@ -1,0 +1,40 @@
+{
+  "versao": 1,
+  "id": "ex-01-exploracao-readonly",
+  "titulo": "Exploração somente leitura da estrutura de módulos",
+  "objetivo": "Mapear a estrutura de módulos de services/gemini e listar dependências",
+  "contexto": "Bruno precisa entender a arquitetura atual antes de planejar refatoração.",
+  "resultado_esperado": "Relatório com árvore de dependências e endpoints públicos",
+  "autorizacao": {
+    "nivel": "A0",
+    "acoes_permitidas": ["ler", "buscar", "inspecionar"],
+    "acoes_proibidas": ["editar", "commit", "push", "merge", "deploy"]
+  },
+  "escopo": {
+    "leitura": ["services/gemini/", "services/geminiService.ts", "api/gemini.ts"],
+    "escrita": []
+  },
+  "restricoes": [
+    "Não modificar nenhum arquivo",
+    "Não executar build",
+    "Não acessar rede externa"
+  ],
+  "verificacao": [
+    "Lista de módulos deve incluir todos os arquivos .ts em services/gemini/"
+  ],
+  "evidencias_requeridas": [
+    "Caminho de cada módulo listado",
+    "Dependências de import declaradas"
+  ],
+  "condicoes_parada": [
+    "Todos os arquivos .ts mapeados",
+    "Bruno interromper"
+  ],
+  "ferramentas_permitidas": ["claude-code", "codex", "opencode"],
+  "skills_solicitadas": [],
+  "papel_preferido": "explorador",
+  "rede_permitida": false,
+  "shell_permitido": false,
+  "delegacao_permitida": false,
+  "instrucao_atual": "Mapeia a estrutura de services/gemini"
+}

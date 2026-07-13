@@ -1,0 +1,46 @@
+{
+  "versao": 1,
+  "id": "ex-02-investigacao-incidente",
+  "titulo": "Investigação de travamento pós-waterfall em produção",
+  "objetivo": "Encontrar causa raiz do freeze do painel após waterfall de dossiê",
+  "contexto": "Usuários relatam tela branca após geração de dossiê longo.",
+  "resultado_esperado": "Cadeia causal identificada com evidências de telemetria",
+  "autorizacao": {
+    "nivel": "A0",
+    "acoes_permitidas": ["ler", "buscar", "inspecionar", "consultar-telemetria"],
+    "acoes_proibidas": ["editar", "commit", "push", "merge", "deploy"]
+  },
+  "escopo": {
+    "leitura": [
+      "services/gemini/",
+      "hooks/",
+      "components/",
+      "contexts/",
+      "docs/bugs/"
+    ],
+    "escrita": []
+  },
+  "restricoes": [
+    "Não modificar código",
+    "Cruzar scout_diagnostics e operator_events",
+    "Não confiar apenas em snapshot instantâneo"
+  ],
+  "verificacao": [
+    "Causa raiz deve ter evidência reproduzível"
+  ],
+  "evidencias_requeridas": [
+    "Caminho e linha do código suspeito",
+    "Logs de telemetria relevantes"
+  ],
+  "condicoes_parada": [
+    "Cadeia causal fechada",
+    "Bruno interromper"
+  ],
+  "ferramentas_permitidas": ["claude-code", "codex", "opencode"],
+  "skills_solicitadas": [],
+  "papel_preferido": "investigador-incidentes",
+  "rede_permitida": false,
+  "shell_permitido": false,
+  "delegacao_permitida": false,
+  "instrucao_atual": "Investiga o freeze pós-waterfall"
+}

@@ -1,0 +1,133 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://novo-app.local/.agents/orquestracao/contrato-plano.schema.json",
+  "title": "Contrato do Plano de Execução",
+  "description": "Saída determinística do planejador de missões.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "versao",
+    "missao_id",
+    "status",
+    "papel_principal",
+    "ferramenta_selecionada",
+    "adaptador_selecionado",
+    "skills_selecionadas",
+    "autorizacao_fornecida",
+    "autorizacao_necessaria",
+    "leitura_permitida",
+    "escrita_permitida",
+    "shell_permitido",
+    "rede_permitida",
+    "delegacao_permitida",
+    "etapas",
+    "condicoes_parada",
+    "evidencias_requeridas",
+    "negacoes",
+    "avisos",
+    "fontes_decisao"
+  ],
+  "properties": {
+    "versao": {
+      "type": "integer",
+      "const": 1
+    },
+    "missao_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "status": {
+      "type": "string",
+      "enum": ["planejado", "planejado-com-restricoes", "negado", "incompleto"]
+    },
+    "papel_principal": {
+      "type": ["string", "null"]
+    },
+    "papeis_auxiliares": {
+      "type": "array",
+      "items": { "type": "string" },
+      "uniqueItems": true
+    },
+    "ferramenta_selecionada": {
+      "type": ["string", "null"]
+    },
+    "adaptador_selecionado": {
+      "type": ["string", "null"]
+    },
+    "skills_selecionadas": {
+      "type": "array",
+      "items": { "type": "string" },
+      "uniqueItems": true
+    },
+    "fluxo_selecionado": {
+      "type": ["string", "null"]
+    },
+    "autorizacao_fornecida": {
+      "type": "string",
+      "enum": ["A0", "A1", "A2", "A3", "A4", "A5", "A6"]
+    },
+    "autorizacao_necessaria": {
+      "type": "string",
+      "enum": ["A0", "A1", "A2", "A3", "A4", "A5", "A6"]
+    },
+    "leitura_permitida": {
+      "type": "boolean"
+    },
+    "escrita_permitida": {
+      "type": "boolean"
+    },
+    "shell_permitido": {
+      "type": "boolean"
+    },
+    "rede_permitida": {
+      "type": "boolean"
+    },
+    "delegacao_permitida": {
+      "type": "boolean"
+    },
+    "etapas": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["nome", "papel", "acao"],
+        "properties": {
+          "nome": { "type": "string" },
+          "papel": { "type": "string" },
+          "acao": { "type": "string" },
+          "skills": {
+            "type": "array",
+            "items": { "type": "string" },
+            "uniqueItems": true
+          },
+          "ferramenta": { "type": "string" }
+        }
+      }
+    },
+    "condicoes_parada": {
+      "type": "array",
+      "items": { "type": "string" },
+      "uniqueItems": true
+    },
+    "evidencias_requeridas": {
+      "type": "array",
+      "items": { "type": "string" },
+      "uniqueItems": true
+    },
+    "negacoes": {
+      "type": "array",
+      "items": { "type": "string" },
+      "uniqueItems": true
+    },
+    "avisos": {
+      "type": "array",
+      "items": { "type": "string" },
+      "uniqueItems": true
+    },
+    "fontes_decisao": {
+      "type": "array",
+      "items": { "type": "string" },
+      "uniqueItems": true
+    }
+  }
+}
