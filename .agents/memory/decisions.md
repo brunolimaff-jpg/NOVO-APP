@@ -1,5 +1,13 @@
 # decisions.md — NOVO-APP
 
+## Novas Decisões (Sessão 2026-07-13 — Fase 3B.2B)
+
+### DI-2026-07-13-11: Multi-agent só por declaração explícita no Cartão
+
+- **Decisão:** Sem `execucao_planejada` (ou estratégia omitida) → default determinístico `agente-unico`. Multi-agent somente se o Cartão declarar `estrategia: multiagente` + justificativa/ganho/agentes/tarefas estruturalmente válidos. Planner **não** infere quantidade de agentes por texto livre, tamanho, complexidade aparente ou disponibilidade de subagentes.
+- **Referências conceituais:** Ponytail (YAGNI/menor diff); Agency Agents (responsabilidade/entrega/evidência) — sem instalar repos externos.
+- **Impacto:** 3B.2B propaga intenção para o Plano; spawn real fica em 3B.3.
+
 ## Novas Decisões (Sessão 2026-07-13 — Fase 3B.2A corretiva)
 
 ### DI-2026-07-13-09: Plano analítico ≠ executável

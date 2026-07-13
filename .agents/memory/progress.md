@@ -1,22 +1,16 @@
 # Progress
 
-## 2026-07-13 — Fase 3B.2A (branch `feat/fase-3b2a-plano-minimo`)
+## 2026-07-13 — Fase 3B.2B iniciada
 
-- Extensão `contrato-plano.schema.json` (resumo/topologia/simplicidade/limites/comandos)
-- Planner: propagação de comandos, topologia single-agent, `validate_operational_plan!`, `--resumo`
-- Testes de orquestração: **84**
-- README executor atualizado; HANDOFF/decisions; corretiva operacional (`executavel`, fail-closed, dry-run e2e)
-- **Não iniciado:** 3B.2B; schema `if/then`
+- Branch `feat/fase-3b2b-estrategia-explicita` a partir de `origin/main` @ `9f72b694`
+- Objetivo: estratégia/tarefas explícitas no Cartão → Plano; default single-agent; sem heurística semântica
+
+## 2026-07-13 — PR #426 MERGED (Fase 3B.2A)
+
+- Squash `9f72b6944302997bf4779e515f515a737006053c`
+- Orquestração **86** · Executor **56** · Skills **32** · Harness **37**
+- Runner exige `resumo_operacional.executavel=true` (`PLAN_NOT_EXECUTABLE`)
 
 ## 2026-07-13 — PR #425 MERGED (Fase 3B.1.5)
 
-- Squash `46765ab8`; docs sync `0f9bfda7`
-- Auditor TOML fail-closed; 37 testes
-
-## 2026-07-13 — PR #424 MERGED (Fase 3B.1)
-
-- Squash `9c8b3228`; docs sync `f889f57a`
-
-## 2026-07-13 — PR #423 MERGED (Fase 3A)
-
-- Squash `0f9858a1`
+- Squash `46765ab8`
