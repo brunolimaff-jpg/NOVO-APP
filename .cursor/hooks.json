@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "hooks": {
+    "beforeShellExecution": [
+      {
+        "command": ".cursor/hooks/branch-health-json.sh main",
+        "matcher": "git commit",
+        "failClosed": false,
+        "timeout": 10
+      }
+    ]
+  }
+}

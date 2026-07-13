@@ -45,6 +45,9 @@ def base_fixture(dir)
               ruby-version: '3.3.7'
   YAML
   write(File.join(dir, '.agents/skills/foo/SKILL.md'), "---\nname: foo\ndescription: test\n---\nfoo\n")
+  write(File.join(dir, 'scripts/run-agent-mission.rb'), "runner\n")
+  write(File.join(dir, 'scripts/validate-agent-execution.rb'), "validator\n")
+  write(File.join(dir, 'scripts/test-agent-execution.rb'), "tests\n")
   hash = Digest::SHA256.file(File.join(dir, '.agents/skills/foo/SKILL.md')).hexdigest
   registry = {
     'versao' => 1,

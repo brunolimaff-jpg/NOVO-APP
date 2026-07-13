@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Relatório de Execução Controlada",
+  "type": "object",
+  "required": ["versao", "missao_id", "plan_hash", "modo", "status", "inicio", "fim", "duracao_ms", "comandos", "negacoes", "avisos", "evidencias"],
+  "additionalProperties": false,
+  "properties": {
+    "versao": { "type": "integer", "const": 1 },
+    "missao_id": { "type": "string", "minLength": 1 },
+    "plan_hash": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "modo": { "type": "string", "enum": ["dry-run", "execute"] },
+    "status": { "type": "string", "enum": ["dry-run", "success", "failure", "denied", "timeout", "internal-error"] },
+    "inicio": { "type": "string" },
+    "fim": { "type": "string" },
+    "duracao_ms": { "type": "integer", "minimum": 0 },
+    "comandos": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "argv", "executado", "exit_code", "timeout", "stdout_sha256", "stderr_sha256", "stdout_truncado", "stderr_truncado"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string" },
+          "argv": { "type": "array", "items": { "type": "string" } },
+          "executado": { "type": "boolean" },
+          "exit_code": { "type": ["integer", "null"] },
+          "timeout": { "type": "boolean" },
+          "stdout_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+          "stderr_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+          "stdout_truncado": { "type": "boolean" },
+          "stderr_truncado": { "type": "boolean" }
+        }
+      }
+    },
+    "negacoes": { "type": "array", "items": { "type": "string" } },
+    "avisos": { "type": "array", "items": { "type": "string" } },
+    "evidencias": { "type": "array", "items": { "type": "string" } }
+  }
+}

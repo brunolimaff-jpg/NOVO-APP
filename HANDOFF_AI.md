@@ -1,18 +1,20 @@
-# Handoff — PR #423 Fase 3A Orquestração de Agentes
+# Handoff — Fase 3B.1 Execução Controlada
 
-> **Status:** correções locais concluídas e validadas; aguardando commit/push/checks remotos.
-> **Branch:** `feat/fase-3a-orquestracao-missoes`
-> **SHA inicial da retomada:** `ad85738a`
-> **Worktree:** `/Users/brunolima/Documents/NOVO-APP/.claude/worktrees/fase-3a-orquestracao`
+> **Fase 3A:** concluída e mergeada.
+> **PR:** #423
+> **Squash:** `0f9858a1e37c95bb9a711faea0b34a2887f77f5f`
+> **Ruby:** 3.3.7
+> **Planner dry-run:** ativo
+> **Próxima etapa:** Fase 3B.1 — execução local controlada
+> **Branch atual:** `feat/fase-3b-execucao-controlada`
 > **Vault:** `[[2026-07-13T08-40-20-novo-app-pr423-fase3a-handoff]]`
 
 ## Contexto
 
-- PR #423 implementa Fase 3A: planner determinístico dry-run para missões de agentes.
-- Escopo autorizado: corrigir review da Fase 3A. Não fazer merge, deploy ou Fase 3B.
-- Base do PR: `origin/main` em `22c36b4d`.
-- CI tinha falhas preexistentes fora do escopo: Typecheck, Tests, Dossier Golden, E2E, Golden Dossier Live.
-- Os scripts de governança e orquestração usam Ruby 3.3.x. O Ruby legado fornecido pelo sistema operacional não é baseline suportado.
+- A Fase 3B.1 entrega executor local controlado para gates de governança.
+- Não executa LLM, agentes reais, shell arbitrário, rede, commit, push, PR, merge, deploy ou banco.
+- Execução real exige `--execute` e `AGENT_ORCHESTRATION_EXECUTE=1`.
+- Catálogo inicial limitado a validações Ruby da governança/orquestração e `git diff --check`.
 
 ## O que foi feito nesta retomada
 

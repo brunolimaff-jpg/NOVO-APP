@@ -48,6 +48,12 @@ A Fase 3A **não executa**:
 
 Ela **somente planeja** e valida.
 
+## Fase 3B.1 — Executor local controlado
+
+A Fase 3B.1 adiciona `scripts/run-agent-mission.rb`, que transforma um plano `planejado` da Fase 3A em execução local controlada. A execução real exige `--execute` e `AGENT_ORCHESTRATION_EXECUTE=1`; caso contrário, o relatório é dry-run.
+
+O executor aceita apenas IDs de `.agents/orquestracao/executor/catalogo-comandos.yaml`, executa comandos como arrays de argumentos, usa ambiente sanitizado, timeout, limite de saída e hashes SHA-256. Ele não executa LLM, subagente real, shell arbitrário, rede, commit, push, PR, merge, deploy ou banco.
+
 ---
 
 ## Arquivos canônicos

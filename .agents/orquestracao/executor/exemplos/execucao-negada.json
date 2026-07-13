@@ -1,0 +1,7 @@
+{
+  "comandos": [
+    "npm install",
+    "git push",
+    "curl"
+  ]
+}

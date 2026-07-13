@@ -1,0 +1,9 @@
+{
+  "comandos": [
+    "validate-skills-governance",
+    "test-skills-governance",
+    "validate-agent-orchestration",
+    "test-agent-orchestration",
+    "git-diff-check"
+  ]
+}

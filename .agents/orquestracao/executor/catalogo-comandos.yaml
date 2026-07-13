@@ -1,0 +1,22 @@
+comandos:
+  validate-skills-governance:
+    argv:
+      - ruby
+      - scripts/validate-skills-governance.rb
+  test-skills-governance:
+    argv:
+      - ruby
+      - scripts/test-validate-skills-governance.rb
+  validate-agent-orchestration:
+    argv:
+      - ruby
+      - scripts/validate-agent-orchestration.rb
+  test-agent-orchestration:
+    argv:
+      - ruby
+      - scripts/test-agent-orchestration.rb
+  git-diff-check:
+    argv:
+      - git
+      - diff
+      - --check
