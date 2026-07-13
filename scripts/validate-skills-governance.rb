@@ -19,6 +19,8 @@ module SkillsGovernanceValidator
     'docs/SKILLS-GOVERNANCE.md',
     'AGENTS.md',
     'HANDOFF_AI.md',
+    '.agents/memory/activeContext.md',
+    '.agents/memory/progress.md',
     '.agents/papeis/README.md',
     'scripts/validate-skills-governance.rb',
     'scripts/test-validate-skills-governance.rb',
