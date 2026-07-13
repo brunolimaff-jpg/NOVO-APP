@@ -72,7 +72,8 @@ module AgentExecutionValidator
         'max_paralelo' => 1,
         'writers' => 0,
         'risco' => 'baixo',
-        'requer_aprovacao' => true
+        'requer_aprovacao' => true,
+        'executavel' => false
       },
       'topologia' => {
         'max_agentes' => 1,
@@ -88,6 +89,7 @@ module AgentExecutionValidator
         ]
       },
       'simplicidade' => {
+        'avaliada' => false,
         'multiagente_necessario' => false,
         'justificativa_multiagente' => nil,
         'reutiliza_existente' => true,

@@ -85,7 +85,8 @@ def build_execution_plan(commands = ['git-diff-check'], status: 'planejado', mis
       'max_paralelo' => 1,
       'writers' => 0,
       'risco' => 'baixo',
-      'requer_aprovacao' => true
+      'requer_aprovacao' => true,
+      'executavel' => false
     },
     'topologia' => {
       'max_agentes' => 1,
@@ -101,6 +102,7 @@ def build_execution_plan(commands = ['git-diff-check'], status: 'planejado', mis
       ]
     },
     'simplicidade' => {
+      'avaliada' => false,
       'multiagente_necessario' => false,
       'justificativa_multiagente' => nil,
       'reutiliza_existente' => true,

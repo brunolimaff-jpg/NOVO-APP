@@ -113,6 +113,7 @@
     },
     "condicoes_parada": {
       "type": "array",
+      "description": "União das condições do Cartão com as condições operacionais padrão do planner (comandos_concluidos, alteracao_fora_do_escopo, tempo_excedido, agente_nao_planejado). Duplicatas são removidas.",
       "items": { "type": "string" },
       "uniqueItems": true
     },
@@ -163,7 +164,7 @@
     },
     "comandos": {
       "type": "array",
-      "description": "IDs do catálogo do executor. Obrigatório e não vazio quando status é planejado e o Cartão declarou executor.comandos (validação no planner + executor). Propagados sem ampliação nem reordenação alfabética. negado/incompleto/planejado-com-restricoes usam lista vazia.",
+      "description": "IDs do catálogo do executor. Plano analítico (leitores) pode ser planejado com lista vazia e resumo_operacional.executavel=false — não enviar ao run-agent-mission. Missão executor-escopo/com escrita exige comandos não vazios no planner; senão status=negado (PLANEJADO_REQUIRES_COMMANDS). Propagados sem ampliação nem sort alfabético.",
       "items": { "type": "string" },
       "uniqueItems": true
     },
@@ -177,7 +178,8 @@
         "max_paralelo",
         "writers",
         "risco",
-        "requer_aprovacao"
+        "requer_aprovacao",
+        "executavel"
       ],
       "properties": {
         "harness": {
@@ -206,6 +208,10 @@
         },
         "requer_aprovacao": {
           "type": "boolean"
+        },
+        "executavel": {
+          "type": "boolean",
+          "description": "true somente se planejado + executor-escopo + comandos não vazios + sem negações. Planos analíticos usam false e não devem ser enviados ao run-agent-mission."
         }
       }
     },
@@ -253,6 +259,7 @@
       "type": "object",
       "additionalProperties": false,
       "required": [
+        "avaliada",
         "multiagente_necessario",
         "justificativa_multiagente",
         "reutiliza_existente",
@@ -260,6 +267,10 @@
         "nova_abstracao"
       ],
       "properties": {
+        "avaliada": {
+          "type": "boolean",
+          "description": "false nesta fase: campos de reutilização/dependência/abstração são intenção/default, não fatos observados. Avaliação automática fica para 3B.2B."
+        },
         "multiagente_necessario": { "type": "boolean" },
         "justificativa_multiagente": { "type": ["string", "null"] },
         "reutiliza_existente": { "type": "boolean" },

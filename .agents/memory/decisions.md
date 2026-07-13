@@ -1,5 +1,18 @@
 # decisions.md — NOVO-APP
 
+## Novas Decisões (Sessão 2026-07-13 — Fase 3B.2A corretiva)
+
+### DI-2026-07-13-09: Plano analítico ≠ executável
+
+- **Decisão:** `resumo_operacional.executavel=true` só com `planejado` + `executor-escopo` + comandos não vazios + sem negações. Leitores podem ser `planejado` com `comandos:[]` e `executavel:false` e **não** devem ir ao `run-agent-mission`. Missão executor/escrita sem comandos → `negado`/`PLANEJADO_REQUIRES_COMMANDS` no planner (não só no runner).
+- **Contexto:** Gap planner→executor com cartões canônicos sem chave `executor`.
+- **Referência:** PR #426 corretiva
+
+### DI-2026-07-13-10: Simplicidade permanece não avaliada na 3B.2A
+
+- **Decisão:** `simplicidade.avaliada=false` + aviso `SIMPLICITY_REQUIRES_REVIEW`; campos de reutilização/dependência/abstração são intenção/default, não fatos. Avaliação automática em 3B.2B.
+- **Referência:** PR #426 corretiva
+
 ## Novas Decisões (Sessão 2026-07-13 — Fase 3B.2A)
 
 ### DI-2026-07-13-08: Schema `if/then` deferido; validação operacional no planner
