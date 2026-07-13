@@ -90,3 +90,18 @@ jobs:
         run: ruby scripts/validate-skills-governance.rb
       - name: Run negative tests for skills governance
         run: ruby scripts/test-validate-skills-governance.rb
+
+  agent-orchestration:
+    name: Agent Orchestration
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3'
+      - name: Validate agent orchestration
+        run: ruby scripts/validate-agent-orchestration.rb
+      - name: Run orchestration tests
+        run: ruby scripts/test-agent-orchestration.rb
