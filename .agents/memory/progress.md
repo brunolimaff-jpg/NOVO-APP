@@ -1,5 +1,11 @@
 # Progress
 
+## 2026-07-13 — Fase 3B.1
+
+- PR #423 mergeada por squash em `0f9858a1`.
+- Iniciada branch `feat/fase-3b-execucao-controlada` a partir de `origin/main`.
+- Objetivo: executor local controlado com catálogo fixo, dupla confirmação e relatório de execução.
+
 Last updated: 2026-06-30 — Sessão Z.ai + H1/H3 concluída, PR #405 aberta
 
 ## Timeline

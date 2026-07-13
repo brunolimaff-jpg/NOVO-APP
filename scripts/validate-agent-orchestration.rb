@@ -22,7 +22,7 @@ module OrchestrationValidator
   ORCH_DIR    = File.join(REPO_ROOT, '.agents', 'orquestracao')
   SCRIPTS_DIR = File.join(REPO_ROOT, 'scripts')
 
-  STDLIB_ALLOWLIST = %w[json yaml digest optparse fileutils open3 tempfile tmpdir].freeze
+  STDLIB_ALLOWLIST = %w[json yaml digest optparse fileutils open3 tempfile tmpdir timeout time].freeze
 
   ERRORS   = []
   WARNINGS = []

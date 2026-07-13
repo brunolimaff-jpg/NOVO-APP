@@ -27,6 +27,9 @@ module SkillsGovernanceValidator
     'scripts/plan-agent-mission.rb',
     'scripts/validate-agent-orchestration.rb',
     'scripts/test-agent-orchestration.rb',
+    'scripts/run-agent-mission.rb',
+    'scripts/validate-agent-execution.rb',
+    'scripts/test-agent-execution.rb',
     '.github/workflows/ci.yml',
     '.ruby-version'
   ].freeze

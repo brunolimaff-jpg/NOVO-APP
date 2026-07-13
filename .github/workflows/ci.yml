@@ -105,3 +105,18 @@ jobs:
         run: ruby scripts/validate-agent-orchestration.rb
       - name: Run orchestration tests
         run: ruby scripts/test-agent-orchestration.rb
+
+  agent-execution-control:
+    name: Agent Execution Control
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3.7'
+      - name: Validate agent execution control
+        run: ruby scripts/validate-agent-execution.rb
+      - name: Run execution control tests
+        run: ruby scripts/test-agent-execution.rb

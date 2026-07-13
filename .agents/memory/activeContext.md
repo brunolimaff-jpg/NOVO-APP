@@ -1,5 +1,12 @@
 # Active Context
 
+Last updated: 2026-07-13 — Fase 3B.1 em implementação
+
+- Fase 3A concluída e mergeada na PR #423.
+- Squash em `origin/main`: `0f9858a1e37c95bb9a711faea0b34a2887f77f5f`.
+- Branch atual: `feat/fase-3b-execucao-controlada`.
+- Escopo: executor local controlado para gates de governança, sem código funcional do Scout.
+
 Last updated: 2026-07-13 — PR #423 Fase 3A, correções locais validadas
 
 ## Estado Atual
