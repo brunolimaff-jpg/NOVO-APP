@@ -30,7 +30,12 @@ dist-ssr
 *.sw?
 
 # Local agent/cursor artifacts
-.cursor/
+.cursor/*
+!.cursor/agents/
+!.cursor/agents/**
+!.cursor/hooks.json
+!.cursor/hooks/
+!.cursor/hooks/**
 .kilo/
 .playwright-mcp/
 

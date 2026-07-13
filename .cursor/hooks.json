@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "hooks": {
+    "preToolUse": [
+      {
+        "command": ".cursor/hooks/branch-health-json.sh main",
+        "failClosed": false,
+        "timeout": 10
+      }
+    ],
+    "beforeShellExecution": [
+      {
+        "command": ".cursor/hooks/branch-health-json.sh main",
+        "failClosed": false,
+        "timeout": 10
+      }
+    ]
+  }
+}
