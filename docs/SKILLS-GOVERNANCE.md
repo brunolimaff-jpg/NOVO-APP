@@ -38,6 +38,8 @@ A camada de orquestração determinística (Fase 3A) vive em `.agents/orquestrac
 
 Scripts: `plan-agent-mission.rb` (planner dry-run), `validate-agent-orchestration.rb` (validador), `test-agent-orchestration.rb` (57 testes). CI: job `Agent Orchestration`.
 
+Baseline Ruby oficial: `3.3.x`, fixado em `.ruby-version` e nos jobs `Skills Governance` e `Agent Orchestration`. O Ruby legado fornecido pelo sistema operacional não é baseline suportado.
+
 ## Classificação operacional
 
 ### `active`

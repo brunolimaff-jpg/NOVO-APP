@@ -12,6 +12,7 @@
 - Escopo autorizado: corrigir review da Fase 3A. Não fazer merge, deploy ou Fase 3B.
 - Base do PR: `origin/main` em `22c36b4d`.
 - CI tinha falhas preexistentes fora do escopo: Typecheck, Tests, Dossier Golden, E2E, Golden Dossier Live.
+- Os scripts de governança e orquestração usam Ruby 3.3.x. O Ruby legado fornecido pelo sistema operacional não é baseline suportado.
 
 ## O que foi feito nesta retomada
 

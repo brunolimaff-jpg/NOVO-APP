@@ -85,7 +85,7 @@ jobs:
           fetch-depth: 0
       - uses: ruby/setup-ruby@v1
         with:
-          ruby-version: '3.3'
+          ruby-version: '3.3.7'
       - name: Validate skills governance
         run: ruby scripts/validate-skills-governance.rb
       - name: Run negative tests for skills governance
@@ -100,7 +100,7 @@ jobs:
           fetch-depth: 0
       - uses: ruby/setup-ruby@v1
         with:
-          ruby-version: '3.3'
+          ruby-version: '3.3.7'
       - name: Validate agent orchestration
         run: ruby scripts/validate-agent-orchestration.rb
       - name: Run orchestration tests
