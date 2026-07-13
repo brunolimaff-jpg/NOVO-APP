@@ -77,7 +77,42 @@ def build_execution_plan(commands = ['git-diff-check'], status: 'planejado', mis
     'fontes_decisao' => ['.agents/orquestracao/roteamento.yaml'],
     'acoes_solicitadas' => [],
     'acoes_permitidas' => %w[ler],
-    'comandos' => commands
+    'comandos' => commands,
+    'resumo_operacional' => {
+      'harness' => 'codex-cli',
+      'estrategia' => 'agente-unico',
+      'agentes_planejados' => 1,
+      'max_paralelo' => 1,
+      'writers' => 0,
+      'risco' => 'baixo',
+      'requer_aprovacao' => true,
+      'executavel' => true
+    },
+    'topologia' => {
+      'max_agentes' => 1,
+      'max_profundidade' => 1,
+      'permite_subdelegacao' => false,
+      'agentes' => [
+        {
+          'id' => 'principal',
+          'papel' => 'validador-entrega',
+          'permissao' => 'read-only',
+          'depende_de' => []
+        }
+      ]
+    },
+    'simplicidade' => {
+      'avaliada' => false,
+      'multiagente_necessario' => false,
+      'justificativa_multiagente' => nil,
+      'reutiliza_existente' => true,
+      'nova_dependencia' => false,
+      'nova_abstracao' => false
+    },
+    'limites' => {
+      'max_retentativas' => 1,
+      'max_rodadas_revisao' => 1
+    }
   }
 end
 
@@ -273,6 +308,51 @@ test('ambiente sanitizado remove segredo do filho') do
       ENV['SECRET_MARKER'] = previous
     end
   end
+end
+
+test('plano planejado com executavel=false é negado') do
+  p = plan.call
+  p['resumo_operacional']['executavel'] = false
+  report = assert_denied('not executable', card.call, p, code: 'PLAN_NOT_EXECUTABLE', message: 'not marked as executable')
+  raise unless report['comandos'].empty? || report['comandos'].none? { |c| c['executado'] }
+end
+
+test('plano gerado pelo planner com executavel=true dry-run') do
+  require_relative './plan-agent-mission'
+  mission = {
+    'versao' => 1,
+    'id' => 'missao-exec-1',
+    'titulo' => 'Execução controlada de gates',
+    'objetivo' => 'Validar gates de governança',
+    'contexto' => 'Teste do executor',
+    'resultado_esperado' => 'Relatório de execução',
+    'autorizacao' => {
+      'nivel' => 'A2',
+      'acoes_permitidas' => %w[ler testar],
+      'acoes_solicitadas' => [],
+      'acoes_proibidas' => %w[merge deploy]
+    },
+    'escopo' => { 'leitura' => ['scripts/'], 'escrita' => ['scripts/noop.ts'] },
+    'restricoes' => [],
+    'verificacao' => [],
+    'evidencias_requeridas' => [],
+    'condicoes_parada' => ['gates ok'],
+    'ferramentas_permitidas' => %w[claude-code codex opencode],
+    'skills_solicitadas' => [],
+    'papel_preferido' => 'executor-escopo',
+    'rede_permitida' => false,
+    'shell_permitido' => true,
+    'delegacao_permitida' => false,
+    'instrucao_atual' => 'executa gates',
+    'executor' => { 'comandos' => ['git-diff-check'] }
+  }
+  planned = MissionPlanner.plan(mission)
+  raise "expected executavel=true, got #{planned.dig('resumo_operacional', 'executavel').inspect}" unless planned.dig('resumo_operacional', 'executavel') == true
+  report, _err, status = run(mission, planned)
+  raise "status=#{report['status']}" unless report['status'] == 'dry-run'
+  raise "exit=#{status}" unless status == 0
+  raise unless report['comandos'].none? { |c| c['executado'] }
+  raise unless report['comandos'].map { |c| c['id'] } == ['git-diff-check']
 end
 
 test('plano negado') { assert_denied('negado', card.call, plan.call('negado'), code: 'PLAN_STATUS_INVALID') }

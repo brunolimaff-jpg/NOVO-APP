@@ -12,40 +12,25 @@
     "acoes_proibidas": ["merge", "deploy"]
   },
   "escopo": {
-    "leitura": [
-      "components/DossierViewer.tsx",
-      "tests/",
-      "types.ts"
-    ],
-    "escrita": [
-      "components/DossierViewer.tsx",
-      "tests/DossierViewer.test.tsx"
-    ]
+    "leitura": ["components/DossierViewer.tsx", "tests/", "types.ts"],
+    "escrita": ["components/DossierViewer.tsx", "tests/DossierViewer.test.tsx"]
   },
   "restricoes": [
     "Não alterar types.ts sem justificativa",
     "Manter comportamento visual existente",
     "PR focada: máximo 3 arquivos"
   ],
-  "verificacao": [
-    "npm run typecheck sem erros",
-    "npm run test passando"
-  ],
-  "evidencias_requeridas": [
-    "Diff do tipo corrigido",
-    "Resultado do typecheck",
-    "Resultado dos testes"
-  ],
-  "condicoes_parada": [
-    "Typecheck e testes passando",
-    "PR criada",
-    "Bruno interromper"
-  ],
+  "verificacao": ["npm run typecheck sem erros", "npm run test passando"],
+  "evidencias_requeridas": ["Diff do tipo corrigido", "Resultado do typecheck", "Resultado dos testes"],
+  "condicoes_parada": ["Typecheck e testes passando", "PR criada", "Bruno interromper"],
   "ferramentas_permitidas": ["claude-code", "codex", "opencode"],
   "skills_solicitadas": ["validate-gates"],
   "papel_preferido": "executor-escopo",
   "rede_permitida": false,
   "shell_permitido": true,
   "delegacao_permitida": false,
-  "instrucao_atual": "Corrige os erros de tipo no DossierViewer e sobe PR"
+  "instrucao_atual": "Corrige os erros de tipo no DossierViewer e sobe PR",
+  "executor": {
+    "comandos": ["git-diff-check", "validate-agent-orchestration"]
+  }
 }

@@ -45,6 +45,17 @@ module MissionPlanner
     evidencias_requeridas condicoes_parada
   ].freeze
 
+  DEFAULT_STOP_CONDITIONS = %w[
+    comandos_concluidos
+    alteracao_fora_do_escopo
+    tempo_excedido
+    agente_nao_planejado
+  ].freeze
+
+  PLAN_SCHEMA_PATH = File.join(ORCH_DIR, 'contrato-plano.schema.json')
+  CATALOG_PATH = File.join(ORCH_DIR, 'executor', 'catalogo-comandos.yaml')
+  ROTEAMENTO_PATH = File.join(ORCH_DIR, 'roteamento.yaml')
+
   class ValidationError < StandardError; end
   class PathTraversalError < StandardError; end
   class SchemaError < StandardError; end
@@ -54,12 +65,14 @@ module MissionPlanner
       input_path  = nil
       output_path = nil
       stdout_mode = false
+      resumo_mode = false
 
       parser = OptionParser.new do |opts|
-        opts.banner = "Usage: ruby scripts/plan-agent-mission.rb --input <file> [--output <file> | --stdout]"
+        opts.banner = "Usage: ruby scripts/plan-agent-mission.rb --input <file> [--output <file> | --stdout] [--resumo]"
         opts.on('--input FILE', 'Caminho do Cartão de Missão JSON') { |v| input_path = v }
         opts.on('--output FILE', 'Caminho de saída do plano')       { |v| output_path = v }
         opts.on('--stdout', 'Imprimir plano na stdout')              { stdout_mode = true }
+        opts.on('--resumo', 'Imprimir resumo operacional em stderr') { resumo_mode = true }
         opts.on('-h', '--help') do
           warn opts.help
           exit 0
@@ -85,6 +98,8 @@ module MissionPlanner
 
       plano    = plan(cartao)
       json_out = serialize_plan(plano)
+
+      warn format_resumo(plano) if resumo_mode
 
       if stdout_mode
         $stdout.write(json_out)
@@ -249,13 +264,64 @@ module MissionPlanner
       # 13. Build etapas
       etapas = gated ? build_etapas(cartao, papel, skills_selecionadas, adapter_info[:ferramenta]) : []
 
-      # 14. Build plan
+      # 14. Propagate authorized commands (order-preserving dedupe)
+      command_result = propagate_commands(cartao, status, papel: papel)
+      negacoes.concat(command_result[:negacoes])
+      unless command_result[:negacoes].empty?
+        status = determine_status(negacoes, papel_info, adapter_info, skills_result)
+        gated = status == 'planejado'
+        etapas = gated ? build_etapas(cartao, papel, skills_selecionadas, adapter_info[:ferramenta]) : []
+      end
+      comandos = gated ? command_result[:comandos] : []
+      # Plano analítico: nunca carregar comandos (runner não checa executavel)
+      comandos = [] unless mission_requires_commands?(cartao, papel)
+
+      escrita_permitida = gated && papel == 'executor-escopo' && !escrita.empty?
+      permissao = escrita_permitida ? 'workspace-write' : 'read-only'
+      papel_topo = gated ? papel : (papel || 'explorador')
+
+      # União: cartão primeiro, depois defaults; dedupe preservando ordem
+      stop = merge_stop_conditions(cartao['condicoes_parada'] || [])
+
+      topologia = build_default_topology(papel_topo, permissao)
+      writers = topologia['agentes'].count { |a| a['permissao'] == 'workspace-write' }
+      executavel = gated &&
+                   papel == 'executor-escopo' &&
+                   !comandos.empty? &&
+                   negacoes.empty?
+      resumo = {
+        'harness' => 'codex-cli',
+        'estrategia' => 'agente-unico',
+        'agentes_planejados' => topologia['agentes'].size,
+        'max_paralelo' => 1,
+        'writers' => writers,
+        'risco' => escrita_permitida || executavel ? 'medio' : 'baixo',
+        'requer_aprovacao' => true,
+        'executavel' => executavel
+      }
+      simplicidade = {
+        'avaliada' => false,
+        'multiagente_necessario' => false,
+        'justificativa_multiagente' => nil,
+        'reutiliza_existente' => true,
+        'nova_dependencia' => false,
+        'nova_abstracao' => false
+      }
+      limites = {
+        'max_retentativas' => 1,
+        'max_rodadas_revisao' => 1
+      }
+
+      avisos = apply_simplicity_warnings(avisos, resumo, simplicidade)
+
+      # 15. Build plan
       plano = {
         'adaptador_selecionado'    => adapter_info[:caminho],
         'autorizacao_fornecida'    => auth_nivel,
         'autorizacao_necessaria'   => auth_necessaria,
         'avisos'                   => avisos.sort.uniq,
-        'condicoes_parada'         => (cartao['condicoes_parada'] || []).sort,
+        'comandos'                 => comandos,
+        'condicoes_parada'         => stop,
         'delegacao_permitida'      => false,
         'evidencias_requeridas'    => (cartao['evidencias_requeridas'] || []).sort,
         'etapas'                   => etapas,
@@ -263,21 +329,155 @@ module MissionPlanner
         'fluxo_selecionado'        => fluxo_selecionado,
         'fontes_decisao'           => fontes.sort.uniq,
         'leitura_permitida'        => true,
+        'limites'                  => limites,
         'missao_id'                => cartao['id'],
         'negacoes'                 => sort_negacoes(negacoes),
         'papeis_auxiliares'        => [],
         'papel_principal'          => gated ? papel : nil,
         'rede_permitida'           => gated ? effective_rede  : false,
+        'resumo_operacional'       => resumo,
         'shell_permitido'          => gated ? effective_shell : false,
+        'simplicidade'             => simplicidade,
         'skills_selecionadas'      => gated ? skills_selecionadas.sort : [],
         'status'                   => status,
+        'topologia'                => topologia,
         'versao'                   => 1,
-        'escrita_permitida'        => gated && papel == 'executor-escopo' && !escrita.empty?,
+        'escrita_permitida'        => escrita_permitida,
         'acoes_solicitadas'        => acoes_sol.sort,
         'acoes_permitidas'         => acoes_perm.sort,
       }
 
+      require_comandos = mission_requires_commands?(cartao, papel)
+      validate_operational_plan!(plano, require_comandos: require_comandos)
+
+      plan_schema = load_json(PLAN_SCHEMA_PATH)
+      validate_against_schema!(plano, plan_schema)
+
       plano
+    end
+
+    # Public operational validator (used by tests for multi-agent cases).
+    def validate_operational_plan!(plano, require_comandos: true)
+      resumo = plano['resumo_operacional']
+      topo = plano['topologia']
+      fail_op!('resumo_operacional ausente ou invalido') unless resumo.is_a?(Hash)
+      fail_op!('topologia ausente ou invalida') unless topo.is_a?(Hash)
+
+      simp = plano['simplicidade'].is_a?(Hash) ? plano['simplicidade'] : {}
+      status = plano['status']
+      comandos = plano['comandos']
+      fail_op!('comandos deve ser array') unless comandos.is_a?(Array)
+
+      fail_op!('harness must be codex-cli') unless resumo['harness'] == 'codex-cli'
+      unless %w[agente-unico multiagente].include?(resumo['estrategia'])
+        fail_op!('estrategia must be agente-unico or multiagente')
+      end
+      unless [true, false].include?(resumo['executavel'])
+        fail_op!('executavel deve ser boolean')
+      end
+
+      agentes_planejados = require_integer!(resumo, 'agentes_planejados', 'resumo_operacional.agentes_planejados')
+      max_paralelo = require_integer!(resumo, 'max_paralelo', 'resumo_operacional.max_paralelo')
+      writers_declared = require_integer!(resumo, 'writers', 'resumo_operacional.writers')
+      max_agentes = require_integer!(topo, 'max_agentes', 'topologia.max_agentes')
+      max_profundidade = require_integer!(topo, 'max_profundidade', 'topologia.max_profundidade')
+
+      fail_op!('topologia.agentes ausente') unless topo.key?('agentes')
+      agentes = topo['agentes']
+      fail_op!('topologia.agentes deve ser array') unless agentes.is_a?(Array)
+
+      fail_op!('zero agentes') if agentes.empty?
+      if agentes_planejados != agentes.size
+        fail_op!('agentes_planejados divergente da lista')
+      end
+      if max_agentes < agentes.size
+        fail_op!('max_agentes menor que quantidade listada')
+      end
+      if max_paralelo > agentes_planejados
+        fail_op!('max_paralelo maior que agentes_planejados')
+      end
+      fail_op!('max_profundidade must be 1') unless max_profundidade == 1
+      fail_op!('subdelegacao proibida') if topo['permite_subdelegacao'] == true
+
+      ids = agentes.map { |a| a.is_a?(Hash) ? a['id'] : nil }
+      fail_op!('agente com forma invalida') if ids.any?(&:nil?)
+      fail_op!('ids de agentes duplicados') if ids.size != ids.uniq.size
+
+      writers = agentes.select { |a| a['permissao'] == 'workspace-write' }
+      fail_op!('mais de um writer') if writers.size > 1
+      if writers_declared != writers.size
+        fail_op!('writers divergente da topologia')
+      end
+
+      roles = canonical_role_ids
+      agentes.each do |ag|
+        fail_op!("papel desconhecido: #{ag['papel']}") unless roles.include?(ag['papel'])
+        unless %w[read-only workspace-write].include?(ag['permissao'])
+          fail_op!("permissao invalida: #{ag['permissao']}")
+        end
+        if ag['papel'] != 'executor-escopo' && ag['permissao'] == 'workspace-write'
+          fail_op!("permissao workspace-write incompativel com papel #{ag['papel']}")
+        end
+        (ag['depende_de'] || []).each do |dep|
+          fail_op!("dependencia inexistente: #{dep}") unless ids.include?(dep)
+        end
+      end
+      fail_op!('dependencia circular') if circular_deps?(agentes)
+
+      if resumo['estrategia'] == 'agente-unico'
+        fail_op!('agente-unico exige exatamente 1 agente') unless agentes.size == 1
+        fail_op!('agente-unico exige max_paralelo=1') unless max_paralelo == 1
+        fail_op!('agente-unico exige multiagente_necessario=false') if simp['multiagente_necessario']
+      end
+
+      if resumo['estrategia'] == 'multiagente'
+        fail_op!('multiagente exige multiagente_necessario=true') unless simp['multiagente_necessario'] == true
+        just = simp['justificativa_multiagente']
+        if just.nil? || !just.is_a?(String) || just.strip.empty?
+          fail_op!('multiagente exige justificativa_multiagente')
+        end
+      end
+
+      if %w[negado incompleto planejado-com-restricoes].include?(status) && !comandos.empty?
+        fail_op!("status #{status} nao pode ter comandos executaveis")
+      end
+
+      if require_comandos && status == 'planejado' && comandos.empty?
+        fail_op!('planejado exige ao menos um comando')
+      end
+
+      if resumo['executavel'] == true
+        unless status == 'planejado' &&
+               plano['papel_principal'] == 'executor-escopo' &&
+               !comandos.empty? &&
+               Array(plano['negacoes']).empty?
+          fail_op!('executavel=true exige planejado, executor-escopo, comandos e sem negacoes')
+        end
+      end
+
+      true
+    end
+
+    def format_resumo(plano)
+      r = plano['resumo_operacional'] || {}
+      t = plano['topologia'] || {}
+      s = plano['simplicidade'] || {}
+      avisos = Array(plano['avisos']).grep(/\A[A-Z0-9_]+\z/)
+      warnings = avisos.empty? ? 'nenhum' : avisos.join(', ')
+      simplicity = s['avaliada'] ? 'avaliada' : 'pendente de revisão'
+      [
+        "Harness: #{r['harness']}",
+        "Estratégia: #{r['estrategia']}",
+        "Agentes: #{r['agentes_planejados']}",
+        "Paralelos: #{r['max_paralelo']}",
+        "Writers: #{r['writers']}",
+        "Subdelegação: #{t['permite_subdelegacao'] ? 'sim' : 'não'}",
+        "Comandos: #{Array(plano['comandos']).size}",
+        "Executável: #{r['executavel'] ? 'sim' : 'não'}",
+        "Simplicidade: #{simplicity}",
+        "Aprovação humana: #{r['requer_aprovacao'] ? 'necessária' : 'não'}",
+        "Warnings: #{warnings}"
+      ].join("\n")
     end
 
     private
@@ -763,6 +963,133 @@ module MissionPlanner
         'papel'     => papel,
         'skills'    => skills.sort
       }]
+    end
+
+    # ── Operational topology / commands (Fase 3B.2A) ─────────────────
+
+    def fail_op!(message)
+      raise ValidationError, "plano operacional inválido: #{message}"
+    end
+
+    def require_integer!(hash, key, label)
+      fail_op!("#{label} ausente") unless hash.key?(key)
+      value = hash[key]
+      fail_op!("#{label} nulo") if value.nil?
+      fail_op!("#{label} deve ser integer") unless value.is_a?(Integer)
+      value
+    end
+
+    def canonical_role_ids
+      @canonical_role_ids ||= begin
+        roteamento = load_yaml(ROTEAMENTO_PATH)
+        (roteamento['classes'] || {}).keys
+      end
+    end
+
+    def mission_requires_commands?(cartao, papel = nil)
+      papel ||= cartao['papel_preferido']
+      papel == 'executor-escopo' || Array(cartao.dig('escopo', 'escrita')).any?
+    end
+
+    def merge_stop_conditions(card_stops)
+      seen = {}
+      out = []
+      (Array(card_stops) + DEFAULT_STOP_CONDITIONS).each do |item|
+        next if seen[item]
+
+        seen[item] = true
+        out << item
+      end
+      out
+    end
+
+    def catalog_command_ids
+      @catalog_command_ids ||= begin
+        catalog = load_yaml(CATALOG_PATH)
+        (catalog['comandos'] || {}).keys
+      end
+    end
+
+    def propagate_commands(cartao, status, papel: nil)
+      return { comandos: [], negacoes: [] } unless mission_requires_commands?(cartao, papel)
+
+      negacoes = []
+      raw = Array(cartao.dig('executor', 'comandos'))
+      known = catalog_command_ids
+      seen = {}
+      comandos = []
+
+      raw.each do |id|
+        id = id.to_s
+        unless known.include?(id)
+          negacoes << neg('COMMAND_UNKNOWN', "comando desconhecido no catálogo: #{id}")
+          next
+        end
+        next if seen[id]
+
+        seen[id] = true
+        comandos << id
+      end
+
+      if status == 'planejado' && comandos.empty?
+        negacoes << neg(
+          'PLANEJADO_REQUIRES_COMMANDS',
+          'missão executora exige ao menos um comando autorizado do catálogo'
+        )
+      end
+
+      { comandos: comandos, negacoes: negacoes }
+    end
+
+    def build_default_topology(papel, permissao)
+      {
+        'max_agentes' => 1,
+        'max_profundidade' => 1,
+        'permite_subdelegacao' => false,
+        'agentes' => [
+          {
+            'id' => 'principal',
+            'papel' => papel,
+            'permissao' => permissao,
+            'depende_de' => []
+          }
+        ]
+      }
+    end
+
+    def apply_simplicity_warnings(avisos, resumo, simplicidade)
+      out = avisos.dup
+      out << 'SIMPLICITY_REQUIRES_REVIEW' unless simplicidade['avaliada']
+      if resumo['estrategia'] == 'multiagente' || simplicidade['multiagente_necessario']
+        out << 'MULTI_AGENT_REQUIRES_APPROVAL'
+      end
+      out << 'NEW_DEPENDENCY_DECLARED' if simplicidade['nova_dependencia']
+      out << 'NEW_ABSTRACTION_DECLARED' if simplicidade['nova_abstracao']
+      out << 'DOES_NOT_REUSE_EXISTING' if simplicidade['reutiliza_existente'] == false
+      out
+    end
+
+    def circular_deps?(agentes)
+      graph = {}
+      agentes.each { |a| graph[a['id']] = Array(a['depende_de']) }
+
+      visiting = {}
+      visited = {}
+
+      visit = lambda do |node|
+        return true if visiting[node]
+        return false if visited[node]
+
+        visiting[node] = true
+        (graph[node] || []).each do |dep|
+          return true if visit.call(dep)
+        end
+        visiting.delete(node)
+        visited[node] = true
+        false
+      end
+
+      graph.keys.any? { |id| visit.call(id) }
     end
 
     # ── Serialization ────────────────────────────────────────────────

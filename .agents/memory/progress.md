@@ -1,20 +1,22 @@
 # Progress
 
+## 2026-07-13 — Fase 3B.2A (branch `feat/fase-3b2a-plano-minimo`)
+
+- Extensão `contrato-plano.schema.json` (resumo/topologia/simplicidade/limites/comandos)
+- Planner: propagação de comandos, topologia single-agent, `validate_operational_plan!`, `--resumo`
+- Testes de orquestração: **84**
+- README executor atualizado; HANDOFF/decisions; corretiva operacional (`executavel`, fail-closed, dry-run e2e)
+- **Não iniciado:** 3B.2B; schema `if/then`
+
 ## 2026-07-13 — PR #425 MERGED (Fase 3B.1.5)
 
-- **Merge:** squash `46765ab88d3c78460dd94dc1259561724ba0cedf` em `main`
-- **URL:** https://github.com/brunolimaff-jpg/NOVO-APP/pull/425
-- **Head pré-merge:** `4561055c`
-- **Entrega:** AGENTS limpo + orçamento; `.codex/config.toml` `max_threads=3`/`max_depth=1`; benchmark; auditor fail-closed (quoted/composite/dotted TOML); 37 testes; CI Agent Orchestration
-- **Gates próprios no merge:** Skills Governance, Agent Orchestration, Agent Execution, Build — verdes
-- **Probe:** A = `BLOCKED_BY_HARNESS`; B = `NOT_EXECUTED`
-- **Não iniciado:** Fase 3B.2
+- Squash `46765ab8`; docs sync `0f9bfda7`
+- Auditor TOML fail-closed; 37 testes
 
 ## 2026-07-13 — PR #424 MERGED (Fase 3B.1)
 
 - Squash `9c8b3228`; docs sync `f889f57a`
-- Executor local, 54 testes, fail-closed de status
 
 ## 2026-07-13 — PR #423 MERGED (Fase 3A)
 
-- Squash `0f9858a1` — 57 testes de orquestração
+- Squash `0f9858a1`

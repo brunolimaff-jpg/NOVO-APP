@@ -64,7 +64,42 @@ module AgentExecutionValidator
       'fontes_decisao' => ['.agents/orquestracao/roteamento.yaml'],
       'acoes_solicitadas' => [],
       'acoes_permitidas' => %w[ler],
-      'comandos' => commands
+      'comandos' => commands,
+      'resumo_operacional' => {
+        'harness' => 'codex-cli',
+        'estrategia' => 'agente-unico',
+        'agentes_planejados' => 1,
+        'max_paralelo' => 1,
+        'writers' => 0,
+        'risco' => 'baixo',
+        'requer_aprovacao' => true,
+        'executavel' => true
+      },
+      'topologia' => {
+        'max_agentes' => 1,
+        'max_profundidade' => 1,
+        'permite_subdelegacao' => false,
+        'agentes' => [
+          {
+            'id' => 'principal',
+            'papel' => 'validador-entrega',
+            'permissao' => 'read-only',
+            'depende_de' => []
+          }
+        ]
+      },
+      'simplicidade' => {
+        'avaliada' => false,
+        'multiagente_necessario' => false,
+        'justificativa_multiagente' => nil,
+        'reutiliza_existente' => true,
+        'nova_dependencia' => false,
+        'nova_abstracao' => false
+      },
+      'limites' => {
+        'max_retentativas' => 1,
+        'max_rodadas_revisao' => 1
+      }
     }
   end
 
