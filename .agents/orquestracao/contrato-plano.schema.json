@@ -155,6 +155,11 @@
       "type": "array",
       "items": { "type": "string" },
       "uniqueItems": true
+    },
+    "comandos": {
+      "type": "array",
+      "items": { "type": "string" },
+      "uniqueItems": true
     }
   }
 }

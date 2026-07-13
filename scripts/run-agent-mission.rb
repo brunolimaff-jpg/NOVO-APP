@@ -7,15 +7,29 @@ require 'timeout'
 require 'digest'
 require 'tmpdir'
 require 'time'
+require_relative './plan-agent-mission'
 
 module AgentMissionRunner
   ROOT = File.expand_path('..', __dir__)
-  CATALOG_PATH = File.join(ROOT, '.agents/orquestracao/executor/catalogo-comandos.yaml')
+  ORCH_DIR = File.join(ROOT, '.agents/orquestracao')
+  CATALOG_PATH = File.join(ORCH_DIR, 'executor/catalogo-comandos.yaml')
+  CARD_SCHEMA_PATH = File.join(ORCH_DIR, 'cartao-missao.schema.json')
+  PLAN_SCHEMA_PATH = File.join(ORCH_DIR, 'contrato-plano.schema.json')
   TIMEOUT_SECONDS = 120
   MAX_OUTPUT_BYTES = 1_048_576
   SAFE_ENV_KEYS = %w[PATH HOME LANG LC_ALL CI GITHUB_BASE_REF].freeze
   BLOCKED_TOKENS = %w[sh bash zsh fish eval source curl wget ssh scp nc gh vercel supabase].freeze
   BLOCKED_PAIRS = [%w[npm install], %w[gem install], %w[git push], %w[git commit]].freeze
+  DRY_RUN_TIMESTAMP = '1970-01-01T00:00:00Z'
+
+  class DeniedError < StandardError
+    attr_reader :code
+
+    def initialize(code, message)
+      @code = code
+      super(message)
+    end
+  end
 
   module_function
 
@@ -46,6 +60,10 @@ module AgentMissionRunner
     JSON.parse(File.read(safe_path(path, must_exist: true)))
   end
 
+  def load_schema(path)
+    JSON.parse(File.read(path))
+  end
+
   def load_catalog(path = CATALOG_PATH)
     data = YAML.safe_load(File.read(path), aliases: false)
     commands = data.fetch('comandos')
@@ -65,23 +83,50 @@ module AgentMissionRunner
     raise "blocked network/install/git command in #{id}" if BLOCKED_PAIRS.any? { |pair| joined.include?(pair.join(' ')) }
   end
 
-  def requested_commands(card, plan)
-    from_card = card.dig('executor', 'comandos') || card.dig('verificacao', 'comandos') || []
-    from_plan = plan['comandos'] || plan.dig('executor', 'comandos') || []
-    commands = (from_card + from_plan).uniq
-    raise 'missing execution commands' if commands.empty?
+  def normalize_commands(list)
+    Array(list).map(&:to_s).uniq.sort
+  end
+
+  def card_commands(card)
+    card.dig('executor', 'comandos') || []
+  end
+
+  def plan_commands(plan)
+    commands = plan['comandos']
+    raise DeniedError.new('MISSING_COMMANDS', 'plan has no comandos') unless commands.is_a?(Array) && !commands.empty?
     commands
   end
 
+  def validate_command_alignment!(card, plan)
+    card_norm = normalize_commands(card_commands(card))
+    plan_norm = normalize_commands(plan_commands(plan))
+    return plan_commands(plan) if card_norm == plan_norm
+
+    raise DeniedError.new(
+      'COMMAND_PLAN_MISMATCH',
+      "card commands #{card_norm.inspect} differ from plan commands #{plan_norm.inspect}"
+    )
+  end
+
+  def validate_schemas!(card, plan)
+    card_schema = load_schema(CARD_SCHEMA_PATH)
+    plan_schema = load_schema(PLAN_SCHEMA_PATH)
+    MissionPlanner.send(:validate_against_schema!, card, card_schema)
+    MissionPlanner.send(:validate_against_schema!, plan, plan_schema)
+  end
+
   def validate_inputs!(card, plan, catalog)
-    raise 'invalid card id' unless card['id'].is_a?(String) && !card['id'].empty?
-    raise 'mission id mismatch' unless plan['missao_id'] == card['id']
-    raise 'plan status must be planejado' unless plan['status'] == 'planejado'
-    raise 'plan has negacoes' unless Array(plan['negacoes']).empty?
-    raise 'insufficient authorization' unless %w[A2 A3 A4 A5].include?(card.dig('autorizacao', 'nivel'))
-    requested_commands(card, plan).each do |id|
-      raise "command not in catalog: #{id}" unless catalog.key?(id)
+    validate_schemas!(card, plan)
+    raise DeniedError.new('MISSION_MISMATCH', 'mission id mismatch') unless plan['missao_id'] == card['id']
+    raise DeniedError.new('PLAN_STATUS_INVALID', 'plan status must be planejado') unless plan['status'] == 'planejado'
+    raise DeniedError.new('PLAN_NEGATIONS', 'plan has negacoes') unless Array(plan['negacoes']).empty?
+    raise DeniedError.new('AUTH_INSUFFICIENT', 'insufficient authorization') unless %w[A2 A3 A4 A5].include?(card.dig('autorizacao', 'nivel'))
+
+    commands = validate_command_alignment!(card, plan)
+    commands.each do |id|
+      raise DeniedError.new('COMMAND_NOT_IN_CATALOG', "command not in catalog: #{id}") unless catalog.key?(id)
     end
+    commands
   end
 
   def sanitized_env
@@ -101,7 +146,7 @@ module AgentMissionRunner
     if execute
       begin
         Timeout.timeout(TIMEOUT_SECONDS) do
-          stdout, stderr, status = Open3.capture3(sanitized_env, *argv, chdir: ROOT)
+          stdout, stderr, status = Open3.capture3(sanitized_env, *argv, chdir: ROOT, unsetenv_others: true)
           exit_code = status.exitstatus
         end
       rescue Timeout::Error
@@ -124,36 +169,59 @@ module AgentMissionRunner
     }
   end
 
+  def denial_entry(error)
+    if error.is_a?(DeniedError)
+      "#{error.code}: #{error.message}"
+    elsif error.is_a?(MissionPlanner::SchemaError)
+      "SCHEMA_INVALID: #{error.message}"
+    else
+      error.message
+    end
+  end
+
   def run(argv)
     opts = parse(argv)
     card = load_json(opts[:card])
     plan = load_json(opts[:plan])
     catalog = load_catalog
     execute = opts[:execute] && ENV['AGENT_ORCHESTRATION_EXECUTE'] == '1'
-    start = Time.now.utc
     commands = []
     status = execute ? 'success' : 'dry-run'
     negacoes = []
+    start = execute ? Time.now.utc : nil
     begin
-      validate_inputs!(card, plan, catalog)
-      requested_commands(card, plan).each do |id|
+      validated_commands = validate_inputs!(card, plan, catalog)
+      validated_commands.each do |id|
         report = command_report(id, catalog.fetch(id).fetch('argv'), execute)
         status = 'timeout' if report['timeout']
         status = 'failure' if execute && report['exit_code'] && report['exit_code'] != 0 && status == 'success'
         commands << report
       end
+    rescue DeniedError, MissionPlanner::SchemaError => error
+      status = 'denied'
+      negacoes << denial_entry(error)
     rescue StandardError => error
       status = 'denied'
-      negacoes << error.message
+      negacoes << denial_entry(error)
     end
-    finish = Time.now.utc
+
+    if execute
+      finish = Time.now.utc
+      inicio = start.iso8601
+      fim = finish.iso8601
+      duracao_ms = ((finish - start) * 1000).round
+    else
+      inicio = fim = DRY_RUN_TIMESTAMP
+      duracao_ms = 0
+    end
+
     report = {
       'avisos' => execute ? [] : ['dry-run: use --execute e AGENT_ORCHESTRATION_EXECUTE=1 para execução real'],
       'comandos' => commands,
-      'duracao_ms' => ((finish - start) * 1000).round,
+      'duracao_ms' => duracao_ms,
       'evidencias' => ['catalogo fixo', 'argv sem shell', 'ambiente sanitizado', 'sem git mutante'],
-      'fim' => finish.iso8601,
-      'inicio' => start.iso8601,
+      'fim' => fim,
+      'inicio' => inicio,
       'missao_id' => card['id'],
       'modo' => execute ? 'execute' : 'dry-run',
       'negacoes' => negacoes,

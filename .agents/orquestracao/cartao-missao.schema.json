@@ -140,6 +140,18 @@
     },
     "instrucao_atual": {
       "type": "string"
+    },
+    "executor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["comandos"],
+      "properties": {
+        "comandos": {
+          "type": "array",
+          "items": { "type": "string" },
+          "uniqueItems": true
+        }
+      }
     }
   }
 }
