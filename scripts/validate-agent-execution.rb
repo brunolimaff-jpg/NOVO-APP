@@ -73,7 +73,7 @@ module AgentExecutionValidator
         'writers' => 0,
         'risco' => 'baixo',
         'requer_aprovacao' => true,
-        'executavel' => false
+        'executavel' => true
       },
       'topologia' => {
         'max_agentes' => 1,

@@ -243,6 +243,9 @@ module AgentMissionRunner
     raise DeniedError.new('MISSION_MISMATCH', 'mission id mismatch') unless plan['missao_id'] == card['id']
     raise DeniedError.new('PLAN_STATUS_INVALID', 'plan status must be planejado') unless plan['status'] == 'planejado'
     raise DeniedError.new('PLAN_NEGATIONS', 'plan has negacoes') unless Array(plan['negacoes']).empty?
+    unless plan.dig('resumo_operacional', 'executavel') == true
+      raise DeniedError.new('PLAN_NOT_EXECUTABLE', 'plan is not marked as executable')
+    end
     raise DeniedError.new('AUTH_INSUFFICIENT', 'insufficient authorization') unless %w[A2 A3 A4 A5].include?(card.dig('autorizacao', 'nivel'))
 
     commands = validate_command_alignment!(card, plan)
