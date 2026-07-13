@@ -13,6 +13,7 @@ module SkillsGovernanceValidator
   ALLOWED_TOOLS = Set.new(%w[codex claude-code cursor opencode cline]).freeze
   ALLOWED_ROLES = Set.new(%w[explorador investigador-incidentes planejador-solucao executor-escopo revisor-contratos validador-entrega revisor-evidencias-dossie]).freeze
   WRITER_ROLES = Set.new(%w[executor-escopo]).freeze
+  BOOLEAN_FIELDS = %w[selecionavel_por_missao possui_scripts acesso_rede pode_escrever pode_executar_shell pode_delegar].freeze
   ALLOWED_DIRECTORIES = ['.agents/skills/'].freeze
   ALLOWED_EXACT_FILES = [
     'docs/SKILLS-GOVERNANCE.md',
@@ -79,7 +80,9 @@ module SkillsGovernanceValidator
     fail!("duplicate skill id #{skill['id']}") unless ids.add?(skill['id'])
     fail!("invalid type #{skill['tipo']}") unless ALLOWED_TYPES.include?(skill['tipo'])
     fail!("invalid status #{skill['status']}") unless ALLOWED_STATUS.include?(skill['status'])
-    fail!("selecionavel_por_missao must be boolean for #{skill['id']}") unless [true, false].include?(skill['selecionavel_por_missao'])
+    BOOLEAN_FIELDS.each do |field|
+      fail!("#{field} must be boolean for #{skill['id']}") unless [true, false].include?(skill[field])
+    end
 
     caminho = skill['caminho']
     fail!("skill caminho must be a non-empty string for #{skill['id']}") unless caminho.is_a?(String) && !caminho.strip.empty?
