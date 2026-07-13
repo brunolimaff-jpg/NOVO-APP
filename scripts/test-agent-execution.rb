@@ -53,21 +53,22 @@ def build_execution_card(commands = ['git-diff-check'], auth: 'A2', id: 'missao-
   }
 end
 
-def build_execution_plan(commands = ['git-diff-check'], status: 'planejado', missao_id: 'missao-exec-1', negacoes: [])
+def build_execution_plan(commands = ['git-diff-check'], status: 'planejado', missao_id: 'missao-exec-1', negacoes: [], papel: 'executor-escopo')
   executable = status == 'planejado'
   plan_commands = executable ? commands : []
+  writer = papel == 'executor-escopo'
   {
     'versao' => 1,
     'missao_id' => missao_id,
     'status' => status,
-    'papel_principal' => 'validador-entrega',
+    'papel_principal' => papel,
     'ferramenta_selecionada' => 'cursor',
-    'adaptador_selecionado' => '.cursor/agents/validador-entrega.md',
+    'adaptador_selecionado' => ".cursor/agents/#{papel}.md",
     'skills_selecionadas' => [],
     'autorizacao_fornecida' => 'A2',
     'autorizacao_necessaria' => 'A2',
     'leitura_permitida' => true,
-    'escrita_permitida' => false,
+    'escrita_permitida' => writer,
     'shell_permitido' => false,
     'rede_permitida' => false,
     'delegacao_permitida' => false,
@@ -78,7 +79,7 @@ def build_execution_plan(commands = ['git-diff-check'], status: 'planejado', mis
     'avisos' => [],
     'fontes_decisao' => ['.agents/orquestracao/roteamento.yaml'],
     'acoes_solicitadas' => [],
-    'acoes_permitidas' => %w[ler],
+    'acoes_permitidas' => writer ? %w[ler escrever] : %w[ler],
     'comandos' => plan_commands,
     'decisao_execucao' => {
       'estrategia' => 'agente-unico',
@@ -94,10 +95,10 @@ def build_execution_plan(commands = ['git-diff-check'], status: 'planejado', mis
       'estrategia' => 'agente-unico',
       'agentes_planejados' => 1,
       'max_paralelo' => 1,
-      'writers' => 0,
+      'writers' => writer ? 1 : 0,
       'risco' => 'baixo',
       'requer_aprovacao' => true,
-      'executavel' => executable
+      'executavel' => executable && writer
     },
     'topologia' => {
       'max_agentes' => 1,
@@ -106,8 +107,8 @@ def build_execution_plan(commands = ['git-diff-check'], status: 'planejado', mis
       'agentes' => [
         {
           'id' => 'principal',
-          'papel' => 'validador-entrega',
-          'permissao' => 'read-only',
+          'papel' => papel,
+          'permissao' => writer ? 'workspace-write' : 'read-only',
           'depende_de' => []
         }
       ]
@@ -803,6 +804,19 @@ test('hook branch-health usa raiz do repo mesmo com cwd externo') do
     FileUtils.remove_entry(fixture) if fixture && File.exist?(fixture)
     FileUtils.remove_entry(outside) if outside && File.exist?(outside)
   end
+end
+
+
+test('fixture executável usa executor-escopo') do
+  p = build_execution_plan
+  raise 'papel' unless p['papel_principal'] == 'executor-escopo'
+  raise 'executavel' unless p.dig('resumo_operacional', 'executavel') == true
+end
+
+test('fixture inválida validador-entrega não marca executavel') do
+  p = build_execution_plan(papel: 'validador-entrega')
+  raise 'papel' unless p['papel_principal'] == 'validador-entrega'
+  raise 'must not be executable' unless p.dig('resumo_operacional', 'executavel') == false
 end
 
 puts "OK #{@tests} tests"

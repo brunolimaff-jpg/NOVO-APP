@@ -40,21 +40,22 @@ module AgentExecutionValidator
     }
   end
 
-  def build_plan(commands, status: 'planejado', missao_id: 'validate-exec-1')
+  def build_plan(commands, status: 'planejado', missao_id: 'validate-exec-1', papel: 'executor-escopo')
     executable = status == 'planejado'
     plan_commands = executable ? commands : []
+    writer = papel == 'executor-escopo'
     {
       'versao' => 1,
       'missao_id' => missao_id,
       'status' => status,
-      'papel_principal' => 'validador-entrega',
+      'papel_principal' => papel,
       'ferramenta_selecionada' => 'cursor',
-      'adaptador_selecionado' => '.cursor/agents/validador-entrega.md',
+      'adaptador_selecionado' => ".cursor/agents/#{papel}.md",
       'skills_selecionadas' => [],
       'autorizacao_fornecida' => 'A2',
       'autorizacao_necessaria' => 'A2',
       'leitura_permitida' => true,
-      'escrita_permitida' => false,
+      'escrita_permitida' => writer,
       'shell_permitido' => false,
       'rede_permitida' => false,
       'delegacao_permitida' => false,
@@ -65,7 +66,7 @@ module AgentExecutionValidator
       'avisos' => [],
       'fontes_decisao' => ['.agents/orquestracao/roteamento.yaml'],
       'acoes_solicitadas' => [],
-      'acoes_permitidas' => %w[ler],
+      'acoes_permitidas' => writer ? %w[ler escrever] : %w[ler],
       'comandos' => plan_commands,
       'decisao_execucao' => {
         'estrategia' => 'agente-unico',
@@ -81,10 +82,10 @@ module AgentExecutionValidator
         'estrategia' => 'agente-unico',
         'agentes_planejados' => 1,
         'max_paralelo' => 1,
-        'writers' => 0,
+        'writers' => writer ? 1 : 0,
         'risco' => 'baixo',
         'requer_aprovacao' => true,
-        'executavel' => executable
+        'executavel' => executable && writer
       },
       'topologia' => {
         'max_agentes' => 1,
@@ -93,8 +94,8 @@ module AgentExecutionValidator
         'agentes' => [
           {
             'id' => 'principal',
-            'papel' => 'validador-entrega',
-            'permissao' => 'read-only',
+            'papel' => papel,
+            'permissao' => writer ? 'workspace-write' : 'read-only',
             'depende_de' => []
           }
         ]
