@@ -30,6 +30,11 @@ module SkillsGovernanceValidator
     'scripts/run-agent-mission.rb',
     'scripts/validate-agent-execution.rb',
     'scripts/test-agent-execution.rb',
+    'scripts/hook-sensitive-file-alert.sh',
+    '.claude/settings.json',
+    '.cursor/hooks.json',
+    '.cursor/hooks/branch-health-json.sh',
+    '.gitignore',
     '.github/workflows/ci.yml',
     '.ruby-version'
   ].freeze
