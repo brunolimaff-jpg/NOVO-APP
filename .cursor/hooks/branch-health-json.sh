@@ -49,7 +49,10 @@ fi
 
 OUTPUT=""
 EXIT_CODE=0
-OUTPUT="$(bash "$REPO_ROOT/scripts/check-branch-health.sh" "$CHECK_REF" 2>&1)" || EXIT_CODE=$?
+OUTPUT="$(
+  cd "$REPO_ROOT" &&
+  bash "$REPO_ROOT/scripts/check-branch-health.sh" "$CHECK_REF" 2>&1
+)" || EXIT_CODE=$?
 
 if [ "$EXIT_CODE" -eq 0 ]; then
   if [ -n "$OUTPUT" ]; then

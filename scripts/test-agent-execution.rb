@@ -648,4 +648,58 @@ test('hook branch-health deny apenas em git commit acima do limite') do
   raise unless JSON.parse(out)['permission'] == 'allow'
 end
 
+test('hook branch-health usa raiz do repo mesmo com cwd externo') do
+  # Fixture repo: health script denies only when cwd == REPO_ROOT.
+  # Without `cd "$REPO_ROOT"` the old hook would exit 0 from outside and allow.
+  fixture = Dir.mktmpdir('hook-cwd-fixture')
+  outside = Dir.mktmpdir('hook-cwd-outside')
+  begin
+    FileUtils.mkdir_p(File.join(fixture, '.cursor/hooks'))
+    FileUtils.mkdir_p(File.join(fixture, 'scripts'))
+    hook = File.join(fixture, '.cursor/hooks/branch-health-json.sh')
+    FileUtils.cp(File.join(ROOT, '.cursor/hooks/branch-health-json.sh'), hook)
+    File.chmod(0o755, hook)
+
+    health = File.join(fixture, 'scripts/check-branch-health.sh')
+    File.write(health, <<~BASH)
+      #!/bin/bash
+      set -euo pipefail
+      if [ "$(pwd)" = "#{fixture}" ]; then
+        echo "OVER_LIMIT_FROM_ROOT"
+        exit 1
+      fi
+      echo "WRONG_CWD=$(pwd)"
+      exit 0
+    BASH
+    File.chmod(0o755, health)
+
+    commit_input = JSON.generate({ 'command' => 'git commit -m test' })
+    out, err, status = Open3.capture3(
+      { 'BRANCH_HEALTH_SKIP' => '0' },
+      hook,
+      'main',
+      stdin_data: commit_input,
+      chdir: outside
+    )
+    raise "expected deny exit 2, got #{status.exitstatus} out=#{out} err=#{err}" unless status.exitstatus == 2
+    parsed = JSON.parse(out)
+    raise "permission=#{parsed['permission']}" unless parsed['permission'] == 'deny'
+    raise 'missing over-limit evidence' unless (parsed['agent_message'] || '').include?('OVER_LIMIT_FROM_ROOT')
+
+    other_input = JSON.generate({ 'command' => 'echo hello' })
+    out2, err2, status2 = Open3.capture3(
+      { 'BRANCH_HEALTH_SKIP' => '0' },
+      hook,
+      'main',
+      stdin_data: other_input,
+      chdir: outside
+    )
+    raise "non-commit should allow err=#{err2}" unless status2.success?
+    raise unless JSON.parse(out2)['permission'] == 'allow'
+  ensure
+    FileUtils.remove_entry(fixture) if fixture && File.exist?(fixture)
+    FileUtils.remove_entry(outside) if outside && File.exist?(outside)
+  end
+end
+
 puts "OK #{@tests} tests"
