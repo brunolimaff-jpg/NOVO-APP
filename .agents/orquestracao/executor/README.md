@@ -55,3 +55,19 @@ O cartão e o plano precisam solicitar exatamente o mesmo conjunto de IDs (norma
 - `safe_path` rejeita symlinks de arquivo/parent fora de repo/tmp.
 - Truncamento de stdout/stderr a 1 MB com `scrub` UTF-8.
 - Hooks Cursor da PR: apenas `beforeShellExecution` com matcher `git commit` (sem `preToolUse` genérico).
+
+## Hook Cursor de branch health
+
+O hook Cursor de branch health usa `failClosed: false` intencionalmente para não bloquear o ambiente quando o hook estiver indisponível.
+
+Ele é uma proteção de higiene operacional e não uma fronteira de segurança. As autorizações e negações do executor não dependem desse hook.
+
+## Limitações da Fase 3B.1
+
+Na Fase 3B.1, o planner da Fase 3A ainda não propaga automaticamente `executor.comandos` para `plano.comandos`.
+
+Cartão e plano precisam apresentar manualmente o mesmo conjunto de IDs.
+
+A propagação automática e a exigência condicional de `comandos` diretamente no JSON Schema ficam para a Fase 3B.2.
+
+O executor atual permanece fail-closed e rejeita plano `planejado` sem comandos com `PLANEJADO_REQUIRES_COMMANDS`.
