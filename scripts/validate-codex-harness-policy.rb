@@ -32,6 +32,9 @@ module CodexHarnessPolicy
   ].freeze
 
   QUOTED_KEY_ERROR = 'quoted TOML keys are unsupported by the harness policy validator'
+  COMPOSITE_VALUE_ERROR = 'composite TOML values are unsupported by the harness policy validator'
+  DOTTED_ASSIGNMENT_ERROR = 'dotted TOML assignment keys are unsupported by the harness policy validator'
+  INVALID_TABLE_HEADER_ERROR = 'invalid TOML table header'
 
   module_function
 
@@ -42,6 +45,25 @@ module CodexHarnessPolicy
   # Fail-closed: quoted assignment keys and quoted table-header segments are unsupported.
   def reject_quoted_key!(token)
     fail!(QUOTED_KEY_ERROR) if token.include?('"') || token.include?("'")
+  end
+
+  def reject_dotted_assignment_key!(key)
+    fail!(DOTTED_ASSIGNMENT_ERROR) if key.include?('.')
+  end
+
+  def reject_composite_value!(value)
+    return if value.start_with?('"') || value.start_with?("'")
+
+    fail!(COMPOSITE_VALUE_ERROR) if value.start_with?('{') || value.start_with?('[')
+  end
+
+  def parse_table_header!(header)
+    reject_quoted_key!(header)
+    segments = header.split('.', -1).map(&:strip)
+    fail!(INVALID_TABLE_HEADER_ERROR) if segments.empty? || segments.any?(&:empty?)
+
+    segments.each { |segment| reject_quoted_key!(segment) }
+    segments
   end
 
   # Strip a trailing # comment unless the # is inside a quoted string.
@@ -69,9 +91,7 @@ module CodexHarnessPolicy
       next if line.empty? || line.start_with?('#')
 
       if line =~ /\A\[([^\]]+)\]\z/
-        header = Regexp.last_match(1)
-        reject_quoted_key!(header)
-        path = header.split('.')
+        path = parse_table_header!(Regexp.last_match(1))
         current = result
         path.each do |part|
           current[part] ||= {}
@@ -85,8 +105,10 @@ module CodexHarnessPolicy
 
       key = key.strip
       reject_quoted_key!(key)
+      reject_dotted_assignment_key!(key)
       value = strip_trailing_comment(value.strip)
       fail!("invalid toml line: #{line}") if value.empty?
+      reject_composite_value!(value)
 
       parsed =
         if value.match?(/\A\d+\z/)

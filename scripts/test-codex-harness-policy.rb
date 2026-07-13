@@ -391,6 +391,174 @@ end
 
 Dir.mktmpdir('codex-harness-policy') do |dir|
   seed_docs!(dir)
+  write(
+    File.join(dir, '.codex/config.toml'),
+    <<~TOML
+      [agents]
+      max_threads = 3
+      max_depth = 1
+      features = { multi_agent_v2 = { enabled = true } }
+    TOML
+  )
+  expect_error('inline table with forbidden key fails', /composite TOML values are unsupported/) do
+    CodexHarnessPolicy.validate_config!(root: dir)
+  end
+  tests << 'inline-table-forbidden'
+end
+
+Dir.mktmpdir('codex-harness-policy') do |dir|
+  seed_docs!(dir)
+  write(
+    File.join(dir, '.codex/config.toml'),
+    <<~TOML
+      [agents]
+      max_threads = 3
+      max_depth = 1
+      meta = { label = "ok" }
+    TOML
+  )
+  expect_error('inline table without forbidden key fails', /composite TOML values are unsupported/) do
+    CodexHarnessPolicy.validate_config!(root: dir)
+  end
+  tests << 'inline-table-generic'
+end
+
+Dir.mktmpdir('codex-harness-policy') do |dir|
+  seed_docs!(dir)
+  write(
+    File.join(dir, '.codex/config.toml'),
+    <<~TOML
+      [agents]
+      max_threads = 3
+      max_depth = 1
+      models = ["gpt-5.6-sol"]
+    TOML
+  )
+  expect_error('inline array fails', /composite TOML values are unsupported/) do
+    CodexHarnessPolicy.validate_config!(root: dir)
+  end
+  tests << 'inline-array'
+end
+
+Dir.mktmpdir('codex-harness-policy') do |dir|
+  seed_docs!(dir)
+  write(
+    File.join(dir, '.codex/config.toml'),
+    <<~TOML
+      [agents]
+      max_threads = 3
+      max_depth = 1
+      features.multi_agent_v2.enabled = true
+    TOML
+  )
+  expect_error('dotted assignment with forbidden key fails', /dotted TOML assignment keys are unsupported/) do
+    CodexHarnessPolicy.validate_config!(root: dir)
+  end
+  tests << 'dotted-assignment-forbidden'
+end
+
+Dir.mktmpdir('codex-harness-policy') do |dir|
+  seed_docs!(dir)
+  write(
+    File.join(dir, '.codex/config.toml'),
+    <<~TOML
+      [agents]
+      max_threads = 3
+      max_depth = 1
+      agents.max_threads = 3
+    TOML
+  )
+  expect_error('generic dotted assignment fails', /dotted TOML assignment keys are unsupported/) do
+    CodexHarnessPolicy.validate_config!(root: dir)
+  end
+  tests << 'dotted-assignment-generic'
+end
+
+Dir.mktmpdir('codex-harness-policy') do |dir|
+  seed_docs!(dir)
+  write(
+    File.join(dir, '.codex/config.toml'),
+    <<~TOML
+      [agents]
+      max_threads = 3
+      max_depth = 1
+      [features . multi_agent_v2]
+      enabled = true
+    TOML
+  )
+  expect_error('spaced table header with forbidden key fails', /forbidden experimental key present: multi_agent_v2/) do
+    CodexHarnessPolicy.validate_config!(root: dir)
+  end
+  tests << 'spaced-table-forbidden'
+end
+
+Dir.mktmpdir('codex-harness-policy') do |dir|
+  seed_docs!(dir)
+  write(
+    File.join(dir, '.codex/config.toml'),
+    <<~TOML
+      [agents]
+      max_threads = 3
+      max_depth = 1
+      [features.]
+      enabled = true
+    TOML
+  )
+  expect_error('empty table segment fails', /invalid TOML table header/) do
+    CodexHarnessPolicy.validate_config!(root: dir)
+  end
+  tests << 'empty-table-segment'
+end
+
+Dir.mktmpdir('codex-harness-policy') do |dir|
+  seed_docs!(dir)
+  write(
+    File.join(dir, '.codex/config.toml'),
+    <<~TOML
+      [agents]
+      max_threads = 3
+      max_depth = 1
+      label = "{ texto }"
+    TOML
+  )
+  CodexHarnessPolicy.validate_config!(root: dir)
+  pass!('quoted value containing brace passes')
+  tests << 'quoted-brace-value'
+end
+
+Dir.mktmpdir('codex-harness-policy') do |dir|
+  seed_docs!(dir)
+  write(
+    File.join(dir, '.codex/config.toml'),
+    <<~TOML
+      [agents]
+      max_threads = 3
+      max_depth = 1
+      label = "[texto]"
+    TOML
+  )
+  CodexHarnessPolicy.validate_config!(root: dir)
+  pass!('quoted value containing bracket passes')
+  tests << 'quoted-bracket-value'
+end
+
+Dir.mktmpdir('codex-harness-policy') do |dir|
+  seed_docs!(dir)
+  write(
+    File.join(dir, '.codex/config.toml'),
+    <<~TOML
+      [agents]
+      max_threads = 3
+      max_depth = 1
+    TOML
+  )
+  CodexHarnessPolicy.validate_config!(root: dir)
+  pass!('[agents] header passes')
+  tests << 'agents-header-ok'
+end
+
+Dir.mktmpdir('codex-harness-policy') do |dir|
+  seed_docs!(dir)
   FileUtils.rm_f(File.join(dir, 'docs/benchmarks/codex-harness-5.6.md'))
   expect_error('missing benchmark doc fails', /missing docs\/benchmarks\/codex-harness-5.6.md/) do
     CodexHarnessPolicy.validate_benchmark_doc!(root: dir)
