@@ -6,7 +6,7 @@ Last updated: 2026-07-13 — Fase 3B.2A em andamento (`feat/fase-3b2a-plano-mini
 
 - **Branch:** `feat/fase-3b2a-plano-minimo` (baseline `origin/main` @ `0f9bfda7`)
 - **Escopo:** plano mínimo + topologia explícita (parcial 3B.2); **sem** spawn real de agentes
-- **Testes orch:** 79
+- **Testes orch:** 84
 - **Próximo após merge:** Fase 3B.2B — sob pedido explícito
 
 ## Fonte da verdade

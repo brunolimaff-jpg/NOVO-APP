@@ -113,7 +113,7 @@
     },
     "condicoes_parada": {
       "type": "array",
-      "description": "União das condições do Cartão com as condições operacionais padrão do planner (comandos_concluidos, alteracao_fora_do_escopo, tempo_excedido, agente_nao_planejado). Duplicatas são removidas.",
+      "description": "União das condições do Cartão (ordem preservada) com as condições operacionais padrão do planner (comandos_concluidos, alteracao_fora_do_escopo, tempo_excedido, agente_nao_planejado). Duplicatas são removidas sem sort alfabético.",
       "items": { "type": "string" },
       "uniqueItems": true
     },

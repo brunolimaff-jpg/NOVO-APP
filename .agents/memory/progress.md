@@ -4,8 +4,8 @@
 
 - Extensão `contrato-plano.schema.json` (resumo/topologia/simplicidade/limites/comandos)
 - Planner: propagação de comandos, topologia single-agent, `validate_operational_plan!`, `--resumo`
-- Testes de orquestração: **79** (57 + 22)
-- README executor atualizado; HANDOFF/decisions
+- Testes de orquestração: **84**
+- README executor atualizado; HANDOFF/decisions; corretiva operacional (`executavel`, fail-closed, dry-run e2e)
 - **Não iniciado:** 3B.2B; schema `if/then`
 
 ## 2026-07-13 — PR #425 MERGED (Fase 3B.1.5)

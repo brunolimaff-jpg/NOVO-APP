@@ -524,6 +524,8 @@ module OrchestrationTests
         result = MissionPlanner.send(
           :propagate_commands,
           {
+            'papel_preferido' => 'executor-escopo',
+            'escopo' => { 'escrita' => ['x.ts'] },
             'executor' => {
               'comandos' => %w[
                 test-agent-orchestration git-diff-check
@@ -531,7 +533,8 @@ module OrchestrationTests
               ]
             }
           },
-          'planejado'
+          'planejado',
+          papel: 'executor-escopo'
         )
         assert_eq(result[:comandos], %w[test-agent-orchestration git-diff-check validate-agent-orchestration])
         assert_eq(result[:negacoes], [])
@@ -621,6 +624,23 @@ module OrchestrationTests
           assert_true(codes.none? { |c| c == 'PLANEJADO_REQUIRES_COMMANDS' }, report['negacoes'].inspect)
           assert_true(report['comandos'].none? { |c| c['executado'] }, 'nenhum comando deveria executar')
         end
+      end
+
+      test("3B.2A analitico ignora executor.comandos orfaos") do
+        card = build_readonly_card
+        card['executor'] = { 'comandos' => ['git-diff-check'] }
+        plano = run_planner_parse(card)
+        assert_eq(plano['status'], 'planejado')
+        assert_eq(plano['comandos'], [])
+        assert_eq(plano['resumo_operacional']['executavel'], false)
+      end
+
+      test("3B.2A stop conditions preservam ordem do cartao") do
+        card = build_readonly_card
+        card['condicoes_parada'] = %w[zebra alpha]
+        plano = run_planner_parse(card)
+        assert_eq(plano['condicoes_parada'].first(2), %w[zebra alpha])
+        assert_true(plano['condicoes_parada'].include?('comandos_concluidos'))
       end
 
       test("3B.2A falha: executor sem comandos (sem chave executor)") do

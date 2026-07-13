@@ -78,7 +78,7 @@ Missão `executor-escopo` ou com escrita autorizada **não** depende da presenç
 
 ### Stop conditions
 
-O planner **preserva** `condicoes_parada` do cartão e **acrescenta** condições operacionais padrão (`comandos_concluidos`, `alteracao_fora_do_escopo`, `tempo_excedido`, `agente_nao_planejado`). Duplicatas são removidas.
+O planner **preserva a ordem** de `condicoes_parada` do cartão e **acrescenta** condições operacionais padrão (`comandos_concluidos`, `alteracao_fora_do_escopo`, `tempo_excedido`, `agente_nao_planejado`). Duplicatas são removidas sem reordenar alfabeticamente.
 
 Ainda deferred:
 

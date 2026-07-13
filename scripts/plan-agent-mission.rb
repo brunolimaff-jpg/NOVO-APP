@@ -273,13 +273,15 @@ module MissionPlanner
         etapas = gated ? build_etapas(cartao, papel, skills_selecionadas, adapter_info[:ferramenta]) : []
       end
       comandos = gated ? command_result[:comandos] : []
+      # Plano analítico: nunca carregar comandos (runner não checa executavel)
+      comandos = [] unless mission_requires_commands?(cartao, papel)
 
       escrita_permitida = gated && papel == 'executor-escopo' && !escrita.empty?
       permissao = escrita_permitida ? 'workspace-write' : 'read-only'
       papel_topo = gated ? papel : (papel || 'explorador')
 
-      # União: condições do cartão + stop operacionais padrão (dedupe)
-      stop = ((cartao['condicoes_parada'] || []) + DEFAULT_STOP_CONDITIONS).uniq.sort
+      # União: cartão primeiro, depois defaults; dedupe preservando ordem
+      stop = merge_stop_conditions(cartao['condicoes_parada'] || [])
 
       topologia = build_default_topology(papel_topo, permissao)
       writers = topologia['agentes'].count { |a| a['permissao'] == 'workspace-write' }
@@ -986,9 +988,19 @@ module MissionPlanner
 
     def mission_requires_commands?(cartao, papel = nil)
       papel ||= cartao['papel_preferido']
-      papel == 'executor-escopo' ||
-        Array(cartao.dig('escopo', 'escrita')).any? ||
-        cartao.key?('executor')
+      papel == 'executor-escopo' || Array(cartao.dig('escopo', 'escrita')).any?
+    end
+
+    def merge_stop_conditions(card_stops)
+      seen = {}
+      out = []
+      (Array(card_stops) + DEFAULT_STOP_CONDITIONS).each do |item|
+        next if seen[item]
+
+        seen[item] = true
+        out << item
+      end
+      out
     end
 
     def catalog_command_ids
@@ -999,6 +1011,8 @@ module MissionPlanner
     end
 
     def propagate_commands(cartao, status, papel: nil)
+      return { comandos: [], negacoes: [] } unless mission_requires_commands?(cartao, papel)
+
       negacoes = []
       raw = Array(cartao.dig('executor', 'comandos'))
       known = catalog_command_ids
@@ -1017,7 +1031,7 @@ module MissionPlanner
         comandos << id
       end
 
-      if mission_requires_commands?(cartao, papel) && status == 'planejado' && comandos.empty?
+      if status == 'planejado' && comandos.empty?
         negacoes << neg(
           'PLANEJADO_REQUIRES_COMMANDS',
           'missão executora exige ao menos um comando autorizado do catálogo'
