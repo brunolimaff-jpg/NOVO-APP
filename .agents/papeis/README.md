@@ -390,6 +390,8 @@ Ferramentas com adaptadores ativos: Claude Code (`.claude/agents/`), Codex (`.co
 
 Ferramentas sem adaptador materializado nesta fase: Cline. O suporte foi documentado por superfície, mas a materialização local de `.cline/agents/` ficou para subtarefa específica.
 
+Camada de skills auditadas: ver `.agents/skills/README.md` e `.agents/skills/registry.yaml`.
+
 ## Itens para fases futuras
 
 - Configuração de modelo ou esforço por papel.

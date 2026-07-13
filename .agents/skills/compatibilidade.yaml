@@ -1,0 +1,67 @@
+ferramentas:
+  codex:
+    mecanismo: skills em diretórios .agents/skills e ~/.agents/skills; sistema também expõe ~/.codex/skills/.system
+    caminho:
+      - .agents/skills/<nome>/SKILL.md
+      - ~/.agents/skills/<nome>/SKILL.md
+      - ~/.codex/skills/.system/<nome>/SKILL.md
+    descoberta: documentada oficialmente em Build Skills; repo skills sob .agents/skills
+    formato: SKILL.md com name e description; optional agents/openai.yaml; progressive disclosure
+    limitacoes:
+      - nao foi validada descoberta de .codex/skills/ como camada repo-local nesta fase
+      - system skills globais nao entram automaticamente como aprovadas no registry do projeto
+
+  claude-code:
+    mecanismo: skills nativas em .claude/skills; comandos antigos em .claude/commands permanecem como compatibilidade
+    caminho:
+      - .claude/skills/<nome>/SKILL.md
+      - ~/.claude/skills/<nome>/SKILL.md
+      - .claude/commands/<nome>.md
+    descoberta: oficial e com recarga dinâmica; skills e commands compartilham slash command
+    formato: SKILL.md com frontmatter YAML; suporta allowed-tools, disallowed-tools, disable-model-invocation, context, agent e outros campos
+    limitacoes:
+      - skills podem se tornar perigosas se allowed-tools for amplo
+      - commands legados ainda aceitos, mas não devem substituir o registry canônico
+
+  cursor:
+    mecanismo: Agent Skills nativas e compatíveis
+    caminho:
+      - .cursor/skills/<nome>/SKILL.md
+      - .agents/skills/<nome>/SKILL.md
+      - .claude/skills/<nome>/SKILL.md
+      - ~/.cursor/skills/<nome>/SKILL.md
+      - ~/.agents/skills/<nome>/SKILL.md
+      - ~/.claude/skills/<nome>/SKILL.md
+    descoberta: oficial; o agente descobre skills recursivamente e por diretórios aninhados
+    formato: SKILL.md com name, description, optional paths, disable-model-invocation e metadata
+    limitacoes:
+      - superfície IDE não estava instalada nesta sessão para validação prática
+      - compatibilidade com .codex/skills não foi comprovada localmente por filesystem
+
+  opencode:
+    mecanismo: Agent Skills nativas com compatibilidade Claude/Agents
+    caminho:
+      - .opencode/skills/<nome>/SKILL.md
+      - ~/.config/opencode/skills/<nome>/SKILL.md
+      - .claude/skills/<nome>/SKILL.md
+      - .agents/skills/<nome>/SKILL.md
+      - ~/.claude/skills/<nome>/SKILL.md
+      - ~/.agents/skills/<nome>/SKILL.md
+    descoberta: oficial; sobe da cwd até a git worktree e carrega skills dos diretórios compatíveis
+    formato: SKILL.md com name, description, license, compatibility e metadata; campos desconhecidos são ignorados
+    limitacoes:
+      - não existe diretório global ~/.config/opencode/skills nesta máquina hoje
+      - skills aprovadas devem ter controle explícito via permission.skill ou tools.skill
+
+  cline:
+    mecanismo: skills nativas com compatibilidade parcial
+    caminho:
+      - .cline/skills/<nome>/SKILL.md
+      - .clinerules/skills/<nome>/SKILL.md
+      - .claude/skills/<nome>/SKILL.md
+      - ~/.cline/skills/<nome>/SKILL.md
+    descoberta: oficial; skills aparecem no menu e podem ser acionadas por slash command ou auto-match
+    formato: SKILL.md com name e description obrigatórios; diretórios opcionais docs/, templates/ e scripts/
+    limitacoes:
+      - criação e carga de .cline/skills não foram validadas operacionalmente nesta fase
+      - uso real pode depender da superfície (IDE, CLI, SDK)

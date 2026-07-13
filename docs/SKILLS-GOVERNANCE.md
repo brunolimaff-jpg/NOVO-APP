@@ -13,15 +13,25 @@ Objetivo: manter o repo operável sem depender de skills versionadas dentro do r
 - `docs/obsidian/` é uma camada documental versionada do repo para navegação em grafo, não uma integração externa nem um MCP extra
 - **Supabase** é a nova camada de banco de dados para persistência (Postgres gerenciado via `lib/supabaseClient.ts`), integração obrigatória para persistência remota — `services/storage.ts`, `services/syncQueue.ts`
 
-## Allowlist oficial
+## Registry canônico
 
-A skill `delivery-loop` é a única skill operacional ativa e versionada no repo. Nenhuma integração externa é obrigatória.
+A camada canônica de skills auditadas passa a viver em:
+
+- `.agents/skills/README.md`
+- `.agents/skills/registry.yaml`
+- `.agents/skills/politica-seguranca.md`
+- `.agents/skills/compatibilidade.yaml`
+- `.agents/skills/avaliacoes/autoskills.md`
+
+O `skills-lock.json` atual continua mínimo e compatível. Não foi sobrescrito nem migrado destrutivamente nesta fase.
 
 ## Classificação operacional
 
 ### `active`
 
-- `delivery-loop` — orquestrador canônico do ciclo de entrega (fases 0–8, estado terminal `REPORT_READY`). Fonte: `.agents/skills/delivery-loop/SKILL.md`. Spec: `docs/plans/2026-06-23-delivery-loop-design.md`. Wrappers que apenas a invocam: `~/.claude/commands/delivery-loop.md`, `~/.agents/skills/source-command-delivery-loop/SKILL.md`. O repo prevalece sobre definições globais.
+- `delivery-loop` — fluxo canônico de entrega, mantido como skill empacotada com restrições explícitas no registry. Fonte: `.agents/skills/delivery-loop/SKILL.md`. Spec: `docs/plans/2026-06-23-delivery-loop-design.md`.
+- `validate-gates` — skill local de validação, aprovada com restrições para papéis não leitores.
+- `supabase-migration` — skill local de migration, aprovada com restrições e dependente de autorização explícita.
 
 ### `archived`
 
@@ -42,7 +52,7 @@ Também foram arquivados os documentos legados de MCP/skills que descreviam um s
 
 ### `global-only`
 
-Skills globais podem existir na máquina do usuário e podem ser usadas por conveniência, mas não devem ser assumidas por docs, handoffs ou automações do projeto.
+Skills globais podem existir na máquina do usuário e podem ser usadas por conveniência, mas não entram como aprovadas no registry do projeto sem auditoria local explícita.
 
 ## Regras de uso
 
@@ -50,11 +60,13 @@ Skills globais podem existir na máquina do usuário e podem ser usadas por conv
 - Antes de citar uma integração externa, confirme se ela é opcional ou foi oficialmente adicionada aqui.
 - Não documente fluxos que dependam de skills globais específicas não versionadas no repo.
 - Não reintroduza MCPs locais sem atualizar este documento, `README.md`, `AGENTS.md`, `CLAUDE.md` e `skills-lock.json`.
+- AutoSkills foi avaliado como `piloto controlado`, não dependência operacional.
 
 ## Estado esperado do repo
 
-- `.agents/skills/` contém `delivery-loop/` (ativa), `archive/` (referência histórica) e skills de conveniência
-- `skills-lock.json` registra `delivery-loop` como única skill local ativa
+- `.agents/skills/` contém `delivery-loop/`, `archive/`, o registry canônico e a política de segurança
+- `.claude/skills/` mantém skills locais de compatibilidade (`supabase-migration`, `validate-gates`) até eventual consolidação futura
+- `skills-lock.json` segue compatível e mínimo; migração destrutiva ficou fora do escopo
 - `.mcp.json` não declara servidores extras
 - `README.md`, `CLAUDE.md`, `AGENTS.md` e `HANDOFF_AI.md` contam a mesma história
 - `docs/obsidian/00-MASTER.md` aponta para arquitetura + roadmap e deixa explícitas as fontes canônicas reais
@@ -72,6 +84,7 @@ Regras:
 - Apenas um papel tem escrita no workspace: `executor-escopo`. Os demais são leitores.
 - Decisões estruturais, merge e deploy continuam humanas (níveis A5 e A6).
 - `delivery-loop` permanece inalterado; a integração dos papéis ao ciclo de entrega fica para Fase 2.
+- Skills aprovadas não ampliam autorização, escrita, merge, deploy nem delegação.
 
 Papéis canônicos: `explorador`, `investigador-incidentes`, `planejador-solucao`, `executor-escopo`, `revisor-contratos`, `validador-entrega`, `revisor-evidencias-dossie`.
 
@@ -119,3 +132,4 @@ No curto prazo, este setup cobre o necessário para:
 - planejar e executar a refatoração estrutural
 - documentar decisões de arquitetura e handoff
 - preservar lições aprendidas sem acoplar o repo a skills locais
+- preparar a seleção futura de skills por Cartão de Missão sem integrar ainda o `delivery-loop`
