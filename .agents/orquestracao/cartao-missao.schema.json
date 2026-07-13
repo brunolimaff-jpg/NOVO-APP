@@ -152,6 +152,108 @@
           "uniqueItems": true
         }
       }
+    },
+    "simplicidade": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["reutiliza_existente", "nova_dependencia", "nova_abstracao"],
+      "properties": {
+        "reutiliza_existente": { "type": "boolean" },
+        "nova_dependencia": { "type": "boolean" },
+        "nova_abstracao": { "type": "boolean" }
+      }
+    },
+    "execucao_planejada": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "estrategia": {
+          "type": "string",
+          "enum": ["agente-unico", "multiagente"]
+        },
+        "justificativa_multiagente": { "type": ["string", "null"] },
+        "ganho_esperado": { "type": ["string", "null"] },
+        "perfil_execucao": {
+          "type": "string",
+          "enum": ["minimal-change", "padrao"]
+        },
+        "gate_qualidade": {
+          "type": "string",
+          "enum": ["evidence-first", "padrao"]
+        },
+        "agentes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id", "papel", "permissao", "depende_de"],
+            "properties": {
+              "id": { "type": "string", "minLength": 1 },
+              "papel": { "type": "string", "minLength": 1 },
+              "permissao": {
+                "type": "string",
+                "enum": ["read-only", "workspace-write"]
+              },
+              "depende_de": {
+                "type": "array",
+                "items": { "type": "string" },
+                "uniqueItems": true
+              }
+            }
+          }
+        },
+        "tarefas": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id", "agente", "objetivo", "entrega_esperada", "nao_fazer", "arquivos", "depende_de"],
+            "properties": {
+              "id": { "type": "string", "minLength": 1 },
+              "agente": { "type": "string", "minLength": 1 },
+              "objetivo": { "type": "string", "minLength": 1 },
+              "entrega_esperada": { "type": "string", "minLength": 1 },
+              "nao_fazer": {
+                "type": "array",
+                "items": { "type": "string" },
+                "uniqueItems": true
+              },
+              "arquivos": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["leitura", "escrita"],
+                "properties": {
+                  "leitura": {
+                    "type": "array",
+                    "items": { "type": "string" }
+                  },
+                  "escrita": {
+                    "type": "array",
+                    "items": { "type": "string" }
+                  }
+                }
+              },
+              "depende_de": {
+                "type": "array",
+                "items": { "type": "string" },
+                "uniqueItems": true
+              }
+            }
+          }
+        },
+        "limites": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "max_agentes": { "type": "integer", "minimum": 1 },
+            "max_paralelo": { "type": "integer", "minimum": 1, "maximum": 2 },
+            "max_tempo_segundos": { "type": "integer", "minimum": 1 },
+            "max_retentativas": { "type": "integer", "minimum": 0 },
+            "max_rodadas_revisao": { "type": "integer", "minimum": 0 },
+            "permite_subdelegacao": { "type": "boolean" }
+          }
+        }
+      }
     }
   }
 }
