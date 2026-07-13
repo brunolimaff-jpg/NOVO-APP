@@ -1,5 +1,14 @@
 # decisions.md — NOVO-APP
 
+## Novas Decisões (Sessão 2026-07-13 — Fase 3B.1.5)
+
+### DI-2026-07-13-04: Multi-Agent V2 não é tratado como roteador confiável até prova de runtime
+
+- **Decisão:** Não ativar Multi-Agent V2 globalmente; não tratar Desktop/tool-backed como baseline; validar preferencialmente via `codex exec`/CLI. Adaptadores `.codex/agents/*.toml` permanecem declarativos. Cartão de Missão + executor continuam sendo a fronteira de autorização. Controles de projeto: `max_threads=3`, `max_depth=1`, sem flags experimentais de contexto/fast/V2.
+- **Contexto:** Bugs conhecidos do harness (#31814, #31864, #20077, #32291, #32591, #32640, #32806) mostram que modelo/reasoning/agent_type/sandbox podem ser ignorados ou amplificados.
+- **Impacto:** Benchmark multi-agent só vira padrão após prova controlada (`docs/benchmarks/codex-harness-5.6.md`). Fases 0–3B.1 permanecem válidas.
+- **Referência:** `.codex/config.toml`, `AGENTS.md`, `.agents/adaptadores/README.md`, Fase 3B.1.5
+
 ## Novas Decisões (Sessão 2026-07-13 — Fase 3B.1 / PR #424)
 
 ### DI-2026-07-13-03: Só `planejado` é executável na Fase 3B.1 (fail-closed)
