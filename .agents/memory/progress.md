@@ -1,16 +1,13 @@
 # Progress
 
-## 2026-07-13 — Fase 3B.1.5 (em PR)
+## 2026-07-13 — PR #425 MERGED (Fase 3B.1.5)
 
-- Branch: `chore/fase-3b15-harness-hardening`
-- Removido `<claude-mem-context>` do `AGENTS.md`
-- Política de orçamento de subagentes adicionada
-- `.codex/config.toml`: `max_threads=3`, `max_depth=1` (sem flags experimentais)
-- Docs: Multi-Agent V2 não confiável até prova de runtime
-- Protocolo: `docs/benchmarks/codex-harness-5.6.md`
-- Auditor: `scripts/validate-codex-harness-policy.rb` + `scripts/test-codex-harness-policy.rb`
-- Integração no job CI Agent Orchestration
-- Contagens atualizadas: Orchestration **57**, Execution **54**, Skills **32**
+- **Merge:** squash `46765ab88d3c78460dd94dc1259561724ba0cedf` em `main`
+- **URL:** https://github.com/brunolimaff-jpg/NOVO-APP/pull/425
+- **Head pré-merge:** `4561055c`
+- **Entrega:** AGENTS limpo + orçamento; `.codex/config.toml` `max_threads=3`/`max_depth=1`; benchmark; auditor fail-closed (quoted/composite/dotted TOML); 37 testes; CI Agent Orchestration
+- **Gates próprios no merge:** Skills Governance, Agent Orchestration, Agent Execution, Build — verdes
+- **Probe:** A = `BLOCKED_BY_HARNESS`; B = `NOT_EXECUTED`
 - **Não iniciado:** Fase 3B.2
 
 ## 2026-07-13 — PR #424 MERGED (Fase 3B.1)

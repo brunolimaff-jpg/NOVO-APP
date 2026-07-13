@@ -1,6 +1,13 @@
 # decisions.md — NOVO-APP
 
-## Novas Decisões (Sessão 2026-07-13 — Fase 3B.1.5)
+## Novas Decisões (Sessão 2026-07-13 — Fase 3B.1.5 / PR #425)
+
+### DI-2026-07-13-05: Parser TOML do auditor é fail-closed na gramática mínima
+
+- **Decisão:** O validador de harness Codex rejeita chaves/segmentos quoted, valores compostos (`{`/`[`), dotted assignment keys e segmentos vazios em cabeçalhos; não amplia a gramática TOML completa nesta fase. Strings com aspas escapadas fora do subset canônico ficam como melhoria futura não bloqueante.
+- **Contexto:** Bypass reproduzível via quoted keys / inline tables / dotted keys evitaria `reject_forbidden_keys!` se o parser engolisse construções desconhecidas como strings.
+- **Impacto:** Suite de política com 37 testes; `.codex/config.toml` canônico permanece sem essas construções.
+- **Referência:** `scripts/validate-codex-harness-policy.rb`, PR #425 squash `46765ab8`
 
 ### DI-2026-07-13-04: Multi-Agent V2 não é tratado como roteador confiável até prova de runtime
 
