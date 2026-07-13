@@ -41,6 +41,8 @@ module AgentExecutionValidator
   end
 
   def build_plan(commands, status: 'planejado', missao_id: 'validate-exec-1')
+    executable = status == 'planejado'
+    plan_commands = executable ? commands : []
     {
       'versao' => 1,
       'missao_id' => missao_id,
@@ -64,7 +66,16 @@ module AgentExecutionValidator
       'fontes_decisao' => ['.agents/orquestracao/roteamento.yaml'],
       'acoes_solicitadas' => [],
       'acoes_permitidas' => %w[ler],
-      'comandos' => commands,
+      'comandos' => plan_commands,
+      'decisao_execucao' => {
+        'estrategia' => 'agente-unico',
+        'origem' => 'default',
+        'motivo' => 'default determinístico',
+        'justificativa_multiagente' => nil,
+        'ganho_esperado' => nil,
+        'perfil_execucao' => 'minimal-change',
+        'gate_qualidade' => 'evidence-first'
+      },
       'resumo_operacional' => {
         'harness' => 'codex-cli',
         'estrategia' => 'agente-unico',
@@ -73,7 +84,7 @@ module AgentExecutionValidator
         'writers' => 0,
         'risco' => 'baixo',
         'requer_aprovacao' => true,
-        'executavel' => true
+        'executavel' => executable
       },
       'topologia' => {
         'max_agentes' => 1,
@@ -88,6 +99,17 @@ module AgentExecutionValidator
           }
         ]
       },
+      'tarefas_planejadas' => [
+        {
+          'id' => 'task-01',
+          'agente' => 'principal',
+          'objetivo' => 'Gerar relatórios de execução controlada',
+          'entrega_esperada' => 'Relatório válido',
+          'nao_fazer' => [],
+          'arquivos' => { 'leitura' => ['scripts/'], 'escrita' => [] },
+          'depende_de' => []
+        }
+      ],
       'simplicidade' => {
         'avaliada' => false,
         'multiagente_necessario' => false,
@@ -98,7 +120,8 @@ module AgentExecutionValidator
       },
       'limites' => {
         'max_retentativas' => 1,
-        'max_rodadas_revisao' => 1
+        'max_rodadas_revisao' => 1,
+        'max_tempo_segundos' => 900
       }
     }
   end

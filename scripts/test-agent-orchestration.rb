@@ -542,6 +542,15 @@ module OrchestrationTests
 
       test("3B.2A multi-agent com justificativa passa no validador") do
         plano = build_operational_plan(
+          'decisao_execucao' => {
+            'estrategia' => 'multiagente',
+            'origem' => 'cartao',
+            'motivo' => 'declarado no cartão',
+            'justificativa_multiagente' => 'Exploração e escrita precisam de papéis distintos sem overlap.',
+            'ganho_esperado' => 'Reduzir tempo de diagnóstico',
+            'perfil_execucao' => 'minimal-change',
+            'gate_qualidade' => 'evidence-first'
+          },
           'resumo_operacional' => {
             'estrategia' => 'multiagente',
             'agentes_planejados' => 2,
@@ -556,6 +565,16 @@ module OrchestrationTests
               { 'id' => 'escritor', 'papel' => 'executor-escopo', 'permissao' => 'workspace-write', 'depende_de' => ['leitor'] }
             ]
           },
+          'tarefas_planejadas' => [
+            {
+              'id' => 'task-01', 'agente' => 'leitor', 'objetivo' => 'mapear', 'entrega_esperada' => 'mapa',
+              'nao_fazer' => [], 'arquivos' => { 'leitura' => ['scripts/'], 'escrita' => [] }, 'depende_de' => []
+            },
+            {
+              'id' => 'task-02', 'agente' => 'escritor', 'objetivo' => 'corrigir', 'entrega_esperada' => 'diff',
+              'nao_fazer' => [], 'arquivos' => { 'leitura' => [], 'escrita' => ['scripts/x.rb'] }, 'depende_de' => ['task-01']
+            }
+          ],
           'simplicidade' => {
             'avaliada' => false,
             'multiagente_necessario' => true,
@@ -772,6 +791,389 @@ module OrchestrationTests
         assert_eq(plano['resumo_operacional']['executavel'], false)
       end
 
+      # === FASE 3B.2B — estratégia explícita / tarefas / schema condicional ===
+      test("3B.2B default sem execucao_planejada") do
+        plano = run_planner_parse(build_readonly_card)
+        assert_eq(plano['decisao_execucao']['estrategia'], 'agente-unico')
+        assert_eq(plano['decisao_execucao']['origem'], 'default')
+        assert_eq(plano['resumo_operacional']['estrategia'], 'agente-unico')
+        assert_eq(plano['topologia']['agentes'].size, 1)
+        assert_eq(plano['tarefas_planejadas'].size, 1)
+        assert_eq(plano['limites']['max_tempo_segundos'], 900)
+      end
+
+      test("3B.2B agente default usa papel principal") do
+        plano = run_planner_parse(build_readonly_card)
+        assert_eq(plano['topologia']['agentes'][0]['papel'], 'explorador')
+        assert_eq(plano['tarefas_planejadas'][0]['agente'], 'principal')
+      end
+
+      test("3B.2B executor com escrita gera um writer") do
+        plano = run_planner_parse(build_executor_card)
+        assert_eq(plano['resumo_operacional']['writers'], 1)
+        assert_eq(plano['topologia']['agentes'][0]['permissao'], 'workspace-write')
+      end
+
+      test("3B.2B analitico gera agente read-only") do
+        plano = run_planner_parse(build_readonly_card)
+        assert_eq(plano['topologia']['agentes'][0]['permissao'], 'read-only')
+        assert_eq(plano['resumo_operacional']['writers'], 0)
+      end
+
+      test("3B.2B perfil default minimal-change") do
+        plano = run_planner_parse(build_readonly_card)
+        assert_eq(plano['decisao_execucao']['perfil_execucao'], 'minimal-change')
+      end
+
+      test("3B.2B gate default evidence-first") do
+        plano = run_planner_parse(build_readonly_card)
+        assert_eq(plano['decisao_execucao']['gate_qualidade'], 'evidence-first')
+      end
+
+      test("3B.2B single-agent explicito preservado") do
+        card = build_readonly_card
+        card['execucao_planejada'] = {
+          'estrategia' => 'agente-unico',
+          'agentes' => [
+            { 'id' => 'principal', 'papel' => 'explorador', 'permissao' => 'read-only', 'depende_de' => [] }
+          ],
+          'tarefas' => [
+            {
+              'id' => 'task-01', 'agente' => 'principal', 'objetivo' => 'mapear', 'entrega_esperada' => 'mapa',
+              'nao_fazer' => [], 'arquivos' => { 'leitura' => ['scripts/'], 'escrita' => [] }, 'depende_de' => []
+            }
+          ]
+        }
+        plano = run_planner_parse(card)
+        assert_eq(plano['decisao_execucao']['origem'], 'cartao')
+        assert_eq(plano['resumo_operacional']['estrategia'], 'agente-unico')
+        assert_eq(plano['topologia']['agentes'].size, 1)
+      end
+
+      test("3B.2B multi-agent dois leitores independentes") do
+        card = build_multi_reader_card
+        plano = run_planner_parse(card)
+        assert_eq(plano['status'], 'planejado')
+        assert_eq(plano['resumo_operacional']['estrategia'], 'multiagente')
+        assert_eq(plano['topologia']['agentes'].size, 2)
+        assert_eq(plano['resumo_operacional']['writers'], 0)
+      end
+
+      test("3B.2B multi-agent dois leitores e um writer") do
+        card = build_multi_mixed_card
+        plano = run_planner_parse(card)
+        assert_eq(plano['status'], 'planejado')
+        assert_eq(plano['topologia']['agentes'].size, 3)
+        assert_eq(plano['resumo_operacional']['writers'], 1)
+        assert_eq(plano['tarefas_planejadas'].size, 3)
+      end
+
+      test("3B.2B tarefas preservam ordem") do
+        card = build_multi_mixed_card
+        plano = run_planner_parse(card)
+        assert_eq(plano['tarefas_planejadas'].map { |t| t['id'] }, %w[task-a task-b task-c])
+      end
+
+      test("3B.2B caminhos dedupe sem sort") do
+        card = build_readonly_card
+        card['execucao_planejada'] = {
+          'estrategia' => 'agente-unico',
+          'agentes' => [
+            { 'id' => 'principal', 'papel' => 'explorador', 'permissao' => 'read-only', 'depende_de' => [] }
+          ],
+          'tarefas' => [
+            {
+              'id' => 'task-01', 'agente' => 'principal', 'objetivo' => 'mapear', 'entrega_esperada' => 'mapa',
+              'nao_fazer' => [],
+              'arquivos' => {
+                'leitura' => ['scripts/a.rb', 'scripts/a.rb', 'scripts/b.rb'],
+                'escrita' => []
+              },
+              'depende_de' => []
+            }
+          ]
+        }
+        plano = run_planner_parse(card)
+        assert_eq(plano['tarefas_planejadas'][0]['arquivos']['leitura'], %w[scripts/a.rb scripts/b.rb])
+      end
+
+      test("3B.2B simplicidade explicita avaliada") do
+        card = build_readonly_card
+        card['simplicidade'] = {
+          'reutiliza_existente' => false,
+          'nova_dependencia' => true,
+          'nova_abstracao' => false
+        }
+        plano = run_planner_parse(card)
+        assert_eq(plano['simplicidade']['avaliada'], true)
+        assert_eq(plano['simplicidade']['nova_dependencia'], true)
+        assert_true(plano['avisos'].include?('NEW_DEPENDENCY_DECLARED'))
+      end
+
+      test("3B.2B schema aceita executavel com comandos") do
+        plano = run_planner_parse(build_executor_card)
+        schema = JSON.parse(File.read(File.join(ORCH_DIR, 'contrato-plano.schema.json')))
+        MissionPlanner.send(:validate_against_schema!, plano, schema)
+      end
+
+      test("3B.2B schema aceita analitico sem comandos") do
+        plano = run_planner_parse(build_readonly_card)
+        schema = JSON.parse(File.read(File.join(ORCH_DIR, 'contrato-plano.schema.json')))
+        MissionPlanner.send(:validate_against_schema!, plano, schema)
+      end
+
+      test("3B.2B resumo mostra estrategia tarefas e orcamento") do
+        require 'open3'
+        Tempfile.create(['mission', '.json']) do |f|
+          f.write(JSON.pretty_generate(build_executor_card))
+          f.flush
+          _out, err, status = Open3.capture3('ruby', PLANNER, '--input', f.path, '--stdout', '--resumo')
+          raise "planner falhou: #{err}" unless status.success?
+          assert_true(err.include?('Estratégia: agente-unico'), err)
+          assert_true(err.include?('Tarefas: 1'), err)
+          assert_true(err.include?('Tempo máximo: 900s'), err)
+          assert_true(err.include?('Perfil: minimal-change'), err)
+        end
+      end
+
+      test_denied("3B.2B multi sem justificativa", code: 'MULTI_AGENT_NO_JUSTIFICATION') do |card|
+        c = build_multi_reader_card
+        c['execucao_planejada'].delete('justificativa_multiagente')
+        c
+      end
+
+      test_denied("3B.2B multi sem ganho", code: 'MULTI_AGENT_NO_GAIN') do |card|
+        c = build_multi_reader_card
+        c['execucao_planejada'].delete('ganho_esperado')
+        c
+      end
+
+      test_denied("3B.2B quatro agentes", code: 'MULTI_AGENT_COUNT_INVALID') do |card|
+        build_multi_card_with_agents(4)
+      end
+
+      test_denied("3B.2B dois writers", code: 'MULTIPLE_WRITERS_DENIED') do |card|
+        c = build_multi_mixed_card
+        c['execucao_planejada']['agentes'] << {
+          'id' => 'writer-2', 'papel' => 'executor-escopo', 'permissao' => 'workspace-write', 'depende_de' => []
+        }
+        c['execucao_planejada']['tarefas'] << {
+          'id' => 'task-w2', 'agente' => 'writer-2', 'objetivo' => 'escrever', 'entrega_esperada' => 'diff',
+          'nao_fazer' => [], 'arquivos' => { 'leitura' => [], 'escrita' => ['x.ts'] }, 'depende_de' => []
+        }
+        c['execucao_planejada']['limites']['max_agentes'] = 4
+        c
+      end
+
+      test_denied("3B.2B subdelegacao habilitada", code: 'SUBDELEGATION_DENIED') do |card|
+        c = build_multi_reader_card
+        c['execucao_planejada']['limites']['permite_subdelegacao'] = true
+        c
+      end
+
+      test_denied("3B.2B papel desconhecido", code: 'AGENT_ROLE_UNKNOWN') do |card|
+        c = build_readonly_card
+        c['execucao_planejada'] = {
+          'estrategia' => 'agente-unico',
+          'agentes' => [
+            { 'id' => 'principal', 'papel' => 'hacker-fantasma', 'permissao' => 'read-only', 'depende_de' => [] }
+          ],
+          'tarefas' => [
+            {
+              'id' => 'task-01', 'agente' => 'principal', 'objetivo' => 'x', 'entrega_esperada' => 'y',
+              'nao_fazer' => [], 'arquivos' => { 'leitura' => [], 'escrita' => [] }, 'depende_de' => []
+            }
+          ]
+        }
+        c
+      end
+
+      test_denied("3B.2B agente sem tarefa", code: 'AGENT_WITHOUT_TASK') do |card|
+        c = build_multi_reader_card
+        c['execucao_planejada']['tarefas'].pop
+        c
+      end
+
+      test_denied("3B.2B tarefa agente inexistente", code: 'TASK_AGENT_UNKNOWN') do |card|
+        c = build_readonly_card
+        c['execucao_planejada'] = {
+          'estrategia' => 'agente-unico',
+          'agentes' => [
+            { 'id' => 'principal', 'papel' => 'explorador', 'permissao' => 'read-only', 'depende_de' => [] }
+          ],
+          'tarefas' => [
+            {
+              'id' => 'task-01', 'agente' => 'fantasma', 'objetivo' => 'x', 'entrega_esperada' => 'y',
+              'nao_fazer' => [], 'arquivos' => { 'leitura' => [], 'escrita' => [] }, 'depende_de' => []
+            }
+          ]
+        }
+        c
+      end
+
+      test_denied("3B.2B dependencia circular tarefas", code: 'TASK_CIRCULAR_DEPENDENCY') do |card|
+        c = build_multi_reader_card
+        c['execucao_planejada']['tarefas'] = [
+          {
+            'id' => 'task-a', 'agente' => 'a', 'objetivo' => 'a', 'entrega_esperada' => 'a',
+            'nao_fazer' => [], 'arquivos' => { 'leitura' => [], 'escrita' => [] }, 'depende_de' => ['task-b']
+          },
+          {
+            'id' => 'task-b', 'agente' => 'b', 'objetivo' => 'b', 'entrega_esperada' => 'b',
+            'nao_fazer' => [], 'arquivos' => { 'leitura' => [], 'escrita' => [] }, 'depende_de' => ['task-a']
+          }
+        ]
+        c
+      end
+
+      test_denied("3B.2B tarefa sem objetivo", code: 'TASK_OBJECTIVE_MISSING') do |card|
+        c = build_readonly_card
+        c['execucao_planejada'] = {
+          'estrategia' => 'agente-unico',
+          'agentes' => [
+            { 'id' => 'principal', 'papel' => 'explorador', 'permissao' => 'read-only', 'depende_de' => [] }
+          ],
+          'tarefas' => [
+            {
+              'id' => 'task-01', 'agente' => 'principal', 'objetivo' => '   ', 'entrega_esperada' => 'y',
+              'nao_fazer' => [], 'arquivos' => { 'leitura' => [], 'escrita' => [] }, 'depende_de' => []
+            }
+          ]
+        }
+        c
+      end
+
+      test_denied("3B.2B tarefa sem entrega", code: 'TASK_DELIVERY_MISSING') do |card|
+        c = build_readonly_card
+        c['execucao_planejada'] = {
+          'estrategia' => 'agente-unico',
+          'agentes' => [
+            { 'id' => 'principal', 'papel' => 'explorador', 'permissao' => 'read-only', 'depende_de' => [] }
+          ],
+          'tarefas' => [
+            {
+              'id' => 'task-01', 'agente' => 'principal', 'objetivo' => 'x', 'entrega_esperada' => '  ',
+              'nao_fazer' => [], 'arquivos' => { 'leitura' => [], 'escrita' => [] }, 'depende_de' => []
+            }
+          ]
+        }
+        c
+      end
+
+      test_denied("3B.2B read-only com escrita", code: 'FILE_OWNERSHIP_PERMISSION_MISMATCH') do |card|
+        c = build_readonly_card
+        c['execucao_planejada'] = {
+          'estrategia' => 'agente-unico',
+          'agentes' => [
+            { 'id' => 'principal', 'papel' => 'explorador', 'permissao' => 'read-only', 'depende_de' => [] }
+          ],
+          'tarefas' => [
+            {
+              'id' => 'task-01', 'agente' => 'principal', 'objetivo' => 'x', 'entrega_esperada' => 'y',
+              'nao_fazer' => [], 'arquivos' => { 'leitura' => [], 'escrita' => ['scripts/x.rb'] }, 'depende_de' => []
+            }
+          ]
+        }
+        c
+      end
+
+      test_denied("3B.2B caminho absoluto", code: 'PATH_ABSOLUTE_DENIED') do |card|
+        c = build_readonly_card
+        c['execucao_planejada'] = {
+          'estrategia' => 'agente-unico',
+          'agentes' => [
+            { 'id' => 'principal', 'papel' => 'explorador', 'permissao' => 'read-only', 'depende_de' => [] }
+          ],
+          'tarefas' => [
+            {
+              'id' => 'task-01', 'agente' => 'principal', 'objetivo' => 'x', 'entrega_esperada' => 'y',
+              'nao_fazer' => [], 'arquivos' => { 'leitura' => ['/etc/passwd'], 'escrita' => [] }, 'depende_de' => []
+            }
+          ]
+        }
+        c
+      end
+
+      test_denied("3B.2B caminho com ..", code: 'PATH_TRAVERSAL_DENIED') do |card|
+        c = build_readonly_card
+        c['execucao_planejada'] = {
+          'estrategia' => 'agente-unico',
+          'agentes' => [
+            { 'id' => 'principal', 'papel' => 'explorador', 'permissao' => 'read-only', 'depende_de' => [] }
+          ],
+          'tarefas' => [
+            {
+              'id' => 'task-01', 'agente' => 'principal', 'objetivo' => 'x', 'entrega_esperada' => 'y',
+              'nao_fazer' => [], 'arquivos' => { 'leitura' => ['../secrets'], 'escrita' => [] }, 'depende_de' => []
+            }
+          ]
+        }
+        c
+      end
+
+      test_validation_error("3B.2B max_paralelo maior que 2 no schema") do |card|
+        c = build_multi_reader_card
+        c['execucao_planejada']['limites']['max_paralelo'] = 3
+        c
+      end
+
+      test_denied("3B.2B single-agent com dois agentes", code: 'SINGLE_AGENT_TOO_MANY') do |card|
+        c = build_readonly_card
+        c['execucao_planejada'] = {
+          'estrategia' => 'agente-unico',
+          'agentes' => [
+            { 'id' => 'a', 'papel' => 'explorador', 'permissao' => 'read-only', 'depende_de' => [] },
+            { 'id' => 'b', 'papel' => 'revisor-contratos', 'permissao' => 'read-only', 'depende_de' => [] }
+          ],
+          'tarefas' => [
+            {
+              'id' => 'task-a', 'agente' => 'a', 'objetivo' => 'x', 'entrega_esperada' => 'y',
+              'nao_fazer' => [], 'arquivos' => { 'leitura' => [], 'escrita' => [] }, 'depende_de' => []
+            },
+            {
+              'id' => 'task-b', 'agente' => 'b', 'objetivo' => 'x', 'entrega_esperada' => 'y',
+              'nao_fazer' => [], 'arquivos' => { 'leitura' => [], 'escrita' => [] }, 'depende_de' => []
+            }
+          ]
+        }
+        c
+      end
+
+      [
+        ['executavel true sem comandos', lambda { |p|
+          p['status'] = 'planejado'
+          p['resumo_operacional']['executavel'] = true
+          p['comandos'] = []
+        }],
+        ['executavel false com comandos', lambda { |p|
+          p['resumo_operacional']['executavel'] = false
+          p['comandos'] = ['git-diff-check']
+        }],
+        ['status negado com comandos', lambda { |p|
+          p['status'] = 'negado'
+          p['comandos'] = ['git-diff-check']
+          p['resumo_operacional']['executavel'] = false
+        }],
+        ['planejado-com-restricoes com comandos', lambda { |p|
+          p['status'] = 'planejado-com-restricoes'
+          p['comandos'] = ['git-diff-check']
+          p['resumo_operacional']['executavel'] = false
+        }]
+      ].each do |name, mutator|
+        test("3B.2B schema falha: #{name}") do
+          plano = build_operational_plan
+          mutator.call(plano)
+          schema = JSON.parse(File.read(File.join(ORCH_DIR, 'contrato-plano.schema.json')))
+          raised = false
+          begin
+            MissionPlanner.send(:validate_against_schema!, plano, schema)
+          rescue MissionPlanner::SchemaError
+            raised = true
+          end
+          raise "esperava SchemaError para #{name}" unless raised
+        end
+      end
+
       # Print summary
       print_summary
     end
@@ -919,6 +1321,15 @@ module OrchestrationTests
         'papel_principal' => 'explorador',
         'negacoes' => [],
         'comandos' => ['git-diff-check'],
+        'decisao_execucao' => {
+          'estrategia' => 'agente-unico',
+          'origem' => 'default',
+          'motivo' => 'default determinístico',
+          'justificativa_multiagente' => nil,
+          'ganho_esperado' => nil,
+          'perfil_execucao' => 'minimal-change',
+          'gate_qualidade' => 'evidence-first'
+        },
         'resumo_operacional' => {
           'harness' => 'codex-cli',
           'estrategia' => 'agente-unico',
@@ -942,6 +1353,17 @@ module OrchestrationTests
             }
           ]
         },
+        'tarefas_planejadas' => [
+          {
+            'id' => 'task-01',
+            'agente' => 'principal',
+            'objetivo' => 'objetivo de teste',
+            'entrega_esperada' => 'entrega de teste',
+            'nao_fazer' => [],
+            'arquivos' => { 'leitura' => ['scripts/'], 'escrita' => [] },
+            'depende_de' => []
+          }
+        ],
         'simplicidade' => {
           'avaliada' => false,
           'multiagente_necessario' => false,
@@ -952,7 +1374,8 @@ module OrchestrationTests
         },
         'limites' => {
           'max_retentativas' => 1,
-          'max_rodadas_revisao' => 1
+          'max_rodadas_revisao' => 1,
+          'max_tempo_segundos' => 900
         }
       }
       deep_merge_hash(base, overrides)
@@ -1074,6 +1497,95 @@ module OrchestrationTests
       c['objetivo'] = 'Validar entrega e executar gates de teste'
       c['papel_preferido'] = 'validador-entrega'
       c['instrucao_atual'] = 'valida a entrega'
+      c
+    end
+
+    def build_multi_reader_card
+      c = build_readonly_card
+      c['id'] = 'test-multi-readers'
+      c['execucao_planejada'] = {
+        'estrategia' => 'multiagente',
+        'justificativa_multiagente' => 'Duas investigações independentes em domínios distintos.',
+        'ganho_esperado' => 'Reduzir tempo de diagnóstico',
+        'agentes' => [
+          { 'id' => 'a', 'papel' => 'explorador', 'permissao' => 'read-only', 'depende_de' => [] },
+          { 'id' => 'b', 'papel' => 'investigador-incidentes', 'permissao' => 'read-only', 'depende_de' => [] }
+        ],
+        'tarefas' => [
+          {
+            'id' => 'task-a', 'agente' => 'a', 'objetivo' => 'mapear código', 'entrega_esperada' => 'mapa',
+            'nao_fazer' => [], 'arquivos' => { 'leitura' => ['scripts/'], 'escrita' => [] }, 'depende_de' => []
+          },
+          {
+            'id' => 'task-b', 'agente' => 'b', 'objetivo' => 'investigar logs', 'entrega_esperada' => 'relatório',
+            'nao_fazer' => [], 'arquivos' => { 'leitura' => ['.agents/'], 'escrita' => [] }, 'depende_de' => []
+          }
+        ],
+        'limites' => { 'max_agentes' => 2, 'max_paralelo' => 2 }
+      }
+      c
+    end
+
+    def build_multi_mixed_card
+      c = build_executor_card
+      c['id'] = 'test-multi-mixed'
+      c['execucao_planejada'] = {
+        'estrategia' => 'multiagente',
+        'justificativa_multiagente' => 'Exploração e escrita precisam de papéis distintos.',
+        'ganho_esperado' => 'Separar leitura e escrita com dependência explícita',
+        'agentes' => [
+          { 'id' => 'reader-a', 'papel' => 'explorador', 'permissao' => 'read-only', 'depende_de' => [] },
+          { 'id' => 'reader-b', 'papel' => 'revisor-contratos', 'permissao' => 'read-only', 'depende_de' => [] },
+          { 'id' => 'writer', 'papel' => 'executor-escopo', 'permissao' => 'workspace-write', 'depende_de' => %w[reader-a reader-b] }
+        ],
+        'tarefas' => [
+          {
+            'id' => 'task-a', 'agente' => 'reader-a', 'objetivo' => 'mapear', 'entrega_esperada' => 'mapa',
+            'nao_fazer' => [], 'arquivos' => { 'leitura' => ['scripts/'], 'escrita' => [] }, 'depende_de' => []
+          },
+          {
+            'id' => 'task-b', 'agente' => 'reader-b', 'objetivo' => 'revisar', 'entrega_esperada' => 'notas',
+            'nao_fazer' => [], 'arquivos' => { 'leitura' => ['.agents/'], 'escrita' => [] }, 'depende_de' => []
+          },
+          {
+            'id' => 'task-c', 'agente' => 'writer', 'objetivo' => 'implementar', 'entrega_esperada' => 'diff',
+            'nao_fazer' => ['refatorar'], 'arquivos' => { 'leitura' => [], 'escrita' => ['src/test.ts'] }, 'depende_de' => %w[task-a task-b]
+          }
+        ],
+        'limites' => { 'max_agentes' => 3, 'max_paralelo' => 2 }
+      }
+      c
+    end
+
+    def build_multi_card_with_agents(count)
+      c = build_readonly_card
+      agentes = count.times.map do |i|
+        {
+          'id' => "agent-#{i}",
+          'papel' => 'explorador',
+          'permissao' => 'read-only',
+          'depende_de' => []
+        }
+      end
+      tarefas = count.times.map do |i|
+        {
+          'id' => "task-#{i}",
+          'agente' => "agent-#{i}",
+          'objetivo' => "objetivo #{i}",
+          'entrega_esperada' => "entrega #{i}",
+          'nao_fazer' => [],
+          'arquivos' => { 'leitura' => [], 'escrita' => [] },
+          'depende_de' => []
+        }
+      end
+      c['execucao_planejada'] = {
+        'estrategia' => 'multiagente',
+        'justificativa_multiagente' => 'teste com muitos agentes',
+        'ganho_esperado' => 'nenhum',
+        'agentes' => agentes,
+        'tarefas' => tarefas,
+        'limites' => { 'max_agentes' => count, 'max_paralelo' => 1 }
+      }
       c
     end
 

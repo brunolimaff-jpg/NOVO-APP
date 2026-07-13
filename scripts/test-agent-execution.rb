@@ -54,6 +54,8 @@ def build_execution_card(commands = ['git-diff-check'], auth: 'A2', id: 'missao-
 end
 
 def build_execution_plan(commands = ['git-diff-check'], status: 'planejado', missao_id: 'missao-exec-1', negacoes: [])
+  executable = status == 'planejado'
+  plan_commands = executable ? commands : []
   {
     'versao' => 1,
     'missao_id' => missao_id,
@@ -77,7 +79,16 @@ def build_execution_plan(commands = ['git-diff-check'], status: 'planejado', mis
     'fontes_decisao' => ['.agents/orquestracao/roteamento.yaml'],
     'acoes_solicitadas' => [],
     'acoes_permitidas' => %w[ler],
-    'comandos' => commands,
+    'comandos' => plan_commands,
+    'decisao_execucao' => {
+      'estrategia' => 'agente-unico',
+      'origem' => 'default',
+      'motivo' => 'default determinístico',
+      'justificativa_multiagente' => nil,
+      'ganho_esperado' => nil,
+      'perfil_execucao' => 'minimal-change',
+      'gate_qualidade' => 'evidence-first'
+    },
     'resumo_operacional' => {
       'harness' => 'codex-cli',
       'estrategia' => 'agente-unico',
@@ -86,7 +97,7 @@ def build_execution_plan(commands = ['git-diff-check'], status: 'planejado', mis
       'writers' => 0,
       'risco' => 'baixo',
       'requer_aprovacao' => true,
-      'executavel' => true
+      'executavel' => executable
     },
     'topologia' => {
       'max_agentes' => 1,
@@ -101,6 +112,17 @@ def build_execution_plan(commands = ['git-diff-check'], status: 'planejado', mis
         }
       ]
     },
+    'tarefas_planejadas' => [
+      {
+        'id' => 'task-01',
+        'agente' => 'principal',
+        'objetivo' => 'Validar gates de governança',
+        'entrega_esperada' => 'Relatório de execução',
+        'nao_fazer' => [],
+        'arquivos' => { 'leitura' => ['scripts/'], 'escrita' => [] },
+        'depende_de' => []
+      }
+    ],
     'simplicidade' => {
       'avaliada' => false,
       'multiagente_necessario' => false,
@@ -111,7 +133,8 @@ def build_execution_plan(commands = ['git-diff-check'], status: 'planejado', mis
     },
     'limites' => {
       'max_retentativas' => 1,
-      'max_rodadas_revisao' => 1
+      'max_rodadas_revisao' => 1,
+      'max_tempo_segundos' => 900
     }
   }
 end
