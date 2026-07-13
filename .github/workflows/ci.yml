@@ -105,6 +105,10 @@ jobs:
         run: ruby scripts/validate-agent-orchestration.rb
       - name: Run orchestration tests
         run: ruby scripts/test-agent-orchestration.rb
+      - name: Validate Codex harness policy
+        run: ruby scripts/validate-codex-harness-policy.rb
+      - name: Run Codex harness policy tests
+        run: ruby scripts/test-codex-harness-policy.rb
 
   agent-execution-control:
     name: Agent Execution Control
