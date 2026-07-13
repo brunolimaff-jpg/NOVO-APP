@@ -302,6 +302,95 @@ end
 
 Dir.mktmpdir('codex-harness-policy') do |dir|
   seed_docs!(dir)
+  write(
+    File.join(dir, '.codex/config.toml'),
+    <<~TOML
+      [agents]
+      max_threads = 3
+      max_depth = 1
+      [features]
+      "multi_agent_v2" = true
+    TOML
+  )
+  expect_error('double-quoted forbidden key fails', /quoted TOML keys are unsupported/) do
+    CodexHarnessPolicy.validate_config!(root: dir)
+  end
+  tests << 'quoted-key-double'
+end
+
+Dir.mktmpdir('codex-harness-policy') do |dir|
+  seed_docs!(dir)
+  write(
+    File.join(dir, '.codex/config.toml'),
+    <<~TOML
+      [agents]
+      max_threads = 3
+      max_depth = 1
+      [features]
+      'multi_agent_v2' = true
+    TOML
+  )
+  expect_error('single-quoted forbidden key fails', /quoted TOML keys are unsupported/) do
+    CodexHarnessPolicy.validate_config!(root: dir)
+  end
+  tests << 'quoted-key-single'
+end
+
+Dir.mktmpdir('codex-harness-policy') do |dir|
+  seed_docs!(dir)
+  write(
+    File.join(dir, '.codex/config.toml'),
+    <<~TOML
+      [agents]
+      max_threads = 3
+      max_depth = 1
+      [features."multi_agent_v2"]
+      enabled = true
+    TOML
+  )
+  expect_error('quoted table segment fails', /quoted TOML keys are unsupported/) do
+    CodexHarnessPolicy.validate_config!(root: dir)
+  end
+  tests << 'quoted-table-segment'
+end
+
+Dir.mktmpdir('codex-harness-policy') do |dir|
+  seed_docs!(dir)
+  write(
+    File.join(dir, '.codex/config.toml'),
+    <<~TOML
+      [agents]
+      max_threads = 3
+      max_depth = 1
+      ["features.multi_agent_v2"]
+      enabled = true
+    TOML
+  )
+  expect_error('fully quoted table header fails', /quoted TOML keys are unsupported/) do
+    CodexHarnessPolicy.validate_config!(root: dir)
+  end
+  tests << 'quoted-table-full'
+end
+
+Dir.mktmpdir('codex-harness-policy') do |dir|
+  seed_docs!(dir)
+  write(
+    File.join(dir, '.codex/config.toml'),
+    <<~TOML
+      [agents]
+      max_threads = 3
+      max_depth = 1
+      description = "texto com multi_agent_v2"
+      note = 'texto'
+    TOML
+  )
+  CodexHarnessPolicy.validate_config!(root: dir)
+  pass!('normal quoted values pass')
+  tests << 'quoted-values-ok'
+end
+
+Dir.mktmpdir('codex-harness-policy') do |dir|
+  seed_docs!(dir)
   FileUtils.rm_f(File.join(dir, 'docs/benchmarks/codex-harness-5.6.md'))
   expect_error('missing benchmark doc fails', /missing docs\/benchmarks\/codex-harness-5.6.md/) do
     CodexHarnessPolicy.validate_benchmark_doc!(root: dir)
