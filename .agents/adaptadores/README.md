@@ -57,7 +57,7 @@ O adaptador **nunca** prevalece sobre o papel canônico.
 
 - Quando a ferramenta suporta execução paralela de agentes, o coordenador pode despachar múltiplos leitores em paralelo.
 - O executor opera em série (um Cartão de Missão por vez).
-- O `max_threads = 6` do Codex é preservado.
+- O `max_threads = 3` do Codex é o teto de projeto (Fase 3B.1.5); `max_depth = 1` permanece.
 
 ## Base documental verificada
 
@@ -68,6 +68,7 @@ Consulta realizada em 2026-07-12.
 Ferramenta: Codex CLI / IDE extension / ChatGPT desktop app / cloud
 
 Páginas oficiais consultadas:
+
 - `https://developers.openai.com/codex/llms.txt`
 - `https://developers.openai.com/codex/agent-configuration/subagents.md`
 - `https://developers.openai.com/codex/agent-approvals-security.md`
@@ -88,13 +89,24 @@ Herança de modelo: campos opcionais como `model`, `model_reasoning_effort`, `sa
 
 Limitações: permissões e sandbox ativos da sessão principal ainda influenciam o filho; sandbox por agente não substitui governança humana.
 
-Evidência local: `codex-cli 0.144.0`; `.codex/config.toml` já preserva `[agents] max_threads = 6` e `max_depth = 1`.
+Evidência local: `codex-cli` project-scoped; `.codex/config.toml` conserva `[agents] max_threads = 3` e `max_depth = 1`.
+
+#### Limitações do Multi-Agent V2 (Fase 3B.1.5)
+
+- Arquivos `.codex/agents/*.toml` continuam sendo **adaptadores declarativos**, não fronteira de autorização.
+- No Multi-Agent V2 tool-backed, o runtime pode ignorar: agente customizado, modelo do filho, reasoning e sandbox.
+- Superfície preferencial de validação: `codex exec` / CLI nativo. Desktop e tool-backed permanecem experimentais.
+- **Multi-Agent V2 não é tratado como roteador confiável até prova de runtime.**
+- Nenhuma política de segurança depende exclusivamente do agente TOML.
+- Cartão de Missão + executor controlado continuam sendo a fronteira de autorização.
+- Esta limitação **não** invalida as Fases 0–3B.1.
 
 ### Claude Code
 
 Ferramenta: Claude Code
 
 Páginas oficiais consultadas:
+
 - `https://docs.anthropic.com/en/docs/claude-code/sub-agents`
 
 Data da consulta: 2026-07-12
@@ -118,6 +130,7 @@ Evidência local: Claude Code `2.1.200`; 7 adaptadores em `.claude/agents/`.
 Ferramenta: Cursor Agent editor / CLI / Cloud Agents
 
 Páginas oficiais consultadas:
+
 - `https://cursor.com/docs/subagents`
 - `https://cursor.com/docs/subagents.md`
 
@@ -142,6 +155,7 @@ Evidência local: `cursor` existe em PATH, mas `cursor --version` não retornou 
 Ferramenta: Cline IDE / CLI / SDK / Kanban
 
 Páginas oficiais consultadas:
+
 - `https://docs.cline.bot/features/subagents.md`
 - `https://docs.cline.bot/llms.txt`
 - `https://docs.cline.bot/cli/agent-teams.md`
@@ -168,6 +182,7 @@ Evidência local: Cline `3.0.39`; sem adaptadores `.cline/agents/` criados nesta
 Ferramenta: OpenCode TUI / CLI / IDE / Web
 
 Páginas oficiais consultadas:
+
 - `https://opencode.ai/docs/agents`
 - `https://opencode.ai/docs/permissions/`
 
@@ -189,14 +204,14 @@ Evidência local: OpenCode `1.17.18`; 7 adaptadores em `.opencode/agents/`.
 
 ## Ferramentas suportadas nesta PR
 
-| Ferramenta | Status | Adaptadores |
-|------------|--------|-------------|
-| Claude Code | ativo-sem-smoke-test | 7 em `.claude/agents/` |
-| Codex | ativo-sem-smoke-test | 7 em `.codex/agents/` |
-| Cursor | ativo-sem-smoke-test | 7 em `.cursor/agents/` |
-| OpenCode | ativo-sem-smoke-test | 7 em `.opencode/agents/` |
-| Cline IDE | parcial-por-superficie | sem arquivo novo; usa subagents experimentais read-only |
-| Cline CLI/SDK/Kanban | suporte-documentado-nao-validado-localmente | sem arquivo novo; Agent Teams ficam para subtarefa |
+| Ferramenta           | Status                                      | Adaptadores                                             |
+| -------------------- | ------------------------------------------- | ------------------------------------------------------- |
+| Claude Code          | ativo-sem-smoke-test                        | 7 em `.claude/agents/`                                  |
+| Codex                | ativo-sem-smoke-test                        | 7 em `.codex/agents/`                                   |
+| Cursor               | ativo-sem-smoke-test                        | 7 em `.cursor/agents/`                                  |
+| OpenCode             | ativo-sem-smoke-test                        | 7 em `.opencode/agents/`                                |
+| Cline IDE            | parcial-por-superficie                      | sem arquivo novo; usa subagents experimentais read-only |
+| Cline CLI/SDK/Kanban | suporte-documentado-nao-validado-localmente | sem arquivo novo; Agent Teams ficam para subtarefa      |
 
 ## Relação futura com o `delivery-loop`
 

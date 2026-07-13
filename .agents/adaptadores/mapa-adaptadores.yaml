@@ -1,5 +1,5 @@
 versao: 2
-data_auditoria: "2026-07-12"
+data_auditoria: '2026-07-13'
 
 ferramentas:
   claude-code:
@@ -16,6 +16,15 @@ ferramentas:
       - https://developers.openai.com/codex/sandboxing.md
     versao_local: 0.144.0
     superficie: cli
+    max_threads: 3
+    max_depth: 1
+    multi_agent_v2: nao-confiavel-ate-prova-de-runtime
+    superficie_preferencial_validacao: cli-nativo
+    notas:
+      - adaptadores .codex/agents/*.toml sao declarativos
+      - Multi-Agent V2 tool-backed pode ignorar agente/modelo/reasoning/sandbox
+      - Desktop e tool-backed permanecem experimentais
+      - fronteira de autorizacao: Cartao de Missao + executor controlado
   cursor:
     documentacao_oficial:
       - https://cursor.com/docs/subagents
@@ -70,6 +79,7 @@ papeis:
         herda_modelo: true
         limitacoes:
           - sessao principal ainda influencia approvals
+          - Multi-Agent V2 pode ignorar agente TOML/modelo/reasoning/sandbox sem prova de runtime
       - ferramenta: cursor
         caminho: .cursor/agents/explorador.md
         formato: markdown+yaml-frontmatter
