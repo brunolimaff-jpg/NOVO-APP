@@ -24,7 +24,18 @@ IDs permitidos:
 - `test-agent-orchestration`
 - `git-diff-check`
 
-O cartão e o plano precisam solicitar exatamente o mesmo conjunto de IDs (normalizado: uniq + sort). A execução usa somente `plan.comandos`. Planos `planejado` / `planejado-com-restricoes` exigem `comandos` não vazio antes de qualquer execução.
+O cartão e o plano precisam solicitar exatamente o mesmo conjunto de IDs (normalizado: uniq + sort). A execução usa somente `plan.comandos`.
+
+### Status executável (Fase 3B.1, fail-closed)
+
+| status do plano            | executável?                      |
+| -------------------------- | -------------------------------- |
+| `planejado`                | sim (exige `comandos` não vazio) |
+| `planejado-com-restricoes` | não — `PLAN_STATUS_INVALID`      |
+| `negado`                   | não — `PLAN_STATUS_INVALID`      |
+| `incompleto`               | não — `PLAN_STATUS_INVALID`      |
+
+`planejado-com-restricoes` permanece não executável porque o executor ainda não interpreta semanticamente as restrições.
 
 ## Exit codes
 

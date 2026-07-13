@@ -216,10 +216,12 @@ module AgentMissionRunner
   end
 
   def validate_executable_plan_commands!(plan)
-    status = plan['status']
-    cmds = plan['comandos']
-    return unless %w[planejado planejado-com-restricoes].include?(status)
+    # Fase 3B.1 fail-closed: only plain planejado is executable.
+    # planejado-com-restricoes is intentionally non-executable until the
+    # executor can interpret restrictions semantically.
+    return unless plan['status'] == 'planejado'
 
+    cmds = plan['comandos']
     unless cmds.is_a?(Array) && !cmds.empty? && cmds.all? { |c| c.is_a?(String) }
       raise DeniedError.new(
         'PLANEJADO_REQUIRES_COMMANDS',

@@ -277,6 +277,14 @@ end
 
 test('plano negado') { assert_denied('negado', card.call, plan.call('negado'), code: 'PLAN_STATUS_INVALID') }
 test('plano incompleto') { assert_denied('incompleto', card.call, plan.call('incompleto'), code: 'PLAN_STATUS_INVALID') }
+test('plano planejado-com-restricoes não é executável') do
+  assert_denied(
+    'restricoes',
+    card.call,
+    plan.call('planejado-com-restricoes'),
+    code: 'PLAN_STATUS_INVALID'
+  )
+end
 test('missão divergente') do
   p = plan.call
   p['missao_id'] = 'outra'
