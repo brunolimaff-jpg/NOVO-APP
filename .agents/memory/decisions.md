@@ -1,12 +1,22 @@
 # decisions.md — NOVO-APP
 
+## Novas Decisões (Sessão 2026-07-13 — Fase 3B.3A)
+
+### DI-2026-07-13-14: DCG é barreira secundária; preflight fail-closed
+
+- **Decisão:** Destructive Command Guard (v0.6.6 pinada) é **segunda barreira**, não autorização primária. Preflight gera `ready|denied|unavailable`. CI nunca instala DCG — só fixtures. `DCG_BYPASS` / `DCG_DISABLE` presentes → `denied`. Hook trust sem evidência → `hook_confiado: unknown` → `denied`.
+- **Referência:** https://github.com/Dicklesworthstone/destructive_command_guard
+
+### DI-2026-07-13-12: Path hardening — ATENDIDA em 3B.3A
+
+- **Decisão:** Função canônica em `scripts/lib/agent_path_guard.rb` (UTF-8, null byte, percent-decode limitado, NFC, absoluta, `..`, cleanpath, realpath/ancestral, symlink escape, relativo canônico, dedupe ordenado).
+- **Status:** Atendida na Fase 3B.3A (finding SEC-04 fechado nesta fatia documental/técnica).
+
 ## Novas Decisões (Sessão 2026-07-13 — Fase 3B.2B corretiva)
 
-### DI-2026-07-13-12: Path hardening antes do runtime 3B.3
+### DI-2026-07-13-12 (histórico): Path hardening diferido em 3B.2B
 
-- **Decisão:** Antes de qualquer runtime real da Fase 3B.3, a validação de caminhos deverá: rejeitar null byte; rejeitar traversal após URL decoding; normalizar Unicode; resolver caminho real dentro da worktree; rejeitar symlink para fora do escopo.
-- **Contexto:** Em 3B.2B paths são metadados de plano; checagens atuais bloqueiam absolutos e `..` literais somente.
-- **Impacto:** Sem spawn/FS real nesta fase; finding SEC-04 diferido com referência a esta decisão.
+- **Contexto:** Em 3B.2B paths eram metadados; checagens bloqueavam absolutos e `..` literais somente. Diferido para 3B.3 — cumprido em 3B.3A.
 
 ### DI-2026-07-13-13: max_agentes fail-closed (sem elevação silenciosa)
 

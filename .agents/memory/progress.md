@@ -1,16 +1,17 @@
 # Progress
 
-## 2026-07-13 — PR #427 rodada corretiva (Fase 3B.2B)
+## 2026-07-13 — Fase 3B.3A iniciada (Runtime Safety Preflight)
 
-- Reconcilia 2ª `resolve_planned_execution` (negações + status + dedupe)
-- `max_agentes` fail-closed (`SINGLE_AGENT_MAX_AGENTS_INVALID` / `MAX_AGENTS_TOO_LOW` / `MAX_AGENTS_EXCEEDED`)
-- Orçamento contratual: tempo ≤3600, retries/rodadas ≤1, paralelo ≤2
-- Contagens: orch **121** · executor **56** · skills **32** · harness **37**
+- Branch `feat/fase-3b3a-runtime-safety-preflight` a partir de `origin/main` @ `b7c6f671`
+- Path hardening canônico (DI-2026-07-13-12), política DCG v0.6.6, preflight JSON fail-closed, contrato runner `--safety-report` / `--agent-runtime` (sem spawn)
+- Contagens: orch **133** · executor **58** · skills **32** · harness **37** · runtime-safety **28**
+- Nenhum runtime real autorizado; CI usa fixtures sem rede/instalação DCG
 
-## 2026-07-13 — Fase 3B.2B iniciada
+## 2026-07-13 — PR #427 MERGED (Fase 3B.2B)
 
-- Branch `feat/fase-3b2b-estrategia-explicita` a partir de `origin/main` @ `9f72b694`
-- Objetivo: estratégia/tarefas explícitas no Cartão → Plano; default single-agent; sem heurística semântica
+- Squash `b7c6f6712129a1d6e13d575ae017d583d8378d91`
+- Contagens finais: orch **133** · executor **56** · skills **32** · harness **37**
+- `execucao_planejada` + simplicidade; default single-agent; max_agentes/orçamento fail-closed
 
 ## 2026-07-13 — PR #426 MERGED (Fase 3B.2A)
 
