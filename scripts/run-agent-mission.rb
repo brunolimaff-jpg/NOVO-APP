@@ -216,9 +216,7 @@ module AgentMissionRunner
   end
 
   def validate_executable_plan_commands!(plan)
-    # Fase 3B.1 fail-closed: only plain planejado is executable.
-    # planejado-com-restricoes is intentionally non-executable until the
-    # executor can interpret restrictions semantically.
+    return unless plan.dig('resumo_operacional', 'executavel') == true
     return unless plan['status'] == 'planejado'
 
     cmds = plan['comandos']

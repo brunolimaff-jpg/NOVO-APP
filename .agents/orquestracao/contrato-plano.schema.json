@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://novo-app.local/.agents/orquestracao/contrato-plano.schema.json",
   "title": "Contrato do Plano de Execução",
-  "description": "Saída determinística do planejador de missões (Fase 3B.2A: topologia mínima + comandos).",
+  "description": "Saída determinística do planejador de missões (Fase 3B.2B: estratégia explícita + tarefas planejadas).",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -30,7 +30,9 @@
     "acoes_permitidas",
     "comandos",
     "resumo_operacional",
+    "decisao_execucao",
     "topologia",
+    "tarefas_planejadas",
     "simplicidade",
     "limites"
   ],
@@ -113,7 +115,7 @@
     },
     "condicoes_parada": {
       "type": "array",
-      "description": "União das condições do Cartão (ordem preservada) com as condições operacionais padrão do planner (comandos_concluidos, alteracao_fora_do_escopo, tempo_excedido, agente_nao_planejado). Duplicatas são removidas sem sort alfabético.",
+      "description": "União das condições do Cartão (ordem preservada) com as condições operacionais padrão do planner.",
       "items": { "type": "string" },
       "uniqueItems": true
     },
@@ -164,9 +166,43 @@
     },
     "comandos": {
       "type": "array",
-      "description": "IDs do catálogo do executor. Plano analítico (leitores) pode ser planejado com lista vazia e resumo_operacional.executavel=false — não enviar ao run-agent-mission. Missão executor-escopo/com escrita exige comandos não vazios no planner; senão status=negado (PLANEJADO_REQUIRES_COMMANDS). Propagados sem ampliação nem sort alfabético.",
+      "description": "IDs do catálogo do executor. Plano analítico pode ser planejado com lista vazia e resumo_operacional.executavel=false.",
       "items": { "type": "string" },
       "uniqueItems": true
+    },
+    "decisao_execucao": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "estrategia",
+        "origem",
+        "motivo",
+        "justificativa_multiagente",
+        "ganho_esperado",
+        "perfil_execucao",
+        "gate_qualidade"
+      ],
+      "properties": {
+        "estrategia": {
+          "type": "string",
+          "enum": ["agente-unico", "multiagente"]
+        },
+        "origem": {
+          "type": "string",
+          "enum": ["default", "cartao"]
+        },
+        "motivo": { "type": "string", "minLength": 1 },
+        "justificativa_multiagente": { "type": ["string", "null"] },
+        "ganho_esperado": { "type": ["string", "null"] },
+        "perfil_execucao": {
+          "type": "string",
+          "enum": ["minimal-change", "padrao"]
+        },
+        "gate_qualidade": {
+          "type": "string",
+          "enum": ["evidence-first", "padrao"]
+        }
+      }
     },
     "resumo_operacional": {
       "type": "object",
@@ -196,7 +232,8 @@
         },
         "max_paralelo": {
           "type": "integer",
-          "minimum": 1
+          "minimum": 1,
+          "maximum": 2
         },
         "writers": {
           "type": "integer",
@@ -210,8 +247,7 @@
           "type": "boolean"
         },
         "executavel": {
-          "type": "boolean",
-          "description": "true somente se planejado + executor-escopo + comandos não vazios + sem negações. Planos analíticos usam false e não devem ser enviados ao run-agent-mission."
+          "type": "boolean"
         }
       }
     },
@@ -222,7 +258,8 @@
       "properties": {
         "max_agentes": {
           "type": "integer",
-          "minimum": 0
+          "minimum": 0,
+          "maximum": 3
         },
         "max_profundidade": {
           "type": "integer",
@@ -255,6 +292,47 @@
         }
       }
     },
+    "tarefas_planejadas": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "agente", "objetivo", "entrega_esperada", "nao_fazer", "arquivos", "depende_de"],
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "agente": { "type": "string", "minLength": 1 },
+          "objetivo": { "type": "string", "minLength": 1 },
+          "entrega_esperada": { "type": "string", "minLength": 1 },
+          "nao_fazer": {
+            "type": "array",
+            "items": { "type": "string" },
+            "uniqueItems": true
+          },
+          "arquivos": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["leitura", "escrita"],
+            "properties": {
+              "leitura": {
+                "type": "array",
+                "items": { "type": "string" },
+                "uniqueItems": true
+              },
+              "escrita": {
+                "type": "array",
+                "items": { "type": "string" },
+                "uniqueItems": true
+              }
+            }
+          },
+          "depende_de": {
+            "type": "array",
+            "items": { "type": "string" },
+            "uniqueItems": true
+          }
+        }
+      }
+    },
     "simplicidade": {
       "type": "object",
       "additionalProperties": false,
@@ -269,7 +347,7 @@
       "properties": {
         "avaliada": {
           "type": "boolean",
-          "description": "false nesta fase: campos de reutilização/dependência/abstração são intenção/default, não fatos observados. Avaliação automática fica para 3B.2B."
+          "description": "true somente quando o cartão declara reutiliza_existente, nova_dependencia e nova_abstracao."
         },
         "multiagente_necessario": { "type": "boolean" },
         "justificativa_multiagente": { "type": ["string", "null"] },
@@ -281,11 +359,79 @@
     "limites": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["max_retentativas", "max_rodadas_revisao"],
+      "required": ["max_retentativas", "max_rodadas_revisao", "max_tempo_segundos"],
       "properties": {
-        "max_retentativas": { "type": "integer", "minimum": 0 },
-        "max_rodadas_revisao": { "type": "integer", "minimum": 0 }
+        "max_retentativas": { "type": "integer", "minimum": 0, "maximum": 1 },
+        "max_rodadas_revisao": { "type": "integer", "minimum": 0, "maximum": 1 },
+        "max_tempo_segundos": { "type": "integer", "minimum": 1, "maximum": 3600 }
       }
     }
-  }
+  },
+  "allOf": [
+    {
+      "if": {
+        "type": "object",
+        "required": ["status", "resumo_operacional"],
+        "properties": {
+          "status": { "const": "planejado" },
+          "resumo_operacional": {
+            "type": "object",
+            "required": ["executavel"],
+            "properties": {
+              "executavel": { "const": true }
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "comandos": {
+            "type": "array",
+            "minItems": 1
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "type": "object",
+        "required": ["resumo_operacional"],
+        "properties": {
+          "resumo_operacional": {
+            "type": "object",
+            "required": ["executavel"],
+            "properties": {
+              "executavel": { "const": false }
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "comandos": {
+            "type": "array",
+            "maxItems": 0
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "enum": ["negado", "incompleto", "planejado-com-restricoes"]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "comandos": {
+            "type": "array",
+            "maxItems": 0
+          }
+        }
+      }
+    }
+  ]
 }

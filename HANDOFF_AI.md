@@ -1,28 +1,39 @@
-# Handoff — Fase 3B.2A (plano mínimo + topologia)
+# Handoff — Fase 3B.2B (estratégia explícita)
 
-> **Atualizado:** 2026-07-13 (rodada corretiva)
-> **Branch:** `feat/fase-3b2a-plano-minimo`
-> **PR:** #426
-> **Baseline main:** `0f9bfda7`
-> **Próxima etapa:** Fase 3B.2B — **não iniciada**
+> **Atualizado:** 2026-07-13
+> **Branch:** `feat/fase-3b2b-estrategia-explicita`
+> **PR:** #427
+> **Baseline main:** `9f72b694` (squash PR #426 — Fase 3B.2A)
+> **Próxima etapa:** 3B.3 (runtime/handoff) — **não iniciada**
 
-## Estado atual
+## Estado
 
-| Fase   | Status       | Entrega                                                 |
-| ------ | ------------ | ------------------------------------------------------- |
-| 3B.1.5 | main `#425`  | harness Codex                                           |
-| 3B.2A  | PR #426      | topologia + `executavel` + prova planner→runner dry-run |
-| 3B.2B  | não iniciada | schema `if/then` / simplicidade avaliada                |
+| Fase  | Status                         | Entrega                                               |
+| ----- | ------------------------------ | ----------------------------------------------------- |
+| 3B.2A | **MERGED** `#426` → `9f72b694` | topologia, `executavel`, runner `PLAN_NOT_EXECUTABLE` |
+| 3B.2B | **PR #427** (rodada corretiva) | estratégia/tarefas explícitas; limites fail-closed    |
+| 3B.3  | não iniciada                   | spawn / handoff runtime                               |
 
-Orquestração: **84 testes**. Executor: **54**. Schema `if/then` ainda deferido.
+### Contagens (head da PR #427)
 
-## Contratos 3B.2A
+- Orquestração: **121**
+- Executor: **56**
+- Skills Governance: **32**
+- Codex harness: **37**
 
-- Default single-agent; papéis via `roteamento.yaml`
-- Analítico: `planejado` + `executavel:false` + `comandos:[]` — não enviar ao runner
-- Executor sem comandos: `negado` / `PLANEJADO_REQUIRES_COMMANDS` no planner
-- `simplicidade.avaliada=false` + `SIMPLICITY_REQUIRES_REVIEW`
+## Princípio 3B.2B
 
-## Não fazer agora
+Cartão declara intenção; planner normaliza/valida/resume. **Sem** heurística semântica de texto livre. Default: `agente-unico`.
 
-- Merge sem **MERGE**; Ponytail / Multi-Agent V2 / `codex exec`; Scout funcional; 3B.2B
+Runner exige `status=planejado`, `negacoes=[]` e `resumo_operacional.executavel=true` (`PLAN_NOT_EXECUTABLE` quando `executavel=false`).
+
+## Referências conceituais (não instaladas)
+
+- **Ponytail:** YAGNI, menor diff correto
+- **Agency Agents:** responsabilidade, exclusões, entrega, evidência (sem catálogo externo)
+
+## Não fazer
+
+- Spawn real / `codex exec` / Multi-Agent V2
+- Scheduler, task ledger runtime, novos papéis
+- Scout funcional / merge sem **MERGE**

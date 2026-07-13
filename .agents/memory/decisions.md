@@ -1,5 +1,26 @@
 # decisions.md — NOVO-APP
 
+## Novas Decisões (Sessão 2026-07-13 — Fase 3B.2B corretiva)
+
+### DI-2026-07-13-12: Path hardening antes do runtime 3B.3
+
+- **Decisão:** Antes de qualquer runtime real da Fase 3B.3, a validação de caminhos deverá: rejeitar null byte; rejeitar traversal após URL decoding; normalizar Unicode; resolver caminho real dentro da worktree; rejeitar symlink para fora do escopo.
+- **Contexto:** Em 3B.2B paths são metadados de plano; checagens atuais bloqueiam absolutos e `..` literais somente.
+- **Impacto:** Sem spawn/FS real nesta fase; finding SEC-04 diferido com referência a esta decisão.
+
+### DI-2026-07-13-13: max_agentes fail-closed (sem elevação silenciosa)
+
+- **Decisão:** `max_agentes` ausente → usa quantidade declarada. Presente e menor que a quantidade → `MAX_AGENTS_TOO_LOW` (não eleva). Teto 3 (`MAX_AGENTS_EXCEEDED`). `agente-unico` exige exatamente 1 (`SINGLE_AGENT_MAX_AGENTS_INVALID`). Multi permite entre qtde e 3.
+- **Referência:** PR #427 corretiva
+
+## Novas Decisões (Sessão 2026-07-13 — Fase 3B.2B)
+
+### DI-2026-07-13-11: Multi-agent só por declaração explícita no Cartão
+
+- **Decisão:** Sem `execucao_planejada` (ou estratégia omitida) → default determinístico `agente-unico`. Multi-agent somente se o Cartão declarar `estrategia: multiagente` + justificativa/ganho/agentes/tarefas estruturalmente válidos. Planner **não** infere quantidade de agentes por texto livre, tamanho, complexidade aparente ou disponibilidade de subagentes.
+- **Referências conceituais:** Ponytail (YAGNI/menor diff); Agency Agents (responsabilidade/entrega/evidência) — sem instalar repos externos.
+- **Impacto:** 3B.2B propaga intenção para o Plano; spawn real fica em 3B.3.
+
 ## Novas Decisões (Sessão 2026-07-13 — Fase 3B.2A corretiva)
 
 ### DI-2026-07-13-09: Plano analítico ≠ executável
