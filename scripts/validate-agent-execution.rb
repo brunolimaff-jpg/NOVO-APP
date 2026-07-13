@@ -100,9 +100,11 @@ module AgentExecutionValidator
     raise 'catalog mismatch' unless catalog.keys.sort == expected.sort
 
     runner = File.read(RUNNER)
-    raise 'unsafe runner eval call' if runner.match?(/\beval\s*\(/)
-    raise 'unsafe runner system call' if runner.match?(/\bsystem\s*\(/)
+    raise 'unsafe runner kernel-eval' if runner.match?(/\beval\s*[\('"\/]/)
+    raise 'unsafe runner kernel-system' if runner.match?(/\bsystem\s*[\('"\/]/)
     raise 'unsafe runner backtick call' if runner.match?(/`[^`]+`/)
+    raise 'unsafe Timeout.timeout usage' if runner.match?(/\bTimeout\.timeout\b/)
+    raise 'unsafe capture3 without popen3 control' if runner.match?(/\bOpen3\.capture3\b/)
 
     dry_report, = run_report(build_card(['git-diff-check']), build_plan(['git-diff-check']))
     raise "dry-run status=#{dry_report['status']}" unless dry_report['status'] == 'dry-run'
@@ -116,7 +118,7 @@ module AgentExecutionValidator
     raise "denied exit=#{denied_exit}" unless denied_exit == 2
     validate_report!(denied_report)
 
-    execute_report, = run_report(
+    execute_report, execute_exit = run_report(
       build_card(['git-diff-check']),
       build_plan(['git-diff-check']),
       execute: true,
@@ -124,7 +126,13 @@ module AgentExecutionValidator
     )
     raise "execute status=#{execute_report['status']}" unless %w[success failure].include?(execute_report['status'])
     raise 'execute did not run command' unless execute_report['comandos'].first['executado']
+    expected_exit = execute_report['status'] == 'success' ? 0 : 1
+    raise "execute exit=#{execute_exit}" unless execute_exit == expected_exit
     validate_report!(execute_report)
+
+    dry_report2, dry_exit = run_report(build_card(['git-diff-check']), build_plan(['git-diff-check']))
+    raise "dry-run exit=#{dry_exit}" unless dry_exit == 0
+    validate_report!(dry_report2)
 
     puts 'OK executor catalog'
     puts 'OK report schema'
@@ -132,6 +140,7 @@ module AgentExecutionValidator
     puts 'OK dry-run report schema'
     puts 'OK denied report schema'
     puts 'OK controlled execution report schema'
+    puts 'OK exit code mapping'
     0
   ensure
     FileUtils.remove_entry(TMP_DIR) if File.exist?(TMP_DIR)

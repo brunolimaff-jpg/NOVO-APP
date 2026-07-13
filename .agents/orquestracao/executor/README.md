@@ -24,4 +24,23 @@ IDs permitidos:
 - `test-agent-orchestration`
 - `git-diff-check`
 
-O cartão/plano só pode solicitar IDs existentes no catálogo. O catálogo não aceita shell, rede, instalação, Git mutante, GitHub CLI, Vercel ou Supabase.
+O cartão e o plano precisam solicitar exatamente o mesmo conjunto de IDs (normalizado: uniq + sort). A execução usa somente `plan.comandos`. Planos `planejado` / `planejado-com-restricoes` exigem `comandos` não vazio antes de qualquer execução.
+
+## Exit codes
+
+| status         | exit |
+| -------------- | ---- |
+| dry-run        | 0    |
+| success        | 0    |
+| failure        | 1    |
+| denied         | 2    |
+| timeout        | 3    |
+| internal-error | 4    |
+
+## Segurança operacional
+
+- Subprocessos via `Open3.popen3` em process group próprio; timeout envia `TERM` → `KILL` e sempre faz `wait`.
+- Ambiente sanitizado com `unsetenv_others: true`.
+- `safe_path` rejeita symlinks de arquivo/parent fora de repo/tmp.
+- Truncamento de stdout/stderr a 1 MB com `scrub` UTF-8.
+- Hooks Cursor da PR: apenas `beforeShellExecution` com matcher `git commit` (sem `preToolUse` genérico).

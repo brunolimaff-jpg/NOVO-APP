@@ -109,11 +109,14 @@ jobs:
   agent-execution-control:
     name: Agent Execution Control
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           fetch-depth: 0
-      - uses: ruby/setup-ruby@v1
+          persist-credentials: false
+      - uses: ruby/setup-ruby@d45b1a4e94b71acab930e56e79c6aa188764e7f9 # v1.316.0
         with:
           ruby-version: '3.3.7'
       - name: Validate agent execution control

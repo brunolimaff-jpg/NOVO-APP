@@ -1,12 +1,14 @@
 #!/usr/bin/env ruby
+# frozen_string_literal: true
+
 require 'json'
 require 'yaml'
 require 'optparse'
 require 'open3'
-require 'timeout'
 require 'digest'
 require 'tmpdir'
 require 'time'
+require 'fileutils'
 require_relative './plan-agent-mission'
 
 module AgentMissionRunner
@@ -17,10 +19,19 @@ module AgentMissionRunner
   PLAN_SCHEMA_PATH = File.join(ORCH_DIR, 'contrato-plano.schema.json')
   TIMEOUT_SECONDS = 120
   MAX_OUTPUT_BYTES = 1_048_576
+  TERM_GRACE_SECONDS = 0.5
   SAFE_ENV_KEYS = %w[PATH HOME LANG LC_ALL CI GITHUB_BASE_REF].freeze
   BLOCKED_TOKENS = %w[sh bash zsh fish eval source curl wget ssh scp nc gh vercel supabase].freeze
   BLOCKED_PAIRS = [%w[npm install], %w[gem install], %w[git push], %w[git commit]].freeze
   DRY_RUN_TIMESTAMP = '1970-01-01T00:00:00Z'
+  EXIT_BY_STATUS = {
+    'dry-run' => 0,
+    'success' => 0,
+    'failure' => 1,
+    'denied' => 2,
+    'timeout' => 3,
+    'internal-error' => 4
+  }.freeze
 
   class DeniedError < StandardError
     attr_reader :code
@@ -48,12 +59,108 @@ module AgentMissionRunner
     opts
   end
 
+  def allowed_roots
+    [File.realpath(ROOT), File.realpath(Dir.tmpdir)]
+  end
+
+  def under_allowed_roots?(target)
+    allowed_roots.any? { |root| target == root || target.start_with?(root + File::SEPARATOR) }
+  end
+
+  def nearest_existing_ancestor(path)
+    probe = path
+    loop do
+      return probe if File.exist?(probe) || File.symlink?(probe)
+      parent = File.dirname(probe)
+      break if parent == probe
+      probe = parent
+    end
+    nil
+  end
+
+  def assert_under_roots!(target, original)
+    unless under_allowed_roots?(target)
+      raise DeniedError.new('PATH_REJECTED', "path rejected: #{original}")
+    end
+  end
+
   def safe_path(path, must_exist: false)
     expanded = File.expand_path(path, ROOT)
-    allowed_roots = [File.realpath(ROOT), File.realpath(Dir.tmpdir)]
-    target = must_exist ? File.realpath(expanded) : File.realpath(File.dirname(expanded))
-    raise "path rejected: #{path}" unless allowed_roots.any? { |root| target == root || target.start_with?(root + File::SEPARATOR) }
+
+    if File.symlink?(expanded)
+      raise DeniedError.new('PATH_SYMLINK', "symlink rejected: #{path}")
+    end
+
+    if must_exist
+      unless File.exist?(expanded)
+        raise DeniedError.new('PATH_MISSING', "path not found: #{path}")
+      end
+      begin
+        target = File.realpath(expanded)
+      rescue Errno::ENOENT
+        raise DeniedError.new('PATH_MISSING', "path not found: #{path}")
+      end
+      assert_under_roots!(target, path)
+      return expanded
+    end
+
+    ancestor = nearest_existing_ancestor(File.dirname(expanded))
+    if ancestor.nil?
+      raise DeniedError.new('PATH_REJECTED', "path rejected: #{path}")
+    end
+
+    begin
+      real_ancestor = File.realpath(ancestor)
+    rescue Errno::ENOENT
+      raise DeniedError.new('PATH_REJECTED', "path rejected: #{path}")
+    end
+    assert_under_roots!(real_ancestor, path)
+
+    # Reconstruct candidate from real ancestor + remaining relative segments.
+    rel = expanded.delete_prefix(ancestor)
+    rel = rel.sub(%r{\A#{Regexp.escape(File::SEPARATOR)}}, '')
+    candidate_parent = real_ancestor
+    unless rel.empty?
+      parts = rel.split(File::SEPARATOR)
+      # Drop the final filename; validate parent chain only.
+      parts.pop
+      parts.each do |part|
+        next if part.empty? || part == '.'
+        raise DeniedError.new('PATH_REJECTED', "path rejected: #{path}") if part == '..'
+        candidate_parent = File.join(candidate_parent, part)
+        if File.symlink?(candidate_parent)
+          begin
+            real_parent = File.realpath(candidate_parent)
+          rescue Errno::ENOENT
+            raise DeniedError.new('PATH_REJECTED', "path rejected: #{path}")
+          end
+          assert_under_roots!(real_parent, path)
+        elsif File.exist?(candidate_parent)
+          begin
+            real_parent = File.realpath(candidate_parent)
+          rescue Errno::ENOENT
+            raise DeniedError.new('PATH_REJECTED', "path rejected: #{path}")
+          end
+          assert_under_roots!(real_parent, path)
+        end
+      end
+    end
+
+    # Parent symlink escape: if dirname exists via symlink outside roots.
+    dirname = File.dirname(expanded)
+    if File.exist?(dirname) || File.symlink?(dirname)
+      begin
+        assert_under_roots!(File.realpath(dirname), path)
+      rescue Errno::ENOENT
+        raise DeniedError.new('PATH_REJECTED', "path rejected: #{path}")
+      end
+    end
+
     expanded
+  rescue DeniedError
+    raise
+  rescue SystemCallError => error
+    raise DeniedError.new('PATH_REJECTED', "path rejected: #{path} (#{error.class})")
   end
 
   def load_json(path)
@@ -108,11 +215,25 @@ module AgentMissionRunner
     )
   end
 
+  def validate_executable_plan_commands!(plan)
+    status = plan['status']
+    cmds = plan['comandos']
+    return unless %w[planejado planejado-com-restricoes].include?(status)
+
+    unless cmds.is_a?(Array) && !cmds.empty? && cmds.all? { |c| c.is_a?(String) }
+      raise DeniedError.new(
+        'PLANEJADO_REQUIRES_COMMANDS',
+        'plano planejado exige comandos array não vazio'
+      )
+    end
+  end
+
   def validate_schemas!(card, plan)
     card_schema = load_schema(CARD_SCHEMA_PATH)
     plan_schema = load_schema(PLAN_SCHEMA_PATH)
     MissionPlanner.send(:validate_against_schema!, card, card_schema)
     MissionPlanner.send(:validate_against_schema!, plan, plan_schema)
+    validate_executable_plan_commands!(plan)
   end
 
   def validate_inputs!(card, plan, catalog)
@@ -135,24 +256,95 @@ module AgentMissionRunner
 
   def trunc(value)
     bytes = value.to_s.b
-    [bytes.byteslice(0, MAX_OUTPUT_BYTES) || '', bytes.bytesize > MAX_OUTPUT_BYTES]
+    sliced = bytes.byteslice(0, MAX_OUTPUT_BYTES) || ''
+    # Ensure valid UTF-8 after a mid-codepoint cut so JSON serialization stays valid.
+    text = sliced.dup.force_encoding(Encoding::UTF_8).scrub
+    [text, bytes.bytesize > MAX_OUTPUT_BYTES]
   end
 
-  def command_report(id, argv, execute)
+  def process_alive?(pid)
+    Process.kill(0, pid)
+    true
+  rescue Errno::ESRCH
+    false
+  end
+
+  def terminate_process_group!(pid)
+    begin
+      Process.kill('TERM', -pid)
+    rescue Errno::ESRCH, Errno::EPERM
+      begin
+        Process.kill('TERM', pid)
+      rescue Errno::ESRCH, Errno::EPERM
+      end
+    end
+
+    deadline = Time.now + TERM_GRACE_SECONDS
+    sleep 0.05 while process_alive?(pid) && Time.now < deadline
+
+    return unless process_alive?(pid)
+
+    begin
+      Process.kill('KILL', -pid)
+    rescue Errno::ESRCH, Errno::EPERM
+      begin
+        Process.kill('KILL', pid)
+      rescue Errno::ESRCH, Errno::EPERM
+      end
+    end
+  end
+
+  def capture_command(argv, timeout_seconds: TIMEOUT_SECONDS)
+    stdout_data = +''
+    stderr_data = +''
+    exit_code = nil
+    timed_out = false
+    wait_thr = nil
+    pid = nil
+
+    Open3.popen3(sanitized_env, *argv, chdir: ROOT, unsetenv_others: true, pgroup: true) do |stdin, stdout, stderr, thr|
+      stdin.close
+      wait_thr = thr
+      pid = thr.pid
+
+      out_reader = Thread.new { stdout.read.to_s }
+      err_reader = Thread.new { stderr.read.to_s }
+
+      deadline = Time.now + timeout_seconds
+      until thr.join(0.05)
+        next if Time.now < deadline
+
+        timed_out = true
+        terminate_process_group!(pid)
+        break
+      end
+
+      # Always reap the process.
+      status = thr.value
+      exit_code = status&.exitstatus
+      stdout_data = out_reader.value
+      stderr_data = err_reader.value
+    end
+
+    # Final reap/kill belt-and-suspenders if the block exited early.
+    if pid && process_alive?(pid)
+      terminate_process_group!(pid)
+      begin
+        Process.wait(pid)
+      rescue Errno::ECHILD
+      end
+    end
+
+    [stdout_data, stderr_data, exit_code, timed_out, pid]
+  end
+
+  def command_report(id, argv, execute, timeout_seconds: TIMEOUT_SECONDS)
     stdout = +''
     stderr = +''
     exit_code = nil
     timed_out = false
     if execute
-      begin
-        Timeout.timeout(TIMEOUT_SECONDS) do
-          stdout, stderr, status = Open3.capture3(sanitized_env, *argv, chdir: ROOT, unsetenv_others: true)
-          exit_code = status.exitstatus
-        end
-      rescue Timeout::Error
-        timed_out = true
-        exit_code = nil
-      end
+      stdout, stderr, exit_code, timed_out, = capture_command(argv, timeout_seconds: timeout_seconds)
     end
     out, out_trunc = trunc(stdout)
     err, err_trunc = trunc(stderr)
@@ -175,45 +367,70 @@ module AgentMissionRunner
     elsif error.is_a?(MissionPlanner::SchemaError)
       "SCHEMA_INVALID: #{error.message}"
     else
-      error.message
+      "#{error.class}: operação interna falhou"
     end
+  end
+
+  def exit_code_for(status)
+    EXIT_BY_STATUS.fetch(status, 4)
   end
 
   def run(argv)
     opts = parse(argv)
-    card = load_json(opts[:card])
-    plan = load_json(opts[:plan])
-    catalog = load_catalog
-    execute = opts[:execute] && ENV['AGENT_ORCHESTRATION_EXECUTE'] == '1'
+    card = nil
+    plan = nil
     commands = []
-    status = execute ? 'success' : 'dry-run'
+    status = 'dry-run'
     negacoes = []
-    start = execute ? Time.now.utc : nil
+    execute = false
+    start = nil
+
     begin
+      card = load_json(opts[:card])
+      plan = load_json(opts[:plan])
+      catalog = load_catalog
+      execute = opts[:execute] && ENV['AGENT_ORCHESTRATION_EXECUTE'] == '1'
+      status = execute ? 'success' : 'dry-run'
+      start = execute ? Time.now.utc : nil
+
       validated_commands = validate_inputs!(card, plan, catalog)
       validated_commands.each do |id|
         report = command_report(id, catalog.fetch(id).fetch('argv'), execute)
-        status = 'timeout' if report['timeout']
-        status = 'failure' if execute && report['exit_code'] && report['exit_code'] != 0 && status == 'success'
+        if report['timeout']
+          status = 'timeout'
+        elsif execute && report['exit_code'] && report['exit_code'] != 0 && status == 'success'
+          status = 'failure'
+        end
         commands << report
       end
     rescue DeniedError, MissionPlanner::SchemaError => error
       status = 'denied'
       negacoes << denial_entry(error)
     rescue StandardError => error
-      status = 'denied'
+      status = 'internal-error'
       negacoes << denial_entry(error)
     end
 
     if execute
       finish = Time.now.utc
-      inicio = start.iso8601
+      inicio = (start || finish).iso8601
       fim = finish.iso8601
-      duracao_ms = ((finish - start) * 1000).round
+      duracao_ms = ((finish - (start || finish)) * 1000).round
     else
       inicio = fim = DRY_RUN_TIMESTAMP
       duracao_ms = 0
     end
+
+    missao_id = if card.is_a?(Hash) && card['id'].is_a?(String) && !card['id'].empty?
+                  card['id']
+                else
+                  'unknown'
+                end
+    plan_hash = if plan.is_a?(Hash)
+                  Digest::SHA256.hexdigest(JSON.generate(plan))
+                else
+                  Digest::SHA256.hexdigest('')
+                end
 
     report = {
       'avisos' => execute ? [] : ['dry-run: use --execute e AGENT_ORCHESTRATION_EXECUTE=1 para execução real'],
@@ -222,17 +439,37 @@ module AgentMissionRunner
       'evidencias' => ['catalogo fixo', 'argv sem shell', 'ambiente sanitizado', 'sem git mutante'],
       'fim' => fim,
       'inicio' => inicio,
-      'missao_id' => card['id'],
+      'missao_id' => missao_id,
       'modo' => execute ? 'execute' : 'dry-run',
       'negacoes' => negacoes,
-      'plan_hash' => Digest::SHA256.hexdigest(JSON.generate(plan)),
+      'plan_hash' => plan_hash,
       'status' => status,
       'versao' => 1
     }
     json = JSON.pretty_generate(report) + "\n"
-    File.write(safe_path(opts[:output]), json) if opts[:output]
-    puts json if opts[:stdout]
-    status == 'denied' ? 2 : 0
+    begin
+      if opts[:output]
+        output_path = safe_path(opts[:output])
+        FileUtils.mkdir_p(File.dirname(output_path))
+        File.write(output_path, json)
+      end
+      puts json if opts[:stdout]
+    rescue DeniedError, MissionPlanner::SchemaError => error
+      status = 'denied'
+      negacoes = [denial_entry(error)]
+      report['status'] = status
+      report['negacoes'] = negacoes
+      json = JSON.pretty_generate(report) + "\n"
+      puts json if opts[:stdout]
+    rescue StandardError => error
+      status = 'internal-error'
+      negacoes = [denial_entry(error)]
+      report['status'] = status
+      report['negacoes'] = negacoes
+      json = JSON.pretty_generate(report) + "\n"
+      puts json if opts[:stdout]
+    end
+    exit_code_for(status)
   end
 end
 

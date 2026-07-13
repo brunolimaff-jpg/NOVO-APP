@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Cursor/Claude PreToolUse wrapper: runs branch-health check, emits JSON on stdout only.
+# Cursor beforeShellExecution wrapper for git commit accumulation guard.
+# Emits JSON on stdout only. Deny only applies to git commit when over limit.
 set -euo pipefail
 
 MAIN_BRANCH="${1:-main}"
@@ -34,14 +35,21 @@ except Exception:
   print("")' 2>/dev/null || true)"
 fi
 
-if [ -n "$COMMAND" ] && ! is_git_commit_command "$COMMAND"; then
+# Non-commit shells (and empty command) always allow.
+if [ -z "$COMMAND" ] || ! is_git_commit_command "$COMMAND"; then
   emit_json allow
   exit 0
 fi
 
+# Prefer origin/<main> when local main is stale.
+CHECK_REF="$MAIN_BRANCH"
+if git -C "$REPO_ROOT" rev-parse --verify "origin/${MAIN_BRANCH}" >/dev/null 2>&1; then
+  CHECK_REF="origin/${MAIN_BRANCH}"
+fi
+
 OUTPUT=""
 EXIT_CODE=0
-OUTPUT="$(bash "$REPO_ROOT/scripts/check-branch-health.sh" "$MAIN_BRANCH" 2>&1)" || EXIT_CODE=$?
+OUTPUT="$(bash "$REPO_ROOT/scripts/check-branch-health.sh" "$CHECK_REF" 2>&1)" || EXIT_CODE=$?
 
 if [ "$EXIT_CODE" -eq 0 ]; then
   if [ -n "$OUTPUT" ]; then

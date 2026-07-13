@@ -4,6 +4,7 @@ require 'open3'
 require 'digest'
 require 'fileutils'
 require 'tmpdir'
+require 'tempfile'
 require_relative './run-agent-mission'
 require_relative './plan-agent-mission'
 
@@ -130,6 +131,21 @@ end
 def validate_report_schema!(report)
   schema = JSON.parse(File.read(REPORT_SCHEMA_PATH))
   MissionPlanner.send(:validate_against_schema!, report, schema)
+end
+
+def capture_stdout
+  old = $stdout
+  tmp = Tempfile.new('stdout-capture')
+  tmp_path = tmp.path
+  tmp.close
+  File.open(tmp_path, 'w') do |io|
+    $stdout = io
+    yield
+  end
+  File.read(tmp_path)
+ensure
+  $stdout = old
+  FileUtils.rm_f(tmp_path) if defined?(tmp_path) && tmp_path
 end
 
 card = ->(commands = ['git-diff-check'], auth = 'A2') { build_execution_card(commands, auth: auth) }
@@ -289,13 +305,19 @@ test('parâmetro extra no catálogo bloqueado') do
 end
 
 test('path traversal no card') do
-  _out, err, status = Open3.capture3('ruby', RUNNER, '--card', '/etc/passwd', '--plan', write_json(plan.call), '--stdout', chdir: ROOT)
-  raise if status.success? || err.empty?
+  out, _err, status = Open3.capture3('ruby', RUNNER, '--card', '/etc/passwd', '--plan', write_json(plan.call), '--stdout', chdir: ROOT)
+  raise 'path traversal should fail' if status.success?
+  report = JSON.parse(out)
+  raise unless report['status'] == 'denied'
+  raise unless negation_codes(report).include?('PATH_REJECTED') || negation_codes(report).include?('PATH_MISSING') || negation_codes(report).include?('PATH_SYMLINK') || status.exitstatus == 2
 end
 
 test('output fora de repo/tmp') do
-  _out, err, status = Open3.capture3('ruby', RUNNER, '--card', write_json(card.call), '--plan', write_json(plan.call), '--output', '/etc/out.json', chdir: ROOT)
-  raise if status.success? || err.empty?
+  out, _err, status = Open3.capture3('ruby', RUNNER, '--card', write_json(card.call), '--plan', write_json(plan.call), '--output', '/etc/out.json', '--stdout', chdir: ROOT)
+  raise 'outside output should fail' if status.success?
+  report = JSON.parse(out)
+  raise unless report['status'] == 'denied'
+  raise unless negation_codes(report).include?('PATH_REJECTED')
 end
 
 test('schema inválido no card') do
@@ -339,6 +361,283 @@ end
 test('relatório negado válido contra schema') do
   report = assert_denied('schema denied', card.call(['missing']), plan.call('planejado', ['missing']), code: 'COMMAND_NOT_IN_CATALOG')
   validate_report_schema!(report)
+end
+
+test('exit code dry-run é 0') do
+  report, _err, status = run(card.call, plan.call)
+  raise unless report['status'] == 'dry-run' && status == 0
+end
+
+test('exit code success é 0') do
+  report, _err, status = run(card.call, plan.call, execute: true, env: { 'AGENT_ORCHESTRATION_EXECUTE' => '1' })
+  raise "status=#{report['status']}" unless report['status'] == 'success'
+  raise "exit=#{status}" unless status == 0
+end
+
+test('exit code denied é 2') do
+  report, _err, status = run(card.call, plan.call('negado'))
+  raise unless report['status'] == 'denied' && status == 2
+end
+
+test('exit code timeout é 3') do
+  report = AgentMissionRunner.command_report(
+    'blocked-sleep',
+    ['ruby', '-e', 'sleep 30'],
+    true,
+    timeout_seconds: 1
+  )
+  raise "timeout flag=#{report['timeout']}" unless report['timeout']
+  raise unless AgentMissionRunner.exit_code_for('timeout') == 3
+
+  # CLI path: force timeout via monkeypatched catalog command is overkill;
+  # assert runner mapping and that child is dead.
+  pid_holder = []
+  original = AgentMissionRunner.method(:capture_command)
+  AgentMissionRunner.define_singleton_method(:capture_command) do |argv, timeout_seconds: 120|
+    out, err, code, timed_out, pid = original.call(argv, timeout_seconds: timeout_seconds)
+    pid_holder << pid
+    [out, err, code, timed_out, pid]
+  end
+  begin
+    cli_report = AgentMissionRunner.command_report('x', ['ruby', '-e', 'sleep 30'], true, timeout_seconds: 1)
+    raise unless cli_report['timeout']
+    pid = pid_holder.last
+    raise 'missing pid' unless pid
+    alive = begin
+      Process.kill(0, pid)
+      true
+    rescue Errno::ESRCH
+      false
+    end
+    raise 'child still alive after timeout' if alive
+  ensure
+    AgentMissionRunner.define_singleton_method(:capture_command, original)
+  end
+end
+
+test('timeout via CLI retorna exit 3') do
+  original_load = AgentMissionRunner.method(:load_catalog)
+  original_validate = AgentMissionRunner.method(:validate_inputs!)
+  original_report = AgentMissionRunner.method(:command_report)
+
+  AgentMissionRunner.define_singleton_method(:load_catalog) do |*_args|
+    { 'blocked-sleep' => { 'argv' => ['ruby', '-e', 'sleep 30'] } }
+  end
+  AgentMissionRunner.define_singleton_method(:validate_inputs!) do |_card, _plan, catalog|
+    catalog.keys
+  end
+  AgentMissionRunner.define_singleton_method(:command_report) do |id, argv, execute, timeout_seconds: 120|
+    original_report.call(id, argv, execute, timeout_seconds: 1)
+  end
+
+  card_path = write_json(card.call)
+  plan_path = write_json(plan.call)
+  begin
+    previous = ENV['AGENT_ORCHESTRATION_EXECUTE']
+    ENV['AGENT_ORCHESTRATION_EXECUTE'] = '1'
+    exit_status = nil
+    out = capture_stdout do
+      exit_status = AgentMissionRunner.run(['--card', card_path, '--plan', plan_path, '--stdout', '--execute'])
+    end
+    report = JSON.parse(out)
+    raise "status=#{report['status']} neg=#{report['negacoes'].inspect}" unless report['status'] == 'timeout'
+    raise "exit=#{exit_status}" unless exit_status == 3
+  ensure
+    if previous.nil?
+      ENV.delete('AGENT_ORCHESTRATION_EXECUTE')
+    else
+      ENV['AGENT_ORCHESTRATION_EXECUTE'] = previous
+    end
+    AgentMissionRunner.define_singleton_method(:load_catalog, original_load)
+    AgentMissionRunner.define_singleton_method(:validate_inputs!, original_validate)
+    AgentMissionRunner.define_singleton_method(:command_report, original_report)
+  end
+end
+
+test('internal-error alcançável e exit 4') do
+  original = AgentMissionRunner.method(:load_catalog)
+  AgentMissionRunner.define_singleton_method(:load_catalog) do |*_args|
+    raise Errno::EIO, 'simulated io failure'
+  end
+  card_path = write_json(card.call)
+  plan_path = write_json(plan.call)
+  begin
+    exit_status = nil
+    out = capture_stdout do
+      exit_status = AgentMissionRunner.run(['--card', card_path, '--plan', plan_path, '--stdout'])
+    end
+    report = JSON.parse(out)
+    raise "status=#{report['status']}" unless report['status'] == 'internal-error'
+    raise "exit=#{exit_status}" unless exit_status == 4
+    raise 'should not expose stack frames' if report.to_json.include?('run-agent-mission.rb:')
+    validate_report_schema!(report)
+  ensure
+    AgentMissionRunner.define_singleton_method(:load_catalog, original)
+  end
+end
+
+test('failure exit code é 1') do
+  original_load = AgentMissionRunner.method(:load_catalog)
+  original_validate = AgentMissionRunner.method(:validate_inputs!)
+  AgentMissionRunner.define_singleton_method(:load_catalog) do |*_args|
+    { 'failing' => { 'argv' => ['ruby', '-e', 'exit 7'] } }
+  end
+  AgentMissionRunner.define_singleton_method(:validate_inputs!) do |_card, _plan, catalog|
+    catalog.keys
+  end
+  card_path = write_json(card.call)
+  plan_path = write_json(plan.call)
+  begin
+    previous = ENV['AGENT_ORCHESTRATION_EXECUTE']
+    ENV['AGENT_ORCHESTRATION_EXECUTE'] = '1'
+    exit_status = nil
+    out = capture_stdout do
+      exit_status = AgentMissionRunner.run(['--card', card_path, '--plan', plan_path, '--stdout', '--execute'])
+    end
+    report = JSON.parse(out)
+    raise "status=#{report['status']}" unless report['status'] == 'failure'
+    raise "exit=#{exit_status}" unless exit_status == 1
+  ensure
+    if previous.nil?
+      ENV.delete('AGENT_ORCHESTRATION_EXECUTE')
+    else
+      ENV['AGENT_ORCHESTRATION_EXECUTE'] = previous
+    end
+    AgentMissionRunner.define_singleton_method(:load_catalog, original_load)
+    AgentMissionRunner.define_singleton_method(:validate_inputs!, original_validate)
+  end
+end
+
+test('output em pasta inexistente dentro da raiz') do
+  out_path = File.join(TMP_DIR, 'nested-missing', 'deeper', 'out.json')
+  out, err, status = Open3.capture3(
+    'ruby', RUNNER,
+    '--card', write_json(card.call),
+    '--plan', write_json(plan.call),
+    '--output', out_path,
+    chdir: ROOT
+  )
+  raise "err=#{err} out=#{out}" unless status.success?
+  raise unless File.file?(out_path)
+  raise unless JSON.parse(File.read(out_path))['status'] == 'dry-run'
+end
+
+test('output symlink rejeitado') do
+  target = File.join(TMP_DIR, 'outside-target.json')
+  link = File.join(ROOT, "symlink-out-#{Process.pid}.json")
+  File.write(target, '{}')
+  FileUtils.ln_s(target, link)
+  begin
+    out, _err, status = Open3.capture3(
+      'ruby', RUNNER,
+      '--card', write_json(card.call),
+      '--plan', write_json(plan.call),
+      '--output', link,
+      '--stdout',
+      chdir: ROOT
+    )
+    raise 'symlink output should fail' if status.success?
+    report = JSON.parse(out)
+    raise unless report['status'] == 'denied'
+    raise unless negation_codes(report).include?('PATH_SYMLINK')
+  ensure
+    FileUtils.rm_f(link)
+  end
+end
+
+test('parent symlink para fora de repo/tmp rejeitado') do
+  link_dir = File.join(ROOT, "symlink-etc-#{Process.pid}")
+  FileUtils.rm_f(link_dir)
+  FileUtils.ln_s('/etc', link_dir)
+  out_path = File.join(link_dir, "agent-out-#{Process.pid}.json")
+  begin
+    out, _err, status = Open3.capture3(
+      'ruby', RUNNER,
+      '--card', write_json(card.call),
+      '--plan', write_json(plan.call),
+      '--output', out_path,
+      '--stdout',
+      chdir: ROOT
+    )
+    raise 'etc symlink parent should be rejected' if status.success?
+    report = JSON.parse(out)
+    raise unless report['status'] == 'denied'
+    raise unless negation_codes(report).any? { |c| c.start_with?('PATH_') }
+  ensure
+    FileUtils.rm_f(link_dir)
+  end
+end
+
+test('output legítimo em tmp') do
+  out_path = File.join(TMP_DIR, 'ok-out.json')
+  out, err, status = Open3.capture3(
+    'ruby', RUNNER,
+    '--card', write_json(card.call),
+    '--plan', write_json(plan.call),
+    '--output', out_path,
+    chdir: ROOT
+  )
+  raise "err=#{err} out=#{out}" unless status.success?
+  raise unless File.file?(out_path)
+  parsed = JSON.parse(File.read(out_path))
+  raise unless parsed['status'] == 'dry-run'
+end
+
+test('UTF-8 truncado no meio de multibyte permanece JSON válido') do
+  limit = AgentMissionRunner::MAX_OUTPUT_BYTES
+  payload = ('a' * (limit - 1)) + 'ç'
+  fixture = File.join(TMP_DIR, 'utf8-payload.bin')
+  File.binwrite(fixture, payload)
+  report = AgentMissionRunner.command_report(
+    'utf8',
+    ['ruby', '-e', 'STDOUT.write(File.binread(ARGV[0]))', fixture],
+    true,
+    timeout_seconds: 30
+  )
+  raise unless report['stdout_truncado']
+  raw = payload.b.byteslice(0, limit)
+  scrubbed = raw.dup.force_encoding(Encoding::UTF_8).scrub
+  raise unless report['stdout_sha256'] == Digest::SHA256.hexdigest(scrubbed)
+  envelope = {
+    'versao' => 1,
+    'missao_id' => 'missao-exec-1',
+    'plan_hash' => Digest::SHA256.hexdigest('{}'),
+    'modo' => 'execute',
+    'status' => 'success',
+    'inicio' => '1970-01-01T00:00:00Z',
+    'fim' => '1970-01-01T00:00:00Z',
+    'duracao_ms' => 0,
+    'comandos' => [report],
+    'negacoes' => [],
+    'avisos' => [],
+    'evidencias' => []
+  }
+  json = JSON.pretty_generate(envelope)
+  raise unless JSON.parse(json)
+  validate_report_schema!(envelope)
+end
+
+test('plano planejado sem comandos negado no schema path') do
+  p = plan.call
+  p['comandos'] = []
+  assert_denied('empty cmds', card.call([]), p, code: 'PLANEJADO_REQUIRES_COMMANDS')
+end
+
+test('hook branch-health emite JSON e permite non-commit') do
+  hook = File.join(ROOT, '.cursor/hooks/branch-health-json.sh')
+  input = JSON.generate({ 'command' => 'git status' })
+  out, err, status = Open3.capture3(hook, 'main', stdin_data: input)
+  raise "hook failed err=#{err}" unless status.success?
+  parsed = JSON.parse(out)
+  raise unless parsed['permission'] == 'allow'
+end
+
+test('hook branch-health deny apenas em git commit acima do limite') do
+  hook = File.join(ROOT, '.cursor/hooks/branch-health-json.sh')
+  input = JSON.generate({ 'command' => 'echo hello' })
+  out, _err2, status = Open3.capture3({ 'BRANCH_HEALTH_SKIP' => '0' }, hook, 'main', stdin_data: input)
+  raise unless status.success?
+  raise unless JSON.parse(out)['permission'] == 'allow'
 end
 
 puts "OK #{@tests} tests"

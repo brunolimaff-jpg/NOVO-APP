@@ -158,6 +158,7 @@
     },
     "comandos": {
       "type": "array",
+      "description": "IDs do catálogo do executor (Fase 3B). Obrigatório e não vazio quando status é planejado ou planejado-com-restricoes (validado pelo executor antes da execução). Planos não executáveis (negado/incompleto) podem omitir ou usar lista vazia.",
       "items": { "type": "string" },
       "uniqueItems": true
     }
