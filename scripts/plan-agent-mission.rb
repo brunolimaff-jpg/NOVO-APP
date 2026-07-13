@@ -43,6 +43,11 @@ module MissionPlanner
   DEFAULT_PERFIL_EXECUCAO = 'minimal-change'
   DEFAULT_GATE_QUALIDADE = 'evidence-first'
   DEFAULT_MAX_TEMPO_SEGUNDOS = 900
+  MAX_TEMPO_SEGUNDOS_LIMIT = 3600
+  MAX_RETENTATIVAS_LIMIT = 1
+  MAX_RODADAS_REVISAO_LIMIT = 1
+  MAX_PARALELO_LIMIT = 2
+  MAX_AGENTES_LIMIT = 3
 
   REQUIRED_FIELDS = %w[
     versao id titulo objetivo contexto resultado_esperado
@@ -278,7 +283,7 @@ module MissionPlanner
         etapas = gated ? build_etapas(cartao, papel, skills_selecionadas, adapter_info[:ferramenta]) : []
       end
       comandos = gated ? command_result[:comandos] : []
-      # Plano analítico: nunca carregar comandos (runner não checa executavel)
+      # Plano analítico: nunca carregar comandos (runner exige executavel=true → PLAN_NOT_EXECUTABLE)
       comandos = [] unless mission_requires_commands?(cartao, papel)
 
       escrita_permitida = gated && papel == 'executor-escopo' && !escrita.empty?
@@ -298,6 +303,7 @@ module MissionPlanner
       )
       negacoes.concat(exec_result[:negacoes])
       unless exec_result[:negacoes].empty?
+        # Rebaixa permissões e recalcula topologia com o mesmo cartão
         status = determine_status(negacoes, papel_info, adapter_info, skills_result)
         gated = status == 'planejado'
         etapas = gated ? build_etapas(cartao, papel, skills_selecionadas, adapter_info[:ferramenta]) : []
@@ -314,7 +320,19 @@ module MissionPlanner
           escopo_leitura: cartao.dig('escopo', 'leitura') || [],
           escopo_escrita: cartao.dig('escopo', 'escrita') || []
         )
+        # Incorpora negações da 2ª resolução; topologia final = segundo exec_result
+        negacoes.concat(exec_result[:negacoes])
+        negacoes = dedupe_negacoes(negacoes)
+        status = determine_status(negacoes, papel_info, adapter_info, skills_result)
+        gated = status == 'planejado'
+        etapas = gated ? build_etapas(cartao, papel, skills_selecionadas, adapter_info[:ferramenta]) : []
+        comandos = gated ? command_result[:comandos] : []
+        comandos = [] unless mission_requires_commands?(cartao, papel)
+        escrita_permitida = gated && papel == 'executor-escopo' && !escrita.empty?
+        permissao = escrita_permitida ? 'workspace-write' : 'read-only'
+        papel_topo = gated ? papel : (papel || 'explorador')
       end
+      negacoes = dedupe_negacoes(negacoes)
 
       decisao_execucao = exec_result[:decisao_execucao]
       topologia = exec_result[:topologia]
@@ -420,14 +438,35 @@ module MissionPlanner
       if agentes_planejados != agentes.size
         fail_op!('agentes_planejados divergente da lista')
       end
+      if max_agentes > MAX_AGENTES_LIMIT
+        fail_op!('MAX_AGENTS_EXCEEDED')
+      end
       if max_agentes < agentes.size
-        fail_op!('max_agentes menor que quantidade listada')
+        fail_op!('MAX_AGENTS_TOO_LOW')
+      end
+      if max_paralelo > MAX_PARALELO_LIMIT
+        fail_op!('MAX_PARALLEL_EXCEEDED')
       end
       if max_paralelo > agentes_planejados
         fail_op!('max_paralelo maior que agentes_planejados')
       end
       fail_op!('max_profundidade must be 1') unless max_profundidade == 1
       fail_op!('subdelegacao proibida') if topo['permite_subdelegacao'] == true
+
+      limites = plano['limites'].is_a?(Hash) ? plano['limites'] : {}
+      if limites.key?('max_tempo_segundos')
+        tempo = limites['max_tempo_segundos']
+        fail_op!('MAX_TEMPO_EXCEEDED') if tempo.is_a?(Integer) && tempo > MAX_TEMPO_SEGUNDOS_LIMIT
+        fail_op!('MAX_TEMPO_TOO_LOW') if tempo.is_a?(Integer) && tempo < 1
+      end
+      if limites.key?('max_retentativas')
+        retries = limites['max_retentativas']
+        fail_op!('MAX_RETRIES_EXCEEDED') if retries.is_a?(Integer) && retries > MAX_RETENTATIVAS_LIMIT
+      end
+      if limites.key?('max_rodadas_revisao')
+        rounds = limites['max_rodadas_revisao']
+        fail_op!('MAX_REVIEW_ROUNDS_EXCEEDED') if rounds.is_a?(Integer) && rounds > MAX_RODADAS_REVISAO_LIMIT
+      end
 
       ids = agentes.map { |a| a.is_a?(Hash) ? a['id'] : nil }
       fail_op!('agente com forma invalida') if ids.any?(&:nil?)
@@ -456,6 +495,7 @@ module MissionPlanner
 
       if resumo['estrategia'] == 'agente-unico'
         fail_op!('agente-unico exige exatamente 1 agente') unless agentes.size == 1
+        fail_op!('SINGLE_AGENT_MAX_AGENTS_INVALID') unless max_agentes == 1
         fail_op!('agente-unico exige max_paralelo=1') unless max_paralelo == 1
         fail_op!('agente-unico exige multiagente_necessario=false') if simp['multiagente_necessario']
       end
@@ -844,8 +884,23 @@ module MissionPlanner
       { 'codigo' => codigo, 'mensagem' => mensagem }
     end
 
+    def dedupe_negacoes(arr)
+      seen = {}
+      out = []
+      Array(arr).each do |n|
+        next unless n.is_a?(Hash)
+
+        key = [n['codigo'], n['mensagem']]
+        next if seen[key]
+
+        seen[key] = true
+        out << n
+      end
+      out
+    end
+
     def sort_negacoes(arr)
-      arr.uniq.sort_by { |n| [n['codigo'], n['mensagem']] }
+      dedupe_negacoes(arr).sort_by { |n| [n['codigo'].to_s, n['mensagem'].to_s] }
     end
 
     # ── Papel selection ──────────────────────────────────────────────
@@ -1299,7 +1354,7 @@ module MissionPlanner
         'max_tempo_segundos' => limites_decl.fetch('max_tempo_segundos', DEFAULT_MAX_TEMPO_SEGUNDOS)
       }
       max_paralelo = limites_decl.fetch('max_paralelo', 1)
-      max_agentes = limites_decl.fetch('max_agentes', nil)
+      max_agentes_decl = limites_decl.key?('max_agentes') ? limites_decl['max_agentes'] : nil
       permite_subdelegacao = limites_decl.fetch('permite_subdelegacao', false)
 
       decisao_execucao = {
@@ -1327,9 +1382,7 @@ module MissionPlanner
         negacoes << neg('SUBDELEGATION_DENIED', 'subdelegação proibida nesta fase')
       end
 
-      if max_paralelo > 2
-        negacoes << neg('MAX_PARALLEL_EXCEEDED', 'max_paralelo não pode exceder 2')
-      end
+      append_budget_limit_denials!(limites, max_paralelo, negacoes)
 
       agentes_raw = declared['agentes']
       tarefas_raw = declared['tarefas']
@@ -1339,7 +1392,6 @@ module MissionPlanner
           negacoes << neg('SINGLE_AGENT_TOO_MANY', 'agente-unico exige exatamente 1 agente')
         end
         max_paralelo = 1
-        max_agentes = 1 unless max_agentes.is_a?(Integer)
       elsif estrategia == 'multiagente'
         just = declared['justificativa_multiagente']
         ganho = declared['ganho_esperado']
@@ -1352,7 +1404,7 @@ module MissionPlanner
         unless agentes_raw.is_a?(Array) && agentes_raw.size.between?(2, 3)
           negacoes << neg('MULTI_AGENT_COUNT_INVALID', 'multiagente exige 2 ou 3 agentes')
         end
-        if max_paralelo < 1 || max_paralelo > 2
+        if max_paralelo < 1 || max_paralelo > MAX_PARALELO_LIMIT
           negacoes << neg('MAX_PARALLEL_INVALID', 'max_paralelo deve estar entre 1 e 2')
         end
       else
@@ -1369,11 +1421,13 @@ module MissionPlanner
 
       validate_agent_task_ownership!(agentes, tarefas_planejadas, negacoes)
 
-      agent_count = agentes.size
-      max_agentes = agent_count if max_agentes.nil? || max_agentes < agent_count
-      if max_agentes < agent_count
-        negacoes << neg('MAX_AGENTS_TOO_LOW', 'max_agentes menor que agentes declarados')
-      end
+      agent_count = agentes.size.positive? ? agentes.size : (agentes_raw.is_a?(Array) ? agentes_raw.size : 0)
+      max_agentes = resolve_max_agentes(
+        estrategia: estrategia,
+        declared: max_agentes_decl,
+        agent_count: agent_count,
+        negacoes: negacoes
+      )
 
       if estrategia == 'agente-unico' && agent_count != 1
         negacoes << neg('SINGLE_AGENT_COUNT', 'agente-unico exige exatamente 1 agente')
@@ -1394,7 +1448,7 @@ module MissionPlanner
       end
 
       topologia = {
-        'max_agentes' => max_agentes || agent_count,
+        'max_agentes' => max_agentes,
         'max_profundidade' => 1,
         'permite_subdelegacao' => false,
         'agentes' => agentes
@@ -1409,6 +1463,83 @@ module MissionPlanner
         simplicidade: simplicidade,
         negacoes: negacoes
       }
+    end
+
+    def append_budget_limit_denials!(limites, max_paralelo, negacoes)
+      tempo = limites['max_tempo_segundos']
+      if tempo.is_a?(Integer)
+        if tempo < 1
+          negacoes << neg('MAX_TEMPO_TOO_LOW', 'max_tempo_segundos mínimo é 1')
+        elsif tempo > MAX_TEMPO_SEGUNDOS_LIMIT
+          negacoes << neg('MAX_TEMPO_EXCEEDED', "max_tempo_segundos máximo é #{MAX_TEMPO_SEGUNDOS_LIMIT}")
+        end
+      end
+
+      retries = limites['max_retentativas']
+      if retries.is_a?(Integer)
+        if retries < 0
+          negacoes << neg('MAX_RETRIES_TOO_LOW', 'max_retentativas mínimo é 0')
+        elsif retries > MAX_RETENTATIVAS_LIMIT
+          negacoes << neg('MAX_RETRIES_EXCEEDED', "max_retentativas máximo é #{MAX_RETENTATIVAS_LIMIT}")
+        end
+      end
+
+      rounds = limites['max_rodadas_revisao']
+      if rounds.is_a?(Integer)
+        if rounds < 0
+          negacoes << neg('MAX_REVIEW_ROUNDS_TOO_LOW', 'max_rodadas_revisao mínimo é 0')
+        elsif rounds > MAX_RODADAS_REVISAO_LIMIT
+          negacoes << neg('MAX_REVIEW_ROUNDS_EXCEEDED', "max_rodadas_revisao máximo é #{MAX_RODADAS_REVISAO_LIMIT}")
+        end
+      end
+
+      if max_paralelo.is_a?(Integer)
+        if max_paralelo < 1
+          negacoes << neg('MAX_PARALLEL_TOO_LOW', 'max_paralelo mínimo é 1')
+        elsif max_paralelo > MAX_PARALELO_LIMIT
+          negacoes << neg('MAX_PARALLEL_EXCEEDED', "max_paralelo máximo é #{MAX_PARALELO_LIMIT}")
+        end
+      end
+    end
+
+    def resolve_max_agentes(estrategia:, declared:, agent_count:, negacoes:)
+      if estrategia == 'agente-unico'
+        if declared.nil?
+          return 1
+        end
+        unless declared.is_a?(Integer) && declared == 1
+          negacoes << neg(
+            'SINGLE_AGENT_MAX_AGENTS_INVALID',
+            'agente-unico exige max_agentes exatamente 1'
+          )
+        end
+        # Mantém o valor declarado para diagnóstico se inválido; schema limpia via teto.
+        return declared.is_a?(Integer) ? [[declared, MAX_AGENTES_LIMIT].min, 1].max : 1
+      end
+
+      # multiagente / desconhecida
+      if declared.nil?
+        capped = [[agent_count, MAX_AGENTES_LIMIT].min, 0].max
+        return capped.positive? ? capped : 1
+      end
+
+      unless declared.is_a?(Integer)
+        negacoes << neg('MAX_AGENTS_INVALID', 'max_agentes deve ser integer')
+        return [[agent_count, MAX_AGENTES_LIMIT].min, 1].max
+      end
+
+      if declared > MAX_AGENTES_LIMIT
+        negacoes << neg('MAX_AGENTS_EXCEEDED', "max_agentes máximo é #{MAX_AGENTES_LIMIT}")
+        return MAX_AGENTES_LIMIT
+      end
+
+      if agent_count.positive? && declared < agent_count
+        negacoes << neg('MAX_AGENTS_TOO_LOW', 'max_agentes menor que agentes declarados')
+        # Fail-closed: não eleva silenciosamente — preserva o valor declarado (já ≤ 3).
+        return declared
+      end
+
+      declared
     end
 
     def normalize_declared_agents(agentes_raw, estrategia, negacoes)

@@ -78,17 +78,39 @@ Ele é uma proteção de higiene operacional e não uma fronteira de segurança.
 
 Missão `executor-escopo` ou com escrita autorizada **não** depende da presença da chave `executor` para a exigência: ausência de comandos válidos produz negação no planner.
 
-O runner valida `comandos` somente quando `resumo_operacional.executavel=true` (planos analíticos passam no schema com `comandos:[]`).
+O runner valida `comandos` somente quando `resumo_operacional.executavel=true` (planos analíticos passam no schema com `comandos:[]`). O runner **sempre** exige `status=planejado`, `negacoes=[]` e `executavel=true`; caso contrário nega com `PLAN_STATUS_INVALID`, `PLAN_NEGATIONS` ou `PLAN_NOT_EXECUTABLE`.
+
+### Planos negados / incompletos (diagnóstico)
+
+Planos com status `negado` ou `incompleto` são **diagnósticos estruturados** do planner:
+
+- servem para explicar por que a missão não pode executar;
+- **não** possuem garantia de coerência operacional completa (ex.: `validate_operational_plan!` só é aplicado a planos `planejado` sem negações);
+- **nunca** podem ser enviados ao runner;
+- o runner exige `status=planejado`, `negacoes=[]` e `resumo_operacional.executavel=true`.
 
 ### Stop conditions
 
 O planner **preserva a ordem** de `condicoes_parada` do cartão e **acrescenta** condições operacionais padrão (`comandos_concluidos`, `alteracao_fora_do_escopo`, `tempo_excedido`, `agente_nao_planejado`). Duplicatas são removidas sem reordenar alfabeticamente.
+
+### Orçamento declarado (antes do runtime)
+
+| campo                 | default            | min | max  |
+| --------------------- | ------------------ | --- | ---- |
+| `max_tempo_segundos`  | 900                | 1   | 3600 |
+| `max_retentativas`    | 1                  | 0   | 1    |
+| `max_rodadas_revisao` | 1                  | 0   | 1    |
+| `max_paralelo`        | 1                  | 1   | 2    |
+| `max_agentes`         | qtde declarada / 1 | 1   | 3    |
+
+Sem timeout, retry ou loop real nesta fase — apenas limites de contrato.
 
 Ainda deferred:
 
 - execução de `planejado-com-restricoes`
 - scheduler / spawn real de agentes multi-tool (Fase 3B.3)
 - handoff runtime entre agentes
+- validação de path com URL-decoding / Unicode / realpath (DI-2026-07-13-12)
 
 O alinhamento card/plan (mesmo conjunto de IDs) permanece: a execução usa somente `plan.comandos`, e o executor falha fechado se card e plan divergirem após normalização.
 

@@ -245,11 +245,11 @@
           "type": "object",
           "additionalProperties": false,
           "properties": {
-            "max_agentes": { "type": "integer", "minimum": 1 },
+            "max_agentes": { "type": "integer", "minimum": 1, "maximum": 3 },
             "max_paralelo": { "type": "integer", "minimum": 1, "maximum": 2 },
-            "max_tempo_segundos": { "type": "integer", "minimum": 1 },
-            "max_retentativas": { "type": "integer", "minimum": 0 },
-            "max_rodadas_revisao": { "type": "integer", "minimum": 0 },
+            "max_tempo_segundos": { "type": "integer", "minimum": 1, "maximum": 3600 },
+            "max_retentativas": { "type": "integer", "minimum": 0, "maximum": 1 },
+            "max_rodadas_revisao": { "type": "integer", "minimum": 0, "maximum": 1 },
             "permite_subdelegacao": { "type": "boolean" }
           }
         }

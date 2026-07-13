@@ -949,7 +949,9 @@ module OrchestrationTests
       end
 
       test_denied("3B.2B quatro agentes", code: 'MULTI_AGENT_COUNT_INVALID') do |card|
-        build_multi_card_with_agents(4)
+        c = build_multi_card_with_agents(4)
+        c['execucao_planejada']['limites']['max_agentes'] = 3
+        c
       end
 
       test_denied("3B.2B dois writers", code: 'MULTIPLE_WRITERS_DENIED') do |card|
@@ -961,7 +963,7 @@ module OrchestrationTests
           'id' => 'task-w2', 'agente' => 'writer-2', 'objetivo' => 'escrever', 'entrega_esperada' => 'diff',
           'nao_fazer' => [], 'arquivos' => { 'leitura' => [], 'escrita' => ['x.ts'] }, 'depende_de' => []
         }
-        c['execucao_planejada']['limites']['max_agentes'] = 4
+        c['execucao_planejada']['limites']['max_agentes'] = 3
         c
       end
 
@@ -1132,6 +1134,191 @@ module OrchestrationTests
             },
             {
               'id' => 'task-b', 'agente' => 'b', 'objetivo' => 'x', 'entrega_esperada' => 'y',
+              'nao_fazer' => [], 'arquivos' => { 'leitura' => [], 'escrita' => [] }, 'depende_de' => []
+            }
+          ]
+        }
+        c
+      end
+
+      test("3B.2B segunda resolucao preserva e deduplica negacoes") do
+        card = build_executor_card
+        card['execucao_planejada'] = {
+          'estrategia' => 'agente-unico',
+          'justificativa_multiagente' => 'nao deveria existir',
+          'limites' => { 'max_agentes' => 2, 'max_paralelo' => 1 },
+          'agentes' => [
+            { 'id' => 'principal', 'papel' => 'executor-escopo', 'permissao' => 'workspace-write', 'depende_de' => [] }
+          ],
+          'tarefas' => [
+            {
+              'id' => 'task-01', 'agente' => 'principal', 'objetivo' => 'x', 'entrega_esperada' => 'y',
+              'nao_fazer' => [], 'arquivos' => { 'leitura' => [], 'escrita' => ['scripts/x.rb'] }, 'depende_de' => []
+            }
+          ]
+        }
+        plano = run_planner_parse(card)
+        assert_eq(plano['status'], 'negado')
+        codes = neg_codes(plano)
+        assert_true(codes.include?('SINGLE_AGENT_MAX_AGENTS_INVALID'), codes.inspect)
+        assert_true(codes.include?('SINGLE_AGENT_WITH_JUSTIFICATION'), codes.inspect)
+        assert_eq(codes.size, codes.uniq.size)
+        assert_eq(plano['resumo_operacional']['executavel'], false)
+        assert_eq(plano['comandos'], [])
+      end
+
+      test_denied("3B.2B single max_agentes=2", code: 'SINGLE_AGENT_MAX_AGENTS_INVALID') do |card|
+        c = build_readonly_card
+        c['execucao_planejada'] = {
+          'estrategia' => 'agente-unico',
+          'limites' => { 'max_agentes' => 2, 'max_paralelo' => 1 },
+          'agentes' => [
+            { 'id' => 'principal', 'papel' => 'explorador', 'permissao' => 'read-only', 'depende_de' => [] }
+          ],
+          'tarefas' => [
+            {
+              'id' => 'task-01', 'agente' => 'principal', 'objetivo' => 'x', 'entrega_esperada' => 'y',
+              'nao_fazer' => [], 'arquivos' => { 'leitura' => [], 'escrita' => [] }, 'depende_de' => []
+            }
+          ]
+        }
+        c
+      end
+
+      test_denied("3B.2B tres agentes com max_agentes=1", code: 'MAX_AGENTS_TOO_LOW') do |card|
+        c = build_multi_mixed_card
+        c['execucao_planejada']['limites']['max_agentes'] = 1
+        c
+      end
+
+      test("3B.2B dois agentes com max_agentes=3 aceito") do
+        card = build_multi_reader_card
+        card['execucao_planejada']['limites']['max_agentes'] = 3
+        plano = run_planner_parse(card)
+        assert_eq(plano['status'], 'planejado')
+        assert_eq(plano['topologia']['max_agentes'], 3)
+        assert_eq(plano['resumo_operacional']['agentes_planejados'], 2)
+      end
+
+      test_validation_error("3B.2B max_agentes=4 no schema") do |card|
+        c = build_multi_reader_card
+        c['execucao_planejada']['limites']['max_agentes'] = 4
+        c
+      end
+
+      test("3B.2B max_agentes ausente usa quantidade real") do
+        card = build_multi_reader_card
+        card['execucao_planejada']['limites'].delete('max_agentes')
+        plano = run_planner_parse(card)
+        assert_eq(plano['status'], 'planejado')
+        assert_eq(plano['topologia']['max_agentes'], 2)
+      end
+
+      test("3B.2B max_tempo 3600 aceito") do
+        card = build_readonly_card
+        card['execucao_planejada'] = {
+          'estrategia' => 'agente-unico',
+          'limites' => { 'max_agentes' => 1, 'max_paralelo' => 1, 'max_tempo_segundos' => 3600 },
+          'agentes' => [
+            { 'id' => 'principal', 'papel' => 'explorador', 'permissao' => 'read-only', 'depende_de' => [] }
+          ],
+          'tarefas' => [
+            {
+              'id' => 'task-01', 'agente' => 'principal', 'objetivo' => 'x', 'entrega_esperada' => 'y',
+              'nao_fazer' => [], 'arquivos' => { 'leitura' => [], 'escrita' => [] }, 'depende_de' => []
+            }
+          ]
+        }
+        plano = run_planner_parse(card)
+        assert_eq(plano['status'], 'planejado')
+        assert_eq(plano['limites']['max_tempo_segundos'], 3600)
+      end
+
+      test_validation_error("3B.2B max_tempo 3601 no schema") do |card|
+        c = build_readonly_card
+        c['execucao_planejada'] = {
+          'estrategia' => 'agente-unico',
+          'limites' => { 'max_agentes' => 1, 'max_paralelo' => 1, 'max_tempo_segundos' => 3601 },
+          'agentes' => [
+            { 'id' => 'principal', 'papel' => 'explorador', 'permissao' => 'read-only', 'depende_de' => [] }
+          ],
+          'tarefas' => [
+            {
+              'id' => 'task-01', 'agente' => 'principal', 'objetivo' => 'x', 'entrega_esperada' => 'y',
+              'nao_fazer' => [], 'arquivos' => { 'leitura' => [], 'escrita' => [] }, 'depende_de' => []
+            }
+          ]
+        }
+        c
+      end
+
+      test("3B.2B 1 retry aceito") do
+        card = build_readonly_card
+        card['execucao_planejada'] = {
+          'estrategia' => 'agente-unico',
+          'limites' => { 'max_agentes' => 1, 'max_paralelo' => 1, 'max_retentativas' => 1 },
+          'agentes' => [
+            { 'id' => 'principal', 'papel' => 'explorador', 'permissao' => 'read-only', 'depende_de' => [] }
+          ],
+          'tarefas' => [
+            {
+              'id' => 'task-01', 'agente' => 'principal', 'objetivo' => 'x', 'entrega_esperada' => 'y',
+              'nao_fazer' => [], 'arquivos' => { 'leitura' => [], 'escrita' => [] }, 'depende_de' => []
+            }
+          ]
+        }
+        plano = run_planner_parse(card)
+        assert_eq(plano['limites']['max_retentativas'], 1)
+      end
+
+      test_validation_error("3B.2B 2 retries no schema") do |card|
+        c = build_readonly_card
+        c['execucao_planejada'] = {
+          'estrategia' => 'agente-unico',
+          'limites' => { 'max_agentes' => 1, 'max_paralelo' => 1, 'max_retentativas' => 2 },
+          'agentes' => [
+            { 'id' => 'principal', 'papel' => 'explorador', 'permissao' => 'read-only', 'depende_de' => [] }
+          ],
+          'tarefas' => [
+            {
+              'id' => 'task-01', 'agente' => 'principal', 'objetivo' => 'x', 'entrega_esperada' => 'y',
+              'nao_fazer' => [], 'arquivos' => { 'leitura' => [], 'escrita' => [] }, 'depende_de' => []
+            }
+          ]
+        }
+        c
+      end
+
+      test("3B.2B 1 rodada revisao aceita") do
+        card = build_readonly_card
+        card['execucao_planejada'] = {
+          'estrategia' => 'agente-unico',
+          'limites' => { 'max_agentes' => 1, 'max_paralelo' => 1, 'max_rodadas_revisao' => 1 },
+          'agentes' => [
+            { 'id' => 'principal', 'papel' => 'explorador', 'permissao' => 'read-only', 'depende_de' => [] }
+          ],
+          'tarefas' => [
+            {
+              'id' => 'task-01', 'agente' => 'principal', 'objetivo' => 'x', 'entrega_esperada' => 'y',
+              'nao_fazer' => [], 'arquivos' => { 'leitura' => [], 'escrita' => [] }, 'depende_de' => []
+            }
+          ]
+        }
+        plano = run_planner_parse(card)
+        assert_eq(plano['limites']['max_rodadas_revisao'], 1)
+      end
+
+      test_validation_error("3B.2B 2 rodadas no schema") do |card|
+        c = build_readonly_card
+        c['execucao_planejada'] = {
+          'estrategia' => 'agente-unico',
+          'limites' => { 'max_agentes' => 1, 'max_paralelo' => 1, 'max_rodadas_revisao' => 2 },
+          'agentes' => [
+            { 'id' => 'principal', 'papel' => 'explorador', 'permissao' => 'read-only', 'depende_de' => [] }
+          ],
+          'tarefas' => [
+            {
+              'id' => 'task-01', 'agente' => 'principal', 'objetivo' => 'x', 'entrega_esperada' => 'y',
               'nao_fazer' => [], 'arquivos' => { 'leitura' => [], 'escrita' => [] }, 'depende_de' => []
             }
           ]
