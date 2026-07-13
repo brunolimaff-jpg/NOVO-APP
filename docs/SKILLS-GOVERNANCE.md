@@ -25,6 +25,21 @@ A camada canônica de skills auditadas passa a viver em:
 
 O `skills-lock.json` atual continua mínimo e compatível. Não foi sobrescrito nem migrado destrutivamente nesta fase.
 
+## Orquestração de agentes
+
+A camada de orquestração determinística (Fase 3A) vive em `.agents/orquestracao/`:
+
+- `README.md` — documentação canônica (CLI, papéis, autorização A0–A6)
+- `cartao-missao.schema.json` — schema de entrada (Cartão de Missão)
+- `contrato-plano.schema.json` — schema de saída (Plano de Execução)
+- `roteamento.yaml` — tabela de roteamento intenção→papel + autorização
+- `politica-despacho.md` — política de despacho (pipelines, filtros, regras)
+- `contrato-evidencias.yaml` — dimensões de evidência
+
+Scripts: `plan-agent-mission.rb` (planner dry-run), `validate-agent-orchestration.rb` (validador), `test-agent-orchestration.rb` (57 testes). CI: job `Agent Orchestration`.
+
+Baseline Ruby oficial: `3.3.x`, fixado em `.ruby-version` e nos jobs `Skills Governance` e `Agent Orchestration`. O Ruby legado fornecido pelo sistema operacional não é baseline suportado.
+
 ## Classificação operacional
 
 ### `active`

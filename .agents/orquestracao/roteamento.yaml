@@ -1,0 +1,184 @@
+versao: 1
+
+# Roteamento de papéis canônicos
+# Mapeia intenções para papéis. O planejador usa esta tabela para selecionar
+# o papel principal. O papel_preferido do cartão é apenas preferência —
+# a tabela canônica prevalece em caso de conflito.
+
+intencoes:
+  - intencao: "compreender ou mapear código"
+    palavras_chave:
+      - "explorar"
+      - "mapear"
+      - "entender"
+      - "compreender"
+      - "buscar"
+      - "encontrar"
+      - "onde está"
+      - "inventário"
+    papel: explorador
+
+  - intencao: "encontrar causa raiz"
+    palavras_chave:
+      - "causa raiz"
+      - "bug"
+      - "erro"
+      - "quebra"
+      - "incidente"
+      - "stack trace"
+      - "regressão"
+      - "debugar"
+      - "diagnosticar"
+    papel: investigador-incidentes
+
+  - intencao: "desenhar solução"
+    palavras_chave:
+      - "planejar"
+      - "desenhar"
+      - "arquitetar"
+      - "design"
+      - "decidir estratégico"
+      - "plano de solução"
+      - "abordagem"
+    papel: planejador-solucao
+
+  - intencao: "implementar mudança"
+    palavras_chave:
+      - "implementar"
+      - "criar"
+      - "adicionar"
+      - "modificar"
+      - "editar"
+      - "escrever"
+      - "refatorar"
+      - "corrigir"
+      - "mudar"
+    papel: executor-escopo
+
+  - intencao: "revisar contratos, APIs ou tipos"
+    palavras_chave:
+      - "revisar"
+      - "auditar"
+      - "code review"
+      - "contratos"
+      - "APIs"
+      - "tipos"
+      - "interfaces"
+      - "PR"
+    papel: revisor-contratos
+
+  - intencao: "validar entrega, testes ou CI"
+    palavras_chave:
+      - "validar"
+      - "testar"
+      - "gate"
+      - "CI"
+      - "qualidade"
+      - "cobertura"
+      - "verificar entrega"
+    papel: validador-entrega
+
+  - intencao: "revisar evidências e factualidade"
+    palavras_chave:
+      - "evidências"
+      - "factualidade"
+      - "dossiê"
+      - "inteligência"
+      - "veracidade"
+      - "prova"
+    papel: revisor-evidencias-dossie
+
+# Níveis de autorização A0-A6
+# Extraído de .agents/governanca/contrato-comunicacao-bruno.md seção 5
+autorizacao:
+  níveis:
+    A0:
+      descricao: "Somente leitura e operações não mutantes"
+      abrangencia: "Leitura, consultas, buscas, inspeções e diagnósticos."
+    A1:
+      descricao: "Planejar e produzir artefatos"
+      abrangencia: "Briefing, opções, propostas. Não autoriza edição do repositório."
+    A2:
+      descricao: "Editar e testar localmente"
+      abrangencia: "Escrita somente no workspace e escopo aprovado."
+    A3:
+      descricao: "Criar commit"
+      abrangencia: "Exige autorização explícita ou Cartão de Missão aprovado."
+    A4:
+      descricao: "Fazer push e criar ou atualizar PR"
+      abrangencia: "Exige autorização explícita ou Cartão de Missão aprovado."
+    A5:
+      descricao: "Fazer merge"
+      abrangencia: "Somente após MERGE explícito e revalidação completa."
+    A6:
+      descricao: "Fazer deploy ou operação irreversível"
+      abrangencia: "Exige autorização explícita da operação e do ambiente."
+
+  ordem: ["A0", "A1", "A2", "A3", "A4", "A5", "A6"]
+
+  acoes_especificas:
+    commit:
+      nivel_minimo: A3
+    push:
+      nivel_minimo: A4
+    pr:
+      nivel_minimo: A4
+    merge:
+      nivel_minimo: A5
+      token_obrigatorio: "MERGE"
+    deploy:
+      nivel_minimo: A6
+
+  regras:
+    - "Nível ausente é interpretado como A0."
+    - "A5 e A6 exigem confirmação explícita da operação."
+    - "Merge não autoriza deploy."
+    - "Mudança material de branch, SHA ou PR invalida autorização anterior."
+    - "Autorização não se herda por repetição de tarefa."
+    - "Merge exige autorização >= A5 E token MERGE na instrução_atual."
+    - "Deploy exige A6 E autorização explícita atual."
+
+# Classes de execução por papel
+classes:
+  explorador:
+    classe: leitor
+    acesso_padrao: somente-leitura
+    pode_escrever: false
+    pode_executar_shell: false
+    rede_padrao: false
+  investigador-incidentes:
+    classe: leitor
+    acesso_padrao: somente-leitura
+    pode_escrever: false
+    pode_executar_shell: false
+    rede_padrao: false
+  planejador-solucao:
+    classe: leitor
+    acesso_padrao: somente-leitura
+    pode_escrever: false
+    pode_executar_shell: false
+    rede_padrao: false
+  executor-escopo:
+    classe: executor
+    acesso_padrao: escrita-no-workspace
+    pode_escrever: true
+    pode_executar_shell: true
+    rede_padrao: false
+  revisor-contratos:
+    classe: leitor
+    acesso_padrao: somente-leitura
+    pode_escrever: false
+    pode_executar_shell: false
+    rede_padrao: false
+  validador-entrega:
+    classe: leitor
+    acesso_padrao: somente-leitura
+    pode_escrever: false
+    pode_executar_shell: false
+    rede_padrao: false
+  revisor-evidencias-dossie:
+    classe: leitor
+    acesso_padrao: somente-leitura
+    pode_escrever: false
+    pode_executar_shell: false
+    rede_padrao: false

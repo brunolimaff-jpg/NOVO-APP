@@ -29,7 +29,21 @@ def base_fixture(dir)
   write(File.join(dir, '.agents/papeis/README.md'), "papeis\n")
   write(File.join(dir, 'AGENTS.md'), "agents\n")
   write(File.join(dir, 'docs/SKILLS-GOVERNANCE.md'), "skills governance\n")
-  write(File.join(dir, '.github/workflows/ci.yml'), "name: CI\n")
+  write(File.join(dir, '.ruby-version'), "3.3.7\n")
+  write(File.join(dir, '.github/workflows/ci.yml'), <<~YAML)
+    name: CI
+    jobs:
+      skills-governance:
+        steps:
+          - uses: ruby/setup-ruby@v1
+            with:
+              ruby-version: '3.3.7'
+      agent-orchestration:
+        steps:
+          - uses: ruby/setup-ruby@v1
+            with:
+              ruby-version: '3.3.7'
+  YAML
   write(File.join(dir, '.agents/skills/foo/SKILL.md'), "---\nname: foo\ndescription: test\n---\nfoo\n")
   hash = Digest::SHA256.file(File.join(dir, '.agents/skills/foo/SKILL.md')).hexdigest
   registry = {
@@ -103,6 +117,35 @@ rescue RuntimeError => error
 end
 
 with_repo do |dir|
+  FileUtils.rm_f(File.join(dir, '.ruby-version'))
+  expect_validation_error('missing-ruby-version', /missing \.ruby-version/) { SkillsGovernanceValidator.validate!(root: dir, base_ref: 'main') }
+  tests << 'missing-ruby-version'
+end
+
+with_repo do |dir|
+  write(File.join(dir, '.ruby-version'), "2.6.10\n")
+  expect_validation_error('ruby-26-rejected', /Ruby 3\.3\.x/) { SkillsGovernanceValidator.validate!(root: dir, base_ref: 'main') }
+  tests << 'ruby-26-rejected'
+end
+
+with_repo do |dir|
+  write(File.join(dir, '.ruby-version'), "3.3.7\n")
+  ci = YAML.safe_load(File.read(File.join(dir, '.github/workflows/ci.yml')), aliases: false)
+  ci['jobs']['skills-governance']['steps'].last['with']['ruby-version'] = '3.3.6'
+  write(File.join(dir, '.github/workflows/ci.yml'), ci.to_yaml)
+  expect_validation_error('skills-governance-ruby-divergence', /Skills Governance must use Ruby 3\.3\.7/) { SkillsGovernanceValidator.validate!(root: dir, base_ref: 'main') }
+  tests << 'skills-governance-ruby-divergence'
+end
+
+with_repo do |dir|
+  ci = YAML.safe_load(File.read(File.join(dir, '.github/workflows/ci.yml')), aliases: false)
+  ci['jobs']['agent-orchestration']['steps'].last['with']['ruby-version'] = '2.6.10'
+  write(File.join(dir, '.github/workflows/ci.yml'), ci.to_yaml)
+  expect_validation_error('agent-orchestration-ruby-divergence', /Agent Orchestration must use Ruby 3\.3\.7/) { SkillsGovernanceValidator.validate!(root: dir, base_ref: 'main') }
+  tests << 'agent-orchestration-ruby-divergence'
+end
+
+with_repo do |dir|
   reg = YAML.safe_load(File.read(File.join(dir, '.agents/skills/registry.yaml')), aliases: false)
   dup = deep_copy(reg['skills'].first)
   dup['caminho'] = '.agents/skills/foo2/SKILL.md'
@@ -170,6 +213,22 @@ with_repo do |dir|
   sh!('git commit -m forbidden', chdir: dir)
   expect_validation_error('forbidden-file', /forbidden changed files/) { SkillsGovernanceValidator.validate!(root: dir, base_ref: 'main') }
   tests << 'forbidden-file'
+end
+
+{
+  'generic-scripts-blocked' => 'scripts/evil.rb',
+  'generic-docs-blocked' => 'docs/evil.md',
+  'generic-github-blocked' => '.github/evil.yml',
+  'generic-agents-blocked' => '.agents/evil.md'
+}.each do |label, path|
+  with_repo do |dir|
+    sh!("git checkout -b feature/#{label}", chdir: dir)
+    write(File.join(dir, path), 'oops')
+    sh!("git add #{path}", chdir: dir)
+    sh!("git commit -m #{label}", chdir: dir)
+    expect_validation_error(label, /forbidden changed files/) { SkillsGovernanceValidator.validate!(root: dir, base_ref: 'main') }
+    tests << label
+  end
 end
 
 with_repo do |dir|

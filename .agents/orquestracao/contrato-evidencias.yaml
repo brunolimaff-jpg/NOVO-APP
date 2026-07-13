@@ -1,0 +1,76 @@
+versao: 1
+
+# Contrato de Evidências da Decisão
+# O planejador deve produzir evidências auditáveis de cada decisão tomada.
+# Cada item abaixo é uma dimensão que deve ser registrada no plano.
+
+evidencias:
+  - dimensao: "validacao_entrada"
+    descricao: "Resultado da validação do cartão contra o schema JSON"
+    campos:
+      - "schema_valido: boolean"
+      - "campos_obrigatorios_presentes: boolean"
+      - "erros: lista de violações encontradas"
+
+  - dimensao: "autorizacao"
+    descricao: "Nível de autorização fornecido vs necessário"
+    campos:
+      - "nivel_fornecido: A0-A6"
+      - "nivel_necessario: A0-A6"
+      - "acoes_proibidas_verificadas: boolean"
+      - "token_merge_presente: boolean|null"
+
+  - dimensao: "selecao_papel"
+    descricao: "Como o papel foi selecionado"
+    campos:
+      - "papel_preferido_fornecido: boolean"
+      - "papel_preferido_compativel: boolean|null"
+      - "papel_selecionado: string"
+      - "metodo_selecao: preferido|roteamento|ambiguo"
+      - "intencao_identificada: string"
+
+  - dimensao: "selecao_skills"
+    descricao: "Filtros aplicados a cada skill solicitada"
+    campos:
+      - "skills_avaliadas: lista com resultado de cada filtro"
+      - "skills_selecionadas: lista aprovada"
+      - "skills_negadas: lista com motivo"
+
+  - dimensao: "selecao_adaptador"
+    descricao: "Como o adaptador foi selecionado"
+    campos:
+      - "ferramenta_selecionada: string"
+      - "adaptador_existe: boolean"
+      - "status_validacao: string"
+      - "limitacoes: lista"
+
+  - dimensao: "verificacao_proibicoes"
+    descricao: "Verificação de todas as proibições aplicáveis"
+    campos:
+      - "merge_verificado: boolean"
+      - "deploy_verificado: boolean"
+      - "rede_verificada: boolean"
+      - "shell_verificado: boolean"
+      - "delegacao_verificada: boolean"
+      - "escrita_fora_escopo_verificada: boolean"
+
+  - dimensao: "determinismo"
+    descricao: "Garantia de determinismo da saída"
+    campos:
+      - "listas_ordenadas: boolean"
+      - "chaves_ordenadas: boolean"
+      - "sem_timestamps_aleatorios: boolean"
+
+fontes_canonicas:
+  - path: ".agents/orquestracao/roteamento.yaml"
+    descricao: "Tabela de roteamento de intenções para papéis"
+  - path: ".agents/skills/registry.yaml"
+    descricao: "Registry canônico de skills e fluxos"
+  - path: ".agents/skills/compatibilidade.yaml"
+    descricao: "Compatibilidade de ferramentas"
+  - path: ".agents/adaptadores/mapa-adaptadores.yaml"
+    descricao: "Mapa de adaptadores por papel e ferramenta"
+  - path: ".agents/governanca/contrato-comunicacao-bruno.md"
+    descricao: "Níveis de autorização A0-A6"
+  - path: ".agents/papeis/README.md"
+    descricao: "Papéis canônicos e classes de execução"

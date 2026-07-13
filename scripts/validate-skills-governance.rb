@@ -14,14 +14,21 @@ module SkillsGovernanceValidator
   ALLOWED_ROLES = Set.new(%w[explorador investigador-incidentes planejador-solucao executor-escopo revisor-contratos validador-entrega revisor-evidencias-dossie]).freeze
   WRITER_ROLES = Set.new(%w[executor-escopo]).freeze
   BOOLEAN_FIELDS = %w[selecionavel_por_missao possui_scripts acesso_rede pode_escrever pode_executar_shell pode_delegar].freeze
-  ALLOWED_DIRECTORIES = ['.agents/skills/'].freeze
+  ALLOWED_DIRECTORIES = ['.agents/skills/', '.agents/orquestracao/'].freeze
   ALLOWED_EXACT_FILES = [
     'docs/SKILLS-GOVERNANCE.md',
     'AGENTS.md',
+    'HANDOFF_AI.md',
+    '.agents/memory/activeContext.md',
+    '.agents/memory/progress.md',
     '.agents/papeis/README.md',
     'scripts/validate-skills-governance.rb',
     'scripts/test-validate-skills-governance.rb',
-    '.github/workflows/ci.yml'
+    'scripts/plan-agent-mission.rb',
+    'scripts/validate-agent-orchestration.rb',
+    'scripts/test-agent-orchestration.rb',
+    '.github/workflows/ci.yml',
+    '.ruby-version'
   ].freeze
 
   def fail!(msg)
@@ -69,6 +76,34 @@ module SkillsGovernanceValidator
   def file_allowed?(path)
     return true if ALLOWED_EXACT_FILES.include?(path)
     ALLOWED_DIRECTORIES.any? { |prefix| path.start_with?(prefix) }
+  end
+
+  def validate_ruby_baseline!(root)
+    ruby_version_path = File.join(root, '.ruby-version')
+    fail!('missing .ruby-version') unless File.exist?(ruby_version_path)
+
+    repo_version = File.read(ruby_version_path).strip
+    fail!(".ruby-version must be Ruby 3.3.x, got #{repo_version.inspect}") unless repo_version.match?(/\A3\.3\.\d+\z/)
+    fail!('Ruby 2.6 is not a supported governance baseline') if repo_version.start_with?('2.6')
+
+    workflow_path = File.join(root, '.github/workflows/ci.yml')
+    workflow = YAML.safe_load(File.read(workflow_path), aliases: false)
+    jobs = workflow.fetch('jobs') { fail!('ci.yml missing jobs') }
+
+    {
+      'skills-governance' => 'Skills Governance',
+      'agent-orchestration' => 'Agent Orchestration'
+    }.each do |job_id, label|
+      job = jobs[job_id] || fail!("ci.yml missing #{label} job")
+      setup_step = Array(job['steps']).find { |step| step.is_a?(Hash) && step['uses'].to_s.start_with?('ruby/setup-ruby@') }
+      fail!("#{label} must use ruby/setup-ruby") unless setup_step
+
+      ci_version = setup_step.fetch('with', {})['ruby-version']
+      fail!("#{label} must use Ruby #{repo_version}, got #{ci_version.inspect}") unless ci_version == repo_version
+      fail!("#{label} must use Ruby 3.3.x") unless ci_version.match?(/\A3\.3\.\d+\z/)
+    end
+
+    repo_version
   end
 
   def validate_skill!(root, skill, ids, paths)
@@ -119,6 +154,7 @@ module SkillsGovernanceValidator
   end
 
   def validate!(root:, base_ref: ENV['GITHUB_BASE_REF'])
+    ruby_version = validate_ruby_baseline!(root)
     data = load_data(root)
     registry = data[:registry]
     compat = data[:compat]
@@ -146,6 +182,7 @@ module SkillsGovernanceValidator
 
     {
       used_base: used_base,
+      ruby_version: ruby_version,
       skills_count: skills.length,
       changed_files: changed_files
     }
@@ -158,5 +195,6 @@ if $PROGRAM_NAME == __FILE__
   puts 'OK registry.yaml'
   puts 'OK compatibilidade.yaml'
   puts 'OK skills-lock.json'
+  puts "OK Ruby baseline #{result[:ruby_version]}"
   puts "OK changed-file policy (base=#{result[:used_base]})"
 end

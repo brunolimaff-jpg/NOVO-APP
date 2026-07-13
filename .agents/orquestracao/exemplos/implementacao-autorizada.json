@@ -1,0 +1,51 @@
+{
+  "versao": 1,
+  "id": "ex-03-implementacao-autorizada",
+  "titulo": "Implementar correção de tipo em componente",
+  "objetivo": "Corrigir erro de tipo em components/DossierViewer e adicionar teste",
+  "contexto": "Typecheck falha em 3 pontos do DossierViewer por any implícito.",
+  "resultado_esperado": "Componente tipado corretamente, typecheck passando, teste adicionado",
+  "autorizacao": {
+    "nivel": "A4",
+    "acoes_permitidas": ["ler", "editar", "testar", "commit", "push", "criar-pr"],
+    "acoes_solicitadas": ["commit", "push", "pr"],
+    "acoes_proibidas": ["merge", "deploy"]
+  },
+  "escopo": {
+    "leitura": [
+      "components/DossierViewer.tsx",
+      "tests/",
+      "types.ts"
+    ],
+    "escrita": [
+      "components/DossierViewer.tsx",
+      "tests/DossierViewer.test.tsx"
+    ]
+  },
+  "restricoes": [
+    "Não alterar types.ts sem justificativa",
+    "Manter comportamento visual existente",
+    "PR focada: máximo 3 arquivos"
+  ],
+  "verificacao": [
+    "npm run typecheck sem erros",
+    "npm run test passando"
+  ],
+  "evidencias_requeridas": [
+    "Diff do tipo corrigido",
+    "Resultado do typecheck",
+    "Resultado dos testes"
+  ],
+  "condicoes_parada": [
+    "Typecheck e testes passando",
+    "PR criada",
+    "Bruno interromper"
+  ],
+  "ferramentas_permitidas": ["claude-code", "codex", "opencode"],
+  "skills_solicitadas": ["validate-gates"],
+  "papel_preferido": "executor-escopo",
+  "rede_permitida": false,
+  "shell_permitido": true,
+  "delegacao_permitida": false,
+  "instrucao_atual": "Corrige os erros de tipo no DossierViewer e sobe PR"
+}
