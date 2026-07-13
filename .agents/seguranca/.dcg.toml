@@ -1,0 +1,11 @@
+# Project-local DCG config (documented requirement). Not a global user hook change.
+# Packs always-on in upstream remain active; this file asserts required policy presence.
+
+[packs]
+enabled = [
+  "core.git",
+  "core.filesystem",
+]
+
+[general]
+fail_closed = true

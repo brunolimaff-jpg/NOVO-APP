@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+# Fixture-only fake DCG — NEVER a real destructive-command-guard binary.
+set -euo pipefail
+
+if [[ "${1:-}" == "--version" ]]; then
+  echo "dcg 0.6.6"
+  exit 0
+fi
+
+if [[ "${1:-}" == "test" ]]; then
+  format="pretty"
+  cmd=""
+  shift
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --format)
+        format="${2:-}"
+        shift 2
+        ;;
+      *)
+        cmd="$1"
+        shift
+        ;;
+    esac
+  done
+  decision="allow"
+  case "$cmd" in
+    *'git reset --hard'*|*git\ reset\ --hard*|*'rm -rf'*)
+      decision="deny"
+      ;;
+  esac
+  if [[ "$format" == "json" ]]; then
+    # Minimal JSON; avoid embedding unescaped quotes from cmd.
+    safe_cmd=$(printf '%s' "$cmd" | sed 's/\\/\\\\/g; s/"/\\"/g')
+    printf '{"schema_version":2,"dcg_version":"0.6.6","command":"%s","decision":"%s"}\n' "$safe_cmd" "$decision"
+  else
+    echo "decision=$decision command=$cmd"
+  fi
+  if [[ "$decision" == "deny" ]]; then
+    exit 1
+  fi
+  exit 0
+fi
+
+echo "fixture-dcg: unsupported argv: $*" >&2
+exit 2

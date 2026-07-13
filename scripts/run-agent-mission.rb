@@ -10,6 +10,7 @@ require 'tmpdir'
 require 'time'
 require 'fileutils'
 require_relative './plan-agent-mission'
+require_relative './runtime-safety-preflight'
 
 module AgentMissionRunner
   ROOT = File.expand_path('..', __dir__)
@@ -45,18 +46,37 @@ module AgentMissionRunner
   module_function
 
   def parse(argv)
-    opts = { execute: false, stdout: false }
+    opts = { execute: false, stdout: false, agent_runtime: false }
     OptionParser.new do |parser|
       parser.on('--card PATH') { |v| opts[:card] = v }
       parser.on('--plan PATH') { |v| opts[:plan] = v }
       parser.on('--output PATH') { |v| opts[:output] = v }
       parser.on('--stdout') { opts[:stdout] = true }
       parser.on('--execute') { opts[:execute] = true }
+      parser.on('--safety-report PATH') { |v| opts[:safety_report] = v }
+      # Future agent-runtime gate only. Does NOT spawn agents in 3B.3A.
+      parser.on('--agent-runtime') { opts[:agent_runtime] = true }
     end.parse!(argv)
     raise 'missing --card' unless opts[:card]
     raise 'missing --plan' unless opts[:plan]
     raise 'use --stdout or --output' unless opts[:stdout] || opts[:output]
     opts
+  end
+
+  def enforce_runtime_safety!(opts)
+    return unless opts[:agent_runtime]
+
+    path = opts[:safety_report]
+    unless path && !path.to_s.strip.empty?
+      raise DeniedError.new('RUNTIME_SAFETY_REPORT_REQUIRED', 'safety report required for agent-runtime')
+    end
+
+    report = JSON.parse(File.read(safe_path(path, must_exist: true)))
+    RuntimeSafetyPreflight.validate_report!(report)
+  rescue RuntimeSafetyPreflight::Denied => error
+    raise DeniedError.new(error.code, error.message)
+  rescue MissionPlanner::SchemaError => error
+    raise DeniedError.new('RUNTIME_SAFETY_SCHEMA_INVALID', error.message)
   end
 
   def allowed_roots
@@ -389,6 +409,7 @@ module AgentMissionRunner
     start = nil
 
     begin
+      enforce_runtime_safety!(opts)
       card = load_json(opts[:card])
       plan = load_json(opts[:plan])
       catalog = load_catalog
