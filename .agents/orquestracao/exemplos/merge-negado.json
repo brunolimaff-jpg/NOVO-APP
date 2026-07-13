@@ -8,6 +8,7 @@
   "autorizacao": {
     "nivel": "A4",
     "acoes_permitidas": ["ler", "editar", "commit", "push"],
+    "acoes_solicitadas": ["merge"],
     "acoes_proibidas": ["merge", "deploy"]
   },
   "escopo": {

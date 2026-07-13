@@ -47,13 +47,18 @@
     "autorizacao": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["nivel", "acoes_permitidas", "acoes_proibidas"],
+      "required": ["nivel", "acoes_permitidas", "acoes_solicitadas", "acoes_proibidas"],
       "properties": {
         "nivel": {
           "type": "string",
           "enum": ["A0", "A1", "A2", "A3", "A4", "A5", "A6"]
         },
         "acoes_permitidas": {
+          "type": "array",
+          "items": { "type": "string" },
+          "uniqueItems": true
+        },
+        "acoes_solicitadas": {
           "type": "array",
           "items": { "type": "string" },
           "uniqueItems": true

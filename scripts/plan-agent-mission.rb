@@ -3,8 +3,9 @@
 
 # plan-agent-mission.rb — Planejador determinístico dry-run de missões de agente.
 #
-# Recebe um Cartão de Missão JSON, valida entrada, seleciona papel, skills,
-# adaptador, aplica autorização, e produz um Plano de Execução determinístico.
+# Recebe um Cartão de Missão JSON, valida entrada (incluindo schema JSON),
+# seleciona papel, skills, adaptador, aplica autorização, e produz um
+# Plano de Execução determinístico.
 #
 # NÃO executa agentes, skills, shell, rede, ou Git.
 # Escrita somente no arquivo --output.
@@ -14,16 +15,29 @@ require 'yaml'
 require 'digest'
 require 'optparse'
 require 'fileutils'
+require 'tmpdir'
 
 module MissionPlanner
-  REPO_ROOT  = File.expand_path('..', __dir__)
-  ORCH_DIR   = File.join(REPO_ROOT, '.agents', 'orquestracao')
+  REPO_ROOT   = File.expand_path('..', __dir__)
+  ORCH_DIR    = File.join(REPO_ROOT, '.agents', 'orquestracao')
+  SCHEMA_PATH = File.join(ORCH_DIR, 'cartao-missao.schema.json')
 
   AUTH_ORDER = %w[A0 A1 A2 A3 A4 A5 A6].freeze
   ACTION_MIN_AUTH = {
     'commit' => 'A3', 'push' => 'A4', 'pr' => 'A4',
     'merge' => 'A5', 'deploy' => 'A6'
   }.freeze
+  ACTION_ALIASES = {
+    'pr' => %w[pr criar-pr pull-request pull request],
+    'push' => %w[push subir],
+    'commit' => %w[commit],
+    'merge' => %w[merge mergear juntar],
+    'deploy' => %w[deploy implantar]
+  }.freeze
+  SUPPORTED_SCHEMA_KEYS = %w[
+    $schema $id title description type required properties additionalProperties
+    enum const items minItems uniqueItems minLength pattern minimum maximum
+  ].freeze
 
   REQUIRED_FIELDS = %w[
     versao id titulo objetivo contexto resultado_esperado
@@ -33,18 +47,19 @@ module MissionPlanner
 
   class ValidationError < StandardError; end
   class PathTraversalError < StandardError; end
+  class SchemaError < StandardError; end
 
   class << self
     def run(argv)
-      input_path = nil
+      input_path  = nil
       output_path = nil
       stdout_mode = false
 
       parser = OptionParser.new do |opts|
         opts.banner = "Usage: ruby scripts/plan-agent-mission.rb --input <file> [--output <file> | --stdout]"
         opts.on('--input FILE', 'Caminho do Cartão de Missão JSON') { |v| input_path = v }
-        opts.on('--output FILE', 'Caminho de saída do plano') { |v| output_path = v }
-        opts.on('--stdout', 'Imprimir plano na stdout') { stdout_mode = true }
+        opts.on('--output FILE', 'Caminho de saída do plano')       { |v| output_path = v }
+        opts.on('--stdout', 'Imprimir plano na stdout')              { stdout_mode = true }
         opts.on('-h', '--help') do
           warn opts.help
           exit 0
@@ -58,23 +73,23 @@ module MissionPlanner
         exit 1
       end
 
-      validate_no_path_traversal(input_path)
+      validate_path_safety(input_path, must_exist: true)
 
       unless File.file?(input_path)
         warn "ERRO: arquivo de entrada não encontrado: #{input_path}"
         exit 1
       end
 
-      raw = File.read(input_path)
+      raw    = File.read(input_path)
       cartao = parse_json_safely(raw, input_path)
 
-      plano = plan(cartao)
+      plano    = plan(cartao)
       json_out = serialize_plan(plano)
 
       if stdout_mode
         $stdout.write(json_out)
       elsif output_path
-        validate_no_path_traversal(output_path)
+        validate_path_safety(output_path, must_exist: false)
         FileUtils.mkdir_p(File.dirname(output_path))
         File.write(output_path, json_out)
       else
@@ -84,6 +99,9 @@ module MissionPlanner
     rescue ValidationError => e
       warn "ERRO DE VALIDAÇÃO: #{e.message}"
       exit 2
+    rescue SchemaError => e
+      warn "ERRO DE SCHEMA: #{e.message}"
+      exit 2
     rescue PathTraversalError => e
       warn "ERRO DE SEGURANÇA: #{e.message}"
       exit 3
@@ -92,105 +110,122 @@ module MissionPlanner
       exit 4
     end
 
+    # ── Public planning entry point ──────────────────────────────────
+
     def plan(cartao)
       fontes = []
       fontes << '.agents/orquestracao/roteamento.yaml'
 
-      # 1. Validate required fields
+      # 1. Validate schema (structural conformance to JSON Schema)
+      schema = load_json(SCHEMA_PATH)
+      validate_against_schema!(cartao, schema)
+
+      # 2. Validate required top-level fields
       validate_required_fields!(cartao)
 
-      # Load canonical sources
+      # 3. Load canonical sources (NO compatibilidade.yaml — unused)
       roteamento = load_yaml(File.join(ORCH_DIR, 'roteamento.yaml'))
       registry   = load_yaml(File.join(REPO_ROOT, '.agents', 'skills', 'registry.yaml'))
-      comp       = load_yaml(File.join(REPO_ROOT, '.agents', 'skills', 'compatibilidade.yaml'))
       mapa       = load_yaml(File.join(REPO_ROOT, '.agents', 'adaptadores', 'mapa-adaptadores.yaml'))
 
-      auth_nivel = cartao['autorizacao']['nivel']
-      fontes << '.agents/governanca/contrato-comunicacao-bruno.md'
       fontes << '.agents/skills/registry.yaml'
-      fontes << '.agents/skills/compatibilidade.yaml'
       fontes << '.agents/adaptadores/mapa-adaptadores.yaml'
-
-      # 2. Select papel
-      papel_info = select_papel(cartao, roteamento)
-      papel = papel_info[:papel]
       fontes << '.agents/papeis/README.md'
 
-      # 3. Check proibitions (merge, deploy, etc.)
+      auth_nivel = cartao['autorizacao']['nivel']
+      nivel_idx  = AUTH_ORDER.index(auth_nivel)
+      classes    = roteamento['classes'] || {}
+
+      # 4. Select papel
+      papel_info = select_papel(cartao, roteamento)
+      papel      = papel_info[:papel]
+
+      # 5. Compute effective permissions
+      rede_raw   = cartao.key?('rede_permitida')  ? cartao['rede_permitida']  : false
+      shell_raw  = cartao.key?('shell_permitido') ? cartao['shell_permitido'] : false
+      is_executor = papel_info[:classe] == 'executor'
+
+      effective_rede  = rede_raw  && is_executor
+      effective_shell = shell_raw && is_executor && nivel_idx >= AUTH_ORDER.index('A2')
+
+      # 6. Check prohibitions
       negacoes = []
-      avisos = []
-      nivel_idx = AUTH_ORDER.index(auth_nivel)
+      avisos   = []
 
-      # Check merge
-      instrucao = cartao['instrucao_atual'] || ''
-      if action_requested?(instrucao, cartao, 'merge')
-        if nivel_idx < AUTH_ORDER.index('A5')
-          negacoes << "merge negado: autorização #{auth_nivel} insuficiente (exige A5)"
-        elsif !instrucao.upcase.include?('MERGE')
-          negacoes << "merge negado: token MERGE ausente na instrução atual"
+      instrucao   = cartao['instrucao_atual'] || ''
+      acoes_perm  = cartao['autorizacao']['acoes_permitidas'] || []
+      acoes_sol   = cartao['autorizacao']['acoes_solicitadas'] || []
+
+      acoes_sol.each do |acao|
+        next if action_allowed?(acoes_perm, acao)
+
+        negacoes << neg('ACTION_NOT_ALLOWED',
+                         "ação solicitada não permitida pelo cartão: #{acao}")
+      end
+
+      # 6a. Action authorization (loop-driven, uses acoes_solicitadas not acoes_permitidas)
+      ACTION_MIN_AUTH.each do |action, min_auth|
+        next unless action_requested?(acoes_sol, action)
+
+        min_idx = AUTH_ORDER.index(min_auth)
+        if nivel_idx < min_idx
+          negacoes << neg('AUTH_INSUFFICIENT',
+                           "#{action} negado: autorização #{auth_nivel} insuficiente (exige #{min_auth})")
+        elsif action == 'merge' && !instrucao.upcase.include?('MERGE')
+          negacoes << neg('MERGE_TOKEN_MISSING',
+                           'merge negado: token MERGE ausente na instrução atual')
         end
       end
 
-      # Check deploy
-      if action_requested?(instrucao, cartao, 'deploy')
-        if nivel_idx < AUTH_ORDER.index('A6')
-          negacoes << "deploy negado: autorização #{auth_nivel} insuficiente (exige A6)"
-        end
-      end
-
-      # Check commit
-      if action_requested?(instrucao, cartao, 'commit') && nivel_idx < AUTH_ORDER.index('A3')
-        negacoes << "commit negado: autorização #{auth_nivel} insuficiente (exige A3)"
-      end
-
-      # Check push/pr
-      if action_requested?(instrucao, cartao, 'push') && nivel_idx < AUTH_ORDER.index('A4')
-        negacoes << "push negado: autorização #{auth_nivel} insuficiente (exige A4)"
-      end
-
-      # Check acoes_proibidas
+      # 6b. Ações proibidas
       (cartao['autorizacao']['acoes_proibidas'] || []).each do |acao|
-        if action_requested?(instrucao, cartao, acao)
-          negacoes << "ação proibida pelo cartão: #{acao}"
+        next unless action_requested?(acoes_sol, acao)
+
+        negacoes << neg('ACTION_FORBIDDEN', "ação proibida pelo cartão: #{acao}")
+      end
+
+      # 6c. Write authorization gate (executor-escopo + A2+)
+      escrita = cartao['escopo']['escrita'] || []
+      if !escrita.empty?
+        unless papel == 'executor-escopo' && nivel_idx >= AUTH_ORDER.index('A2')
+          detalhe = "papel=#{papel || 'nenhum'}, autorização=#{auth_nivel}"
+          negacoes << neg('AUTH_WRITE_REQUIRES_A2',
+                           "escrita exige A2 e executor-escopo (#{detalhe})")
         end
       end
 
-      # Check rede
-      rede_permitida = cartao.key?('rede_permitida') ? cartao['rede_permitida'] : false
-      if rede_permitida && papel_info[:classe] == 'leitor'
-        negacoes << "rede proibida para papel leitor (#{papel})"
+      # 6d. Rede for leitor
+      if rede_raw && !is_executor
+        negacoes << neg('NETWORK_FOR_READER',
+                         "rede proibida para papel leitor (#{papel})")
       end
 
-      # Check shell
-      shell_permitido = cartao.key?('shell_permitido') ? cartao['shell_permitido'] : false
-      if shell_permitido && papel_info[:classe] == 'leitor'
-        negacoes << "shell proibido para papel leitor (#{papel})"
+      # 6e. Shell for leitor
+      if shell_raw && !is_executor
+        negacoes << neg('SHELL_FOR_READER',
+                         "shell proibido para papel leitor (#{papel})")
       end
 
-      # Check delegação
+      # 6f. Delegação
       delegacao = cartao.key?('delegacao_permitida') ? cartao['delegacao_permitida'] : false
       if delegacao
-        negacoes << 'delegação negada: agentes filhos não podem delegar'
+        negacoes << neg('DELEGATION_FORBIDDEN',
+                         'delegação negada: agentes filhos não podem delegar')
       end
 
-      # Check escrita for non-executor
-      escrita = cartao['escopo']['escrita'] || []
-      if !escrita.empty? && papel != 'executor-escopo'
-        negacoes << "escrita solicitada mas papel selecionado (#{papel}) não é executor-escopo"
-      end
+      # 7. Select adapter
+      adapter_info = select_adapter(cartao, mapa, papel, avisos)
 
-      # 4. Select adapter
-      adapter_info = select_adapter(cartao, mapa, papel, roteamento, avisos, negacoes)
-
-      # 5. Select skills
-      skills_result = select_skills(cartao, registry, papel, auth_nivel, rede_permitida,
-                                    shell_permitido, adapter_info[:ferramenta])
+      # 8. Select skills (classes passed as arg, effective perms used)
+      skills_result = select_skills(
+        cartao, registry, papel, auth_nivel, nivel_idx,
+        effective_rede, effective_shell, adapter_info[:ferramenta], classes
+      )
 
       skills_selecionadas = skills_result[:aprovadas]
-      skills_negadas = skills_result[:negadas]
-      negacoes.concat(skills_negadas.map { |s| s[:motivo] })
+      negacoes.concat(skills_result[:negadas])
 
-      # Handle delivery-loop
+      # 9. Handle fluxo_solicitado (delivery-loop etc.)
       fluxo_selecionado = nil
       fluxo_sol = cartao['fluxo_solicitado']
       if fluxo_sol
@@ -202,39 +237,44 @@ module MissionPlanner
         end
       end
 
-      # Determine status
+      # 10. Determine status
       status = determine_status(negacoes, papel_info, adapter_info, skills_result)
 
-      # Determine authorization necessary
-      auth_necessaria = determine_auth_necessary(cartao, papel_info)
+      # 11. Determine authorization necessary
+      auth_necessaria = determine_auth_necessary(instrucao, acoes_sol, papel_info)
 
-      # Build etapas
-      etapas = build_etapas(cartao, papel, skills_selecionadas, adapter_info[:ferramenta])
+      # 12. Gate derived permissions by status
+      gated = status == 'planejado'
 
-      # Build plan
+      # 13. Build etapas
+      etapas = gated ? build_etapas(cartao, papel, skills_selecionadas, adapter_info[:ferramenta]) : []
+
+      # 14. Build plan
       plano = {
-        'adaptador_selecionado' => adapter_info[:caminho],
-        'autorizacao_fornecida' => auth_nivel,
-        'autorizacao_necessaria' => auth_necessaria,
-        'avisos' => avisos.sort.uniq,
-        'condicoes_parada' => (cartao['condicoes_parada'] || []).sort,
-        'delegacao_permitida' => false,
-        'evidencias_requeridas' => (cartao['evidencias_requeridas'] || []).sort,
-        'etapas' => etapas,
-        'ferramenta_selecionada' => adapter_info[:ferramenta],
-        'fluxo_selecionado' => fluxo_selecionado,
-        'fontes_decisao' => fontes.sort.uniq,
-        'leitura_permitida' => true,
-        'missao_id' => cartao['id'],
-        'negacoes' => negacoes.sort.uniq,
-        'papeis_auxiliares' => [],
-        'papel_principal' => status == 'incompleto' ? nil : papel,
-        'rede_permitida' => rede_permitida && papel_info[:classe] == 'executor',
-        'shell_permitido' => shell_permitido && papel_info[:classe] == 'executor',
-        'skills_selecionadas' => skills_selecionadas.sort,
-        'status' => status,
-        'versao' => 1,
-        'escrita_permitida' => papel == 'executor-escopo' && !escrita.empty?
+        'adaptador_selecionado'    => adapter_info[:caminho],
+        'autorizacao_fornecida'    => auth_nivel,
+        'autorizacao_necessaria'   => auth_necessaria,
+        'avisos'                   => avisos.sort.uniq,
+        'condicoes_parada'         => (cartao['condicoes_parada'] || []).sort,
+        'delegacao_permitida'      => false,
+        'evidencias_requeridas'    => (cartao['evidencias_requeridas'] || []).sort,
+        'etapas'                   => etapas,
+        'ferramenta_selecionada'   => adapter_info[:ferramenta],
+        'fluxo_selecionado'        => fluxo_selecionado,
+        'fontes_decisao'           => fontes.sort.uniq,
+        'leitura_permitida'        => true,
+        'missao_id'                => cartao['id'],
+        'negacoes'                 => sort_negacoes(negacoes),
+        'papeis_auxiliares'        => [],
+        'papel_principal'          => gated ? papel : nil,
+        'rede_permitida'           => gated ? effective_rede  : false,
+        'shell_permitido'          => gated ? effective_shell : false,
+        'skills_selecionadas'      => gated ? skills_selecionadas.sort : [],
+        'status'                   => status,
+        'versao'                   => 1,
+        'escrita_permitida'        => gated && papel == 'executor-escopo' && !escrita.empty?,
+        'acoes_solicitadas'        => acoes_sol.sort,
+        'acoes_permitidas'         => acoes_perm.sort,
       }
 
       plano
@@ -242,16 +282,205 @@ module MissionPlanner
 
     private
 
-    def validate_no_path_traversal(path)
-      if path.include?('..') || (path.include?('~') && path !~ /^~/)
+    # ── Path safety ──────────────────────────────────────────────────
+
+    def validate_path_safety(path, must_exist: false)
+      expanded = File.expand_path(path)
+
+      # Reject ~ expansion to unexpected home dirs
+      if path.include?('~') && expanded != File.expand_path(path)
         raise PathTraversalError, "path rejeitado por segurança: #{path}"
       end
+
+      # Verify path stays within allowed roots
+      repo_root = File.expand_path(REPO_ROOT)
+      tmp_dir   = File.expand_path(Dir.tmpdir)
+      allowed_roots = [repo_root, tmp_dir]
+      allowed_roots << File.realpath(tmp_dir) if File.exist?(tmp_dir)
+      allowed_roots.uniq!
+
+      within_allowed = allowed_roots.any? do |root|
+        expanded == root || expanded.start_with?(root + File::SEPARATOR)
+      end
+
+      unless within_allowed
+        raise PathTraversalError,
+              "path fora do escopo permitido: #{path} (resolvido: #{expanded})"
+      end
+
+      # Check symlink targets if file/dir exists
+      check_path = must_exist ? expanded : File.dirname(expanded)
+      if File.exist?(check_path) || File.symlink?(check_path)
+        real = File.realpath(check_path)
+        real_safe = allowed_roots.any? do |root|
+          real == root || real.start_with?(root + File::SEPARATOR)
+        end
+        unless real_safe
+          raise PathTraversalError,
+                "symlink ou path real aponta fora do escopo: #{path} (real: #{real})"
+        end
+      end
+    rescue Errno::ENOENT
+      # Parent dir doesn't exist — fail safe
+      raise PathTraversalError, "path rejeitado (diretório pai inexistente): #{path}"
     end
+
+    # ── JSON Schema validation (internal) ────────────────────────────
+
+    def validate_against_schema!(data, schema, path = '$')
+      validate_schema_keywords!(schema, path)
+
+      unless data.is_a?(Hash)
+        raise SchemaError, "#{path}: esperado object, obtido #{ruby_type_name(data)}"
+      end
+
+      # Check type
+      if schema['type'] && !Array(schema['type']).include?('object')
+        raise SchemaError, "#{path}: type '#{schema['type']}' não suportado no validador"
+      end
+
+      # Check required
+      (schema['required'] || []).each do |field|
+        next if data.key?(field)
+        raise SchemaError, "#{path}: campo obrigatório '#{field}' ausente"
+      end
+
+      # Check additionalProperties
+      known_props = (schema['properties'] || {}).keys
+      if schema['additionalProperties'] == false
+        extra = data.keys - known_props
+        unless extra.empty?
+          raise SchemaError, "#{path}: propriedades não permitidas: #{extra.sort.join(', ')}"
+        end
+      end
+
+      # Validate each property
+      (schema['properties'] || {}).each do |key, sub_schema|
+        next unless data.key?(key)
+        validate_value!(data[key], sub_schema, "#{path}.#{key}")
+      end
+    end
+
+    def validate_value!(value, schema, path)
+      validate_schema_keywords!(schema, path)
+
+      # type
+      if schema['type']
+        validate_type!(value, schema['type'], path)
+      end
+
+      # enum
+      if schema['enum'] && !schema['enum'].include?(value)
+        raise SchemaError, "#{path}: valor '#{value}' não está no enum #{schema['enum'].inspect}"
+      end
+
+      # const
+      if schema.key?('const') && value != schema['const']
+        raise SchemaError, "#{path}: esperado const #{schema['const'].inspect}, obtido #{value.inspect}"
+      end
+
+      # string constraints
+      if value.is_a?(String)
+        if schema['minLength'] && value.length < schema['minLength']
+          raise SchemaError, "#{path}: minLength=#{schema['minLength']} violado (#{value.length})"
+        end
+        if schema['pattern'] && !Regexp.new(schema['pattern']).match?(value)
+          raise SchemaError, "#{path}: pattern '#{schema['pattern']}' não corresponde a '#{value}'"
+        end
+      end
+
+      # number constraints
+      if value.is_a?(Numeric)
+        if schema['minimum'] && value < schema['minimum']
+          raise SchemaError, "#{path}: minimum=#{schema['minimum']} violado (#{value})"
+        end
+        if schema['maximum'] && value > schema['maximum']
+          raise SchemaError, "#{path}: maximum=#{schema['maximum']} violado (#{value})"
+        end
+      end
+
+      # array constraints
+      if value.is_a?(Array)
+        if schema['minItems'] && value.length < schema['minItems']
+          raise SchemaError, "#{path}: minItems=#{schema['minItems']} violado (#{value.length})"
+        end
+        if schema['uniqueItems']
+          unless value.length == value.uniq.length
+            raise SchemaError, "#{path}: uniqueItems violado (duplicatas em #{value.inspect})"
+          end
+        end
+        if schema['items']
+          value.each_with_index do |elem, i|
+            validate_value!(elem, schema['items'], "#{path}[#{i}]")
+          end
+        end
+      end
+
+      # object constraints
+      if value.is_a?(Hash) && schema['properties']
+        validate_against_schema!(value, schema, path)
+      end
+    end
+
+    def validate_type!(value, expected_type, path)
+      expected_types = Array(expected_type)
+      unsupported = expected_types - %w[string integer boolean array object null]
+      unless unsupported.empty?
+        raise SchemaError, "#{path}: tipo '#{unsupported.first}' não suportado"
+      end
+
+      ok = expected_types.any? do |type|
+        case type
+        when 'string'  then value.is_a?(String)
+        when 'integer' then value.is_a?(Integer)
+        when 'boolean' then [true, false].include?(value)
+        when 'array'   then value.is_a?(Array)
+        when 'object'  then value.is_a?(Hash)
+        when 'null'    then value.nil?
+        end
+      end
+      raise SchemaError, "#{path}: esperado #{expected_type}, obtido #{ruby_type_name(value)}" unless ok
+    end
+
+    def validate_schema_keywords!(schema, path)
+      unknown = schema.keys - SUPPORTED_SCHEMA_KEYS
+      unless unknown.empty?
+        raise SchemaError, "#{path}: schema usa keyword não suportada: #{unknown.sort.join(', ')}"
+      end
+
+      (schema['properties'] || {}).each do |key, sub_schema|
+        validate_schema_keywords!(sub_schema, "#{path}.properties.#{key}")
+      end
+      validate_schema_keywords!(schema['items'], "#{path}.items") if schema['items'].is_a?(Hash)
+    end
+
+    def ruby_type_name(value)
+      case value
+      when NilClass   then 'null'
+      when String     then 'string'
+      when Integer    then 'integer'
+      when Float      then 'number'
+      when TrueClass  then 'boolean'
+      when FalseClass then 'boolean'
+      when Array      then 'array'
+      when Hash       then 'object'
+      else value.class.to_s.downcase
+      end
+    end
+
+    # ── Parsing / loading ────────────────────────────────────────────
 
     def parse_json_safely(raw, label)
       JSON.parse(raw)
     rescue JSON::ParserError => e
       raise ValidationError, "JSON inválido em #{label}: #{e.message}"
+    end
+
+    def load_json(path)
+      raise ValidationError, "arquivo não encontrado: #{path}" unless File.file?(path)
+      JSON.parse(File.read(path))
+    rescue JSON::ParserError => e
+      raise ValidationError, "JSON inválido em #{path}: #{e.message}"
     end
 
     def validate_required_fields!(cartao)
@@ -264,37 +493,48 @@ module MissionPlanner
     def load_yaml(path)
       raise ValidationError, "arquivo canônico não encontrado: #{path}" unless File.file?(path)
 
-      YAML.load_file(path)
-    rescue ArgumentError => e
+      YAML.safe_load(File.read(path), aliases: false)
+    rescue ArgumentError, Psych::SyntaxError => e
       raise ValidationError, "YAML inválido em #{path}: #{e.message}"
     end
 
+    # ── Negation helpers ─────────────────────────────────────────────
+
+    def neg(codigo, mensagem)
+      { 'codigo' => codigo, 'mensagem' => mensagem }
+    end
+
+    def sort_negacoes(arr)
+      arr.uniq.sort_by { |n| [n['codigo'], n['mensagem']] }
+    end
+
+    # ── Papel selection ──────────────────────────────────────────────
+
     def select_papel(cartao, roteamento)
       preferred = cartao['papel_preferido']
-      objetivo = (cartao['objetivo'] || '').downcase
-
-      classes = roteamento['classes'] || {}
+      objetivo  = (cartao['objetivo'] || '').downcase
+      classes   = roteamento['classes'] || {}
 
       # Check preferred first
       if preferred && classes.key?(preferred)
         return {
-          papel: preferred,
-          classe: classes[preferred]['classe'],
-          metodo: 'preferido',
-          intencao: "preferido pelo cartão"
+          papel:   preferred,
+          classe:  classes[preferred]['classe'],
+          metodo:  'preferido',
+          intencao: 'preferido pelo cartão'
         }
       end
 
       # Route by keywords
-      intencoes = roteamento['intencoes'] || []
-      scores = Hash.new(0)
+      intencoes      = roteamento['intencoes'] || []
+      scores         = Hash.new(0)
       intencao_match = nil
 
       intencoes.each do |entry|
-        papel = entry['papel']
+        p = entry['papel']
         (entry['palavras_chave'] || []).each do |kw|
           if objetivo.include?(kw.downcase)
-            scores[papel] += 1
+            scores[p] += 1
             intencao_match ||= entry['intencao']
           end
         end
@@ -302,40 +542,50 @@ module MissionPlanner
 
       return { papel: nil, classe: nil, metodo: 'incompleto', intencao: nil } if scores.empty?
 
-      max_score = scores.values.max
+      max_score  = scores.values.max
       top_papeis = scores.select { |_, v| v == max_score }.keys
 
-      if top_papeis.size > 1
-        return { papel: nil, classe: nil, metodo: 'ambiguo', intencao: intencao_match }
-      end
+      return { papel: nil, classe: nil, metodo: 'ambiguo', intencao: intencao_match } if top_papeis.size > 1
 
-      papel = top_papeis.first
+      p = top_papeis.first
       {
-        papel: papel,
-        classe: classes.dig(papel, 'classe'),
-        metodo: 'roteamento',
+        papel:    p,
+        classe:   classes.dig(p, 'classe'),
+        metodo:   'roteamento',
         intencao: intencao_match
       }
     end
 
-    def action_requested?(instrucao, cartao, action)
-      il = instrucao.downcase
-      return true if il.include?(action.downcase)
-      return true if (cartao['autorizacao']['acoes_permitidas'] || []).any? { |a| a.downcase == action.downcase }
+    # ── Action detection ─────────────────────────────────────────────
+
+    def action_requested?(acoes_solicitadas, action)
+      aliases = ACTION_ALIASES.fetch(action, [action])
+      return true if acoes_solicitadas.any? { |a| aliases.include?(a.downcase) || a.downcase == action.downcase }
       false
     end
 
-    def select_adapter(cartao, mapa, papel, roteamento, avisos, negacoes)
+    def action_allowed?(acoes_permitidas, action)
+      normalized = action.downcase
+      aliases = ACTION_ALIASES.fetch(normalized, [normalized])
+      acoes_permitidas.any? do |allowed|
+        allowed_down = allowed.downcase
+        allowed_down == normalized || aliases.include?(allowed_down)
+      end
+    end
+
+    # ── Adapter selection ────────────────────────────────────────────
+
+    def select_adapter(cartao, mapa, papel, avisos)
       ferramentas_permitidas = cartao['ferramentas_permitidas'] || []
-      papeis_mapa = mapa['papeis'] || {}
-      papel_entry = papeis_mapa[papel]
+      papeis_mapa            = mapa['papeis'] || {}
+      papel_entry            = papeis_mapa[papel]
 
       return { ferramenta: nil, caminho: nil } unless papel_entry
 
       adaptadores = papel_entry['adaptadores'] || []
+      selected    = nil
 
-      # Find first compatible adapter
-      selected = nil
+      # Find first compatible adapter with a path
       adaptadores.each do |adapter|
         ferramenta = adapter['ferramenta']
         next unless ferramentas_permitidas.include?(ferramenta)
@@ -345,14 +595,14 @@ module MissionPlanner
         break
       end
 
+      # Fallback: adapter without materialized path
       if selected.nil?
-        # Try any permitted tool even without materialized adapter
         adaptadores.each do |adapter|
           ferramenta = adapter['ferramenta']
           next unless ferramentas_permitidas.include?(ferramenta)
 
-          status = adapter['status'] || 'desconhecido'
-          avisos << "adaptador #{ferramenta} para #{papel}: status=#{status}, sem caminho materializado"
+          status_str = adapter['status'] || 'desconhecido'
+          avisos << "adaptador #{ferramenta} para #{papel}: status=#{status_str}, sem caminho materializado"
           selected = adapter
           break
         end
@@ -365,33 +615,28 @@ module MissionPlanner
         avisos << "limitação #{selected['ferramenta']}/#{papel}: #{lim}"
       end
 
-      # Record validation status if not fully validated
       descoberta = selected['descoberta_validada']
-      permissao = selected['permissao_validada']
-      if descoberta == false
-        avisos << "descoberta não validada para #{selected['ferramenta']}/#{papel}"
-      end
-      if permissao == false || permissao == 'parcialmente'
-        avisos << "permissão parcialmente validada para #{selected['ferramenta']}/#{papel}"
-      end
+      permissao  = selected['permissao_validada']
+      avisos << "descoberta não validada para #{selected['ferramenta']}/#{papel}" if descoberta == false
+      avisos << "permissão parcialmente validada para #{selected['ferramenta']}/#{papel}" if permissao == false || permissao == 'parcialmente'
 
-      {
-        ferramenta: selected['ferramenta'],
-        caminho: selected['caminho']
-      }
+      { ferramenta: selected['ferramenta'], caminho: selected['caminho'] }
     end
 
-    def select_skills(cartao, registry, papel, auth_nivel, rede, shell, ferramenta)
+    # ── Skill selection ──────────────────────────────────────────────
+
+    def select_skills(cartao, registry, papel, auth_nivel, auth_idx,
+                      effective_rede, effective_shell, ferramenta, classes)
       aprovadas = []
-      negadas = []
-      auth_idx = AUTH_ORDER.index(auth_nivel)
-      classes = load_classes
+      negadas   = []
+      classe_info = classes[papel] || {}
+      classe_name = classe_info['classe']
 
       (cartao['skills_solicitadas'] || []).each do |skill_id|
         entry = (registry['skills'] || []).find { |s| s['id'] == skill_id }
 
         unless entry
-          negadas << { id: skill_id, motivo: "skill #{skill_id} não encontrada no registry (não auditada)" }
+          negadas << neg('SKILL_NOT_FOUND', "skill #{skill_id} não encontrada no registry (não auditada)")
           next
         end
 
@@ -424,34 +669,34 @@ module MissionPlanner
           motivos << "skill #{skill_id} incompatível com ferramenta #{ferramenta}"
         end
 
-        # Filter 6: authorization
-        # Skills with pode_escrever or pode_executar_shell require at least A2
-        if entry['pode_escrever'] == true && auth_idx < AUTH_ORDER.index('A2')
-          motivos << "skill #{skill_id} exige A2+ (pode_escrever), autorização=#{auth_nivel}"
+        # Filter 6: authorization (pode_escrever OR pode_executar_shell require A2+)
+        if (entry['pode_escrever'] == true || entry['pode_executar_shell'] == true) &&
+           auth_idx < AUTH_ORDER.index('A2')
+          motivos << "skill #{skill_id} exige A2+ (pode_escrever/pode_executar_shell), autorização=#{auth_nivel}"
         end
 
         # Filter 7: rede
-        if entry['acesso_rede'] == true && !rede
-          motivos << "skill #{skill_id} exige rede, mas cartão não permite"
+        if entry['acesso_rede'] == true && !effective_rede
+          motivos << "skill #{skill_id} exige rede, mas permissão efetiva não permite"
         end
 
-        # Filter 8: shell
-        if entry['pode_executar_shell'] == true && !shell
-          # Some skills can have shell but the papel must allow it
-          classe = classes[papel]
-          if classe && classe['pode_executar_shell'] != true
+        # Filter 8: shell (uses effective perms)
+        if entry['pode_executar_shell'] == true && !effective_shell
+          if classe_info['pode_executar_shell'] != true
             motivos << "skill #{skill_id} exige shell, mas papel #{papel} não permite shell"
+          else
+            motivos << "skill #{skill_id} exige shell, mas autorização insuficiente (< A2)"
           end
         end
 
         # Filter 9: path exists
-        caminho = entry['caminho']
+        caminho   = entry['caminho']
         full_path = File.join(REPO_ROOT, caminho)
         unless File.file?(full_path)
           motivos << "skill #{skill_id}: caminho #{caminho} não existe"
         end
 
-        # Filter 10: hash
+        # Filter 10: hash verification
         if File.file?(full_path)
           actual_hash = Digest::SHA256.file(full_path).hexdigest
           if actual_hash != entry['hash']
@@ -465,55 +710,43 @@ module MissionPlanner
         end
 
         # Filter 12: no mutating skill for reader
-        if entry['pode_escrever'] == true
-          classe = classes[papel]
-          if classe && classe['classe'] == 'leitor'
-            motivos << "skill #{skill_id} é mutante (pode_escrever=true) mas papel #{papel} é leitor"
-          end
+        if entry['pode_escrever'] == true && classe_name == 'leitor'
+          motivos << "skill #{skill_id} é mutante (pode_escrever=true) mas papel #{papel} é leitor"
         end
 
         if motivos.empty?
           aprovadas << skill_id
         else
-          motivos.each { |m| negadas << { id: skill_id, motivo: m } }
+          motivos.each { |m| negadas << neg('SKILL_DENIED', m) }
         end
       end
 
       { aprovadas: aprovadas, negadas: negadas }
     end
 
-    def load_classes
-      roteamento = load_yaml(File.join(ORCH_DIR, 'roteamento.yaml'))
-      roteamento['classes'] || {}
-    end
+    # ── Status / auth / etapas ───────────────────────────────────────
 
     def determine_status(negacoes, papel_info, adapter_info, skills_result)
-      return 'negado' unless negacoes.empty?
-
+      return 'negado'     unless negacoes.empty?
       return 'incompleto' if papel_info[:papel].nil?
       return 'incompleto' if adapter_info[:ferramenta].nil?
 
-      # If requested skills were denied, still planejado-com-restricoes or incompleto
       unless skills_result[:negadas].empty?
-        # If ALL requested skills were denied, it's incompleto
         total_requested = skills_result[:aprovadas].size + skills_result[:negadas].size
-        if total_requested > 0 && skills_result[:aprovadas].empty?
-          return 'incompleto'
-        end
+        return 'incompleto' if total_requested > 0 && skills_result[:aprovadas].empty?
       end
 
       'planejado'
     end
 
-    def determine_auth_necessary(cartao, papel_info)
-      instrucao = cartao['instrucao_atual'] || ''
-      if action_requested?(instrucao, cartao, 'deploy')
+    def determine_auth_necessary(instrucao, acoes_sol, papel_info)
+      if action_requested?(acoes_sol, 'deploy')
         'A6'
-      elsif action_requested?(instrucao, cartao, 'merge')
+      elsif action_requested?(acoes_sol, 'merge')
         'A5'
-      elsif action_requested?(instrucao, cartao, 'push') || action_requested?(instrucao, cartao, 'pr')
+      elsif action_requested?(acoes_sol, 'push') || action_requested?(acoes_sol, 'pr')
         'A4'
-      elsif action_requested?(instrucao, cartao, 'commit')
+      elsif action_requested?(acoes_sol, 'commit')
         'A3'
       elsif papel_info[:classe] == 'executor'
         'A2'
@@ -523,17 +756,16 @@ module MissionPlanner
     end
 
     def build_etapas(cartao, papel, skills, ferramenta)
-      etapas = []
-      etapa_base = {
-        'acao' => cartao['objetivo'],
+      [{
+        'acao'      => cartao['objetivo'],
         'ferramenta' => ferramenta,
-        'nome' => "executar-#{papel}",
-        'papel' => papel,
-        'skills' => skills.sort
-      }
-      etapas << etapa_base
-      etapas
+        'nome'      => "executar-#{papel}",
+        'papel'     => papel,
+        'skills'    => skills.sort
+      }]
     end
+
+    # ── Serialization ────────────────────────────────────────────────
 
     def serialize_plan(plano)
       JSON.pretty_generate(sort_keys_deep(plano)) + "\n"

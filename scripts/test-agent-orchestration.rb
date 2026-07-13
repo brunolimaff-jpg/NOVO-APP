@@ -9,6 +9,11 @@
 
 require 'json'
 require 'tempfile'
+require 'tmpdir'
+require 'fileutils'
+require 'digest'
+require 'yaml'
+require_relative './plan-agent-mission'
 
 module OrchestrationTests
   REPO_ROOT  = File.expand_path('..', __dir__)
@@ -90,13 +95,13 @@ module OrchestrationTests
         c
       end
 
-      test_denied("ferramenta proibida") do |card|
+      test_validation_error("ferramenta desconhecida") do |card|
         c = build_readonly_card
         c['ferramentas_permitidas'] = ['ferramenta-inexistente']
         c
       end
 
-      test_incomplete("adaptador inexistente para papel") do |card|
+      test_validation_error("adaptador inexistente para ferramenta desconhecida") do |card|
         c = build_readonly_card
         c['papel_preferido'] = 'explorador'
         c['ferramentas_permitidas'] = ['ferramenta-inexistente']
@@ -153,7 +158,7 @@ module OrchestrationTests
         c = build_readonly_card
         c['autorizacao']['nivel'] = 'A2'
         c['autorizacao']['acoes_permitidas'] = ['commit']
-        c['instrucao_atual'] = 'faz commit disso'
+        c['autorizacao']['acoes_solicitadas'] = ['commit']
         c
       end
 
@@ -161,7 +166,7 @@ module OrchestrationTests
         c = build_readonly_card
         c['autorizacao']['nivel'] = 'A3'
         c['autorizacao']['acoes_permitidas'] = ['push', 'pr']
-        c['instrucao_atual'] = 'sobe PR'
+        c['autorizacao']['acoes_solicitadas'] = ['pr']
         c
       end
 
@@ -169,7 +174,7 @@ module OrchestrationTests
         c = build_readonly_card
         c['autorizacao']['nivel'] = 'A4'
         c['autorizacao']['acoes_permitidas'] = ['merge']
-        c['instrucao_atual'] = 'mergeia isso'
+        c['autorizacao']['acoes_solicitadas'] = ['merge']
         c
       end
 
@@ -177,6 +182,7 @@ module OrchestrationTests
         c = build_executor_card
         c['autorizacao']['nivel'] = 'A5'
         c['autorizacao']['acoes_permitidas'] = ['merge']
+        c['autorizacao']['acoes_solicitadas'] = ['merge']
         c['instrucao_atual'] = 'pode juntar'
         c
       end
@@ -185,7 +191,7 @@ module OrchestrationTests
         c = build_executor_card
         c['autorizacao']['nivel'] = 'A5'
         c['autorizacao']['acoes_permitidas'] = ['deploy']
-        c['instrucao_atual'] = 'faz deploy'
+        c['autorizacao']['acoes_solicitadas'] = ['deploy']
         c
       end
 
@@ -224,8 +230,218 @@ module OrchestrationTests
       test_denied("conflito entre ação e autorização") do |card|
         c = build_readonly_card
         c['autorizacao']['acoes_proibidas'] = ['ler']
+        c['autorizacao']['acoes_solicitadas'] = ['ler']
         c['instrucao_atual'] = 'le isso'
         c
+      end
+
+      # === AUTORIZAÇÃO DE ESCRITA ===
+      test_denied("escrita A0 negada para executor", code: /AUTH_WRITE_REQUIRES_A2/) do
+        c = build_executor_card
+        c['autorizacao']['nivel'] = 'A0'
+        c['autorizacao']['acoes_solicitadas'] = ['editar']
+        c
+      end
+
+      test_denied("escrita A1 negada para executor", code: /AUTH_WRITE_REQUIRES_A2/) do
+        c = build_executor_card
+        c['autorizacao']['nivel'] = 'A1'
+        c['autorizacao']['acoes_solicitadas'] = ['editar']
+        c
+      end
+
+      test("escrita A2 permitida para executor") do
+        c = build_executor_card
+        c['autorizacao']['nivel'] = 'A2'
+        c['autorizacao']['acoes_solicitadas'] = ['editar', 'testar']
+        plano = run_planner_parse(c)
+        assert_eq(plano['status'], 'planejado')
+        assert_eq(plano['escrita_permitida'], true)
+        assert_eq(plano['autorizacao_necessaria'], 'A2')
+      end
+
+      test_denied("leitor com escrita A6 continua negado", code: /AUTH_WRITE_REQUIRES_A2/) do
+        c = build_readonly_card
+        c['autorizacao']['nivel'] = 'A6'
+        c['escopo']['escrita'] = ['foo.ts']
+        c
+      end
+
+      # === AÇÕES PERMITIDAS VS SOLICITADAS ===
+      test("merge permitido mas não solicitado não exige MERGE") do
+        c = build_reviewer_card
+        c['autorizacao']['nivel'] = 'A5'
+        c['autorizacao']['acoes_permitidas'] = ['ler', 'revisar', 'merge']
+        c['autorizacao']['acoes_solicitadas'] = ['revisar']
+        c['instrucao_atual'] = 'revisa a PR sem juntar'
+        plano = run_planner_parse(c)
+        assert_eq(plano['status'], 'planejado')
+        assert_true(neg_messages(plano).none? { |m| m.include?('MERGE') }, 'merge não solicitado não deve exigir MERGE')
+      end
+
+      test("push permitido mas não solicitado não eleva autorização") do
+        c = build_executor_card
+        c['autorizacao']['nivel'] = 'A2'
+        c['autorizacao']['acoes_permitidas'] = ['ler', 'editar', 'testar', 'push']
+        c['autorizacao']['acoes_solicitadas'] = ['testar']
+        plano = run_planner_parse(c)
+        assert_eq(plano['status'], 'planejado')
+        assert_eq(plano['autorizacao_necessaria'], 'A2')
+      end
+
+      test_denied("push solicitado mas não permitido", code: /ACTION_NOT_ALLOWED/) do
+        c = build_executor_card
+        c['autorizacao']['nivel'] = 'A4'
+        c['autorizacao']['acoes_permitidas'] = ['ler', 'editar', 'testar']
+        c['autorizacao']['acoes_solicitadas'] = ['push']
+        c
+      end
+
+      test("merge A5 com token MERGE apenas planeja") do
+        c = build_executor_card
+        c['autorizacao']['nivel'] = 'A5'
+        c['autorizacao']['acoes_permitidas'] = ['ler', 'editar', 'merge']
+        c['autorizacao']['acoes_solicitadas'] = ['merge']
+        c['autorizacao']['acoes_proibidas'] = ['deploy']
+        c['instrucao_atual'] = 'MERGE autorizado para planejamento dry-run'
+        plano = run_planner_parse(c)
+        assert_eq(plano['status'], 'planejado')
+        assert_eq(plano['autorizacao_necessaria'], 'A5')
+        assert_eq(plano['delegacao_permitida'], false)
+      end
+
+      # === SCHEMA ===
+      test_validation_error("schema campo aninhado ausente") do
+        c = build_readonly_card
+        c['autorizacao'].delete('acoes_solicitadas')
+        c
+      end
+
+      test_validation_error("schema propriedade desconhecida") do
+        c = build_readonly_card
+        c['campo_fantasma'] = true
+        c
+      end
+
+      test_validation_error("schema boolean como string") do
+        c = build_readonly_card
+        c['rede_permitida'] = 'true'
+        c
+      end
+
+      # === PERMISSÕES EFETIVAS DE SKILLS ===
+      test_denied("skill shell-only com A1 é negada") do
+        c = build_executor_card
+        c['autorizacao']['nivel'] = 'A1'
+        c['skills_solicitadas'] = ['validate-gates']
+        c
+      end
+
+      test("rede bruta true para leitor não seleciona skill de rede") do
+        c = build_readonly_card
+        c['rede_permitida'] = true
+        c['skills_solicitadas'] = ['supabase-migration']
+        plano = run_planner_parse(c)
+        assert_eq(plano['status'], 'negado')
+        assert_eq(plano['skills_selecionadas'], [])
+      end
+
+      test("shell bruto true para leitor não seleciona skill de shell") do
+        c = build_readonly_card
+        c['shell_permitido'] = true
+        c['skills_solicitadas'] = ['validate-gates']
+        plano = run_planner_parse(c)
+        assert_eq(plano['status'], 'negado')
+        assert_eq(plano['skills_selecionadas'], [])
+      end
+
+      # === PATHS E SYMLINKS ===
+      test("caminho absoluto suspeito no input rejeitado") do
+        _out, err, status = run_cli('--input', '/etc/passwd', '--stdout')
+        raise "esperava exit code 3, obteve #{status.exitstatus}" unless status.exitstatus == 3
+        raise "esperava mensagem de segurança, obteve: #{err}" unless err.include?('SEGURANÇA')
+      end
+
+      test("caminho absoluto suspeito no output rejeitado") do
+        input = File.join(EXEMPLOS, 'exploracao-readonly.json')
+        _out, err, status = run_cli('--input', input, '--output', '/etc/plano.json')
+        raise "esperava exit code 3, obteve #{status.exitstatus}" unless status.exitstatus == 3
+        raise "esperava mensagem de segurança, obteve: #{err}" unless err.include?('SEGURANÇA')
+      end
+
+      test("input absoluto dentro do repo é aceito") do
+        input = File.expand_path(File.join(EXEMPLOS, 'exploracao-readonly.json'))
+        out, err, status = run_cli('--input', input, '--stdout')
+        raise "esperava sucesso, exit=#{status.exitstatus}, err=#{err}" unless status.success?
+        assert_eq(JSON.parse(out)['status'], 'planejado')
+      end
+
+      test("input temporário dentro de Dir.tmpdir é aceito") do
+        Tempfile.create(['mission', '.json']) do |f|
+          f.write(JSON.pretty_generate(build_readonly_card))
+          f.flush
+          out, err, status = run_cli('--input', f.path, '--stdout')
+          raise "esperava sucesso, exit=#{status.exitstatus}, err=#{err}" unless status.success?
+          assert_eq(JSON.parse(out)['status'], 'planejado')
+        end
+      end
+
+      test("symlink de input escapando do repo é rejeitado") do
+        Dir.mktmpdir('orch-path', REPO_ROOT) do |dir|
+          link = File.join(dir, 'escape.json')
+          File.symlink('/etc/passwd', link)
+          _out, err, status = run_cli('--input', link, '--stdout')
+          raise "esperava exit code 3, obteve #{status.exitstatus}" unless status.exitstatus == 3
+          raise "esperava symlink na mensagem, obteve: #{err}" unless err.include?('symlink')
+        end
+      end
+
+      test("symlink no diretório pai do output é rejeitado") do
+        Dir.mktmpdir('orch-path', REPO_ROOT) do |dir|
+          link_dir = File.join(dir, 'escape-dir')
+          File.symlink('/etc', link_dir)
+          input = File.join(EXEMPLOS, 'exploracao-readonly.json')
+          _out, err, status = run_cli('--input', input, '--output', File.join(link_dir, 'plano.json'))
+          raise "esperava exit code 3, obteve #{status.exitstatus}" unless status.exitstatus == 3
+          raise "esperava symlink na mensagem, obteve: #{err}" unless err.include?('symlink')
+        end
+      end
+
+      # === HASH E COMPATIBILIDADE COMPORTAMENTAIS ===
+      test("hash comportamental na seleção de skill") do
+        with_temp_skill_registry do |registry, card, classes, skill_path, good_hash|
+          result = MissionPlanner.send(:select_skills, card, registry, 'executor-escopo', 'A2',
+                                       2, false, false, 'codex', classes)
+          assert_eq(result[:aprovadas], ['fixture-skill'])
+
+          registry['skills'].first['hash'] = '0' * 64
+          result = MissionPlanner.send(:select_skills, card, registry, 'executor-escopo', 'A2',
+                                       2, false, false, 'codex', classes)
+          assert_true(result[:negadas].any? { |n| n['mensagem'].include?('hash divergente') })
+
+          registry['skills'].first['hash'] = good_hash
+          FileUtils.rm_f(skill_path)
+          result = MissionPlanner.send(:select_skills, card, registry, 'executor-escopo', 'A2',
+                                       2, false, false, 'codex', classes)
+          assert_true(result[:negadas].any? { |n| n['mensagem'].include?('não existe') })
+
+          FileUtils.mkdir_p(skill_path)
+          result = MissionPlanner.send(:select_skills, card, registry, 'executor-escopo', 'A2',
+                                       2, false, false, 'codex', classes)
+          assert_true(result[:negadas].any? { |n| n['mensagem'].include?('não existe') })
+        end
+      end
+
+      test("compatibilidade real skill-ferramenta") do
+        with_temp_skill_registry do |registry, card, _classes, _skill_path, _good_hash|
+          classes = { 'executor-escopo' => { 'classe' => 'executor', 'pode_executar_shell' => true } }
+          ok = MissionPlanner.send(:select_skills, card, registry, 'executor-escopo', 'A2',
+                                   2, false, false, 'codex', classes)
+          assert_eq(ok[:aprovadas], ['fixture-skill'])
+          denied = MissionPlanner.send(:select_skills, card, registry, 'executor-escopo', 'A2',
+                                       2, false, false, 'cline', classes)
+          assert_true(denied[:negadas].any? { |n| n['mensagem'].include?('incompatível com ferramenta cline') })
+        end
       end
 
       # === PROVAS DE REGRESSÃO ===
@@ -233,9 +449,10 @@ module OrchestrationTests
         card = build_executor_card
         card['autorizacao']['nivel'] = 'A5'
         card['autorizacao']['acoes_permitidas'] = ['merge']
+        card['autorizacao']['acoes_solicitadas'] = ['merge']
         card['instrucao_atual'] = 'junta as branches'
         plano = run_planner_parse(card)
-        negacoes_text = plano['negacoes'].join(' ')
+        negacoes_text = neg_messages(plano).join(' ')
         unless negacoes_text.include?('MERGE')
           raise "regressão: merge com A5 sem token MERGE deveria ser negado"
         end
@@ -245,9 +462,10 @@ module OrchestrationTests
         card = build_executor_card
         card['autorizacao']['nivel'] = 'A4'
         card['autorizacao']['acoes_permitidas'] = ['merge']
+        card['autorizacao']['acoes_solicitadas'] = ['merge']
         card['instrucao_atual'] = 'MERGE isso'
         plano = run_planner_parse(card)
-        negacoes_text = plano['negacoes'].join(' ')
+        negacoes_text = neg_messages(plano).join(' ')
         unless negacoes_text.include?('A5') || negacoes_text.include?('insuficiente')
           raise "regressão: merge com A4 deveria ser negado mesmo com token"
         end
@@ -258,7 +476,7 @@ module OrchestrationTests
         card['papel_preferido'] = 'revisor-contratos'
         card['skills_solicitadas'] = ['supabase-migration']
         plano = run_planner_parse(card)
-        negacoes_text = plano['negacoes'].join(' ')
+        negacoes_text = neg_messages(plano).join(' ')
         unless negacoes_text.include?('mutante') || negacoes_text.include?('leitor')
           raise "regressão: skill mutante não deveria passar para leitor"
         end
@@ -268,7 +486,7 @@ module OrchestrationTests
         card = build_readonly_card
         card['skills_solicitadas'] = ['skill-fantasma-999']
         plano = run_planner_parse(card)
-        negacoes_text = plano['negacoes'].join(' ')
+        negacoes_text = neg_messages(plano).join(' ')
         unless negacoes_text.include?('não encontrada') || negacoes_text.include?('auditada')
           raise "regressão: skill não auditada deveria ser negada"
         end
@@ -335,24 +553,31 @@ module OrchestrationTests
     def test_validation_error(name, &block)
       test(name) do
         card = block.call(build_readonly_card.dup)
-        if card
-          begin
-            run_planner_raw(card)
-            raise "esperava erro de validação mas o planner aceitou a entrada"
-          rescue RuntimeError, SystemExit => e
-            # Expected
-            re = e.message
-          end
+        next unless card
+
+        accepted = false
+        begin
+          run_planner_raw(card)
+          accepted = true
+        rescue RuntimeError, SystemExit
+          # Expected: planner rejected the invalid input.
         end
+        raise "esperava erro de validação mas o planner aceitou a entrada" if accepted
       end
     end
 
-    def test_denied(name, &block)
+    def test_denied(name, message: nil, code: nil, &block)
       test(name) do
         card = block.call(build_readonly_card.dup)
         plano = run_planner_parse(card)
-        unless plano['negacoes'].any? || plano['status'] == 'negado' || plano['status'] == 'incompleto'
-          raise "esperava negação/incompleto mas status=#{plano['status']} e negacoes=#{plano['negacoes'].inspect}"
+        unless plano['status'] == 'negado' || plano['status'] == 'incompleto'
+          raise "esperava negado/incompleto mas status=#{plano['status']} e negacoes=#{plano['negacoes'].inspect}"
+        end
+        if message && neg_messages(plano).none? { |m| message === m }
+          raise "negação esperada não encontrada: #{message.inspect}; negacoes=#{plano['negacoes'].inspect}"
+        end
+        if code && neg_codes(plano).none? { |c| code === c }
+          raise "código esperado não encontrado: #{code.inspect}; negacoes=#{plano['negacoes'].inspect}"
         end
       end
     end
@@ -371,7 +596,7 @@ module OrchestrationTests
       test(name) do
         card = block.call(build_executor_card.dup)
         plano = run_planner_parse(card)
-        negacoes_text = plano['negacoes'].join(' ')
+        negacoes_text = neg_messages(plano).join(' ')
         # For skill-specific denials, either negacoes should mention the skill
         # or status should be incompleto
         unless negacoes_text.length > 0 || plano['status'] == 'incompleto' || plano['status'] == 'negado'
@@ -396,15 +621,23 @@ module OrchestrationTests
       raise(msg || "esperava true") unless value
     end
 
+    def neg_messages(plano)
+      (plano['negacoes'] || []).map { |n| n.is_a?(Hash) ? n['mensagem'] : n.to_s }
+    end
+
+    def neg_codes(plano)
+      (plano['negacoes'] || []).map { |n| n.is_a?(Hash) ? n['codigo'] : nil }.compact
+    end
+
     # === PLANNER EXECUTION ===
 
     def run_planner_raw(card)
-      require 'open3'
-      json = JSON.generate(card)
-      out, err, status = Open3.capture3('ruby', PLANNER, '--input', '/dev/stdin', '--stdout',
-                                        stdin_data: '')
-      # /dev/stdin won't work; use temp file instead
       run_planner_from_tempfile(card)
+    end
+
+    def run_cli(*args)
+      require 'open3'
+      Open3.capture3('ruby', PLANNER, *args)
     end
 
     def run_planner(card)
@@ -446,6 +679,7 @@ module OrchestrationTests
         'autorizacao' => {
           'nivel' => 'A0',
           'acoes_permitidas' => %w[ler buscar],
+          'acoes_solicitadas' => [],
           'acoes_proibidas' => %w[editar commit push merge deploy]
         },
         'escopo' => { 'leitura' => ['src/'], 'escrita' => [] },
@@ -468,7 +702,8 @@ module OrchestrationTests
       c['id'] = 'test-executor'
       c['objetivo'] = 'Implementar correção no código'
       c['autorizacao']['nivel'] = 'A4'
-      c['autorizacao']['acoes_permitidas'] = %w[ler editar commit push pr]
+      c['autorizacao']['acoes_permitidas'] = %w[ler editar testar commit push pr]
+      c['autorizacao']['acoes_solicitadas'] = %w[editar testar]
       c['autorizacao']['acoes_proibidas'] = %w[merge deploy]
       c['escopo']['escrita'] = ['src/test.ts']
       c['papel_preferido'] = 'executor-escopo'
@@ -502,6 +737,37 @@ module OrchestrationTests
       c['papel_preferido'] = 'validador-entrega'
       c['instrucao_atual'] = 'valida a entrega'
       c
+    end
+
+    def with_temp_skill_registry
+      Dir.mktmpdir('orch-skill', REPO_ROOT) do |dir|
+        skill_path = File.join(dir, 'SKILL.md')
+        File.write(skill_path, "name: fixture-skill\n")
+        rel_path = skill_path.delete_prefix(REPO_ROOT + File::SEPARATOR)
+        good_hash = Digest::SHA256.file(skill_path).hexdigest
+        registry = {
+          'skills' => [
+            {
+              'id' => 'fixture-skill',
+              'tipo' => 'skill',
+              'selecionavel_por_missao' => true,
+              'status' => 'aprovada',
+              'papeis_permitidos' => ['executor-escopo'],
+              'ferramentas_compativeis' => ['codex'],
+              'caminho' => rel_path,
+              'hash' => good_hash,
+              'acesso_rede' => false,
+              'pode_escrever' => false,
+              'pode_executar_shell' => false,
+              'pode_delegar' => false
+            }
+          ]
+        }
+        card = build_executor_card
+        card['skills_solicitadas'] = ['fixture-skill']
+        classes = { 'executor-escopo' => { 'classe' => 'executor', 'pode_executar_shell' => true } }
+        yield registry, card, classes, skill_path, good_hash
+      end
     end
   end
 end

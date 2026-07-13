@@ -25,7 +25,9 @@
     "evidencias_requeridas",
     "negacoes",
     "avisos",
-    "fontes_decisao"
+    "fontes_decisao",
+    "acoes_solicitadas",
+    "acoes_permitidas"
   ],
   "properties": {
     "versao": {
@@ -116,7 +118,22 @@
     },
     "negacoes": {
       "type": "array",
-      "items": { "type": "string" },
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["codigo", "mensagem"],
+        "properties": {
+          "codigo": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^[A-Z0-9_]+$"
+          },
+          "mensagem": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      },
       "uniqueItems": true
     },
     "avisos": {
@@ -125,6 +142,16 @@
       "uniqueItems": true
     },
     "fontes_decisao": {
+      "type": "array",
+      "items": { "type": "string" },
+      "uniqueItems": true
+    },
+    "acoes_solicitadas": {
+      "type": "array",
+      "items": { "type": "string" },
+      "uniqueItems": true
+    },
+    "acoes_permitidas": {
       "type": "array",
       "items": { "type": "string" },
       "uniqueItems": true

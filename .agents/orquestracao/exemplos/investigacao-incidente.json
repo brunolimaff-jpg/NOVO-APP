@@ -8,6 +8,7 @@
   "autorizacao": {
     "nivel": "A0",
     "acoes_permitidas": ["ler", "buscar", "inspecionar", "consultar-telemetria"],
+    "acoes_solicitadas": [],
     "acoes_proibidas": ["editar", "commit", "push", "merge", "deploy"]
   },
   "escopo": {

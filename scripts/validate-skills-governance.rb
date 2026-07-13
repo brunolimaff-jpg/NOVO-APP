@@ -14,13 +14,17 @@ module SkillsGovernanceValidator
   ALLOWED_ROLES = Set.new(%w[explorador investigador-incidentes planejador-solucao executor-escopo revisor-contratos validador-entrega revisor-evidencias-dossie]).freeze
   WRITER_ROLES = Set.new(%w[executor-escopo]).freeze
   BOOLEAN_FIELDS = %w[selecionavel_por_missao possui_scripts acesso_rede pode_escrever pode_executar_shell pode_delegar].freeze
-  ALLOWED_DIRECTORIES = ['.agents/skills/'].freeze
+  ALLOWED_DIRECTORIES = ['.agents/skills/', '.agents/orquestracao/'].freeze
   ALLOWED_EXACT_FILES = [
     'docs/SKILLS-GOVERNANCE.md',
     'AGENTS.md',
+    'HANDOFF_AI.md',
     '.agents/papeis/README.md',
     'scripts/validate-skills-governance.rb',
     'scripts/test-validate-skills-governance.rb',
+    'scripts/plan-agent-mission.rb',
+    'scripts/validate-agent-orchestration.rb',
+    'scripts/test-agent-orchestration.rb',
     '.github/workflows/ci.yml'
   ].freeze
 

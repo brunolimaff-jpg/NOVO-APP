@@ -36,7 +36,7 @@ A camada de orquestração determinística (Fase 3A) vive em `.agents/orquestrac
 - `politica-despacho.md` — política de despacho (pipelines, filtros, regras)
 - `contrato-evidencias.yaml` — dimensões de evidência
 
-Scripts: `plan-agent-mission.rb` (planner dry-run), `validate-agent-orchestration.rb` (validador), `test-agent-orchestration.rb` (35 testes). CI: job `Agent Orchestration`.
+Scripts: `plan-agent-mission.rb` (planner dry-run), `validate-agent-orchestration.rb` (validador), `test-agent-orchestration.rb` (57 testes). CI: job `Agent Orchestration`.
 
 ## Classificação operacional
 

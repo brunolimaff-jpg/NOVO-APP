@@ -172,6 +172,22 @@ with_repo do |dir|
   tests << 'forbidden-file'
 end
 
+{
+  'generic-scripts-blocked' => 'scripts/evil.rb',
+  'generic-docs-blocked' => 'docs/evil.md',
+  'generic-github-blocked' => '.github/evil.yml',
+  'generic-agents-blocked' => '.agents/evil.md'
+}.each do |label, path|
+  with_repo do |dir|
+    sh!("git checkout -b feature/#{label}", chdir: dir)
+    write(File.join(dir, path), 'oops')
+    sh!("git add #{path}", chdir: dir)
+    sh!("git commit -m #{label}", chdir: dir)
+    expect_validation_error(label, /forbidden changed files/) { SkillsGovernanceValidator.validate!(root: dir, base_ref: 'main') }
+    tests << label
+  end
+end
+
 with_repo do |dir|
   sh!('git branch -m main trunk', chdir: dir)
   sh!('git remote remove origin', chdir: dir)

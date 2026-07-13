@@ -14,13 +14,17 @@
 require 'json'
 require 'yaml'
 require 'digest'
+require 'open3'
+require_relative './plan-agent-mission'
 
 module OrchestrationValidator
-  REPO_ROOT = File.expand_path('..', __dir__)
-  ORCH_DIR  = File.join(REPO_ROOT, '.agents', 'orquestracao')
+  REPO_ROOT   = File.expand_path('..', __dir__)
+  ORCH_DIR    = File.join(REPO_ROOT, '.agents', 'orquestracao')
   SCRIPTS_DIR = File.join(REPO_ROOT, 'scripts')
 
-  ERRORS = []
+  STDLIB_ALLOWLIST = %w[json yaml digest optparse fileutils open3 tempfile tmpdir].freeze
+
+  ERRORS   = []
   WARNINGS = []
 
   class << self
@@ -54,43 +58,48 @@ module OrchestrationValidator
       ERRORS << "#{label}: #{e.message}"
     end
 
+    def safe_load_yaml(path)
+      YAML.safe_load(File.read(path), aliases: false)
+    end
+
+    # ── Schema validation ────────────────────────────────────────────
+
     def validate_schemas
       %w[cartao-missao.schema.json contrato-plano.schema.json].each do |schema_file|
         path = File.join(ORCH_DIR, schema_file)
         check("schema #{schema_file}") do
-          raise "arquivo não encontrado" unless File.file?(path)
+          raise 'arquivo não encontrado' unless File.file?(path)
 
           data = JSON.parse(File.read(path))
-          raise "$schema ausente" unless data['$schema']
-          raise "type ausente" unless data['type']
+          raise '$schema ausente' unless data['$schema']
+          raise 'type ausente'    unless data['type']
+          raise 'type deve ser object' unless data['type'] == 'object'
+          raise 'required ausente' unless data['required']
+          raise 'properties ausente' unless data['properties']
+          MissionPlanner.send(:validate_schema_keywords!, data, "$.#{schema_file}")
         end
       end
     end
+
+    # ── YAML validation ──────────────────────────────────────────────
 
     def validate_yaml_files
-      %w[roteamento.yaml].each do |yaml_file|
+      %w[roteamento.yaml contrato-evidencias.yaml].each do |yaml_file|
         path = File.join(ORCH_DIR, yaml_file)
         check("yaml #{yaml_file}") do
-          raise "arquivo não encontrado" unless File.file?(path)
-
-          YAML.load_file(path)
+          raise 'arquivo não encontrado' unless File.file?(path)
+          safe_load_yaml(path)
         end
       end
-
-      # contrato-evidencias.yaml
-      path = File.join(ORCH_DIR, 'contrato-evidencias.yaml')
-      check('yaml contrato-evidencias.yaml') do
-        raise "arquivo não encontrado" unless File.file?(path)
-
-        YAML.load_file(path)
-      end
     end
+
+    # ── 7 canonical roles ────────────────────────────────────────────
 
     def validate_seven_roles
       check('7 papéis') do
-        roteamento = YAML.load_file(File.join(ORCH_DIR, 'roteamento.yaml'))
-        classes = roteamento['classes'] || {}
-        expected = %w[
+        roteamento = safe_load_yaml(File.join(ORCH_DIR, 'roteamento.yaml'))
+        classes    = roteamento['classes'] || {}
+        expected   = %w[
           explorador investigador-incidentes planejador-solucao
           executor-escopo revisor-contratos validador-entrega
           revisor-evidencias-dossie
@@ -98,10 +107,8 @@ module OrchestrationValidator
         missing = expected - classes.keys
         raise "papéis ausentes no roteamento: #{missing.join(', ')}" unless missing.empty?
 
-        # Verify only executor-escopo can write
         classes.each do |papel, config|
           next if papel == 'executor-escopo'
-
           if config['pode_escrever'] == true
             ERRORS << "papel #{papel} tem pode_escrever=true (apenas executor-escopo pode)"
           end
@@ -112,20 +119,22 @@ module OrchestrationValidator
       end
     end
 
+    # ── Authorization levels ─────────────────────────────────────────
+
     def validate_authorization
       check('autorização A0-A6') do
-        roteamento = YAML.load_file(File.join(ORCH_DIR, 'roteamento.yaml'))
-        auth = roteamento['autorizacao'] || {}
-        niveis = auth['níveis'] || {}
-        expected = %w[A0 A1 A2 A3 A4 A5 A6]
-        missing = expected - niveis.keys
+        roteamento = safe_load_yaml(File.join(ORCH_DIR, 'roteamento.yaml'))
+        auth       = roteamento['autorizacao'] || {}
+        niveis     = auth['níveis'] || {}
+        expected   = %w[A0 A1 A2 A3 A4 A5 A6]
+        missing    = expected - niveis.keys
         raise "níveis ausentes: #{missing.join(', ')}" unless missing.empty?
 
         acoes = auth['acoes_especificas'] || {}
         check_action_auth(acoes, 'commit', 'A3')
-        check_action_auth(acoes, 'push', 'A4')
-        check_action_auth(acoes, 'pr', 'A4')
-        check_action_auth(acoes, 'merge', 'A5')
+        check_action_auth(acoes, 'push',   'A4')
+        check_action_auth(acoes, 'pr',     'A4')
+        check_action_auth(acoes, 'merge',  'A5')
         check_action_auth(acoes, 'deploy', 'A6')
 
         merge_cfg = acoes['merge'] || {}
@@ -140,14 +149,16 @@ module OrchestrationValidator
       ERRORS << "ação #{action}: nível mínimo esperado #{expected_level}"
     end
 
+    # ── Registry consistency ─────────────────────────────────────────
+
     def validate_registry_consistency
       check('registry') do
         path = File.join(REPO_ROOT, '.agents', 'skills', 'registry.yaml')
-        raise "registry não encontrado" unless File.file?(path)
+        raise 'registry não encontrado' unless File.file?(path)
 
-        registry = YAML.load_file(path)
-        skills = registry['skills'] || []
-        ids = skills.map { |s| s['id'] }
+        registry = safe_load_yaml(path)
+        skills   = registry['skills'] || []
+        ids      = skills.map { |s| s['id'] }
         duplicates = ids.select { |id| ids.count(id) > 1 }.uniq
         raise "IDs duplicados: #{duplicates.join(', ')}" unless duplicates.empty?
 
@@ -155,48 +166,36 @@ module OrchestrationValidator
           %w[id nome tipo status caminho hash selecionavel_por_missao].each do |field|
             raise "skill #{skill['id']}: campo #{field} ausente" if skill[field].nil?
           end
-
-          unless [true, false].include?(skill['selecionavel_por_missao'])
-            raise "skill #{skill['id']}: selecionavel_por_missao deve ser boolean"
-          end
-
-          unless [true, false].include?(skill['pode_escrever'])
-            raise "skill #{skill['id']}: pode_escrever deve ser boolean"
-          end
-
-          unless [true, false].include?(skill['pode_delegar'])
-            raise "skill #{skill['id']}: pode_delegar deve ser boolean"
-          end
         end
       end
     end
 
+    # ── Skill vs fluxo separation ────────────────────────────────────
+
     def validate_skill_fluxo_separation
       check('skills vs fluxos') do
-        path = File.join(REPO_ROOT, '.agents', 'skills', 'registry.yaml')
-        registry = YAML.load_file(path)
-        skills = registry['skills'] || []
-
-        skills.each do |skill|
+        path     = File.join(REPO_ROOT, '.agents', 'skills', 'registry.yaml')
+        registry = safe_load_yaml(path)
+        (registry['skills'] || []).each do |skill|
           if skill['tipo'] == 'fluxo'
             if skill['selecionavel_por_missao'] == true
               ERRORS << "fluxo #{skill['id']} está selecionavel_por_missao=true (deve ser false)"
             end
-          elsif skill['tipo'] == 'skill'
-            # OK — skills can be selectable
-          else
+          elsif skill['tipo'] != 'skill'
             ERRORS << "entrada #{skill['id']} tem tipo desconhecido: #{skill['tipo']}"
           end
         end
       end
     end
 
+    # ── Hash verification ────────────────────────────────────────────
+
     def validate_hashes
       check('hashes') do
-        path = File.join(REPO_ROOT, '.agents', 'skills', 'registry.yaml')
-        registry = YAML.load_file(path)
+        path     = File.join(REPO_ROOT, '.agents', 'skills', 'registry.yaml')
+        registry = safe_load_yaml(path)
         (registry['skills'] || []).each do |skill|
-          caminho = skill['caminho']
+          caminho   = skill['caminho']
           full_path = File.join(REPO_ROOT, caminho)
           next unless File.file?(full_path)
 
@@ -208,6 +207,8 @@ module OrchestrationValidator
       end
     end
 
+    # ── Examples validation ──────────────────────────────────────────
+
     def validate_examples
       check('exemplos') do
         exemplos_dir = File.join(ORCH_DIR, 'exemplos')
@@ -216,28 +217,32 @@ module OrchestrationValidator
         examples = Dir.glob(File.join(exemplos_dir, '*.json'))
         raise 'nenhum exemplo encontrado' if examples.empty?
 
+        card_schema = JSON.parse(File.read(File.join(ORCH_DIR, 'cartao-missao.schema.json')))
+        plan_schema = JSON.parse(File.read(File.join(ORCH_DIR, 'contrato-plano.schema.json')))
+
         examples.each do |ex_path|
           begin
             data = JSON.parse(File.read(ex_path))
-            REQUIRED_FIELDS.each do |field|
-              unless data.key?(field)
-                ERRORS << "exemplo #{File.basename(ex_path)}: campo #{field} ausente"
-              end
-            end
+            MissionPlanner.send(:validate_against_schema!, data, card_schema)
+            plan = MissionPlanner.plan(data)
+            MissionPlanner.send(:validate_against_schema!, plan, plan_schema)
           rescue JSON::ParserError => e
             ERRORS << "exemplo #{File.basename(ex_path)}: JSON inválido: #{e.message}"
+          rescue MissionPlanner::ValidationError, MissionPlanner::SchemaError => e
+            ERRORS << "exemplo #{File.basename(ex_path)}: #{e.class}: #{e.message}"
           end
         end
       end
     end
 
+    # ── Determinism ──────────────────────────────────────────────────
+
     def validate_determinism
       check('determinismo') do
-        # Run planner twice on each example and compare
         exemplos_dir = File.join(ORCH_DIR, 'exemplos')
         Dir.glob(File.join(exemplos_dir, '*.json')).each do |ex_path|
-          out1 = run_placer_stdout(ex_path)
-          out2 = run_placer_stdout(ex_path)
+          out1 = run_planner_stdout(ex_path)
+          out2 = run_planner_stdout(ex_path)
           if out1 != out2
             ERRORS << "determinismo falhou: #{File.basename(ex_path)} produz saída diferente em 2 execuções"
           end
@@ -245,21 +250,20 @@ module OrchestrationValidator
       end
     end
 
-    def run_placer_stdout(input)
-      require 'open3'
+    def run_planner_stdout(input)
       script = File.join(SCRIPTS_DIR, 'plan-agent-mission.rb')
       out, _err, status = Open3.capture3('ruby', script, '--input', input, '--stdout')
       raise "planner falhou para #{input}" unless status.success?
-
       out
     end
 
+    # ── Permission escalation ────────────────────────────────────────
+
     def validate_no_permission_escalation
       check('ampliação de permissão') do
-        # Check that plano output never has escrita_permitida=true for non-executor
         exemplos_dir = File.join(ORCH_DIR, 'exemplos')
         Dir.glob(File.join(exemplos_dir, '*.json')).each do |ex_path|
-          out = run_placer_stdout(ex_path)
+          out   = run_planner_stdout(ex_path)
           plano = JSON.parse(out)
           if plano['papel_principal'] && plano['papel_principal'] != 'executor-escopo'
             if plano['escrita_permitida'] == true
@@ -273,9 +277,10 @@ module OrchestrationValidator
       end
     end
 
+    # ── Secrets scan ─────────────────────────────────────────────────
+
     def validate_no_secrets
       check('secrets') do
-        # Scan all new files for common secret patterns
         patterns = [
           /(?:api[_-]?key|secret|password|token)\s*[=:]\s*['"]\w{20,}/i,
           /-----BEGIN (?:RSA |EC )?PRIVATE KEY-----/,
@@ -296,16 +301,16 @@ module OrchestrationValidator
       end
     end
 
+    # ── No non-stdlib deps ───────────────────────────────────────────
+
     def validate_no_new_deps
       check('dependências') do
-        # Check no Gemfile or gem require beyond stdlib
         scripts = Dir.glob(File.join(SCRIPTS_DIR, '*agent*')).select { |f| File.file?(f) }
         scripts.each do |f|
           content = File.read(f)
-          requires = content.scan(/^require\s+'([^']+)'/).flatten
-          non_stdlib = requires.reject do |r|
-            %w[json yaml digest optparse fileutils open3 tempfile].include?(r)
-          end
+          # Match require at any indentation level
+          requires = content.scan(/^\s*require\s+'([^']+)'/).flatten
+          non_stdlib = requires.reject { |r| STDLIB_ALLOWLIST.include?(r) }
           unless non_stdlib.empty?
             ERRORS << "#{File.basename(f)}: dependências não-stdlib: #{non_stdlib.join(', ')}"
           end
@@ -313,44 +318,70 @@ module OrchestrationValidator
       end
     end
 
+    # ── No functional app changes ────────────────────────────────────
+
     def validate_no_functional_changes
       check('alteração funcional') do
-        # This PR must not modify any app source files
-        app_dirs = %w[api components contexts hooks services prompts utils types.ts App.tsx]
-        # We check via git diff in CI, but here we just ensure no app code in our new files
-        # This is structural: we only check that our scripts don't import app code
-        scripts = Dir.glob(File.join(SCRIPTS_DIR, '*agent*')).select { |f| File.file?(f) }
-        scripts.each do |f|
-          content = File.read(f)
-          if content.match?(/require.*services\/|require.*components\/|import.*from.*services\//)
-            ERRORS << "#{File.basename(f)}: importa código da aplicação"
-          end
+        changed = git_changed_files
+        return if changed.empty? # CI without base ref
+
+        app_patterns = %w[
+          ^api/ ^components/ ^contexts/ ^hooks/ ^services/ ^prompts/
+          ^utils/ ^tests/ ^lib/
+          ^App\.tsx$ ^types\.ts$ ^package\.json$ ^package-lock\.json$
+          ^next\.config\. ^vite\.config\. ^tsconfig\.json$
+        ]
+
+        app_files = changed.select do |f|
+          app_patterns.any? { |pat| f.match?(Regexp.new(pat)) }
+        end
+
+        unless app_files.empty?
+          ERRORS << "arquivos de aplicação modificados (não permitidos nesta fase): #{app_files.join(', ')}"
         end
       end
     end
+
+    def git_changed_files
+      base_ref = ENV.fetch('GITHUB_BASE_REF', '')
+      candidates = []
+      candidates << "origin/#{base_ref}" if base_ref && !base_ref.empty?
+      candidates << 'origin/main'
+      candidates << 'main'
+
+      candidates.each do |base|
+        out, _err, status = Open3.capture3('git', '-C', REPO_ROOT, 'diff', '--name-only', "#{base}...HEAD")
+        return out.split("\n").reject(&:empty?) if status.success?
+      end
+
+      []
+    end
+
+    # ── delivery-loop unchanged ──────────────────────────────────────
 
     def validate_delivery_loop_unchanged
       check('delivery-loop') do
-        # The SKILL.md must not be modified in this branch
         skill_path = File.join(REPO_ROOT, '.agents', 'skills', 'delivery-loop', 'SKILL.md')
         return unless File.file?(skill_path)
 
-        # Check planner doesn't reference delivery-loop as a skill
-        planner_path = File.join(SCRIPTS_DIR, 'plan-agent-mission.rb')
-        if File.file?(planner_path)
-          content = File.read(planner_path)
-          # The planner should handle delivery-loop as fluxo, not as skill
-          # This is fine as long as it's in skills_selecionadas filter logic
+        changed = git_changed_files
+        return if changed.empty?
+
+        if changed.include?('.agents/skills/delivery-loop/SKILL.md')
+          ERRORS << 'delivery-loop/SKILL.md foi modificado (deve permanecer inalterado)'
         end
       end
     end
+
+    # ── No network or agent execution ────────────────────────────────
 
     def validate_no_network_or_agents
       check('rede e agentes') do
         scripts = Dir.glob(File.join(SCRIPTS_DIR, '*agent*')).select { |f| File.file?(f) }
+        # Exclude this validator — it uses open3 for git/planner subprocess
         scripts = scripts.reject { |f| File.basename(f) == 'validate-agent-orchestration.rb' }
         scripts.each do |f|
-          content = File.read(f)
+          content  = File.read(f)
           forbidden = [
             /Net::HTTP/,
             /TCPSocket/,
@@ -369,34 +400,31 @@ module OrchestrationValidator
       end
     end
 
+    # ── Scripts exist ────────────────────────────────────────────────
+
     def validate_scripts_exist
       check('scripts') do
         %w[plan-agent-mission.rb validate-agent-orchestration.rb test-agent-orchestration.rb].each do |script|
           path = File.join(SCRIPTS_DIR, script)
-          raise "script não encontrado: #{script}" unless File.file?(path)
-
-          raise "script não é executável por ruby" unless File.readable?(path)
+          raise "script não encontrado: #{script}"        unless File.file?(path)
+          raise "script não é legível: #{script}"         unless File.readable?(path)
         end
       end
     end
 
+    # ── Report ───────────────────────────────────────────────────────
+
     def print_report
       total = ERRORS.size + WARNINGS.size
       if total.zero?
-        puts "OK — validação de orquestração passou sem erros"
+        puts 'OK — validação de orquestração passou sem erros'
       else
-        ERRORS.each { |e| puts "  ERRO: #{e}" } unless ERRORS.empty?
-        WARNINGS.each { |w| puts "  WARN: #{w}" } unless WARNINGS.empty?
+        ERRORS.each   { |e| puts "  ERRO: #{e}" }   unless ERRORS.empty?
+        WARNINGS.each { |w| puts "  WARN: #{w}" }   unless WARNINGS.empty?
         puts "\n  #{ERRORS.size} erro(s), #{WARNINGS.size} warning(s)"
       end
     end
   end
-
-  REQUIRED_FIELDS = %w[
-    versao id titulo objetivo contexto resultado_esperado
-    autorizacao escopo restricoes verificacao
-    evidencias_requeridas condicoes_parada
-  ].freeze
 end
 
 exit OrchestrationValidator.run if $PROGRAM_NAME == __FILE__

@@ -1,79 +1,81 @@
-# Handoff — Governança de Agentes (Fases 0–3A)
+# Handoff — PR #423 Fase 3A Orquestração de Agentes
 
-> **Estado:** Fase 3A em branch `feat/fase-3a-orquestracao-missoes`, pronta para commit/push/PR.
-> **Baseline:** `22c36b4d` (origin/main, Fase 2.5 squash merge).
+> **Status:** correções locais concluídas e validadas; aguardando commit/push/checks remotos.
+> **Branch:** `feat/fase-3a-orquestracao-missoes`
+> **SHA inicial da retomada:** `ad85738a`
 > **Worktree:** `/Users/brunolima/Documents/NOVO-APP/.claude/worktrees/fase-3a-orquestracao`
+> **Vault:** `[[2026-07-13T08-40-20-novo-app-pr423-fase3a-handoff]]`
 
----
+## Contexto
 
-## Roadmap de Governança
+- PR #423 implementa Fase 3A: planner determinístico dry-run para missões de agentes.
+- Escopo autorizado: corrigir review da Fase 3A. Não fazer merge, deploy ou Fase 3B.
+- Base do PR: `origin/main` em `22c36b4d`.
+- CI tinha falhas preexistentes fora do escopo: Typecheck, Tests, Dossier Golden, E2E, Golden Dossier Live.
 
-| Fase | Escopo | Status | PR |
-|------|--------|--------|----|
-| 0 | Skills registry + compatibilidade | ✅ Mergeada | #419 |
-| 1 | Papéis canônicos (7) | ✅ Mergeada | #420 |
-| 2 | Adaptadores + mapa | ✅ Mergeada | #421 |
-| 2.5 | Correção pós-review (YAML aliases, papéis extras) | ✅ Mergeada | #422 |
-| **3A** | **Orquestração determinística dry-run** | **🔧 Em branch** | — |
-| 3B | Execução real com agentes | Planejada | — |
+## O que foi feito nesta retomada
 
----
+- Consolidado contexto dos reviews: path traversal, permissões efetivas, autorização de escrita, `acoes_solicitadas`, schema validation, tests helpers, allowlist Skills Governance.
+- Alterado `scripts/plan-agent-mission.rb`:
+  - `require 'tmpdir'` e path safety real por `File.expand_path`, `File.realpath`, `REPO_ROOT` e `Dir.tmpdir`;
+  - validador JSON Schema interno;
+  - `acoes_solicitadas` separado de `acoes_permitidas`;
+  - ação solicitada e não permitida vira negação;
+  - gate A2+ e `executor-escopo` para escrita;
+  - permissões efetivas para rede/shell;
+  - skills com `pode_escrever` ou `pode_executar_shell` exigem A2;
+  - `ACTION_MIN_AUTH` em loop;
+  - negações estruturadas `{codigo,mensagem}`;
+  - remoção do load redundante de `compatibilidade.yaml`.
+- Alterado `cartao-missao.schema.json` para exigir `autorizacao.acoes_solicitadas`.
+- Alterado `contrato-plano.schema.json` para `negacoes` estruturadas e campos `acoes_solicitadas`/`acoes_permitidas`.
+- Atualizados 5 exemplos com `acoes_solicitadas`.
+- Alterado `scripts/validate-agent-orchestration.rb`:
+  - `YAML.safe_load`;
+  - regex de `require` com indentação;
+  - allowlist stdlib com `tempfile` e `tmpdir`;
+  - `git diff --name-only` para alterações funcionais;
+  - check real de delivery-loop no diff;
+  - valida exemplos contra schema e planos gerados contra `contrato-plano.schema.json`.
+- Alterado `scripts/validate-skills-governance.rb` para permitir artefatos Fase 3A.
+- Alterado `scripts/test-agent-orchestration.rb`: 57 testes, incluindo escrita A0/A1/A2, ação permitida vs solicitada, schema, paths/symlinks, hash e compatibilidade comportamental.
+- Alterado `scripts/test-validate-skills-governance.rb`: 28 testes, incluindo negativos para evitar liberação genérica de `scripts/`, `docs/`, `.github/` e `.agents/`.
 
-## Fase 3A — O que foi feito
+## Validação local
 
-### Arquivos criados
+- `ruby scripts/validate-skills-governance.rb` → OK.
+- `ruby scripts/test-validate-skills-governance.rb` → OK, 28 tests.
+- `ruby scripts/validate-agent-orchestration.rb` → OK.
+- `ruby scripts/test-agent-orchestration.rb` → OK, 57 tests.
+- `git diff --check` → OK.
 
-| Arquivo | Descrição |
-|---------|-----------|
-| `.agents/orquestracao/README.md` | Documentação canônica (CLI, papéis, A0–A6) |
-| `.agents/orquestracao/cartao-missao.schema.json` | JSON Schema de entrada |
-| `.agents/orquestracao/contrato-plano.schema.json` | JSON Schema de saída |
-| `.agents/orquestracao/roteamento.yaml` | Roteamento intenção→papel + autorização |
-| `.agents/orquestracao/politica-despacho.md` | Política de despacho (12 filtros) |
-| `.agents/orquestracao/contrato-evidencias.yaml` | Dimensões de evidência |
-| `.agents/orquestracao/exemplos/*.json` | 5 cartões de exemplo |
-| `scripts/plan-agent-mission.rb` | Planner determinístico dry-run |
-| `scripts/validate-agent-orchestration.rb` | Validador (estrutura + segurança) |
-| `scripts/test-agent-orchestration.rb` | 35 testes (8 positivos, 22 negativos, 5 regressão) |
+## Estado atual do worktree
 
-### Arquivos modificados
+Arquivos modificados localmente, não commitados:
 
-| Arquivo | Mudança |
-|---------|---------|
-| `.github/workflows/ci.yml` | +job `Agent Orchestration` |
-| `AGENTS.md` | +pointer para `.agents/orquestracao/` |
-| `docs/SKILLS-GOVERNANCE.md` | +seção Orquestração de agentes |
-| `.agents/papeis/README.md` | +princípio 11 (orquestração obrigatória) |
-| `HANDOFF_AI.md` | Rewrite completo |
-
-### Validação local
-
-- `ruby scripts/validate-agent-orchestration.rb` → OK
-- `ruby scripts/test-agent-orchestration.rb` → 35/35 PASS
-- Planner testado contra 5 exemplos → saídas corretas
-- Determinismo verificado (2 runs idênticos)
-
-### Compatibilidade
-
-- Scripts usam apenas Ruby stdlib (json, yaml, digest, optparse, fileutils, open3, tempfile)
-- Compatível com Ruby 2.6 (local) e 3.3 (CI)
-- Sem YAML aliases nos arquivos canônicos
-- Sem gems externas
-
----
+- `.agents/orquestracao/cartao-missao.schema.json`
+- `.agents/orquestracao/contrato-plano.schema.json`
+- `.agents/orquestracao/exemplos/exploracao-readonly.json`
+- `.agents/orquestracao/exemplos/implementacao-autorizada.json`
+- `.agents/orquestracao/exemplos/investigacao-incidente.json`
+- `.agents/orquestracao/exemplos/merge-negado.json`
+- `.agents/orquestracao/exemplos/skill-mutante-negada.json`
+- `scripts/plan-agent-mission.rb`
+- `scripts/test-agent-orchestration.rb`
+- `scripts/test-validate-skills-governance.rb`
+- `scripts/validate-agent-orchestration.rb`
+- `scripts/validate-skills-governance.rb`
 
 ## Próximos passos
 
-1. **Commit + push + PR** — branch pronta
-2. **Fase 3B** — execução real com agentes consumindo o plano
-3. **CI failures pre-existentes** (5): Typecheck, Tests, Dossier Golden, E2E, Golden Dossier Live — reproduzidas identicamente no baseline, não relacionadas
+1. Commitar correção na mesma branch.
+2. Push para PR #423.
+3. Aguardar `Agent Orchestration`, `Skills Governance`, `Build`, CodeQL/Analyze/CodeRabbit/GitGuardian.
+4. Responder threads da PR com evidência dos testes.
 
----
+## Não fazer
 
-## CI failures pre-existentes (desde main)
-
-- Dossier Golden: MIGRATION_DEADLINE expirado
-- Tests: AuthGate.test.tsx migration banner
-- Typecheck: 5 erros em testes
-- E2E Critical Browser: onboarding.ts login CI
-- Golden Dossier Live: mesmo problema do Dossier Golden
+- Não mexer em `.agents/skills/delivery-loop/SKILL.md`.
+- Não criar Fase 3B.
+- Não mergear/deployar.
+- Não declarar pronto para merge antes dos checks remotos e threads.

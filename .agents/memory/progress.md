@@ -4,6 +4,17 @@ Last updated: 2026-06-30 — Sessão Z.ai + H1/H3 concluída, PR #405 aberta
 
 ## Timeline
 
+### 2026-07-13 (PR #423 — Fase 3A correções locais validadas)
+
+- **Branch:** `feat/fase-3a-orquestracao-missoes`
+- **PR:** #423 — Orquestração determinística dry-run de agentes
+- **SHA inicial da retomada:** `ad85738a`
+- **Handoff Vault:** `[[2026-07-13T08-40-20-novo-app-pr423-fase3a-handoff]]`
+- **Feito:** planner corrigido para schema real, `acoes_solicitadas`, autorização de escrita A2+executor, permissões efetivas, paths/symlinks, skills shell/rede, negações estruturadas; schemas e 5 exemplos atualizados; validação de orquestração reforçada; Skills Governance allowlist restrita para Fase 3A.
+- **Testes:** `test-agent-orchestration.rb` passou com 57 testes; `test-validate-skills-governance.rb` passou com 28 testes.
+- **Gates:** `validate-skills-governance`, `validate-agent-orchestration` e `git diff --check` passaram.
+- **Próximo:** commit, push na PR #423, aguardar checks remotos e responder threads.
+
 ### 2026-06-30 (Sessão Z.ai — Materialização + H1/H3)
 
 - **Branch:** `condescending-hoover-10c1cc` (worktree)

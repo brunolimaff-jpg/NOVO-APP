@@ -1,43 +1,30 @@
 # Active Context
 
-Last updated: 2026-06-30 — Sessão Z.ai + H1/H3 concluída, PR #405 aberta
+Last updated: 2026-07-13 — PR #423 Fase 3A, correções locais validadas
 
 ## Estado Atual
 
-- **Branch atual:** `condescending-hoover-10c1cc` (worktree)
-- **PR aberta:** [#405](https://github.com/brunolimaff-jpg/NOVO-APP/pull/405) — MERGEABLE
-- **Baseline:** `origin/main` @ `61ced7bc`
-- **Tag:** `pre-prompts-cleanup`
-- **Plano maior:** Plano de Profissionalização V3 (~80% concluído)
+- **Branch atual:** `feat/fase-3a-orquestracao-missoes`
+- **PR aberta:** #423 — Fase 3A Orquestração de Agentes
+- **Baseline:** `origin/main` @ `22c36b4d`
+- **SHA inicial da retomada:** `ad85738a`
+- **Worktree:** `/Users/brunolima/Documents/NOVO-APP/.claude/worktrees/fase-3a-orquestracao`
+- **Handoff Vault:** `[[2026-07-13T08-40-20-novo-app-pr423-fase3a-handoff]]`
 
-## O que foi entregue
+## Estado da tarefa
 
-- Z.ai validado (22 agentes, 121 verificações, 82% claims confirmadas)
-- ADRs 0003-0005 commitados em `docs/adr/`
-- Plano de limpeza de prompts em `docs/management/`
-- H1: `utils/promptLeakShield.ts` deletado (órfão, -150 LOC)
-- H3: 2 padrões de leak-shield (`nota_de_escopo`, `aviso_metodologico`)
-- 12 comentários de bots resolvidos
-- 5 silent failures documentados (todos pré-existentes)
-- Handoff completo em `HANDOFF_AI.md`
+- Correções locais concluídas e validadas.
+- Nada mergeado/deployado; aguardando commit/push/checks remotos.
+- Gates locais: `validate-skills-governance` OK, `test-validate-skills-governance` 28 tests OK, `validate-agent-orchestration` OK, `test-agent-orchestration` 57 tests OK, `git diff --check` OK.
 
-## Decisões ativas
+## Próximos passos imediatos
 
-- DI-2026-06-29-01: Z.ai produz docs, nunca executa
-- DI-2026-06-29-02: Princípio 6 como gate de handoff
-- DI-2026-06-29-03: Regex de shield requer adversarial review
-- DI-2026-06-29-04: `pre-prompts-cleanup` como reversão
-
-## Próximos passos
-
-- Merge PR #405 (aguardando "MERGE" do Bruno)
-- H4: consolidar 8× inline_citation_rule (médio risco)
-- Fase 7: cron-email-confirmation → createClient
-- Fase 8: consolidar 157 .md → ≤30
-- Fase 9: self-audit 97 itens
+1. Commitar na branch `feat/fase-3a-orquestracao-missoes`.
+2. Pushar para PR #423.
+3. Aguardar checks remotos e responder threads com evidência.
 
 ## Atenção
 
-- 5 CI failures = débito fe6c6f9 (mesmo em main)
-- Cópia stale do shield em `api/gemini.ts:59-115` sem 2 novos padrões
-- `applyPromptLeakShield` sem try/catch em 2 locais
+- Não mexer em `.agents/skills/delivery-loop/SKILL.md`.
+- Não fazer merge/deploy/Fase 3B.
+- Não declarar pronto para merge antes dos checks remotos e threads.
