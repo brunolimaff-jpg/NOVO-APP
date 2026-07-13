@@ -1,57 +1,38 @@
-# Handoff — Fase 3B.1.5 mergeada (PR #425)
+# Handoff — Fase 3B.2A (plano mínimo + topologia)
 
-> **Atualizado:** 2026-07-13  
-> **PR #425:** MERGED (squash)  
-> **Squash em main:** `46765ab88d3c78460dd94dc1259561724ba0cedf`  
-> **Head pré-merge:** `4561055c7290580e52b602b0ddb403090bd6e73e`  
-> **Baseline anterior:** `f889f57a` (docs pós-#424) / `9c8b3228` (#424)  
-> **Próxima etapa:** Fase 3B.2 (propagação planner→plano + schema condicional) — **não iniciada**
+> **Atualizado:** 2026-07-13
+> **Branch:** `feat/fase-3b2a-plano-minimo`
+> **Baseline main:** `0f9bfda7` (docs pós-#425) / squash 3B.1.5 `46765ab8`
+> **Próxima etapa:** Fase 3B.2B — **não iniciada**
 
 ## Estado atual (fonte da verdade)
 
-| Fase   | Status                           | Entrega                                                          |
-| ------ | -------------------------------- | ---------------------------------------------------------------- |
-| 0–2.5  | em main                          | governança, papéis, adaptadores, registry de skills              |
-| 3A     | mergeada (#423 → `0f9858a1`)     | Cartão/Plano/planner dry-run — **57 testes**                     |
-| 3B.1   | mergeada (#424 → `9c8b3228`)     | executor controlado — **54 testes**                              |
-| 3B.1.5 | **mergeada (#425 → `46765ab8`)** | política Codex + benchmark + auditor fail-closed (**37 testes**) |
-| 3B.2   | **não iniciada**                 | propagação planner→comandos + schema `if/then`                   |
+| Fase   | Status                       | Entrega                                                    |
+| ------ | ---------------------------- | ---------------------------------------------------------- |
+| 0–2.5  | em main                      | governança, papéis, adaptadores, registry de skills        |
+| 3A     | mergeada (#423 → `0f9858a1`) | Cartão/Plano/planner dry-run                               |
+| 3B.1   | mergeada (#424 → `9c8b3228`) | executor controlado — **54 testes**                        |
+| 3B.1.5 | mergeada (#425 → `46765ab8`) | política Codex + benchmark + auditor (**37 testes**)       |
+| 3B.2A  | **esta branch**              | topologia mínima + comandos no plano — **79 testes** orch  |
+| 3B.2B  | **não iniciada**             | próximo slice (schema `if/then` / execução restrita — TBD) |
 
 Skills Governance permanece com **32 testes**.
 
-## O que a Fase 3B.1.5 entrega
+## O que a Fase 3B.2A entrega
 
-1. `AGENTS.md` limpo (sem `<claude-mem-context>`) + política de orçamento de subagentes + bullets mínimos Scout
-2. `.codex/config.toml` conservador: `max_threads = 3`, `max_depth = 1` (sem flags experimentais)
-3. Documentação: **Multi-Agent V2 não é tratado como roteador confiável até prova de runtime**
-4. Protocolo: `docs/benchmarks/codex-harness-5.6.md` (Probe A = `BLOCKED_BY_HARNESS`; Probe B = `NOT_EXECUTED`)
-5. Auditor: `scripts/validate-codex-harness-policy.rb` + **37 testes**
-6. Integração no job CI **Agent Orchestration**
+1. Extensão de `contrato-plano.schema.json`: `comandos`, `resumo_operacional`, `topologia`, `simplicidade`, `limites` (required)
+2. Planner propaga `cartao.executor.comandos` → `plano.comandos` (catálogo only, order-preserving dedupe)
+3. Topologia default **single-agent** (`harness=codex-cli`, `max_paralelo=1`, ≤1 writer, depth=1, sem subdelegação)
+4. `validate_operational_plan!` fail-closed (multi-agent só com justificativa)
+5. Flag `--resumo` (stderr); avisos de simplicidade não bloqueantes
+6. README do executor atualizado (propagação feita; `if/then` ainda deferido)
 
-### Hardening fail-closed do parser TOML mínimo
+## Contratos que permanecem válidos
 
-- Chaves / segmentos de tabela quoted rejeitados
-- Valores compostos (inline tables / arrays) rejeitados
-- Dotted assignment keys rejeitadas
-- Cabeçalhos normalizados (strip de segmentos; vazios rejeitados)
-- Valores quoted contendo `{`/`[` continuam permitidos
-- Escopo canônico do projeto não depende de strings com aspas escapadas
-
-## Contratos que permanecem válidos (3B.1)
-
-- Dry-run por padrão; real só com `--execute` + `AGENT_ORCHESTRATION_EXECUTE=1`
-- Só status `planejado` executável
+- Executor **não** spawna agentes reais nesta fase
+- Só status `planejado` executável; `planejado-com-restricoes` ainda não
 - Catálogo fixo de 5 comandos
-- Cartão de Missão + executor = fronteira de autorização
-- Detalhe operacional: `.agents/orquestracao/executor/README.md`
-- `.codex/agents/*.toml` = adaptadores declarativos
-
-## Limitações do Multi-Agent V2
-
-- Runtime tool-backed pode ignorar agente customizado, modelo, reasoning e sandbox do filho
-- Preferir `codex exec`/CLI nativo; Desktop experimental
-- Não ativar V2 globalmente; não fixar janela de contexto; não usar Ultra/Fast
-- Esta limitação **não** invalida as Fases 0–3B.1
+- JSON Schema `if`/`then` **não** nesta fase (`SUPPORTED_SCHEMA_KEYS`)
 
 ## Validação canônica (gates próprios)
 
@@ -68,17 +49,13 @@ git diff --check
 npm run build
 ```
 
-Gates Scout globais (Typecheck/Tests/Dossier/E2E) fora de escopo desta trilha.
-
 ## Próximos passos
 
-1. Fase 3B.2 sob pedido explícito
-2. Não expandir catálogo / gramática TOML do auditor sem decisão
-3. Não misturar stashes WIP Scout (`wip-pre-main-checkout-after-pr424-merge` / `wip-remaining-after-pr424`)
+1. Fase 3B.2B sob pedido explícito
+2. Não misturar stashes WIP Scout (`wip-pre-main-checkout-after-pr424-merge` / `wip-remaining-after-pr424`)
 
 ## Não fazer agora
 
-- Iniciar Fase 3B.2 sem pedido
-- Ativar Multi-Agent V2 / Ultra / Fast
-- Alterar `~/.codex/config.toml`
-- Tratar Desktop como baseline de benchmark
+- Merge sem confirmação explícita **MERGE**
+- Ponytail / Multi-Agent V2 / probes `codex exec`
+- Alterar Scout funcional (`api/`, `components/`, `services/`)

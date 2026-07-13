@@ -492,6 +492,330 @@ module OrchestrationTests
         end
       end
 
+      # === FASE 3B.2A — topologia / comandos / simplicidade ===
+      test("3B.2A single-agent canônico") do
+        plano = run_planner_parse(build_readonly_card)
+        assert_eq(plano['status'], 'planejado')
+        assert_eq(plano['resumo_operacional']['harness'], 'codex-cli')
+        assert_eq(plano['resumo_operacional']['estrategia'], 'agente-unico')
+        assert_eq(plano['resumo_operacional']['agentes_planejados'], 1)
+        assert_eq(plano['resumo_operacional']['max_paralelo'], 1)
+        assert_eq(plano['topologia']['max_profundidade'], 1)
+        assert_eq(plano['topologia']['permite_subdelegacao'], false)
+        assert_eq(plano['topologia']['agentes'].size, 1)
+        assert_eq(plano['topologia']['agentes'][0]['id'], 'principal')
+        assert_eq(plano['topologia']['agentes'][0]['papel'], 'explorador')
+        assert_eq(plano['comandos'], [])
+        MissionPlanner.validate_operational_plan!(plano, require_comandos: false)
+      end
+
+      test("3B.2A read-only sem writer") do
+        plano = run_planner_parse(build_readonly_card)
+        assert_eq(plano['resumo_operacional']['writers'], 0)
+        assert_eq(plano['topologia']['agentes'][0]['permissao'], 'read-only')
+        assert_eq(plano['escrita_permitida'], false)
+      end
+
+      test("3B.2A um writer quando escrita permitida") do
+        plano = run_planner_parse(build_executor_card)
+        assert_eq(plano['status'], 'planejado')
+        assert_eq(plano['escrita_permitida'], true)
+        assert_eq(plano['resumo_operacional']['writers'], 1)
+        assert_eq(plano['topologia']['agentes'][0]['permissao'], 'workspace-write')
+        assert_eq(plano['topologia']['agentes'][0]['papel'], 'executor-escopo')
+      end
+
+      test("3B.2A comando autorizado propagado") do
+        card = build_executor_card
+        card['executor'] = { 'comandos' => ['git-diff-check'] }
+        plano = run_planner_parse(card)
+        assert_eq(plano['status'], 'planejado')
+        assert_eq(plano['comandos'], ['git-diff-check'])
+        MissionPlanner.validate_operational_plan!(plano)
+      end
+
+      test("3B.2A dedupe de comandos preserva ordem") do
+        card = {
+          'executor' => {
+            'comandos' => [
+              'test-agent-orchestration',
+              'git-diff-check',
+              'test-agent-orchestration',
+              'validate-agent-orchestration',
+              'git-diff-check'
+            ]
+          }
+        }
+        result = MissionPlanner.send(:propagate_commands, card, 'planejado')
+        assert_eq(
+          result[:comandos],
+          %w[test-agent-orchestration git-diff-check validate-agent-orchestration]
+        )
+        assert_eq(result[:negacoes], [])
+      end
+
+      test("3B.2A multi-agent com justificativa passa no validador") do
+        plano = build_operational_plan(
+          'resumo_operacional' => {
+            'estrategia' => 'multiagente',
+            'agentes_planejados' => 2,
+            'max_paralelo' => 1,
+            'writers' => 1
+          },
+          'topologia' => {
+            'max_agentes' => 2,
+            'agentes' => [
+              { 'id' => 'leitor', 'papel' => 'explorador', 'permissao' => 'read-only', 'depende_de' => [] },
+              { 'id' => 'escritor', 'papel' => 'executor-escopo', 'permissao' => 'workspace-write', 'depende_de' => ['leitor'] }
+            ]
+          },
+          'simplicidade' => {
+            'multiagente_necessario' => true,
+            'justificativa_multiagente' => 'Exploração e escrita precisam de papéis distintos sem overlap.'
+          }
+        )
+        MissionPlanner.validate_operational_plan!(plano)
+      end
+
+      test("3B.2A flags de simplicidade geram avisos") do
+        avisos = MissionPlanner.send(
+          :apply_simplicity_warnings,
+          [],
+          { 'estrategia' => 'multiagente' },
+          {
+            'multiagente_necessario' => true,
+            'nova_dependencia' => true,
+            'nova_abstracao' => true,
+            'reutiliza_existente' => false
+          }
+        )
+        %w[
+          MULTI_AGENT_REQUIRES_APPROVAL
+          NEW_DEPENDENCY_DECLARED
+          NEW_ABSTRACTION_DECLARED
+          DOES_NOT_REUSE_EXISTING
+        ].each do |code|
+          assert_true(avisos.include?(code), "esperava aviso #{code}")
+        end
+      end
+
+      test("3B.2A --resumo imprime em stderr e JSON em stdout") do
+        require 'open3'
+        Tempfile.create(['mission', '.json']) do |f|
+          f.write(JSON.pretty_generate(build_readonly_card))
+          f.flush
+          out, err, status = Open3.capture3('ruby', PLANNER, '--input', f.path, '--stdout', '--resumo')
+          raise "planner falhou: #{err}" unless status.success?
+          plano = JSON.parse(out)
+          assert_eq(plano['resumo_operacional']['harness'], 'codex-cli')
+          assert_true(err.include?('Harness:'), "resumo ausente em stderr: #{err}")
+          assert_true(err.include?('Estratégia:'), "resumo incompleto em stderr: #{err}")
+        end
+      end
+
+      test("3B.2A falha: zero agentes") do
+        assert_raises_operational('zero agentes') do
+          MissionPlanner.validate_operational_plan!(
+            build_operational_plan(
+              'resumo_operacional' => { 'agentes_planejados' => 0 },
+              'topologia' => { 'agentes' => [] }
+            ),
+            require_comandos: false
+          )
+        end
+      end
+
+      test("3B.2A falha: contagem divergente") do
+        assert_raises_operational('agentes_planejados divergente') do
+          MissionPlanner.validate_operational_plan!(
+            build_operational_plan('resumo_operacional' => { 'agentes_planejados' => 2 }),
+            require_comandos: false
+          )
+        end
+      end
+
+      test("3B.2A falha: dois writers") do
+        assert_raises_operational('mais de um writer') do
+          MissionPlanner.validate_operational_plan!(
+            build_operational_plan(
+              'resumo_operacional' => {
+                'estrategia' => 'multiagente',
+                'agentes_planejados' => 2,
+                'writers' => 2
+              },
+              'topologia' => {
+                'max_agentes' => 2,
+                'agentes' => [
+                  { 'id' => 'w1', 'papel' => 'executor-escopo', 'permissao' => 'workspace-write', 'depende_de' => [] },
+                  { 'id' => 'w2', 'papel' => 'executor-escopo', 'permissao' => 'workspace-write', 'depende_de' => [] }
+                ]
+              },
+              'simplicidade' => {
+                'multiagente_necessario' => true,
+                'justificativa_multiagente' => 'dois writers propositalmente inválidos'
+              }
+            )
+          )
+        end
+      end
+
+      test("3B.2A falha: subdelegação") do
+        assert_raises_operational('subdelegacao') do
+          MissionPlanner.validate_operational_plan!(
+            build_operational_plan('topologia' => { 'permite_subdelegacao' => true }),
+            require_comandos: false
+          )
+        end
+      end
+
+      test("3B.2A falha: profundidade > 1") do
+        assert_raises_operational('max_profundidade') do
+          MissionPlanner.validate_operational_plan!(
+            build_operational_plan('topologia' => { 'max_profundidade' => 2 }),
+            require_comandos: false
+          )
+        end
+      end
+
+      test("3B.2A falha: papel desconhecido") do
+        assert_raises_operational('papel desconhecido') do
+          MissionPlanner.validate_operational_plan!(
+            build_operational_plan(
+              'topologia' => {
+                'agentes' => [
+                  { 'id' => 'principal', 'papel' => 'hacker-fantasma', 'permissao' => 'read-only', 'depende_de' => [] }
+                ]
+              }
+            ),
+            require_comandos: false
+          )
+        end
+      end
+
+      test("3B.2A falha: dependencia inexistente") do
+        assert_raises_operational('dependencia inexistente') do
+          MissionPlanner.validate_operational_plan!(
+            build_operational_plan(
+              'topologia' => {
+                'agentes' => [
+                  { 'id' => 'principal', 'papel' => 'explorador', 'permissao' => 'read-only', 'depende_de' => ['fantasma'] }
+                ]
+              }
+            ),
+            require_comandos: false
+          )
+        end
+      end
+
+      test("3B.2A falha: dependencia circular") do
+        assert_raises_operational('dependencia circular') do
+          MissionPlanner.validate_operational_plan!(
+            build_operational_plan(
+              'resumo_operacional' => {
+                'estrategia' => 'multiagente',
+                'agentes_planejados' => 2,
+                'writers' => 0
+              },
+              'topologia' => {
+                'max_agentes' => 2,
+                'agentes' => [
+                  { 'id' => 'a', 'papel' => 'explorador', 'permissao' => 'read-only', 'depende_de' => ['b'] },
+                  { 'id' => 'b', 'papel' => 'investigador-incidentes', 'permissao' => 'read-only', 'depende_de' => ['a'] }
+                ]
+              },
+              'simplicidade' => {
+                'multiagente_necessario' => true,
+                'justificativa_multiagente' => 'ciclo proposital'
+              }
+            ),
+            require_comandos: false
+          )
+        end
+      end
+
+      test("3B.2A falha: multi-agent sem justificativa") do
+        assert_raises_operational('justificativa_multiagente') do
+          MissionPlanner.validate_operational_plan!(
+            build_operational_plan(
+              'resumo_operacional' => {
+                'estrategia' => 'multiagente',
+                'agentes_planejados' => 2,
+                'writers' => 0
+              },
+              'topologia' => {
+                'max_agentes' => 2,
+                'agentes' => [
+                  { 'id' => 'a', 'papel' => 'explorador', 'permissao' => 'read-only', 'depende_de' => [] },
+                  { 'id' => 'b', 'papel' => 'revisor-contratos', 'permissao' => 'read-only', 'depende_de' => [] }
+                ]
+              },
+              'simplicidade' => {
+                'multiagente_necessario' => true,
+                'justificativa_multiagente' => '   '
+              }
+            ),
+            require_comandos: false
+          )
+        end
+      end
+
+      test("3B.2A falha: agente-unico com 2 agentes") do
+        assert_raises_operational('agente-unico exige exatamente 1 agente') do
+          MissionPlanner.validate_operational_plan!(
+            build_operational_plan(
+              'resumo_operacional' => { 'agentes_planejados' => 2 },
+              'topologia' => {
+                'max_agentes' => 2,
+                'agentes' => [
+                  { 'id' => 'a', 'papel' => 'explorador', 'permissao' => 'read-only', 'depende_de' => [] },
+                  { 'id' => 'b', 'papel' => 'revisor-contratos', 'permissao' => 'read-only', 'depende_de' => [] }
+                ]
+              }
+            ),
+            require_comandos: false
+          )
+        end
+      end
+
+      test("3B.2A falha: comando desconhecido") do
+        card = build_executor_card
+        card['executor'] = { 'comandos' => ['comando-fantasma-xyz'] }
+        plano = run_planner_parse(card)
+        assert_eq(plano['status'], 'negado')
+        assert_true(neg_codes(plano).include?('COMMAND_UNKNOWN'))
+        assert_eq(plano['comandos'], [])
+      end
+
+      test("3B.2A falha: comando inventado filtrado sem ampliação") do
+        card = build_executor_card
+        card['executor'] = { 'comandos' => ['git-diff-check', 'inventado-999'] }
+        plano = run_planner_parse(card)
+        assert_eq(plano['status'], 'negado')
+        assert_true(neg_codes(plano).include?('COMMAND_UNKNOWN'))
+        assert_eq(plano['comandos'], [])
+      end
+
+      test("3B.2A falha: planejado sem comandos com executor") do
+        card = build_executor_card
+        card['executor'] = { 'comandos' => [] }
+        plano = run_planner_parse(card)
+        assert_eq(plano['status'], 'negado')
+        assert_true(neg_codes(plano).include?('PLANEJADO_REQUIRES_COMMANDS'))
+        assert_eq(plano['comandos'], [])
+      end
+
+      test("3B.2A falha: negado com comandos no validador") do
+        assert_raises_operational('nao pode ter comandos') do
+          MissionPlanner.validate_operational_plan!(
+            build_operational_plan(
+              'status' => 'negado',
+              'comandos' => ['git-diff-check']
+            ),
+            require_comandos: false
+          )
+        end
+      end
+
       # === HELPER SELF-TEST ===
       test("helper self-test: sucesso de validação é detectado como falha") do
         # This test verifies the helper itself works
@@ -619,6 +943,72 @@ module OrchestrationTests
 
     def assert_true(value, msg = nil)
       raise(msg || "esperava true") unless value
+    end
+
+    def assert_raises_operational(fragment)
+      raised = false
+      begin
+        yield
+      rescue MissionPlanner::ValidationError => e
+        raised = true
+        unless e.message.include?(fragment)
+          raise "esperava fragmento #{fragment.inspect} em #{e.message.inspect}"
+        end
+      end
+      raise "esperava ValidationError contendo #{fragment.inspect}" unless raised
+    end
+
+    def deep_merge_hash(base, overlay)
+      result = base.dup
+      overlay.each do |key, value|
+        if value.is_a?(Hash) && result[key].is_a?(Hash)
+          result[key] = deep_merge_hash(result[key], value)
+        else
+          result[key] = value
+        end
+      end
+      result
+    end
+
+    def build_operational_plan(overrides = {})
+      base = {
+        'status' => 'planejado',
+        'comandos' => ['git-diff-check'],
+        'resumo_operacional' => {
+          'harness' => 'codex-cli',
+          'estrategia' => 'agente-unico',
+          'agentes_planejados' => 1,
+          'max_paralelo' => 1,
+          'writers' => 0,
+          'risco' => 'baixo',
+          'requer_aprovacao' => true
+        },
+        'topologia' => {
+          'max_agentes' => 1,
+          'max_profundidade' => 1,
+          'permite_subdelegacao' => false,
+          'agentes' => [
+            {
+              'id' => 'principal',
+              'papel' => 'explorador',
+              'permissao' => 'read-only',
+              'depende_de' => []
+            }
+          ]
+        },
+        'simplicidade' => {
+          'multiagente_necessario' => false,
+          'justificativa_multiagente' => nil,
+          'reutiliza_existente' => true,
+          'nova_dependencia' => false,
+          'nova_abstracao' => false
+        },
+        'limites' => {
+          'max_retentativas' => 1,
+          'max_rodadas_revisao' => 1
+        }
+      }
+      deep_merge_hash(base, overrides)
     end
 
     def neg_messages(plano)

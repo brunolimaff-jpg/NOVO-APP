@@ -1,5 +1,28 @@
 # decisions.md — NOVO-APP
 
+## Novas Decisões (Sessão 2026-07-13 — Fase 3B.2A)
+
+### DI-2026-07-13-08: Schema `if/then` deferido; validação operacional no planner
+
+- **Decisão:** Não adicionar `if`/`then` ao JSON Schema nesta fase (`SUPPORTED_SCHEMA_KEYS` ainda não as aceita). Exigência de `comandos` quando `planejado` (+ Cartão com `executor`) fica em `propagate_commands` + `validate_operational_plan!` (+ executor).
+- **Contexto:** Slice 3B.2A precisa de plano decisível sem ampliar o validador schema.
+- **Impacto:** Schema `if/then` fica para ciclo posterior (3B.2B+).
+- **Referência:** `scripts/plan-agent-mission.rb`, `.agents/orquestracao/contrato-plano.schema.json`
+
+### DI-2026-07-13-07: Comandos do plano preservam ordem (primeira ocorrência)
+
+- **Decisão:** Propagação `executor.comandos` → `plano.comandos` faz dedupe sem `sort` alfabético — mantém a primeira ocorrência de cada ID do catálogo.
+- **Contexto:** Ordem pode refletir sequência operacional pretendida; sort quebraria essa intenção.
+- **Impacto:** Alinhamento card/plan no executor continua via uniq+sort na comparação; o plano emite ordem estável de entrada.
+- **Referência:** `scripts/plan-agent-mission.rb#propagate_commands`
+
+### DI-2026-07-13-06: Default absoluto single-agent no plano operacional
+
+- **Decisão:** Planner dry-run emite sempre topologia `agente-unico` / 1 agente / `max_paralelo=1` / ≤1 writer / depth=1 / sem subdelegação / `harness=codex-cli`. Multi-agent só passa em `validate_operational_plan!` com `multiagente_necessario=true` + justificativa não vazia (testes); produto do planner permanece single-agent.
+- **Contexto:** Plano mínimo decisível (go/no-go) sem scheduler nem adapters multi-tool.
+- **Impacto:** YAGNI — sem entrada explícita no cartão para multi-agent nesta fase.
+- **Referência:** Fase 3B.2A
+
 ## Novas Decisões (Sessão 2026-07-13 — Fase 3B.1.5 / PR #425)
 
 ### DI-2026-07-13-05: Parser TOML do auditor é fail-closed na gramática mínima
