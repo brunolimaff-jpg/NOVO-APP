@@ -20,16 +20,37 @@ module CodexHarnessPolicy
     service_tier
   ].freeze
 
+  # Only flag "35 tests/testes" when clearly about orchestration.
   STALE_ORCH_COUNTS = [
     /35\s+testes?\s+de\s+orquestra/i,
-    /test-agent-orchestration\.rb\)\s*\(35\s+tests?\)/i,
-    /\(35\s+tests?\)/
+    /test-agent-orchestration\.rb[^\n]{0,80}35\s+tests?/i,
+    /35\s+tests?[^\n]{0,80}test-agent-orchestration\.rb/i,
+    /Agent Orchestration[^\n]{0,80}35\s+tests?/i,
+    /35\s+tests?[^\n]{0,80}Agent Orchestration/i,
+    /orquestra[cç][aã]o[^\n]{0,80}35\s+tests?/i,
+    /35\s+tests?[^\n]{0,80}orquestra/i
   ].freeze
 
   module_function
 
   def fail!(msg)
     raise RuntimeError, msg
+  end
+
+  # Strip a trailing # comment unless the # is inside a quoted string.
+  def strip_trailing_comment(value)
+    in_single = false
+    in_double = false
+    value.chars.each_with_index do |ch, idx|
+      if ch == '"' && !in_single
+        in_double = !in_double
+      elsif ch == "'" && !in_double
+        in_single = !in_single
+      elsif ch == '#' && !in_single && !in_double
+        return value[0...idx].rstrip
+      end
+    end
+    value
   end
 
   # Minimal TOML reader for the flat/project shapes used here.
@@ -54,7 +75,9 @@ module CodexHarnessPolicy
       fail!("invalid toml line: #{line}") unless key && value
 
       key = key.strip
-      value = value.strip
+      value = strip_trailing_comment(value.strip)
+      fail!("invalid toml line: #{line}") if value.empty?
+
       parsed =
         if value.match?(/\A\d+\z/)
           value.to_i
@@ -62,7 +85,8 @@ module CodexHarnessPolicy
           true
         elsif value == 'false'
           false
-        elsif value.start_with?('"') && value.end_with?('"')
+        elsif (value.start_with?('"') && value.end_with?('"')) ||
+              (value.start_with?("'") && value.end_with?("'"))
           value[1..-2]
         else
           value
@@ -70,6 +94,21 @@ module CodexHarnessPolicy
       current[key] = parsed
     end
     result
+  end
+
+  def each_parsed_key(node, &block)
+    return unless node.is_a?(Hash)
+
+    node.each do |key, value|
+      block.call(key.to_s)
+      each_parsed_key(value, &block)
+    end
+  end
+
+  def reject_forbidden_keys!(data)
+    each_parsed_key(data) do |key|
+      fail!("forbidden experimental key present: #{key}") if FORBIDDEN_CONFIG_KEYS.include?(key)
+    end
   end
 
   def validate_config!(root: REPO_ROOT, config_text: nil)
@@ -81,11 +120,9 @@ module CodexHarnessPolicy
     end
     fail!('missing .codex/config.toml') if text.strip.empty?
 
-    FORBIDDEN_CONFIG_KEYS.each do |key|
-      fail!("forbidden experimental key present: #{key}") if text.match?(/\b#{Regexp.escape(key)}\b/)
-    end
-
     data = parse_simple_toml(text)
+    reject_forbidden_keys!(data)
+
     agents = data['agents']
     fail!('missing [agents] section') unless agents.is_a?(Hash)
     fail!("max_threads must be 3, got #{agents['max_threads'].inspect}") unless agents['max_threads'] == 3
@@ -119,7 +156,7 @@ module CodexHarnessPolicy
     texts = required.map { |p| File.read(p) }.join("\n")
 
     unless texts.match?(/Multi-Agent V2/i) &&
-           texts.match?(/não[^\n]{0,120}confi[aá]vel|não é tratado como roteador confiável|nao e tratado como roteador confiavel/i)
+           texts.match?(/n[aã]o[^\n]{0,120}confi[aá]vel/i)
       fail!('documentation must record Multi-Agent V2 as untrusted until runtime proof')
     end
 

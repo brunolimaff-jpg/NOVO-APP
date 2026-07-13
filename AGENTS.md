@@ -81,7 +81,10 @@ npm run lint
 
 ## Learned Workspace Facts
 
-- Freeze/blank pós-waterfall: priorizar `scout_diagnostics` e `operator_events`.
+- Loading/timeline/blank panel: `docs/ai-context/refactor/loading-panel-contract.md`.
+- Em freeze ou spinner pós-waterfall, priorizar `scout_diagnostics`, `operator_events` e `user_context`.
+- A recuperação do LoadingSmart é confirmada pelo evento `PostCompletion`; um health-check isolado pode capturar estado intermediário.
+- Sentry pode não registrar freeze da main thread; cruzar com telemetria e logs Vercel.
 - CNPJ no browser: `fetchCompanyByCnpj` via `/api/cnpj` (não BrasilAPI direto no cliente).
 - Preview Vercel é gate obrigatório para regressões de UX/rede/performance.
 - Handoff canônico: `HANDOFF_AI.md` e `.agents/memory/*`.

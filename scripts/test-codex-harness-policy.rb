@@ -106,10 +106,35 @@ end
 Dir.mktmpdir('codex-harness-policy') do |dir|
   seed_docs!(dir)
   write(File.join(dir, '.codex/config.toml'), CANONICAL_CONFIG + "\n[features.multi_agent_v2]\nhide_spawn_agent_metadata = false\n")
-  expect_error('multi_agent_v2 fails', /forbidden experimental key present: multi_agent_v2/) do
+  expect_error('multi_agent_v2 key fails', /forbidden experimental key present: multi_agent_v2/) do
     CodexHarnessPolicy.validate_config!(root: dir)
   end
   tests << 'multi-agent-v2'
+end
+
+Dir.mktmpdir('codex-harness-policy') do |dir|
+  seed_docs!(dir)
+  write(File.join(dir, '.codex/config.toml'), CANONICAL_CONFIG + "\n# evitar multi_agent_v2 nesta fase\n")
+  CodexHarnessPolicy.validate_config!(root: dir)
+  pass!('comment containing multi_agent_v2 passes')
+  tests << 'comment-multi-agent-v2'
+end
+
+Dir.mktmpdir('codex-harness-policy') do |dir|
+  seed_docs!(dir)
+  write(File.join(dir, '.codex/config.toml'), CANONICAL_CONFIG + "\nnote = \"do not enable multi_agent_v2\"\n")
+  CodexHarnessPolicy.validate_config!(root: dir)
+  pass!('string containing multi_agent_v2 passes')
+  tests << 'string-multi-agent-v2'
+end
+
+Dir.mktmpdir('codex-harness-policy') do |dir|
+  seed_docs!(dir)
+  write(File.join(dir, '.codex/config.toml'), CANONICAL_CONFIG + "\n[nested.section]\nmulti_agent_v2 = true\n")
+  expect_error('nested multi_agent_v2 key fails', /forbidden experimental key present: multi_agent_v2/) do
+    CodexHarnessPolicy.validate_config!(root: dir)
+  end
+  tests << 'nested-multi-agent-v2'
 end
 
 Dir.mktmpdir('codex-harness-policy') do |dir|
@@ -128,6 +153,86 @@ Dir.mktmpdir('codex-harness-policy') do |dir|
     CodexHarnessPolicy.validate_config!(root: dir)
   end
   tests << 'job-max-runtime'
+end
+
+Dir.mktmpdir('codex-harness-policy') do |dir|
+  seed_docs!(dir)
+  write(
+    File.join(dir, '.codex/config.toml'),
+    <<~TOML
+      [agents]
+      max_threads = 3 # teto operacional
+      max_depth = 1 # sem netos
+    TOML
+  )
+  CodexHarnessPolicy.validate_config!(root: dir)
+  pass!('integer with trailing comment passes')
+  tests << 'trailing-comment-int'
+end
+
+Dir.mktmpdir('codex-harness-policy') do |dir|
+  seed_docs!(dir)
+  write(
+    File.join(dir, '.codex/config.toml'),
+    <<~TOML
+      [agents]
+      max_threads = 3
+      max_depth = 1
+      enabled = true # ok
+    TOML
+  )
+  CodexHarnessPolicy.validate_config!(root: dir)
+  pass!('boolean with trailing comment passes')
+  tests << 'trailing-comment-bool'
+end
+
+Dir.mktmpdir('codex-harness-policy') do |dir|
+  seed_docs!(dir)
+  write(
+    File.join(dir, '.codex/config.toml'),
+    <<~TOML
+      [agents]
+      max_threads = 3
+      max_depth = 1
+      label = "keep # inside"
+    TOML
+  )
+  CodexHarnessPolicy.validate_config!(root: dir)
+  pass!('string with internal hash passes')
+  tests << 'string-internal-hash'
+end
+
+Dir.mktmpdir('codex-harness-policy') do |dir|
+  seed_docs!(dir)
+  write(
+    File.join(dir, '.codex/config.toml'),
+    <<~TOML
+      [agents]
+      max_threads = 3
+      max_depth = 1
+      label = 'single-quoted'
+    TOML
+  )
+  CodexHarnessPolicy.validate_config!(root: dir)
+  pass!('single-quoted string passes')
+  tests << 'single-quoted'
+end
+
+Dir.mktmpdir('codex-harness-policy') do |dir|
+  seed_docs!(dir)
+  write(
+    File.join(dir, '.codex/config.toml'),
+    <<~TOML
+      [agents]
+      max_threads = 3
+      not-a-valid-assignment
+      max_depth = 1
+    TOML
+  )
+  expect_error('invalid toml line fails', /invalid toml line/) do
+    CodexHarnessPolicy.validate_config!(root: dir)
+  end
+  tests << 'invalid-toml-line'
 end
 
 Dir.mktmpdir('codex-harness-policy') do |dir|
@@ -159,13 +264,31 @@ end
 
 Dir.mktmpdir('codex-harness-policy') do |dir|
   seed_docs!(dir)
+  write(File.join(dir, 'AGENTS.md'), CANONICAL_AGENTS + "\nUnrelated note: suite X has (35 tests).\n")
+  CodexHarnessPolicy.validate_agents_md!(root: dir)
+  pass!('unrelated 35 tests passes')
+  tests << 'unrelated-35'
+end
+
+Dir.mktmpdir('codex-harness-policy') do |dir|
+  seed_docs!(dir)
   write(File.join(dir, 'HANDOFF_AI.md'), "Sem menção ao harness.\n")
   write(File.join(dir, '.agents/memory/decisions.md'), "Sem decisão.\n")
   write(File.join(dir, '.agents/adaptadores/README.md'), "Sem V2.\n")
-  expect_error('missing V2 untrusted docs fails', /Multi-Agent V2/) do
+  expect_error('missing V2 untrusted docs fails', /Multi-Agent V2|untrusted/) do
     CodexHarnessPolicy.validate_docs_trust_boundary!(root: dir)
   end
   tests << 'docs-untrusted'
+end
+
+Dir.mktmpdir('codex-harness-policy') do |dir|
+  seed_docs!(dir)
+  write(File.join(dir, 'HANDOFF_AI.md'), "Multi-Agent V2 nao e confiavel ate prova.\n")
+  write(File.join(dir, '.agents/memory/decisions.md'), "ok\n")
+  write(File.join(dir, '.agents/adaptadores/README.md'), "ok\n")
+  CodexHarnessPolicy.validate_docs_trust_boundary!(root: dir)
+  pass!('accent-tolerant V2 wording passes')
+  tests << 'docs-accent-tolerant'
 end
 
 Dir.mktmpdir('codex-harness-policy') do |dir|
