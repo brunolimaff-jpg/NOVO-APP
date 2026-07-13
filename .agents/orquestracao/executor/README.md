@@ -62,12 +62,16 @@ O hook Cursor de branch health usa `failClosed: false` intencionalmente para nã
 
 Ele é uma proteção de higiene operacional e não uma fronteira de segurança. As autorizações e negações do executor não dependem desse hook.
 
-## Limitações da Fase 3B.1
+## Limitações da Fase 3B.1 / atualização 3B.2A
 
-Na Fase 3B.1, o planner da Fase 3A ainda não propaga automaticamente `executor.comandos` para `plano.comandos`.
+**Fase 3B.2A (parcial de 3B.2):** o planner propaga `cartao.executor.comandos` → `plano.comandos` (somente IDs do catálogo; dedupe preservando a primeira ocorrência; sem inventar comandos). Também emite `resumo_operacional`, `topologia` (default single-agent), `simplicidade` e `limites`.
 
-Cartão e plano precisam apresentar manualmente o mesmo conjunto de IDs.
+Ainda deferred:
 
-A propagação automática e a exigência condicional de `comandos` diretamente no JSON Schema ficam para a Fase 3B.2.
+- exigência condicional via JSON Schema `if`/`then` (validador Ruby ainda não aceita essas keywords)
+- execução de `planejado-com-restricoes`
+- scheduler / spawn real de agentes multi-tool
 
-O executor atual permanece fail-closed e rejeita plano `planejado` sem comandos com `PLANEJADO_REQUIRES_COMMANDS`.
+O alinhamento card/plan (mesmo conjunto de IDs) permanece: a execução usa somente `plan.comandos`, e o executor falha fechado se card e plan divergirem após normalização.
+
+O executor rejeita plano `planejado` sem comandos com `PLANEJADO_REQUIRES_COMMANDS`.

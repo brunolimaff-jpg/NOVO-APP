@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://novo-app.local/.agents/orquestracao/contrato-plano.schema.json",
   "title": "Contrato do Plano de Execução",
-  "description": "Saída determinística do planejador de missões.",
+  "description": "Saída determinística do planejador de missões (Fase 3B.2A: topologia mínima + comandos).",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -27,7 +27,12 @@
     "avisos",
     "fontes_decisao",
     "acoes_solicitadas",
-    "acoes_permitidas"
+    "acoes_permitidas",
+    "comandos",
+    "resumo_operacional",
+    "topologia",
+    "simplicidade",
+    "limites"
   ],
   "properties": {
     "versao": {
@@ -158,9 +163,118 @@
     },
     "comandos": {
       "type": "array",
-      "description": "IDs do catálogo do executor (Fase 3B). Obrigatório e não vazio quando status é planejado (único status executável na Fase 3B.1; validado pelo executor antes da execução). planejado-com-restricoes/negado/incompleto não são executáveis nesta fase e podem omitir ou usar lista vazia.",
+      "description": "IDs do catálogo do executor. Obrigatório e não vazio quando status é planejado e o Cartão declarou executor.comandos (validação no planner + executor). Propagados sem ampliação nem reordenação alfabética. negado/incompleto/planejado-com-restricoes usam lista vazia.",
       "items": { "type": "string" },
       "uniqueItems": true
+    },
+    "resumo_operacional": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "harness",
+        "estrategia",
+        "agentes_planejados",
+        "max_paralelo",
+        "writers",
+        "risco",
+        "requer_aprovacao"
+      ],
+      "properties": {
+        "harness": {
+          "type": "string",
+          "const": "codex-cli"
+        },
+        "estrategia": {
+          "type": "string",
+          "enum": ["agente-unico", "multiagente"]
+        },
+        "agentes_planejados": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "max_paralelo": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "writers": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "risco": {
+          "type": "string",
+          "enum": ["baixo", "medio", "alto"]
+        },
+        "requer_aprovacao": {
+          "type": "boolean"
+        }
+      }
+    },
+    "topologia": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["max_agentes", "max_profundidade", "permite_subdelegacao", "agentes"],
+      "properties": {
+        "max_agentes": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "max_profundidade": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1
+        },
+        "permite_subdelegacao": {
+          "type": "boolean"
+        },
+        "agentes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id", "papel", "permissao", "depende_de"],
+            "properties": {
+              "id": { "type": "string", "minLength": 1 },
+              "papel": { "type": "string", "minLength": 1 },
+              "permissao": {
+                "type": "string",
+                "enum": ["read-only", "workspace-write"]
+              },
+              "depende_de": {
+                "type": "array",
+                "items": { "type": "string" },
+                "uniqueItems": true
+              }
+            }
+          }
+        }
+      }
+    },
+    "simplicidade": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "multiagente_necessario",
+        "justificativa_multiagente",
+        "reutiliza_existente",
+        "nova_dependencia",
+        "nova_abstracao"
+      ],
+      "properties": {
+        "multiagente_necessario": { "type": "boolean" },
+        "justificativa_multiagente": { "type": ["string", "null"] },
+        "reutiliza_existente": { "type": "boolean" },
+        "nova_dependencia": { "type": "boolean" },
+        "nova_abstracao": { "type": "boolean" }
+      }
+    },
+    "limites": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["max_retentativas", "max_rodadas_revisao"],
+      "properties": {
+        "max_retentativas": { "type": "integer", "minimum": 0 },
+        "max_rodadas_revisao": { "type": "integer", "minimum": 0 }
+      }
     }
   }
 }
