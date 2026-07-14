@@ -68,6 +68,9 @@ vercel_build_tag.json
 !.obsidian/graph.json
 *.canvas
 
+# Pilot state (idempotência local — sem secrets)
+.agents/pilotos/state/
+
 # Audit/review artifacts (não comitar)
 .audit-pr386/
 .superhuman/

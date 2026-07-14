@@ -53,6 +53,22 @@ No modo `agent-runtime`, IDs do catálogo permanecem com `executado=false` porqu
 real é o Codex. Aviso `CODEX_SUBSTITUI_EXECUCAO_DOS_COMANDOS` e campos
 `runtime.processo_codex_iniciado` / `runtime.comandos_catalogo_executados=false` deixam isso explícito.
 
+A partir da 3B.3C o Run Report também traz:
+
+- `planned_snapshot` + `planned_snapshot_sha256`
+- `observed_snapshot` + `observed_snapshot_sha256`
+- `comparacao` (`conforme|desvio|violacao|indisponivel`)
+- `task_ledger` (exatamente 1 tarefa)
+- `handoff` (destino `revisor-humano`, `requer_aprovacao_humana: true`)
+
+Ausência de evidência **não** é conformidade.
+
+## Piloto supervisionado
+
+Além das três chaves 3B.3B, o piloto real exige `--supervised-pilot`,
+`--pilot-ack RUN_SUPERVISED_PILOT` e `AGENT_RUNTIME_PILOT=1`.
+Ver `.agents/pilotos/README.md`. **Não executar nesta PR.**
+
 ## Testes
 
 O runner **nunca** descobre fixtures. Fake Codex só quando:

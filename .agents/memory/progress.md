@@ -1,11 +1,18 @@
 # Progress
 
-## 2026-07-13 — Fase 3B.3B iniciada (Runtime Codex single-agent)
+## 2026-07-14 — Fase 3B.3C iniciada (Planejado × Observado + piloto)
 
-- Branch `feat/fase-3b3b-single-agent-runtime` a partir de `origin/main` @ `2239975a`
-- Pré-condição: PR #428 mergeada (path guard, command guard, preflight, `AGENT_RUNTIME_NOT_ENABLED` substituído por três chaves)
-- Escopo: adapter Codex, ativação tripla, preflight live, worktree isolada, verificação de escopo, fake Codex nos testes
-- Sem Codex real, sem DCG global, sem 3B.3C
+- Branch `feat/fase-3b3c-planned-observed-pilot` a partir de `origin/main` @ `c14ffef1`
+- Pré-condição: PR #429 mergeada (runtime Codex single-agent, fake em testes)
+- Escopo: snapshots canônicos, comparador, ledger de 1 tarefa, handoff humano, template/piloto com 6 chaves, estado idempotente
+- Sem Codex real, sem piloto real, sem DCG global, sem Fase 3C
+- Contagens início: runtime 50 · execution 64 · safety 42 · orchestration 136
+- Contagens fim (locais): runtime 50 · execution 64 · safety 42 · orchestration 136 · observation 45
+
+## 2026-07-14 — PR #429 MERGED (Fase 3B.3B)
+
+- Squash `c14ffef1cc1e639e7ed9efa583d069a9f3936370`
+- Runtime Codex single-agent: três chaves, preflight live, worktree isolada, escopo observado, fake Codex
 
 ## 2026-07-13 — PR #428 MERGED (Fase 3B.3A)
 

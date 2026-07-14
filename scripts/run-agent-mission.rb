@@ -14,6 +14,7 @@ require_relative './runtime-safety-preflight'
 require_relative './lib/agent_command_guard'
 require_relative './lib/agent_mission_contract'
 require_relative './lib/agent_single_runtime'
+require_relative './lib/agent_supervised_pilot'
 
 module AgentMissionRunner
   ROOT = File.expand_path('..', __dir__)
@@ -48,7 +49,16 @@ module AgentMissionRunner
   module_function
 
   def parse(argv)
-    opts = { execute: false, stdout: false, agent_runtime: false, runtime_ack: nil, worktree: nil }
+    opts = {
+      execute: false,
+      stdout: false,
+      agent_runtime: false,
+      runtime_ack: nil,
+      worktree: nil,
+      supervised_pilot: false,
+      pilot_ack: nil,
+      pilot_state_dir: nil
+    }
     OptionParser.new do |parser|
       parser.on('--card PATH') { |v| opts[:card] = v }
       parser.on('--plan PATH') { |v| opts[:plan] = v }
@@ -59,6 +69,9 @@ module AgentMissionRunner
       parser.on('--agent-runtime') { opts[:agent_runtime] = true }
       parser.on('--runtime-ack VALUE') { |v| opts[:runtime_ack] = v }
       parser.on('--worktree PATH') { |v| opts[:worktree] = v }
+      parser.on('--supervised-pilot') { opts[:supervised_pilot] = true }
+      parser.on('--pilot-ack VALUE') { |v| opts[:pilot_ack] = v }
+      parser.on('--pilot-state-dir PATH') { |v| opts[:pilot_state_dir] = v }
     end.parse!(argv)
     raise 'missing --card' unless opts[:card]
     raise 'missing --plan' unless opts[:plan]
@@ -69,6 +82,13 @@ module AgentMissionRunner
   def enforce_runtime_safety!(opts)
     mode = AgentSingleRuntime.enforce_activation!(opts)
     return mode if mode == :legacy
+
+    # Piloto: seis chaves (só quando solicitado). Runtime 3B.3B continua sem elas.
+    begin
+      AgentSupervisedPilot.enforce_activation!(opts)
+    rescue AgentSupervisedPilot::Denial => error
+      raise DeniedError.new(error.code, error.message)
+    end
 
     # External safety report is diagnostic only — never authorizes.
     if opts[:safety_report] && !opts[:safety_report].to_s.strip.empty?
@@ -398,6 +418,17 @@ module AgentMissionRunner
         mode_label = 'agent-runtime'
         worktree = File.expand_path(opts[:worktree], ROOT)
         validate_inputs!(card, plan, catalog)
+
+        pilot_mode = AgentSupervisedPilot.pilot_requested?(opts)
+        if pilot_mode
+          template = AgentSupervisedPilot.load_template!(ROOT)
+          AgentSupervisedPilot.validate_mission!(card: card, plan: plan, template: template, root: ROOT)
+          state_dir = AgentSupervisedPilot.state_dir(ROOT, override: opts[:pilot_state_dir])
+          if AgentSupervisedPilot.already_executed?(state_dir: state_dir, missao_id: card['id'])
+            raise DeniedError.new('SUPERVISED_PILOT_ALREADY_EXECUTED', "piloto já registrado: #{card['id']}")
+          end
+        end
+
         runtime_report = AgentSingleRuntime.run!(
           card: card,
           plan: plan,
@@ -410,6 +441,16 @@ module AgentMissionRunner
         negacoes = Array(runtime_report['negacoes'])
         execute = true
         start = Time.parse(runtime_report['inicio']) rescue Time.now.utc
+
+        if pilot_mode
+          sdir = AgentSupervisedPilot.state_dir(ROOT, override: opts[:pilot_state_dir])
+          AgentSupervisedPilot.claim_mission!(
+            state_dir: sdir,
+            missao_id: card['id'],
+            report_hash: runtime_report['relatorio_sha256'],
+            dry_run: ENV['AGENT_RUNTIME_PILOT_DRY'] == '1'
+          )
+        end
       else
         execute = opts[:execute] && ENV['AGENT_ORCHESTRATION_EXECUTE'] == '1'
         status = execute ? 'success' : 'dry-run'
@@ -428,7 +469,7 @@ module AgentMissionRunner
           commands << report
         end
       end
-    rescue DeniedError, MissionPlanner::SchemaError, AgentMissionContract::Denial, AgentSingleRuntime::Denial, CodexSingleAgentRuntime::Denial => error
+    rescue DeniedError, MissionPlanner::SchemaError, AgentMissionContract::Denial, AgentSingleRuntime::Denial, CodexSingleAgentRuntime::Denial, AgentSupervisedPilot::Denial => error
       status = 'denied'
       code = error.respond_to?(:code) ? error.code : nil
       negacoes << (code ? "#{code}: #{error.message}" : denial_entry(error))

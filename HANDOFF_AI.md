@@ -1,36 +1,36 @@
-# Handoff — Fase 3B.3B (Runtime Codex single-agent)
+# Handoff — Fase 3B.3C (Planejado × Observado + piloto supervisionado)
 
-> **Atualizado:** 2026-07-13
-> **Branch:** `feat/fase-3b3b-single-agent-runtime`
-> **Baseline main:** `2239975a` (squash PR #428 — Fase 3B.3A)
-> **Próxima etapa:** 3B.3C — **não iniciada**
+> **Atualizado:** 2026-07-14
+> **Branch:** `feat/fase-3b3c-planned-observed-pilot`
+> **Baseline main:** `c14ffef1` (squash PR #429 — Fase 3B.3B)
+> **Próxima etapa:** piloto real supervisionado **somente após merge** + autorização humana
 
 ## Estado
 
-| Fase  | Status                         | Entrega                                                                |
-| ----- | ------------------------------ | ---------------------------------------------------------------------- |
-| 3B.3A | **MERGED** `#428` → `2239975a` | path hardening + DCG policy + preflight (sem spawn)                    |
-| 3B.3B | **em andamento**               | runtime Codex single-agent controlado (fake em testes; sem Codex real) |
-| 3B.3C | não iniciada                   | piloto supervisionado / correção automática                            |
+| Fase  | Status                         | Entrega                                                            |
+| ----- | ------------------------------ | ------------------------------------------------------------------ |
+| 3B.3A | **MERGED** `#428` → `2239975a` | path hardening + DCG policy + preflight (sem spawn)                |
+| 3B.3B | **MERGED** `#429` → `c14ffef1` | runtime Codex single-agent (fake em testes; sem Codex real)        |
+| 3B.3C | **em andamento**               | snapshots planejado×observado, ledger, handoff humano, piloto prep |
 
-## Princípio 3B.3B
+## Princípio 3B.3C
 
-Runtime desligado por padrão. Só avança com **três chaves simultâneas**:
+Runtime da 3B.3B permanece **desligado por padrão** (três chaves). Esta fase transforma a execução em evidência auditável: snapshot planejado, snapshot observado, comparação `conforme|desvio|violacao|indisponivel`, task ledger de **uma** tarefa, handoff para revisor humano (`requer_aprovacao_humana: true`).
 
-1. `--agent-runtime`
-2. `--runtime-ack RUN_SINGLE_AGENT`
-3. `AGENT_RUNTIME_EXECUTE=1`
+Piloto real exige **seis** condições (`--agent-runtime` + ack + env + `--supervised-pilot` + pilot-ack + `AGENT_RUNTIME_PILOT=1`). **Nenhum piloto real nesta PR.**
 
-Relatório externo de preflight **não** autoriza. Imediatamente antes do spawn o runner refaz preflight **live**. DCG obrigatório para `workspace-write`. Codex só via argv/`Open3` (sem shell). Um agente, um writer, worktree isolada. Pós-execução: planejado × observado (escopo, HEAD, commit, protegidos).
+## Contagens de suites (início da 3B.3C)
 
-## Codex testado
-
-- CLI: **0.144.0**
-- Doc: `.agents/seguranca/CODEX-RUNTIME.md`
-- Capacidades: `exec` + `-C` + `-s workspace-write` + `-c approval_policy=never` + `-c sandbox_workspace_write.network_access=false` + `--json` + prompt via stdin `-`
+| Suite                         | Contagem |
+| ----------------------------- | -------- |
+| `test-agent-runtime.rb`       | 50       |
+| `test-agent-execution.rb`     | 64       |
+| `test-runtime-safety.rb`      | 42       |
+| `test-agent-orchestration.rb` | 136      |
 
 ## Não fazer
 
-- Codex real nesta PR / instalação global de DCG / alterar hooks globais
+- Codex real / piloto real nesta PR
+- Instalação global de DCG / alterar hooks globais
 - Multi-agent, subdelegação, commit/push/PR/merge/deploy automáticos
-- Iniciar 3B.3C / merge sem **MERGE**
+- Iniciar Fase 3C / merge sem **MERGE**

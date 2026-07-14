@@ -1,5 +1,18 @@
 # decisions.md — NOVO-APP
 
+## Novas Decisões (Sessão 2026-07-14 — Fase 3B.3C)
+
+### DI-2026-07-14-01: Planejado × observado no Run Report (sem 4º contrato)
+
+- **Decisão:** Snapshots planejado/observado, comparação, task ledger (exatamente 1 tarefa) e handoff humano ficam **dentro do Run Report** existente. Não criar super-contrato. Ausência de evidência → `indisponivel`, nunca `conforme`. Handoff sempre `requer_aprovacao_humana: true`; nunca recomendar merge automático.
+- **Impacto:** Evidência auditável pós-3B.3B sem expandir superfície de contratos centrais.
+- **Referência:** `scripts/lib/agent_run_comparator.rb`, `scripts/lib/agent_task_ledger.rb`
+
+### DI-2026-07-14-02: Piloto supervisionado com seis chaves (sem execução nesta PR)
+
+- **Decisão:** Piloto real exige simultaneamente as três chaves 3B.3B **mais** `--supervised-pilot`, `--pilot-ack RUN_SUPERVISED_PILOT` e `AGENT_RUNTIME_PILOT=1`. Escopo: exatamente 1 arquivo não funcional (`.agents/pilotos/sandbox/...`). Idempotência via `.agents/pilotos/state/` (gitignored, criação atômica). Runtime normal 3B.3B continua sem as chaves de piloto.
+- **Referência:** `.agents/pilotos/README.md`, `scripts/lib/agent_supervised_pilot.rb`
+
 ## Novas Decisões (Sessão 2026-07-13 — Fase 3B.3B)
 
 ### DI-2026-07-13-15: Runtime Codex só com três chaves + preflight live
