@@ -6,6 +6,7 @@ require 'fileutils'
 require 'digest'
 require 'tmpdir'
 require 'time'
+require 'open3'
 require_relative './runtime-safety-preflight'
 require_relative './lib/dcg_codex_hook_verifier'
 require_relative './lib/dcg_hook_attestation'
@@ -372,7 +373,55 @@ test('20 fixture não concede trust em live') do
   assert report['modo'] == 'live'
 end
 
-# 21-23 documentation/static
+EXTERNAL_DCG_DESTINATIONS = [
+  File.join(ENV['HOME'], '.local', 'bin', 'dcg'),
+  '/usr/local/bin/dcg',
+  '/opt/homebrew/bin/dcg'
+].freeze
+
+def dcg_from_command
+  out, status = Open3.capture2('command', '-v', 'dcg')
+  status.success? ? out.strip : nil
+rescue SystemCallError
+  nil
+end
+
+def safe_realpath(path)
+  File.realpath(path)
+rescue SystemCallError
+  path
+end
+
+def safe_sha256(path)
+  return nil unless File.file?(path)
+
+  Digest::SHA256.hexdigest(File.binread(path))
+rescue SystemCallError
+  nil
+end
+
+def snapshot_destinations
+  dests = EXTERNAL_DCG_DESTINATIONS.dup
+  cmd_path = dcg_from_command
+  dests << cmd_path if cmd_path && !dests.include?(cmd_path)
+  dests.map do |d|
+    {
+      'path' => d,
+      'exists' => File.exist?(d),
+      'realpath' => safe_realpath(d),
+      'sha256' => safe_sha256(d)
+    }
+  end
+end
+
+def snapshot_tmp_provenance(tmp_base)
+  Dir.glob(File.join(tmp_base, 'dcg-provenance-*')).sort
+end
+
+DESTINATIONS_BEFORE = snapshot_destinations
+PROVENANCE_BEFORE = snapshot_tmp_provenance(Dir.tmpdir)
+PROVENANCE_BEFORE_TMP = snapshot_tmp_provenance(TMP)
+
 test('21 nenhum Codex real executado') do
   readiness = File.read(File.join(ROOT, 'scripts/check-pilot-readiness.rb'))
   assert !readiness.include?('AGENT_RUNTIME_EXECUTE=1')
@@ -389,11 +438,41 @@ test('22 nenhum hook real modificado') do
   assert TMP.start_with?(Dir.tmpdir) || TMP.include?('dcg-live-readiness')
 end
 
-test('23 nenhum binário instalado pelo suite') do
-  installed_candidates = Dir.glob(File.join(TMP, '**', 'dcg'))
-  assert installed_candidates.all? { |p| p.start_with?(TMP) }
-  leaked = Dir.glob(File.join(Dir.tmpdir, 'dcg-provenance-*'))
-  assert leaked.empty?, "temp provenance leftover: #{leaked}"
+test('23 destinos externos preservados (snapshot)') do
+  after = snapshot_destinations
+  assert DESTINATIONS_BEFORE.size == after.size,
+    "destino adicionado durante suite: #{after.reject { |d| DESTINATIONS_BEFORE.any? { |b| b['path'] == d['path'] } }}"
+  DESTINATIONS_BEFORE.zip(after).each do |before, now|
+    assert before == now,
+      "destino #{before['path']} mudou: exists #{before['exists']}→#{now['exists']}, sha #{before['sha256']}→#{now['sha256']}"
+  end
+end
+
+test('24 provenance temporária: nada criado fora do TMP da suite') do
+  global_after = snapshot_tmp_provenance(Dir.tmpdir)
+  new_global = global_after - PROVENANCE_BEFORE
+  assert new_global.empty?,
+    "nova provenance global fora do TMP da suite: #{new_global}"
+  tmp_after = snapshot_tmp_provenance(TMP)
+  new_in_tmp = tmp_after - PROVENANCE_BEFORE_TMP
+  assert new_in_tmp.empty?,
+    "nova provenance no TMP da suite (nenhum código cria dcg-provenance-*): #{new_in_tmp}"
+end
+
+test('25 hooks reais preservados (snapshot SHA)') do
+  after =
+    if File.file?(REAL_HOOKS)
+      Digest::SHA256.hexdigest(File.binread(REAL_HOOKS))
+    end
+  assert HOOKS_SHA_AT_START == after, 'hooks.json do host foi alterado pela suite'
+end
+
+test('26 nenhuma escrita fora do TMP') do
+  with_temp_home do |_home, xdg|
+    assert ENV['HOME'].start_with?(TMP), "HOME=#{ENV['HOME']} não está dentro do TMP=#{TMP}"
+    assert ENV.fetch('XDG_CONFIG_HOME', '').start_with?(TMP) || ENV['XDG_CONFIG_HOME'].empty?,
+      "XDG_CONFIG_HOME=#{ENV['XDG_CONFIG_HOME']} não está dentro do TMP=#{TMP}"
+  end
 end
 
 puts "OK #{@tests} tests"

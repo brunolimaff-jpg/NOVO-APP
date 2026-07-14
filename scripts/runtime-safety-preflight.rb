@@ -203,7 +203,11 @@ module RuntimeSafetyPreflight
     end
 
     # Fixture/test: pin expected binary checksum to the fixture itself (CI never downloads assets).
-    if (mode == 'fixture' || (opts[:allow_test_hook] && ENV['AGENT_RUNTIME_TEST_PREFLIGHT'] == '1')) && presente
+    # Do NOT pin when the caller explicitly overrides binary_expected — the override
+    # must survive to exercise asset_hash_rejected / mismatch paths correctly on
+    # platforms that lack a binary_checksums_esperados entry (e.g. x86_64-unknown-linux-musl).
+    if (mode == 'fixture' || (opts[:allow_test_hook] && ENV['AGENT_RUNTIME_TEST_PREFLIGHT'] == '1')) && presente &&
+       !opts.key?(:checksum_esperado_override) && !opts.key?(:binary_checksum_esperado_override)
       binary_expected = binary_obs
     end
     binary_expected = opts[:checksum_esperado_override] if opts.key?(:checksum_esperado_override)
