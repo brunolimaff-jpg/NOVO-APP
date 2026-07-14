@@ -39,6 +39,7 @@ module SkillsGovernanceValidator
     'scripts/lib/agent_command_guard.rb',
     'scripts/lib/codex_single_agent_runtime.rb',
     'scripts/lib/agent_single_runtime.rb',
+    'scripts/lib/agent_mission_contract.rb',
     'scripts/test-agent-runtime.rb',
     'scripts/hook-sensitive-file-alert.sh',
     '.claude/settings.json',

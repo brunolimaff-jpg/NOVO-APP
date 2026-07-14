@@ -383,8 +383,35 @@ test('14 HEAD alterado entre preflight e spawn') do
   with_worktree do |wt, _|
     snap = AgentSingleRuntime.snapshot_worktree!(wt, repo_root: ROOT)
     Open3.capture3('git', '-C', wt, '-c', 'user.email=t@t', '-c', 'user.name=t', 'commit', '--allow-empty', '-m', 'mut')
-    head, _, st = AgentSingleRuntime.git(wt, 'rev-parse', 'HEAD')
-    raise 'expected head change' unless st.success? && head.strip != snap['head']
+    prepared_called = false
+    spawned_called = false
+    CodexSingleAgentRuntime.singleton_class.class_eval do
+      alias_method :__orig_prepare_head_test, :prepare! unless method_defined?(:__orig_prepare_head_test)
+      alias_method :__orig_spawn_head_test, :spawn! unless method_defined?(:__orig_spawn_head_test)
+      define_method(:prepare!) do |**kwargs|
+        prepared_called = true
+        __orig_prepare_head_test(**kwargs)
+      end
+      define_method(:spawn!) do |**kwargs|
+        spawned_called = true
+        __orig_spawn_head_test(**kwargs)
+      end
+    end
+    begin
+      begin
+        AgentSingleRuntime.assert_head_unchanged!(snap)
+        raise 'should deny HEAD'
+      rescue AgentSingleRuntime::Denial => e
+        raise e.code unless e.code == 'RUNTIME_HEAD_CHANGED'
+      end
+      raise 'prepare! não deveria rodar' if prepared_called
+      raise 'spawn! não deveria rodar' if spawned_called
+    ensure
+      CodexSingleAgentRuntime.singleton_class.class_eval do
+        alias_method :prepare!, :__orig_prepare_head_test if method_defined?(:__orig_prepare_head_test)
+        alias_method :spawn!, :__orig_spawn_head_test if method_defined?(:__orig_spawn_head_test)
+      end
+    end
   end
 end
 
@@ -717,6 +744,10 @@ test('40 nenhum merge push deploy') do
   with_worktree do |wt, _|
     report, = run_runtime(build_card, build_plan, worktree: wt)
     raise 'aviso' unless Array(report['avisos']).include?('NO_MERGE_PUSH_DEPLOY')
+    raise 'aviso codex' unless Array(report['avisos']).include?('CODEX_SUBSTITUI_EXECUCAO_DOS_COMANDOS')
+    raise 'catalogo executado' unless report.dig('runtime', 'comandos_catalogo_executados') == false
+    raise 'processo codex' unless report.dig('runtime', 'processo_codex_iniciado') == true
+    raise 'comandos false' unless Array(report['comandos']).all? { |c| c['executado'] == false }
     argv = report.dig('runtime', 'argv') || []
     joined = argv.join(' ')
     raise 'merge in argv' if joined.match?(/\bmerge\b/)
@@ -733,6 +764,140 @@ test('produção não descobre fake-codex') do
     raise 'discovered fixture' if bin.include?('fixtures/fake-codex')
   rescue CodexSingleAgentRuntime::Denial
     true
+  end
+end
+
+# --- Fronteira pública de run! ---
+test('run! A1 nega AUTH_INSUFFICIENT') do
+  card = build_card
+  card['autorizacao']['nivel'] = 'A1'
+  begin
+    AgentSingleRuntime.run!(card: card, plan: build_plan, catalog: catalog, worktree: ROOT, repo_root: ROOT)
+    raise 'should deny'
+  rescue AgentSingleRuntime::Denial => e
+    raise e.code unless e.code == 'AUTH_INSUFFICIENT'
+  end
+end
+
+test('run! missao_id divergente nega MISSION_MISMATCH') do
+  plan = build_plan('missao_id' => 'outro-id')
+  begin
+    AgentSingleRuntime.run!(card: build_card, plan: plan, catalog: catalog, worktree: ROOT, repo_root: ROOT)
+    raise 'should deny'
+  rescue AgentSingleRuntime::Denial => e
+    raise e.code unless e.code == 'MISSION_MISMATCH'
+  end
+end
+
+test('run! comandos cartão/plano divergentes nega COMMAND_PLAN_MISMATCH') do
+  card = build_card(commands: ['git-diff-check'])
+  plan = build_plan('comandos' => ['validate-skills-governance'])
+  begin
+    AgentSingleRuntime.run!(card: card, plan: plan, catalog: catalog, worktree: ROOT, repo_root: ROOT)
+    raise 'should deny'
+  rescue AgentSingleRuntime::Denial => e
+    raise e.code unless e.code == 'COMMAND_PLAN_MISMATCH'
+  end
+end
+
+test('run! schema inválido é negado') do
+  card = build_card
+  card.delete('titulo')
+  begin
+    AgentSingleRuntime.run!(card: card, plan: build_plan, catalog: catalog, worktree: ROOT, repo_root: ROOT)
+    raise 'should deny'
+  rescue AgentSingleRuntime::Denial => e
+    raise e.code unless e.code == 'SCHEMA_INVALID'
+  end
+end
+
+test('run! válido atinge próxima barreira sem spawn') do
+  with_worktree do |wt, _|
+    ENV['AGENT_RUNTIME_TEST_PREFLIGHT'] = '1'
+    ENV['AGENT_RUNTIME_TEST_DCG_BIN'] = FAKE_DCG
+    ENV['AGENT_RUNTIME_TEST_CODEX'] = '1'
+    ENV['AGENT_RUNTIME_TEST_CODEX_BIN'] = FAKE_CODEX
+    reached_live = false
+    spawned = false
+    AgentSingleRuntime.singleton_class.class_eval do
+      alias_method :__orig_live_barrier, :assert_live_preflight! unless method_defined?(:__orig_live_barrier)
+      define_method(:assert_live_preflight!) do |worktree:|
+        reached_live = true
+        raise AgentSingleRuntime::Denial.new('RUNTIME_LIVE_PREFLIGHT_FAILED', 'stop-after-contract')
+      end
+    end
+    CodexSingleAgentRuntime.singleton_class.class_eval do
+      alias_method :__orig_spawn_barrier, :spawn! unless method_defined?(:__orig_spawn_barrier)
+      define_method(:spawn!) do |**_|
+        spawned = true
+        raise 'spawn não deveria ocorrer'
+      end
+    end
+    begin
+      begin
+        AgentSingleRuntime.run!(
+          card: build_card,
+          plan: build_plan,
+          catalog: catalog,
+          worktree: wt,
+          repo_root: ROOT
+        )
+        raise 'should deny at live barrier'
+      rescue AgentSingleRuntime::Denial => e
+        raise e.code unless e.code == 'RUNTIME_LIVE_PREFLIGHT_FAILED'
+      end
+      raise 'não atingiu live preflight' unless reached_live
+      raise 'spawn ocorreu' if spawned
+    ensure
+      AgentSingleRuntime.singleton_class.class_eval do
+        alias_method :assert_live_preflight!, :__orig_live_barrier if method_defined?(:__orig_live_barrier)
+      end
+      CodexSingleAgentRuntime.singleton_class.class_eval do
+        alias_method :spawn!, :__orig_spawn_barrier if method_defined?(:__orig_spawn_barrier)
+      end
+      ENV.delete('AGENT_RUNTIME_TEST_PREFLIGHT')
+      ENV.delete('AGENT_RUNTIME_TEST_DCG_BIN')
+      ENV.delete('AGENT_RUNTIME_TEST_CODEX')
+      ENV.delete('AGENT_RUNTIME_TEST_CODEX_BIN')
+    end
+  end
+end
+
+# --- Harness Codex ---
+test('harness codex aceito') do
+  AgentSingleRuntime.validate_codex_harness!(build_plan)
+end
+
+test('harness cursor negado') do
+  plan = build_plan('ferramenta_selecionada' => 'cursor')
+  begin
+    AgentSingleRuntime.validate_codex_harness!(plan)
+    raise 'should deny'
+  rescue AgentSingleRuntime::Denial => e
+    raise e.code unless e.code == 'RUNTIME_HARNESS_MISMATCH'
+  end
+end
+
+test('harness ausente negado') do
+  plan = build_plan('ferramenta_selecionada' => nil)
+  begin
+    AgentSingleRuntime.validate_codex_harness!(plan)
+    raise 'should deny'
+  rescue AgentSingleRuntime::Denial => e
+    raise e.code unless e.code == 'RUNTIME_HARNESS_MISMATCH'
+  end
+end
+
+test('adapter incompatível negado') do
+  plan = build_plan(
+    'ferramenta_selecionada' => 'codex',
+    'adaptador_selecionado' => '.cursor/agents/executor-escopo.md'
+  )
+  begin
+    AgentSingleRuntime.validate_codex_harness!(plan)
+    raise 'should deny'
+  rescue AgentSingleRuntime::Denial => e
+    raise e.code unless e.code == 'RUNTIME_HARNESS_MISMATCH'
   end
 end
 

@@ -12,6 +12,7 @@ require 'fileutils'
 require_relative './plan-agent-mission'
 require_relative './runtime-safety-preflight'
 require_relative './lib/agent_command_guard'
+require_relative './lib/agent_mission_contract'
 require_relative './lib/agent_single_runtime'
 
 module AgentMissionRunner
@@ -213,66 +214,41 @@ module AgentMissionRunner
   end
 
   def normalize_commands(list)
-    Array(list).map(&:to_s).uniq.sort
+    AgentMissionContract.normalize_commands(list)
   end
 
   def card_commands(card)
-    card.dig('executor', 'comandos') || []
+    AgentMissionContract.card_commands(card)
   end
 
   def plan_commands(plan)
-    commands = plan['comandos']
-    raise DeniedError.new('MISSING_COMMANDS', 'plan has no comandos') unless commands.is_a?(Array) && !commands.empty?
-    commands
+    AgentMissionContract.plan_commands(plan)
+  rescue AgentMissionContract::Denial => error
+    raise DeniedError.new(error.code, error.message)
   end
 
   def validate_command_alignment!(card, plan)
-    card_norm = normalize_commands(card_commands(card))
-    plan_norm = normalize_commands(plan_commands(plan))
-    return plan_commands(plan) if card_norm == plan_norm
-
-    raise DeniedError.new(
-      'COMMAND_PLAN_MISMATCH',
-      "card commands #{card_norm.inspect} differ from plan commands #{plan_norm.inspect}"
-    )
+    AgentMissionContract.validate_command_alignment!(card, plan)
+  rescue AgentMissionContract::Denial => error
+    raise DeniedError.new(error.code, error.message)
   end
 
   def validate_executable_plan_commands!(plan)
-    return unless plan.dig('resumo_operacional', 'executavel') == true
-    return unless plan['status'] == 'planejado'
-
-    cmds = plan['comandos']
-    unless cmds.is_a?(Array) && !cmds.empty? && cmds.all? { |c| c.is_a?(String) }
-      raise DeniedError.new(
-        'PLANEJADO_REQUIRES_COMMANDS',
-        'plano planejado exige comandos array não vazio'
-      )
-    end
+    AgentMissionContract.validate_executable_plan_commands!(plan)
+  rescue AgentMissionContract::Denial => error
+    raise DeniedError.new(error.code, error.message)
   end
 
   def validate_schemas!(card, plan)
-    card_schema = load_schema(CARD_SCHEMA_PATH)
-    plan_schema = load_schema(PLAN_SCHEMA_PATH)
-    MissionPlanner.send(:validate_against_schema!, card, card_schema)
-    MissionPlanner.send(:validate_against_schema!, plan, plan_schema)
-    validate_executable_plan_commands!(plan)
+    AgentMissionContract.validate_schemas!(card, plan)
+  rescue AgentMissionContract::Denial => error
+    raise DeniedError.new(error.code, error.message)
   end
 
   def validate_inputs!(card, plan, catalog)
-    validate_schemas!(card, plan)
-    raise DeniedError.new('MISSION_MISMATCH', 'mission id mismatch') unless plan['missao_id'] == card['id']
-    raise DeniedError.new('PLAN_STATUS_INVALID', 'plan status must be planejado') unless plan['status'] == 'planejado'
-    raise DeniedError.new('PLAN_NEGATIONS', 'plan has negacoes') unless Array(plan['negacoes']).empty?
-    unless plan.dig('resumo_operacional', 'executavel') == true
-      raise DeniedError.new('PLAN_NOT_EXECUTABLE', 'plan is not marked as executable')
-    end
-    raise DeniedError.new('AUTH_INSUFFICIENT', 'insufficient authorization') unless %w[A2 A3 A4 A5].include?(card.dig('autorizacao', 'nivel'))
-
-    commands = validate_command_alignment!(card, plan)
-    commands.each do |id|
-      resolve_command_argv!(catalog, id)
-    end
-    commands
+    AgentMissionContract.validate_inputs!(card, plan, catalog)
+  rescue AgentMissionContract::Denial => error
+    raise DeniedError.new(error.code, error.message)
   end
 
   def sanitized_env
@@ -452,7 +428,7 @@ module AgentMissionRunner
           commands << report
         end
       end
-    rescue DeniedError, MissionPlanner::SchemaError, AgentSingleRuntime::Denial, CodexSingleAgentRuntime::Denial => error
+    rescue DeniedError, MissionPlanner::SchemaError, AgentMissionContract::Denial, AgentSingleRuntime::Denial, CodexSingleAgentRuntime::Denial => error
       status = 'denied'
       code = error.respond_to?(:code) ? error.code : nil
       negacoes << (code ? "#{code}: #{error.message}" : denial_entry(error))

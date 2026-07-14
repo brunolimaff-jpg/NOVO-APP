@@ -7,6 +7,7 @@ require 'time'
 require 'fileutils'
 require_relative './agent_path_guard'
 require_relative './agent_command_guard'
+require_relative './agent_mission_contract'
 require_relative './codex_single_agent_runtime'
 require_relative '../runtime-safety-preflight'
 
@@ -69,13 +70,45 @@ module AgentSingleRuntime
     scopes.map(&:to_s).reject(&:empty?).uniq
   end
 
-  def validate_single_agent_plan!(card, plan, catalog)
-    unless plan['missao_id'] == card['id']
-      raise Denial.new('RUNTIME_PLAN_NOT_EXECUTABLE', 'missao_id do plano diverge do cartão')
+  CODEX_TOOL = 'codex'
+  CODEX_ADAPTER_HINT = /codex/i
+
+  def validate_codex_harness!(plan)
+    tool = plan['ferramenta_selecionada']
+    tool_s = tool.nil? ? '' : tool.to_s.strip
+    unless tool_s == CODEX_TOOL
+      raise Denial.new(
+        'RUNTIME_HARNESS_MISMATCH',
+        "ferramenta_selecionada deve ser 'codex' (obtido=#{tool.inspect})"
+      )
     end
+
+    adapter = plan['adaptador_selecionado']
+    adapter_s = adapter.nil? ? '' : adapter.to_s.strip
+    if adapter_s.empty? || !adapter_s.match?(CODEX_ADAPTER_HINT)
+      raise Denial.new(
+        'RUNTIME_HARNESS_MISMATCH',
+        "adaptador_selecionado incompatível com Codex (obtido=#{adapter.inspect})"
+      )
+    end
+
+    harness = plan.dig('resumo_operacional', 'harness')
+    return if harness.nil?
+
+    unless harness.to_s.match?(CODEX_ADAPTER_HINT)
+      raise Denial.new(
+        'RUNTIME_HARNESS_MISMATCH',
+        "resumo_operacional.harness incompatível com Codex (obtido=#{harness.inspect})"
+      )
+    end
+  end
+
+  def validate_single_agent_plan!(card, plan, catalog)
     unless plan['status'] == 'planejado' && Array(plan['negacoes']).empty? && plan.dig('resumo_operacional', 'executavel') == true
       raise Denial.new('RUNTIME_PLAN_NOT_EXECUTABLE', 'plano não executável para runtime')
     end
+
+    validate_codex_harness!(plan)
 
     estrategia = plan.dig('resumo_operacional', 'estrategia') || plan.dig('decisao_execucao', 'estrategia')
     agentes = plan.dig('resumo_operacional', 'agentes_planejados').to_i
@@ -445,7 +478,24 @@ module AgentSingleRuntime
     report
   end
 
+  def assert_head_unchanged!(snap)
+    wt = snap.fetch('worktree_realpath')
+    expected = snap.fetch('head')
+    head_check, _, st = git(wt, 'rev-parse', 'HEAD')
+    unless st.success? && head_check.strip == expected
+      raise Denial.new('RUNTIME_HEAD_CHANGED', 'HEAD mudou entre snapshot/preflight e spawn')
+    end
+    true
+  end
+
   def run!(card:, plan:, catalog:, worktree:, safety_report_path: nil, repo_root:)
+    # Defesa pública: não confiar que o CLI já validou.
+    begin
+      AgentMissionContract.validate_inputs!(card, plan, catalog)
+    rescue AgentMissionContract::Denial => error
+      raise Denial.new(error.code, error.message)
+    end
+
     validated = validate_single_agent_plan!(card, plan, catalog)
     snap = snapshot_worktree!(worktree, repo_root: repo_root)
     write_scope = normalize_scope!(validated['write_scope_raw'], worktree: snap['worktree_realpath'])
@@ -464,9 +514,7 @@ module AgentSingleRuntime
     end
 
     live = assert_live_preflight!(worktree: snap['worktree_realpath'])
-
-    head_check, _, st = git(snap['worktree_realpath'], 'rev-parse', 'HEAD')
-    raise Denial.new('RUNTIME_HEAD_CHANGED', 'HEAD mudou entre snapshot e spawn') unless st.success? && head_check.strip == snap['head']
+    assert_head_unchanged!(snap)
 
     protected_before = protected_hashes(snap['worktree_realpath'])
     prompt = build_prompt(card, plan, write_scope: write_scope, read_scope: Array(read_scope))
@@ -496,8 +544,12 @@ module AgentSingleRuntime
       end
 
     negacoes = after['negacoes'].map { |n| "#{n['codigo']}: #{n['mensagem']}" }
-    avisos = ['REPORT_IS_NOT_CREDENTIAL', 'EXTERNAL_SAFETY_REPORT_NOT_AUTHORIZATION']
-    avisos << 'NO_MERGE_PUSH_DEPLOY' 
+    avisos = [
+      'REPORT_IS_NOT_CREDENTIAL',
+      'EXTERNAL_SAFETY_REPORT_NOT_AUTHORIZATION',
+      'NO_MERGE_PUSH_DEPLOY',
+      'CODEX_SUBSTITUI_EXECUCAO_DOS_COMANDOS'
+    ]
 
     build_observed_report(
       base: {
@@ -536,7 +588,7 @@ module AgentSingleRuntime
           'argv sem shell',
           'ambiente sanitizado',
           'escopo observado',
-          'fake-or-codex process group'
+          'codex substitui execução direta dos comandos do catálogo'
         ],
         'runtime' => {
           'motor' => 'codex',
@@ -550,6 +602,8 @@ module AgentSingleRuntime
           'agente_observado' => spawn_result['processos_iniciados'],
           'writers_planejados' => 1,
           'processos_iniciados' => spawn_result['processos_iniciados'],
+          'processo_codex_iniciado' => spawn_result['processos_iniciados'].to_i.positive?,
+          'comandos_catalogo_executados' => false,
           'timeout' => spawn_result['timeout'],
           'exit_code' => spawn_result['exit_code'],
           'sinal' => spawn_result['sinal'],

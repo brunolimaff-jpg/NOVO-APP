@@ -37,6 +37,22 @@ Prompt operacional é enviado em **stdin**; stdin é fechado após o envio. Exec
 
 Se `codex exec --help` não expuser `-C`/`--cd`, `-s`/`--sandbox` com `workspace-write`, `-c`/`--config` ou `--json`, o runtime nega com `CODEX_RUNTIME_CAPABILITY_UNAVAILABLE`. Não há fallback para shell livre.
 
+## Contrato do plano (harness)
+
+Runtime single-agent exige:
+
+- `ferramenta_selecionada: "codex"`
+- `adaptador_selecionado` contendo `codex` (ex.: `.agents/seguranca/CODEX-RUNTIME.md`)
+- `resumo_operacional.harness` compatível com Codex quando presente (ex.: `codex-cli`)
+
+Qualquer outro valor → `RUNTIME_HARNESS_MISMATCH`.
+
+## Relatório observado
+
+No modo `agent-runtime`, IDs do catálogo permanecem com `executado=false` porque o processo
+real é o Codex. Aviso `CODEX_SUBSTITUI_EXECUCAO_DOS_COMANDOS` e campos
+`runtime.processo_codex_iniciado` / `runtime.comandos_catalogo_executados=false` deixam isso explícito.
+
 ## Testes
 
 O runner **nunca** descobre fixtures. Fake Codex só quando:

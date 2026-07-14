@@ -79,6 +79,8 @@
         "agente_observado": { "type": "integer" },
         "writers_planejados": { "type": "integer" },
         "processos_iniciados": { "type": "integer" },
+        "processo_codex_iniciado": { "type": "boolean" },
+        "comandos_catalogo_executados": { "type": "boolean", "const": false },
         "timeout": { "type": "boolean" },
         "exit_code": { "type": ["integer", "null"] },
         "sinal": { "type": ["integer", "null"] },
