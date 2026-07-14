@@ -141,7 +141,7 @@ module CodexSingleAgentRuntime
       if FORBIDDEN_SHELL_FLAGS.include?(token) && prev && FORBIDDEN_ARGV_TOKENS.include?(File.basename(prev.to_s))
         raise Denial.new('CODEX_ARGV_SHELL_DENIED', "flag shell proibida após #{prev}")
       end
-      raise Denial.new('CODEX_ARGV_SHELL_DENIED', 'metacaractere de shell no argv') if token.match?(/[\n;|&><`$]/
+      raise Denial.new('CODEX_ARGV_SHELL_DENIED', 'metacaractere de shell no argv') if token.match?(%r{[\n;|&><`$]})
     end
   end
 
@@ -269,6 +269,14 @@ module CodexSingleAgentRuntime
   def prepare!(worktree:)
     bin = resolve_codex_bin!
     version = read_version!(bin)
+    tested_minor = TESTED_VERSION.split('.').first(2).join('.')
+    observed_minor = version.split('.').first(2).join('.')
+    unless observed_minor == tested_minor
+      raise Denial.new(
+        'CODEX_RUNTIME_CAPABILITY_UNAVAILABLE',
+        "versão Codex #{version} fora da faixa testada #{TESTED_VERSION} (exige #{tested_minor}.x)"
+      )
+    end
     help = read_exec_help!(bin)
     assert_capabilities!(help)
     argv = build_argv!(bin, worktree: worktree)

@@ -552,13 +552,15 @@ test('24 Codex ausente') do
   end
 end
 
-test('25 versão incompatível help ainda ok mas documentada') do
+test('25 versão incompatível') do
   ENV['AGENT_RUNTIME_TEST_CODEX'] = '1'
   ENV['AGENT_RUNTIME_TEST_CODEX_BIN'] = FAKE_CODEX
   ENV['AGENT_RUNTIME_FAKE_SCENARIO'] = 'bad-version'
   begin
-    v = CodexSingleAgentRuntime.read_version!(FAKE_CODEX)
-    raise "got #{v}" unless v == '0.0.1'
+    CodexSingleAgentRuntime.prepare!(worktree: ROOT)
+    raise 'should deny'
+  rescue CodexSingleAgentRuntime::Denial => e
+    raise e.code unless e.code == 'CODEX_RUNTIME_CAPABILITY_UNAVAILABLE'
   ensure
     ENV.delete('AGENT_RUNTIME_FAKE_SCENARIO')
     ENV.delete('AGENT_RUNTIME_TEST_CODEX')

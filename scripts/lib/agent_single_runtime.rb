@@ -363,11 +363,11 @@ module AgentSingleRuntime
     head_final = head_st.success? ? head_out.strip : nil
     if head_final.nil? || head_final != snap['head']
       negacoes << { 'codigo' => 'RUNTIME_HEAD_CHANGED', 'mensagem' => 'HEAD alterado após execução' }
-    end
-
-    # New commits on current branch
-    if head_final && head_final != snap['head']
-      negacoes << { 'codigo' => 'RUNTIME_COMMIT_CREATED', 'mensagem' => 'commit criado durante runtime' }
+      # Distinguish new commit objects on the branch tip.
+      rev, _, rev_st = git(wt, 'rev-list', '--count', "#{snap['head']}..#{head_final}")
+      if rev_st.success? && rev.strip.to_i.positive?
+        negacoes << { 'codigo' => 'RUNTIME_COMMIT_CREATED', 'mensagem' => 'commit criado durante runtime' }
+      end
     end
 
     refs_out, _, refs_st = git(wt, 'show-ref')
@@ -433,11 +433,7 @@ module AgentSingleRuntime
     validated = validate_single_agent_plan!(card, plan, catalog)
     snap = snapshot_worktree!(worktree, repo_root: repo_root)
     write_scope = normalize_scope!(validated['write_scope_raw'], worktree: snap['worktree_realpath'])
-    read_scope = begin
-      normalize_scope!(validated['read_scope'], worktree: snap['worktree_realpath'])
-    rescue Denial
-      validated['read_scope']
-    end
+    read_scope = normalize_scope!(validated['read_scope'], worktree: snap['worktree_realpath'])
 
     # External report is audit-only: never authorizes.
     external_hash = nil
@@ -499,7 +495,23 @@ module AgentSingleRuntime
         'inicio' => spawn_result['inicio'],
         'fim' => spawn_result['fim'],
         'duracao_ms' => spawn_result['duracao_ms'],
-        'comandos' => [],
+        'comandos' => validated['commands'].map do |id|
+          {
+            'id' => id,
+            'argv' => (begin
+                        AgentCommandGuard.resolve_argv!(catalog, id)
+                      rescue StandardError
+                        [id]
+                      end),
+            'executado' => false,
+            'exit_code' => nil,
+            'timeout' => false,
+            'stdout_sha256' => Digest::SHA256.hexdigest(''),
+            'stderr_sha256' => Digest::SHA256.hexdigest(''),
+            'stdout_truncado' => false,
+            'stderr_truncado' => false
+          }
+        end,
         'negacoes' => negacoes,
         'avisos' => avisos,
         'evidencias' => [
