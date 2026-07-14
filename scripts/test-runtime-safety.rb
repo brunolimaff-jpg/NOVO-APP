@@ -217,10 +217,17 @@ end
 
 test('hook ausente → denied') do
   with_clean_bypass_env do
-    report = RuntimeSafetyPreflight.build_report(mode: 'live', timestamp: Time.now.utc)
-    # live never fixture-trusts
-    assert(%w[denied unavailable].include?(report['status']))
-    assert_eq(report['dcg']['hook_confiado'], 'unknown')
+    Dir.mktmpdir('hook-absent') do |dir|
+      missing = File.join(dir, 'no-hooks.json')
+      report = RuntimeSafetyPreflight.build_report(
+        mode: 'live',
+        timestamp: Time.now.utc,
+        hooks_path: missing
+      )
+      # live never fixture-trusts; missing hooks file → unknown
+      assert(%w[denied unavailable].include?(report['status']), report['status'].inspect)
+      assert_eq(report['dcg']['hook_confiado'], 'unknown')
+    end
   end
 end
 
@@ -395,6 +402,238 @@ test('comando seguro executado sem shell') do
     assert(status.exitstatus.is_a?(Integer))
     assert(err.is_a?(String))
     assert(out.is_a?(String))
+  end
+end
+
+# ── read_version: formatos legítimos do DCG real (sem DCG real) ────────
+
+def write_fake_dcg(path, body)
+  File.write(path, body)
+  FileUtils.chmod('+x', path)
+  path
+end
+
+def assert_read_version(body, expected)
+  Dir.mktmpdir('dcg-verparse') do |dir|
+    fake = write_fake_dcg(File.join(dir, 'dcg'), body)
+    assert_eq(RuntimeSafetyPreflight.read_version(fake), expected)
+  end
+end
+
+test('read_version: stdout puro 0.6.6') do
+  assert_read_version(
+    "#!/bin/sh\nif [ \"$1\" = --version ]; then echo '0.6.6'; exit 0; fi\nexit 2\n",
+    '0.6.6'
+  )
+end
+
+test('read_version: stdout v0.6.6') do
+  assert_read_version(
+    "#!/bin/sh\nif [ \"$1\" = --version ]; then echo 'v0.6.6'; exit 0; fi\nexit 2\n",
+    '0.6.6'
+  )
+end
+
+test('read_version: banner dcg v0.6.6 em stdout') do
+  assert_read_version(
+    "#!/bin/sh\nif [ \"$1\" = --version ]; then echo 'dcg v0.6.6'; exit 0; fi\nexit 2\n",
+    '0.6.6'
+  )
+end
+
+test('read_version: host-like stdout 0.6.6 + banner stderr') do
+  assert_read_version(
+    "#!/bin/sh\n" \
+    "if [ \"$1\" = --version ]; then\n" \
+    "  echo '0.6.6'\n" \
+    "  echo 'dcg v0.6.6' 1>&2\n" \
+    "  exit 0\n" \
+    "fi\nexit 2\n",
+    '0.6.6'
+  )
+end
+
+test('read_version: somente banner legítimo em stderr') do
+  assert_read_version(
+    "#!/bin/sh\nif [ \"$1\" = --version ]; then echo 'dcg v0.6.6' 1>&2; exit 0; fi\nexit 2\n",
+    '0.6.6'
+  )
+end
+
+test('read_version: mesma versão em stdout e stderr') do
+  assert_read_version(
+    "#!/bin/sh\n" \
+    "if [ \"$1\" = --version ]; then\n" \
+    "  echo '0.6.6'\n" \
+    "  echo 'dcg 0.6.6' 1>&2\n" \
+    "  exit 0\n" \
+    "fi\nexit 2\n",
+    '0.6.6'
+  )
+end
+
+test('read_version: exit status não zero → nil') do
+  assert_read_version(
+    "#!/bin/sh\nif [ \"$1\" = --version ]; then echo '0.6.6'; exit 1; fi\nexit 2\n",
+    nil
+  )
+end
+
+test('read_version: streams vazios → nil') do
+  assert_read_version(
+    "#!/bin/sh\nif [ \"$1\" = --version ]; then exit 0; fi\nexit 2\n",
+    nil
+  )
+end
+
+test('read_version: texto arbitrário com número → nil') do
+  assert_read_version(
+    "#!/bin/sh\nif [ \"$1\" = --version ]; then echo 'downloaded dependency 0.6.6'; exit 0; fi\nexit 2\n",
+    nil
+  )
+end
+
+test('read_version: versão incompleta → nil') do
+  assert_read_version(
+    "#!/bin/sh\nif [ \"$1\" = --version ]; then echo '0.6'; exit 0; fi\nexit 2\n",
+    nil
+  )
+end
+
+test('read_version: versão com 4 segmentos → nil') do
+  assert_read_version(
+    "#!/bin/sh\nif [ \"$1\" = --version ]; then echo '0.6.6.1'; exit 0; fi\nexit 2\n",
+    nil
+  )
+end
+
+test('read_version: pre-release → nil') do
+  assert_read_version(
+    "#!/bin/sh\nif [ \"$1\" = --version ]; then echo '0.6.6-beta'; exit 0; fi\nexit 2\n",
+    nil
+  )
+end
+
+test('read_version: build metadata → nil') do
+  assert_read_version(
+    "#!/bin/sh\nif [ \"$1\" = --version ]; then echo '0.6.6+build'; exit 0; fi\nexit 2\n",
+    nil
+  )
+end
+
+test('read_version: versões divergentes entre streams → nil') do
+  assert_read_version(
+    "#!/bin/sh\n" \
+    "if [ \"$1\" = --version ]; then\n" \
+    "  echo '0.6.6'\n" \
+    "  echo 'dcg v0.6.7' 1>&2\n" \
+    "  exit 0\n" \
+    "fi\nexit 2\n",
+    nil
+  )
+end
+
+test('read_version: arquivo inexistente → nil') do
+  assert_eq(RuntimeSafetyPreflight.read_version('/tmp/dcg-does-not-exist-xyz'), nil)
+end
+
+test('read_version: arquivo sem permissão de execução → nil, sem exceção') do
+  Dir.mktmpdir('dcg-noperm') do |dir|
+    fake = File.join(dir, 'dcg')
+    File.write(fake, "#!/bin/sh\necho '0.6.6'\n")
+    FileUtils.chmod(0o644, fake)
+    ver = RuntimeSafetyPreflight.read_version(fake)
+    assert_eq(ver, nil)
+  end
+end
+
+test('read_version: not-dcg v0.6.6 → nil') do
+  assert_read_version(
+    "#!/bin/sh\nif [ \"$1\" = --version ]; then echo 'not-dcg v0.6.6'; exit 0; fi\nexit 2\n",
+    nil
+  )
+end
+
+test('read_version: fixture clássica dcg 0.6.6 em stdout') do
+  assert_eq(RuntimeSafetyPreflight.read_version(FIXTURE_DCG), '0.6.6')
+end
+
+test('pilot readiness: host-like versão não é o bloqueador') do
+  require 'rbconfig'
+  require_relative './check-pilot-readiness'
+  fake_codex = File.join(ROOT, '.agents/seguranca/fixtures/fake-codex')
+  FileUtils.chmod('+x', fake_codex)
+
+  with_clean_bypass_env do
+    Dir.mktmpdir('dcg-readiness-ver') do |dir|
+      home = File.join(dir, 'home')
+      xdg = File.join(dir, 'xdg')
+      bin = File.join(dir, 'bin')
+      FileUtils.mkdir_p([home, xdg, bin])
+
+      fake = write_fake_dcg(
+        File.join(bin, 'dcg'),
+        "#!/bin/sh\n" \
+        "if [ \"$1\" = --version ]; then\n" \
+        "  echo '0.6.6'\n" \
+        "  echo 'dcg v0.6.6' 1>&2\n" \
+        "  exit 0\n" \
+        "fi\n" \
+        "if [ \"$1\" = test ]; then\n" \
+        "  echo '{\"decision\":\"deny\"}'\n" \
+        "  exit 1\n" \
+        "fi\nexit 2\n"
+      )
+
+      out, err, st = Open3.capture3(fake, '--version')
+      assert(st.success?, 'fake --version deve sair 0')
+      assert_eq(out.strip, '0.6.6')
+      assert(err.include?('dcg v0.6.6'), "stderr esperado: #{err.inspect}")
+      assert_eq(RuntimeSafetyPreflight.read_version(fake), '0.6.6')
+
+      saved = {
+        path: ENV['PATH'],
+        home: ENV['HOME'],
+        xdg: ENV['XDG_CONFIG_HOME'],
+        execute: ENV['AGENT_RUNTIME_EXECUTE'],
+        pilot: ENV['AGENT_RUNTIME_PILOT'],
+        test_codex: ENV['AGENT_RUNTIME_TEST_CODEX'],
+        test_codex_bin: ENV['AGENT_RUNTIME_TEST_CODEX_BIN'],
+        host_os: RbConfig::CONFIG['host_os'],
+        host_cpu: RbConfig::CONFIG['host_cpu']
+      }
+
+      begin
+        ENV['HOME'] = home
+        ENV['XDG_CONFIG_HOME'] = xdg
+        ENV['PATH'] = "#{bin}:#{ENV['PATH']}"
+        ENV.delete('AGENT_RUNTIME_EXECUTE')
+        ENV.delete('AGENT_RUNTIME_PILOT')
+        ENV.delete('DCG_BYPASS')
+        ENV.delete('DCG_DISABLE')
+        ENV['AGENT_RUNTIME_TEST_CODEX'] = '1'
+        ENV['AGENT_RUNTIME_TEST_CODEX_BIN'] = fake_codex
+        RbConfig::CONFIG['host_os'] = 'darwin'
+        RbConfig::CONFIG['host_cpu'] = 'arm64'
+
+        report = PilotReadiness.check!
+        assert(report.is_a?(Hash), report.inspect)
+        assert(report['codigo'] != 'DCG_VERSION_MISMATCH', report.inspect)
+        assert(report['resultado'] != 'BLOCKED_DCG_VERSION_MISMATCH', report.inspect)
+        assert_eq(report['codigo'], 'DCG_BINARY_CHECKSUM_MISMATCH')
+        assert(report['status'] == 'blocked', report.inspect)
+      ensure
+        ENV['PATH'] = saved[:path]
+        ENV['HOME'] = saved[:home]
+        saved[:xdg].nil? ? ENV.delete('XDG_CONFIG_HOME') : ENV['XDG_CONFIG_HOME'] = saved[:xdg]
+        saved[:execute].nil? ? ENV.delete('AGENT_RUNTIME_EXECUTE') : ENV['AGENT_RUNTIME_EXECUTE'] = saved[:execute]
+        saved[:pilot].nil? ? ENV.delete('AGENT_RUNTIME_PILOT') : ENV['AGENT_RUNTIME_PILOT'] = saved[:pilot]
+        saved[:test_codex].nil? ? ENV.delete('AGENT_RUNTIME_TEST_CODEX') : ENV['AGENT_RUNTIME_TEST_CODEX'] = saved[:test_codex]
+        saved[:test_codex_bin].nil? ? ENV.delete('AGENT_RUNTIME_TEST_CODEX_BIN') : ENV['AGENT_RUNTIME_TEST_CODEX_BIN'] = saved[:test_codex_bin]
+        RbConfig::CONFIG['host_os'] = saved[:host_os]
+        RbConfig::CONFIG['host_cpu'] = saved[:host_cpu]
+      end
+    end
   end
 end
 

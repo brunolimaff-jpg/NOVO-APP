@@ -80,12 +80,34 @@ module RuntimeSafetyPreflight
     nil
   end
 
+  # Extract strict X.Y.Z version candidates from one stream.
+  # Accepts only whole-line plain (`0.6.6` / `v0.6.6`) or whole-line banner (`dcg 0.6.6` / `dcg v0.6.6`).
+  def extract_version_candidates(text)
+    found = []
+    text.to_s.each_line do |raw|
+      line = raw.strip
+      next if line.empty?
+
+      if (m = line.match(/\Av?([0-9]+\.[0-9]+\.[0-9]+)\z/))
+        found << m[1]
+      elsif (m = line.match(/\Adcg\s+v?([0-9]+\.[0-9]+\.[0-9]+)\z/i))
+        found << m[1]
+      end
+    end
+    found
+  end
+
   def read_version(dcg_path)
-    out, _err, status = Open3.capture3(dcg_path, '--version')
+    return nil if dcg_path.nil? || dcg_path.to_s.empty?
+    return nil unless File.file?(dcg_path) && File.executable?(dcg_path)
+
+    out, err, status = Open3.capture3(dcg_path, '--version')
     return nil unless status.success?
 
-    m = out.match(/dcg\s+([0-9]+\.[0-9]+\.[0-9]+)/i)
-    m && m[1]
+    uniq = (extract_version_candidates(out) + extract_version_candidates(err)).uniq
+    return uniq.first if uniq.size == 1
+
+    nil
   rescue SystemCallError
     nil
   end

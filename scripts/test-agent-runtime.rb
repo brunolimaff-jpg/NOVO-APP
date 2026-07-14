@@ -550,13 +550,15 @@ test('22 relatório externo fabricado não autoriza') do
       safety_report: path,
       env: {
         'AGENT_RUNTIME_TEST_PREFLIGHT' => '',
-        'AGENT_RUNTIME_TEST_DCG_BIN' => ''
+        'AGENT_RUNTIME_TEST_DCG_BIN' => '',
+        # Deny live host preflight deterministically so external "ready" cannot authorize.
+        'DCG_BYPASS' => '1'
       }
     )
     raise "status=#{report['status']}" unless report['status'] == 'denied'
     raise "exit=#{status}" unless status == 2
     codes = negation_codes(report)
-    ok = codes.any? { |c| %w[DCG_HOOK_NOT_VERIFIED DCG_REQUIRED_FOR_WRITE_RUNTIME RUNTIME_LIVE_PREFLIGHT_FAILED].include?(c) }
+    ok = codes.any? { |c| %w[DCG_HOOK_NOT_VERIFIED DCG_REQUIRED_FOR_WRITE_RUNTIME RUNTIME_LIVE_PREFLIGHT_FAILED DCG_BYPASS_ENV].include?(c) }
     raise codes.inspect unless ok
   end
 end
