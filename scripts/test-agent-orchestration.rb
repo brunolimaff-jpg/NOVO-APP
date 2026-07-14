@@ -267,6 +267,103 @@ module OrchestrationTests
         c
       end
 
+      # === TEMPLATE PRIMEIRO PILOTO (canônico) ===
+      test("template primeiro piloto produz plano planejado e executável") do
+        tmpl = JSON.parse(File.read(File.join(REPO_ROOT, '.agents/pilotos/primeiro-piloto.json')))
+        card = tmpl.fetch('card')
+        plan = MissionPlanner.plan(card)
+
+        assert_eq(plan['status'], 'planejado')
+        assert_eq(plan['papel_principal'], 'executor-escopo')
+        assert_eq(plan['ferramenta_selecionada'], 'codex')
+        assert_eq(plan.dig('resumo_operacional', 'harness'), 'codex-cli')
+        assert_eq(plan.dig('resumo_operacional', 'estrategia'), 'agente-unico')
+        assert_eq(plan.dig('resumo_operacional', 'agentes_planejados'), 1)
+        assert_eq(plan.dig('resumo_operacional', 'writers'), 1)
+        assert_eq(plan.dig('resumo_operacional', 'max_paralelo'), 1)
+        assert_eq(plan.dig('resumo_operacional', 'executavel'), true)
+        assert_eq(plan.dig('topologia', 'max_agentes'), 1)
+        assert_eq(plan.dig('topologia', 'max_profundidade'), 1)
+        assert_eq(plan.dig('topologia', 'permite_subdelegacao'), false)
+        assert_eq(plan.dig('topologia', 'agentes').size, 1)
+        assert_eq(plan.dig('topologia', 'agentes', 0, 'papel'), 'executor-escopo')
+        assert_eq(plan.dig('topologia', 'agentes', 0, 'permissao'), 'workspace-write')
+
+        assert_eq(plan['limites']['max_tempo_segundos'], 180)
+        assert_eq(plan['limites']['max_retentativas'], 0)
+        assert_eq(plan['limites']['max_rodadas_revisao'], 0)
+
+        assert_eq(plan.dig('decisao_execucao', 'origem'), 'cartao')
+        assert_eq(plan.dig('decisao_execucao', 'estrategia'), 'agente-unico')
+
+        assert_eq(plan['resumo_operacional']['agentes_planejados'], 1)
+        assert_eq(plan['resumo_operacional']['writers'], 1)
+        assert_eq(plan['resumo_operacional']['max_paralelo'], 1)
+
+        assert_eq(plan['tarefas_planejadas'].size, 1)
+        assert_eq(
+          plan.dig('tarefas_planejadas', 0, 'arquivos', 'escrita'),
+          ['.agents/pilotos/sandbox/resultado-primeiro-piloto.md']
+        )
+        assert_eq(
+          plan.dig('tarefas_planejadas', 0, 'arquivos', 'leitura'),
+          ['.agents/pilotos']
+        )
+        assert_eq(plan['comandos'], ['git-diff-check'])
+        assert_eq(plan['negacoes'], [])
+        assert_eq(plan['rede_permitida'], false)
+        assert_eq(plan['shell_permitido'], false)
+        assert_eq(plan['delegacao_permitida'], false)
+        assert_eq(plan.dig('resumo_operacional', 'requer_aprovacao'), true)
+      end
+
+      test("template primeiro piloto passa validate_mission! sem spawn") do
+        require_relative './lib/agent_supervised_pilot'
+        tmpl = JSON.parse(File.read(File.join(REPO_ROOT, '.agents/pilotos/primeiro-piloto.json')))
+        card = tmpl.fetch('card')
+        plan = MissionPlanner.plan(card)
+        result = AgentSupervisedPilot.validate_mission!(card: card, plan: plan, template: tmpl, root: REPO_ROOT)
+        assert_true(result == true, "esperava true, obteve #{result.inspect}")
+      end
+
+      test("template primeiro piloto timeout 181 negado por validate_mission!") do
+        require_relative './lib/agent_supervised_pilot'
+        tmpl = JSON.parse(File.read(File.join(REPO_ROOT, '.agents/pilotos/primeiro-piloto.json')))
+        card = tmpl.fetch('card')
+        plan = MissionPlanner.plan(card)
+        plan['limites']['max_tempo_segundos'] = 181
+        begin
+          AgentSupervisedPilot.validate_mission!(card: card, plan: plan, template: tmpl, root: REPO_ROOT)
+          raise 'deveria negar'
+        rescue AgentSupervisedPilot::Denial => e
+          assert_eq(e.code, 'SUPERVISED_PILOT_SCOPE_DENIED')
+          assert_true(e.message.include?('timeout'), e.message)
+        end
+      end
+
+      test("template primeiro piloto sem papel_preferido continua fail-closed") do
+        tmpl = JSON.parse(File.read(File.join(REPO_ROOT, '.agents/pilotos/primeiro-piloto.json')))
+        card = tmpl.fetch('card').dup
+        card.delete('papel_preferido')
+        plan = MissionPlanner.plan(card)
+        codes = neg_codes(plan)
+        assert_true(codes.include?('AUTH_WRITE_REQUIRES_A2'), plan['negacoes'].inspect)
+        assert_true(plan['status'] != 'planejado' || plan.dig('resumo_operacional', 'executavel') != true, plan.inspect)
+      end
+
+      test("template primeiro piloto sem ferramentas_permitidas não é executável") do
+        tmpl = JSON.parse(File.read(File.join(REPO_ROOT, '.agents/pilotos/primeiro-piloto.json')))
+        card = tmpl.fetch('card').dup
+        card.delete('ferramentas_permitidas')
+        plan = MissionPlanner.plan(card)
+        # Sem ferramenta explícita o planner fail-closed: não pode ficar planejado+executável com codex.
+        executavel = plan.dig('resumo_operacional', 'executavel')
+        assert_true(
+          plan['status'] != 'planejado' || executavel != true || plan['ferramenta_selecionada'] != 'codex',
+          plan.inspect
+        )
+      end
+
       # === AÇÕES PERMITIDAS VS SOLICITADAS ===
       test("merge permitido mas não solicitado não exige MERGE") do
         c = build_reviewer_card
