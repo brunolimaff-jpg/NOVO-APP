@@ -24,7 +24,9 @@ module AgentPathGuard
     'scripts/validate-runtime-safety.rb',
     'scripts/test-runtime-safety.rb',
     'scripts/lib/agent_path_guard.rb',
-    'scripts/lib/agent_command_guard.rb'
+    'scripts/lib/agent_command_guard.rb',
+    'scripts/lib/codex_single_agent_runtime.rb',
+    'scripts/lib/agent_single_runtime.rb'
   ].freeze
 
   def self.normalize_path_list(paths, worktree_root:)

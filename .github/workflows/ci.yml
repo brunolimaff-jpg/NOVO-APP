@@ -127,6 +127,8 @@ jobs:
         run: ruby scripts/validate-agent-execution.rb
       - name: Run execution control tests
         run: ruby scripts/test-agent-execution.rb
+      - name: Run single-agent runtime tests
+        run: ruby scripts/test-agent-runtime.rb
 
   runtime-safety-preflight:
     name: Runtime Safety Preflight
