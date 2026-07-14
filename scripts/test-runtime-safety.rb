@@ -185,7 +185,7 @@ test('checksum divergente → denied') do
       checksum_esperado_override: '0' * 64
     )
     assert_eq(report['status'], 'denied')
-    assert(report['negacoes'].any? { |n| n['codigo'] == 'DCG_CHECKSUM_MISMATCH' }, report['negacoes'].inspect)
+    assert(report['negacoes'].any? { |n| n['codigo'] == 'DCG_BINARY_CHECKSUM_MISMATCH' }, report['negacoes'].inspect)
   end
 end
 

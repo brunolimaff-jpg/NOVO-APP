@@ -67,11 +67,19 @@
         "versao_esperada": { "type": "string", "minLength": 1 },
         "checksum_observado": { "type": ["string", "null"] },
         "checksum_esperado": { "type": ["string", "null"] },
+        "asset_checksum_esperado": { "type": ["string", "null"] },
+        "binary_checksum_esperado": { "type": ["string", "null"] },
+        "binary_checksum_observado": { "type": ["string", "null"] },
+        "binary_checksum_status": {
+          "type": ["string", "null"],
+          "enum": ["match", "mismatch", "platform_unknown", "asset_hash_rejected", "skipped", null]
+        },
+        "plataforma": { "type": ["string", "null"] },
         "configuracao_encontrada": { "type": "boolean" },
         "hook_detectado": { "type": "boolean" },
         "hook_confiado": {
           "type": "string",
-          "enum": ["trusted", "untrusted", "unknown", "fixture"]
+          "enum": ["trusted", "untrusted", "unknown", "fixture", "verified-test", "verified-local-human"]
         },
         "probe": {
           "type": "object",

@@ -30,7 +30,11 @@ module RuntimeSafetyValidator
     assert!(Array(policy['bypass_env_proibidas']).include?('DCG_BYPASS'), 'DCG_BYPASS obrigatório')
     assert!(Array(policy['bypass_env_proibidas']).include?('DCG_DISABLE'), 'DCG_DISABLE obrigatório')
     assert!(policy['origem_oficial'].include?('Dicklesworthstone/destructive_command_guard'), 'origem oficial')
-    assert!(policy['checksums_esperados'].is_a?(Hash) && !policy['checksums_esperados'].empty?, 'checksums')
+    assert!(policy['asset_checksums_esperados'].is_a?(Hash) && !policy['asset_checksums_esperados'].empty?, 'asset checksums')
+    assert!(policy['binary_checksums_esperados'].is_a?(Hash) && !policy['binary_checksums_esperados'].empty?, 'binary checksums')
+    arm = 'aarch64-apple-darwin'
+    assert!(policy['asset_checksums_esperados'][arm] != policy['binary_checksums_esperados'][arm], 'asset≠binary')
+    assert!(policy.dig('proveniencia_binary_checksum', 'binary_sha256') == policy['binary_checksums_esperados'][arm], 'proveniência')
     assert!(File.file?(CONFIG), 'config project-local ausente')
     assert!(File.file?(FIXTURE_DCG), 'fixture fake-dcg ausente')
     FileUtils.chmod('+x', FIXTURE_DCG)
