@@ -10,6 +10,8 @@ require 'tmpdir'
 require 'time'
 require 'fileutils'
 require_relative './plan-agent-mission'
+require_relative './runtime-safety-preflight'
+require_relative './lib/agent_command_guard'
 
 module AgentMissionRunner
   ROOT = File.expand_path('..', __dir__)
@@ -21,8 +23,6 @@ module AgentMissionRunner
   MAX_OUTPUT_BYTES = 1_048_576
   TERM_GRACE_SECONDS = 0.5
   SAFE_ENV_KEYS = %w[PATH HOME LANG LC_ALL CI GITHUB_BASE_REF].freeze
-  BLOCKED_TOKENS = %w[sh bash zsh fish eval source curl wget ssh scp nc gh vercel supabase].freeze
-  BLOCKED_PAIRS = [%w[npm install], %w[gem install], %w[git push], %w[git commit]].freeze
   DRY_RUN_TIMESTAMP = '1970-01-01T00:00:00Z'
   EXIT_BY_STATUS = {
     'dry-run' => 0,
@@ -45,18 +45,41 @@ module AgentMissionRunner
   module_function
 
   def parse(argv)
-    opts = { execute: false, stdout: false }
+    opts = { execute: false, stdout: false, agent_runtime: false }
     OptionParser.new do |parser|
       parser.on('--card PATH') { |v| opts[:card] = v }
       parser.on('--plan PATH') { |v| opts[:plan] = v }
       parser.on('--output PATH') { |v| opts[:output] = v }
       parser.on('--stdout') { opts[:stdout] = true }
       parser.on('--execute') { opts[:execute] = true }
+      parser.on('--safety-report PATH') { |v| opts[:safety_report] = v }
+      # Future agent-runtime gate only. Does NOT spawn agents in 3B.3A.
+      parser.on('--agent-runtime') { opts[:agent_runtime] = true }
     end.parse!(argv)
     raise 'missing --card' unless opts[:card]
     raise 'missing --plan' unless opts[:plan]
     raise 'use --stdout or --output' unless opts[:stdout] || opts[:output]
     opts
+  end
+
+  def enforce_runtime_safety!(opts)
+    return unless opts[:agent_runtime]
+
+    # Fase 3B.3A: runtime hard-disabled. Relatório é só diagnóstico —
+    # fixture/live/JSON fabricado NÃO concedem autorização.
+    if opts[:safety_report] && !opts[:safety_report].to_s.strip.empty?
+      begin
+        report = JSON.parse(File.read(safe_path(opts[:safety_report], must_exist: true)))
+        RuntimeSafetyPreflight.validate_report!(report)
+      rescue RuntimeSafetyPreflight::Denied, MissionPlanner::SchemaError, JSON::ParserError, DeniedError
+        # Ignorado de propósito: mesmo relatório "ready" é negado abaixo.
+      end
+    end
+
+    raise DeniedError.new(
+      'AGENT_RUNTIME_NOT_ENABLED',
+      'agent runtime is not enabled in phase 3B.3A'
+    )
   end
 
   def allowed_roots
@@ -172,22 +195,15 @@ module AgentMissionRunner
   end
 
   def load_catalog(path = CATALOG_PATH)
-    data = YAML.safe_load(File.read(path), aliases: false)
-    commands = data.fetch('comandos')
-    commands.each do |id, entry|
-      argv = entry['argv']
-      raise "catalog command #{id} must be argv array" unless argv.is_a?(Array) && argv.all? { |a| a.is_a?(String) }
-      raise "catalog command #{id} has extra arguments" if entry.keys != ['argv']
-      validate_argv!(id, argv)
-    end
-    commands
+    AgentCommandGuard.load_catalog!(path)
+  rescue AgentCommandGuard::Denial => error
+    raise DeniedError.new(error.code, error.message)
   end
 
-  def validate_argv!(id, argv)
-    joined = argv.join(' ')
-    raise "blocked shell command in #{id}" if BLOCKED_TOKENS.include?(argv.first)
-    raise "blocked token in #{id}" if argv.any? { |arg| arg.include?('|') || arg.include?('>') || arg.include?('<') || arg.include?('`') || arg.include?('$(') }
-    raise "blocked network/install/git command in #{id}" if BLOCKED_PAIRS.any? { |pair| joined.include?(pair.join(' ')) }
+  def resolve_command_argv!(catalog, id)
+    AgentCommandGuard.resolve_argv!(catalog, id)
+  rescue AgentCommandGuard::Denial => error
+    raise DeniedError.new(error.code, error.message)
   end
 
   def normalize_commands(list)
@@ -248,7 +264,7 @@ module AgentMissionRunner
 
     commands = validate_command_alignment!(card, plan)
     commands.each do |id|
-      raise DeniedError.new('COMMAND_NOT_IN_CATALOG', "command not in catalog: #{id}") unless catalog.key?(id)
+      resolve_command_argv!(catalog, id)
     end
     commands
   end
@@ -389,6 +405,7 @@ module AgentMissionRunner
     start = nil
 
     begin
+      enforce_runtime_safety!(opts)
       card = load_json(opts[:card])
       plan = load_json(opts[:plan])
       catalog = load_catalog
@@ -398,7 +415,8 @@ module AgentMissionRunner
 
       validated_commands = validate_inputs!(card, plan, catalog)
       validated_commands.each do |id|
-        report = command_report(id, catalog.fetch(id).fetch('argv'), execute)
+        argv = resolve_command_argv!(catalog, id)
+        report = command_report(id, argv, execute)
         if report['timeout']
           status = 'timeout'
         elsif execute && report['exit_code'] && report['exit_code'] != 0 && status == 'success'

@@ -1,0 +1,6 @@
+{
+  "evento": "PreToolUse",
+  "matcher": "Bash",
+  "comando": "dcg",
+  "nota": "Marcador de fixture apenas — não prova trust em produção."
+}

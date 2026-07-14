@@ -16,6 +16,7 @@ require 'digest'
 require 'optparse'
 require 'fileutils'
 require 'tmpdir'
+require_relative './lib/agent_path_guard'
 
 module MissionPlanner
   REPO_ROOT   = File.expand_path('..', __dir__)
@@ -1694,27 +1695,8 @@ module MissionPlanner
     end
 
     def normalize_path_list(paths)
-      negacoes = []
-      seen = {}
-      out = []
-      Array(paths).each do |raw|
-        path = raw.to_s.strip.gsub('\\', '/')
-        next if path.empty?
-
-        if path.start_with?('/') || path.match?(/\A[a-zA-Z]:/)
-          negacoes << neg('PATH_ABSOLUTE_DENIED', "caminho absoluto proibido: #{path}")
-          next
-        end
-        if path.include?('..')
-          negacoes << neg('PATH_TRAVERSAL_DENIED', "caminho com .. proibido: #{path}")
-          next
-        end
-        normalized = path.sub(%r{\A/+}, '')
-        next if seen[normalized]
-
-        seen[normalized] = true
-        out << normalized
-      end
+      out, path_negs = AgentPathGuard.normalize_path_list(paths, worktree_root: REPO_ROOT)
+      negacoes = path_negs.map { |n| neg(n['codigo'], n['mensagem']) }
       [out, negacoes]
     end
 

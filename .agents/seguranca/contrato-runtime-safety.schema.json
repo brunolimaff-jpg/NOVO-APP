@@ -1,0 +1,146 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "contrato-runtime-safety.schema.json",
+  "title": "Contrato Runtime Safety Preflight",
+  "description": "Relatório determinístico do preflight de segurança (Fase 3B.3A). Sem assinatura criptográfica nesta fase.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "status",
+    "contrato_versao",
+    "timestamp",
+    "repo_root",
+    "worktree_realpath",
+    "git_head",
+    "dcg",
+    "bypass_env_detectado",
+    "validacao_paths",
+    "negacoes",
+    "avisos",
+    "relatorio_sha256"
+  ],
+  "properties": {
+    "status": {
+      "type": "string",
+      "enum": ["ready", "denied", "unavailable"]
+    },
+    "contrato_versao": {
+      "type": "string",
+      "minLength": 1
+    },
+    "timestamp": {
+      "type": "string",
+      "minLength": 20,
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T"
+    },
+    "repo_root": {
+      "type": "string",
+      "minLength": 1
+    },
+    "worktree_realpath": {
+      "type": "string",
+      "minLength": 1
+    },
+    "git_head": {
+      "type": "string",
+      "minLength": 7
+    },
+    "dcg": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "presente",
+        "path",
+        "versao_observada",
+        "versao_esperada",
+        "checksum_observado",
+        "checksum_esperado",
+        "configuracao_encontrada",
+        "hook_detectado",
+        "hook_confiado",
+        "probe"
+      ],
+      "properties": {
+        "presente": { "type": "boolean" },
+        "path": { "type": ["string", "null"] },
+        "versao_observada": { "type": ["string", "null"] },
+        "versao_esperada": { "type": "string", "minLength": 1 },
+        "checksum_observado": { "type": ["string", "null"] },
+        "checksum_esperado": { "type": ["string", "null"] },
+        "configuracao_encontrada": { "type": "boolean" },
+        "hook_detectado": { "type": "boolean" },
+        "hook_confiado": {
+          "type": "string",
+          "enum": ["trusted", "untrusted", "unknown", "fixture"]
+        },
+        "probe": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["executado", "modo", "resultado", "comando_amostra"],
+          "properties": {
+            "executado": { "type": "boolean" },
+            "modo": { "type": "string" },
+            "resultado": {
+              "type": "string",
+              "enum": ["blocked", "allowed", "unsupported", "error", "skipped"]
+            },
+            "comando_amostra": { "type": "string" }
+          }
+        }
+      }
+    },
+    "bypass_env_detectado": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "validacao_paths": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ok", "caminhos", "negacoes"],
+      "properties": {
+        "ok": { "type": "boolean" },
+        "caminhos": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "negacoes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["codigo", "mensagem"],
+            "properties": {
+              "codigo": { "type": "string" },
+              "mensagem": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+    "negacoes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["codigo", "mensagem"],
+        "properties": {
+          "codigo": { "type": "string" },
+          "mensagem": { "type": "string" }
+        }
+      }
+    },
+    "avisos": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "relatorio_sha256": {
+      "type": "string",
+      "minLength": 64,
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "modo": {
+      "type": "string",
+      "enum": ["live", "fixture"]
+    }
+  }
+}
