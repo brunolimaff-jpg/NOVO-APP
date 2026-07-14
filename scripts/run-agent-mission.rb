@@ -421,6 +421,7 @@ module AgentMissionRunner
       if runtime_mode == :agent_runtime
         mode_label = 'agent-runtime'
         worktree = File.expand_path(opts[:worktree], ROOT)
+        validate_inputs!(card, plan, catalog)
         runtime_report = AgentSingleRuntime.run!(
           card: card,
           plan: plan,

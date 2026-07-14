@@ -60,7 +60,16 @@ module CodexSingleAgentRuntime
       end
       raise Denial.new('CODEX_BINARY_MISSING', "fake codex ausente: #{bin}") unless File.file?(bin) && File.executable?(bin)
 
-      return File.realpath(bin)
+      begin
+        real = File.realpath(bin)
+      rescue SystemCallError
+        raise Denial.new('CODEX_BINARY_MISSING', "fake codex inválido: #{bin}")
+      end
+      fixtures = File.realpath(File.join(File.expand_path('../..', __dir__), '.agents/seguranca/fixtures'))
+      unless real.start_with?(fixtures + File::SEPARATOR)
+        raise Denial.new('CODEX_BINARY_MISSING', 'fake codex deve viver em .agents/seguranca/fixtures/')
+      end
+      return real
     end
 
     ENV.fetch('PATH', '').split(File::PATH_SEPARATOR).each do |dir|

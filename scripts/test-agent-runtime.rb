@@ -516,11 +516,21 @@ test('22 relatório externo fabricado não autoriza') do
     fabricated['negacoes'] = []
     fabricated['relatorio_sha256'] = RuntimeSafetyPreflight.compute_hash(fabricated.reject { |k, _| k == 'relatorio_sha256' })
     path = write_json(fabricated)
-    # Without test preflight env, live assert fails even if external looks ready
-    ENV.delete('AGENT_RUNTIME_TEST_PREFLIGHT')
-    report, _err, = run_runtime(build_card, build_plan, worktree: wt, safety_report: path, env: { 'AGENT_RUNTIME_TEST_PREFLIGHT' => nil }.compact)
-    # run_runtime always sets TEST_PREFLIGHT; override by calling enforce path:
-    raise 'external must not be sole auth' if report['status'] == 'success' && report.dig('runtime', 'processos_iniciados').to_i < 0
+    report, _err, status = run_runtime(
+      build_card,
+      build_plan,
+      worktree: wt,
+      safety_report: path,
+      env: {
+        'AGENT_RUNTIME_TEST_PREFLIGHT' => '',
+        'AGENT_RUNTIME_TEST_DCG_BIN' => ''
+      }
+    )
+    raise "status=#{report['status']}" unless report['status'] == 'denied'
+    raise "exit=#{status}" unless status == 2
+    codes = negation_codes(report)
+    ok = codes.any? { |c| %w[DCG_HOOK_NOT_VERIFIED DCG_REQUIRED_FOR_WRITE_RUNTIME RUNTIME_LIVE_PREFLIGHT_FAILED].include?(c) }
+    raise codes.inspect unless ok
   end
 end
 

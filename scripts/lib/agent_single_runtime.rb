@@ -70,6 +70,9 @@ module AgentSingleRuntime
   end
 
   def validate_single_agent_plan!(card, plan, catalog)
+    unless plan['missao_id'] == card['id']
+      raise Denial.new('RUNTIME_PLAN_NOT_EXECUTABLE', 'missao_id do plano diverge do cartão')
+    end
     unless plan['status'] == 'planejado' && Array(plan['negacoes']).empty? && plan.dig('resumo_operacional', 'executavel') == true
       raise Denial.new('RUNTIME_PLAN_NOT_EXECUTABLE', 'plano não executável para runtime')
     end
@@ -139,7 +142,7 @@ module AgentSingleRuntime
   end
 
   def git(worktree, *args)
-    out, err, status = Open3.capture3('git', '-C', worktree, *args)
+    out, err, status = Open3.capture3('git', '-C', worktree, '-c', 'core.quotepath=false', *args)
     [out, err, status]
   end
 
@@ -196,6 +199,9 @@ module AgentSingleRuntime
       raise Denial.new(code, negacoes.first['mensagem'] || 'path inválido no escopo')
     end
     normalized.each do |rel|
+      if rel == '.' || rel.empty?
+        raise Denial.new('RUNTIME_WRITE_SCOPE_REQUIRED', 'escopo de escrita não pode ser a raiz')
+      end
       if AgentPathGuard.protected_mutation?(rel)
         raise Denial.new('RUNTIME_PROTECTED_PATH_DENIED', "escopo inclui path protegido: #{rel}")
       end
@@ -227,9 +233,19 @@ module AgentSingleRuntime
       dcg = ENV['AGENT_RUNTIME_TEST_DCG_BIN'].to_s.strip
       raise Denial.new('RUNTIME_LIVE_PREFLIGHT_REQUIRED', 'AGENT_RUNTIME_TEST_DCG_BIN obrigatório no teste') if dcg.empty?
 
-      opts[:dcg_path] = dcg
+      begin
+        real = File.realpath(dcg)
+      rescue SystemCallError
+        raise Denial.new('RUNTIME_LIVE_PREFLIGHT_REQUIRED', 'DCG de teste inválido')
+      end
+      fixtures = File.realpath(File.join(File.expand_path('../..', __dir__), '.agents/seguranca/fixtures'))
+      unless real.start_with?(fixtures + File::SEPARATOR)
+        raise Denial.new('RUNTIME_LIVE_PREFLIGHT_REQUIRED', 'DCG de teste fora de fixtures/')
+      end
+
+      opts[:dcg_path] = real
       opts[:allow_test_hook] = true
-      opts[:checksum_esperado_override] = Digest::SHA256.hexdigest(File.binread(dcg))
+      opts[:checksum_esperado_override] = Digest::SHA256.hexdigest(File.binread(real))
     end
 
     report = RuntimeSafetyPreflight.build_report(opts)
