@@ -101,12 +101,15 @@ end
 
 test('1b status asset_hash_rejected quando obs == asset') do
   ENV['AGENT_RUNTIME_TEST_PREFLIGHT'] = '1'
+  policy = YAML.load_file(File.join(ROOT, '.agents', 'seguranca', 'runtime-safety.yaml'))
+  current_asset_expected = (policy['asset_checksums_esperados'] || {})[RuntimeSafetyPreflight.detect_platform_key]
+  skip 'no asset_checksum for current platform' if current_asset_expected.nil?
   report = RuntimeSafetyPreflight.build_report(
     mode: 'live',
     dcg_path: FAKE_DCG,
     allow_test_hook: true,
     binary_checksum_esperado_override: binary_sha,
-    binary_checksum_observado_override: asset_sha,
+    binary_checksum_observado_override: current_asset_expected,
     timestamp: Time.now.utc,
     hooks_path: File.join(TMP, 'missing-hooks-1b.json')
   )
