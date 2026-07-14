@@ -67,7 +67,10 @@ Ausência de evidência **não** é conformidade.
 
 Além das três chaves 3B.3B, o piloto real exige `--supervised-pilot`,
 `--pilot-ack RUN_SUPERVISED_PILOT` e `AGENT_RUNTIME_PILOT=1`.
-Ver `.agents/pilotos/README.md`. **Não executar nesta PR.**
+Ver `.agents/pilotos/README.md`.
+
+Antes do piloto: `ruby scripts/check-pilot-readiness.rb --stdout` (exige DCG com
+checksum do **binário**, hook DCG direto + atestação humana; guardian pode coexistir).
 
 ## Testes
 

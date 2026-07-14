@@ -1,5 +1,17 @@
 # decisions.md — NOVO-APP
 
+## Novas Decisões (Sessão 2026-07-14 — Fase 3B.3C.1)
+
+### DI-2026-07-14-03: Checksum do asset ≠ checksum do binário DCG
+
+- **Decisão:** Preflight live compara SHA-256 do **executável** (`binary_checksums_esperados`). O SHA do `.tar.xz` fica em `asset_checksums_esperados` só para validar download. Hash arm64 do binário registrado com proveniência (download oficial + verify asset + extract + hash + apagar temp).
+- **Referência:** `.agents/seguranca/runtime-safety.yaml`
+
+### DI-2026-07-14-04: Hook live + atestação humana local
+
+- **Decisão:** Hook confiável exige entrada DCG **direta** em PreToolUse Bash (realpath = binário validado). Guardian pode coexistir; sozinho não basta. Trust = atestação humana `TRUST_DCG_HOOK` fora do repo (XDG/`~/.config/novo-app/...`, 0600, ≤30 dias). Relatório externo/fixtures nunca concedem trust em live.
+- **Referência:** `scripts/lib/dcg_codex_hook_verifier.rb`, `scripts/attest-dcg-hook.rb`
+
 ## Novas Decisões (Sessão 2026-07-14 — Fase 3B.3C)
 
 ### DI-2026-07-14-01: Planejado × observado no Run Report (sem 4º contrato)

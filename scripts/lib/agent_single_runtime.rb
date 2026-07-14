@@ -300,9 +300,10 @@ module AgentSingleRuntime
       mapped =
         if codes.include?('DCG_MISSING') || !report.dig('dcg', 'presente')
           'DCG_REQUIRED_FOR_WRITE_RUNTIME'
-        elsif codes.include?('DCG_HOOK_TRUST_UNKNOWN') || report.dig('dcg', 'hook_confiado') == 'unknown'
+        elsif codes.any? { |c| c.to_s.start_with?('DCG_HOOK') } || report.dig('dcg', 'hook_confiado') == 'unknown'
           'DCG_HOOK_NOT_VERIFIED'
-        elsif codes.include?('DCG_CHECKSUM_MISMATCH')
+        elsif codes.include?('DCG_BINARY_CHECKSUM_MISMATCH') || codes.include?('DCG_ASSET_CHECKSUM_MISMATCH') ||
+              codes.include?('DCG_BINARY_CHECKSUM_PLATFORM_UNKNOWN') || codes.include?('DCG_CHECKSUM_MISMATCH')
           'DCG_CHECKSUM_MISMATCH'
         elsif codes.include?('DCG_VERSION_MISMATCH')
           'DCG_VERSION_MISMATCH'
@@ -327,11 +328,17 @@ module AgentSingleRuntime
 
     dcg = report['dcg'] || {}
     raise Denial.new('DCG_REQUIRED_FOR_WRITE_RUNTIME', 'DCG ausente') unless dcg['presente']
-    raise Denial.new('DCG_HOOK_NOT_VERIFIED', 'hook Codex não verificado') if dcg['hook_confiado'] == 'unknown'
-    raise Denial.new('DCG_VERSION_MISMATCH', 'versão DCG divergente') if dcg['versao_observada'] != dcg['versao_esperada']
-    if dcg['checksum_observado'] != dcg['checksum_esperado']
-      raise Denial.new('DCG_CHECKSUM_MISMATCH', 'checksum DCG divergente')
+    unless %w[verified-local-human verified-test fixture].include?(dcg['hook_confiado'].to_s)
+      raise Denial.new('DCG_HOOK_NOT_VERIFIED', 'hook Codex não verificado')
     end
+    raise Denial.new('DCG_VERSION_MISMATCH', 'versão DCG divergente') if dcg['versao_observada'] != dcg['versao_esperada']
+    binary_ok =
+      if dcg.key?('binary_checksum_status')
+        dcg['binary_checksum_status'] == 'match'
+      else
+        dcg['checksum_observado'] == dcg['checksum_esperado']
+      end
+    raise Denial.new('DCG_CHECKSUM_MISMATCH', 'checksum DCG divergente') unless binary_ok
     unless dcg.dig('probe', 'resultado') == 'blocked'
       raise Denial.new('RUNTIME_LIVE_PREFLIGHT_FAILED', 'probe seguro não suportado/bloqueante')
     end
