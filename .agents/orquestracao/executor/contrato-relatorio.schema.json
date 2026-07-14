@@ -24,6 +24,121 @@
     "safety_report_hash": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
     "prompt_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
     "relatorio_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "planned_snapshot": { "type": "object", "additionalProperties": true },
+    "planned_snapshot_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "observed_snapshot": { "type": "object", "additionalProperties": true },
+    "observed_snapshot_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "comparacao": {
+      "type": "object",
+      "required": ["status", "itens"],
+      "additionalProperties": false,
+      "properties": {
+        "status": { "type": "string", "enum": ["conforme", "desvio", "violacao", "indisponivel"] },
+        "itens": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["campo", "esperado", "observado", "resultado", "severidade", "codigo", "mensagem"],
+            "additionalProperties": false,
+            "properties": {
+              "campo": { "type": "string" },
+              "esperado": {},
+              "observado": {},
+              "resultado": { "type": "string", "enum": ["conforme", "desvio", "violacao", "indisponivel"] },
+              "severidade": { "type": "string" },
+              "codigo": { "type": ["string", "null"] },
+              "mensagem": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+    "task_ledger": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 1,
+      "items": {
+        "type": "object",
+        "required": [
+          "task_id",
+          "missao_id",
+          "agente_id",
+          "papel",
+          "status",
+          "inicio",
+          "fim",
+          "tentativa",
+          "input_refs",
+          "output_refs",
+          "dependencia_ids",
+          "codigo_final",
+          "evidencia_refs"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "task_id": { "type": "string" },
+          "missao_id": { "type": "string" },
+          "agente_id": { "type": "string" },
+          "papel": { "type": "string" },
+          "status": {
+            "type": "string",
+            "enum": ["planned", "authorized", "running", "succeeded", "failed", "denied", "timeout", "unavailable"]
+          },
+          "inicio": { "type": "string" },
+          "fim": { "type": ["string", "null"] },
+          "tentativa": { "type": "integer", "const": 1 },
+          "input_refs": { "type": "array", "items": { "type": "string" } },
+          "output_refs": { "type": "array", "items": { "type": "string" } },
+          "dependencia_ids": { "type": "array", "maxItems": 0 },
+          "codigo_final": { "type": ["string", "null"] },
+          "evidencia_refs": { "type": "array", "items": { "type": "string" } }
+        }
+      }
+    },
+    "handoff": {
+      "type": "object",
+      "required": [
+        "origem",
+        "destino",
+        "missao_id",
+        "task_id",
+        "estado_atual",
+        "resumo",
+        "arquivos_modificados",
+        "evidencias",
+        "comparacao_status",
+        "violacoes",
+        "avisos",
+        "proxima_acao_recomendada",
+        "requer_aprovacao_humana"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "origem": { "type": "string", "const": "runtime-codex" },
+        "destino": { "type": "string", "const": "revisor-humano" },
+        "missao_id": { "type": "string" },
+        "task_id": { "type": "string" },
+        "estado_atual": { "type": "string" },
+        "resumo": { "type": "string" },
+        "arquivos_modificados": { "type": "array", "items": { "type": "string" } },
+        "evidencias": { "type": "array", "items": { "type": "string" } },
+        "comparacao_status": { "type": "string" },
+        "violacoes": { "type": "array", "items": { "type": "string" } },
+        "avisos": { "type": "array", "items": { "type": "string" } },
+        "proxima_acao_recomendada": {
+          "type": "string",
+          "enum": [
+            "revisar_diff",
+            "corrigir_manualmente",
+            "descartar_worktree",
+            "autorizar_commit_manual",
+            "investigar_violacao",
+            "nenhuma_acao"
+          ]
+        },
+        "requer_aprovacao_humana": { "type": "boolean", "const": true }
+      }
+    },
     "modo": { "type": "string", "enum": ["dry-run", "execute", "agent-runtime"] },
     "status": {
       "type": "string",

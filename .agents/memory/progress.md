@@ -7,6 +7,7 @@
 - Escopo: snapshots canônicos, comparador, ledger de 1 tarefa, handoff humano, template/piloto com 6 chaves, estado idempotente
 - Sem Codex real, sem piloto real, sem DCG global, sem Fase 3C
 - Contagens início: runtime 50 · execution 64 · safety 42 · orchestration 136
+- Contagens fim (locais): runtime 50 · execution 64 · safety 42 · orchestration 136 · observation 45
 
 ## 2026-07-14 — PR #429 MERGED (Fase 3B.3B)
 

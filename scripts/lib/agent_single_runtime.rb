@@ -9,6 +9,8 @@ require_relative './agent_path_guard'
 require_relative './agent_command_guard'
 require_relative './agent_mission_contract'
 require_relative './codex_single_agent_runtime'
+require_relative './agent_run_comparator'
+require_relative './agent_task_ledger'
 require_relative '../runtime-safety-preflight'
 
 # Orquestração do runtime single-agent (Fase 3B.3B).
@@ -382,15 +384,16 @@ module AgentSingleRuntime
     lines.join("\n")
   end
 
-  def porcelain_paths(worktree)
+  def porcelain_entries(worktree)
     out, _, st = git(worktree, 'status', '--porcelain', '-uall')
     raise Denial.new('RUNTIME_SCOPE_VIOLATION', 'falha ao listar mudanças') unless st.success?
 
-    paths = []
+    entries = []
     out.each_line do |line|
       line = line.rstrip
       next if line.empty?
 
+      untracked = line.start_with?('??')
       path =
         if line.start_with?('R') || line.start_with?('C')
           line.split(' -> ', 2).last
@@ -399,14 +402,20 @@ module AgentSingleRuntime
         end
       next if path.nil? || path.empty?
 
-      paths << path.delete_prefix('"').delete_suffix('"')
+      entries << { 'path' => path.delete_prefix('"').delete_suffix('"'), 'untracked' => untracked }
     end
-    paths.uniq
+    entries
+  end
+
+  def porcelain_paths(worktree)
+    porcelain_entries(worktree).map { |e| e['path'] }.uniq
   end
 
   def verify_after!(snap:, write_scope:, protected_before:)
     negacoes = []
     wt = snap['worktree_realpath']
+    commit_criado = false
+    refs_alteradas = false
 
     head_out, _, head_st = git(wt, 'rev-parse', 'HEAD')
     head_final = head_st.success? ? head_out.strip : nil
@@ -415,6 +424,7 @@ module AgentSingleRuntime
       # Distinguish new commit objects on the branch tip.
       rev, _, rev_st = git(wt, 'rev-list', '--count', "#{snap['head']}..#{head_final}")
       if rev_st.success? && rev.strip.to_i.positive?
+        commit_criado = true
         negacoes << { 'codigo' => 'RUNTIME_COMMIT_CREATED', 'mensagem' => 'commit criado durante runtime' }
       end
     end
@@ -422,20 +432,26 @@ module AgentSingleRuntime
     refs_out, _, refs_st = git(wt, 'show-ref')
     refs_digest = Digest::SHA256.hexdigest(refs_st.success? ? refs_out : '')
     if refs_digest != snap['refs_sha256']
+      refs_alteradas = true
       negacoes << { 'codigo' => 'RUNTIME_GIT_STATE_MUTATED', 'mensagem' => 'refs git alteradas' }
     end
 
-    modified = porcelain_paths(wt)
+    entries = porcelain_entries(wt)
     normalized_modified = []
+    untracked = []
     scope_violations = []
-    modified.each do |raw|
+    protected_mutated = []
+    entries.each do |entry|
+      raw = entry['path']
       begin
         rel = AgentPathGuard.validate_path!(raw, worktree_root: wt)
         normalized_modified << rel
+        untracked << rel if entry['untracked']
         unless write_scope.include?(rel) || write_scope.any? { |s| rel == s || rel.start_with?(s.delete_suffix('/') + '/') }
           scope_violations << rel
         end
         if AgentPathGuard.protected_mutation?(rel)
+          protected_mutated << rel
           negacoes << { 'codigo' => 'RUNTIME_PROTECTED_PATH_MUTATED', 'mensagem' => "protegido alterado: #{rel}" }
         end
       rescue AgentPathGuard::Denial => error
@@ -456,13 +472,18 @@ module AgentSingleRuntime
       next unless protected_after[path]
       next if protected_after[path] == hash
 
+      protected_mutated << path
       negacoes << { 'codigo' => 'RUNTIME_PROTECTED_PATH_MUTATED', 'mensagem' => "hash protegido mudou: #{path}" }
     end
 
     {
       'head_final' => head_final,
       'arquivos_modificados' => normalized_modified.uniq.sort,
+      'arquivos_untracked' => untracked.uniq.sort,
       'violacoes_escopo' => scope_violations.uniq.sort,
+      'arquivos_protegidos_alterados' => protected_mutated.uniq.sort,
+      'commit_criado' => commit_criado,
+      'refs_alteradas' => refs_alteradas,
       'negacoes' => negacoes
     }
   end
@@ -496,10 +517,26 @@ module AgentSingleRuntime
       raise Denial.new(error.code, error.message)
     end
 
+    t0 = Time.now.utc
+    ledger = AgentTaskLedger.wrap(AgentTaskLedger.new_entry(
+      missao_id: card['id'],
+      at: t0
+    ))
+    AgentTaskLedger.transition!(ledger, to: 'authorized', at: t0 + 1)
+
     validated = validate_single_agent_plan!(card, plan, catalog)
     snap = snapshot_worktree!(worktree, repo_root: repo_root)
     write_scope = normalize_scope!(validated['write_scope_raw'], worktree: snap['worktree_realpath'])
     read_scope = normalize_scope!(validated['read_scope'], worktree: snap['worktree_realpath'])
+
+    planned = AgentRunComparator.build_planned_snapshot(
+      card: card,
+      plan: plan,
+      snap: snap,
+      write_scope: write_scope,
+      read_scope: Array(read_scope)
+    )
+    planned_sha = AgentRunComparator.canonical_hash(planned)
 
     # External report is audit-only: never authorizes.
     external_hash = nil
@@ -527,6 +564,7 @@ module AgentSingleRuntime
       chdir: snap['worktree_realpath'],
       timeout_seconds: validated['timeout']
     )
+    spawn_started = spawn_result['processos_iniciados'].to_i.positive?
 
     after = verify_after!(snap: snap, write_scope: write_scope, protected_before: protected_before)
 
@@ -543,21 +581,99 @@ module AgentSingleRuntime
         'failure'
       end
 
+    observed = AgentRunComparator.build_observed_snapshot(
+      'ferramenta_observada' => 'codex',
+      'versao_codex' => prepared['version'],
+      'versao_dcg' => live.dig('dcg', 'versao_observada'),
+      'adapter_observado' => plan['adaptador_selecionado'].to_s,
+      'agentes_observados' => spawn_result['processos_iniciados'].to_i > 1 ? spawn_result['processos_iniciados'] : spawn_result['processos_iniciados'].to_i.clamp(0, 1),
+      'writers_observados' => 1,
+      'processos_iniciados' => spawn_result['processos_iniciados'],
+      'comandos_catalogo_executados' => false,
+      'processo_codex_iniciado' => spawn_started,
+      'rede_observada' => false,
+      'subdelegacao_observada' => false,
+      'branch_observada' => snap['branch'],
+      'worktree_observada' => snap['worktree_realpath'],
+      'head_inicial' => snap['head'],
+      'head_final' => after['head_final'],
+      'arquivos_modificados' => after['arquivos_modificados'],
+      'arquivos_untracked' => after['arquivos_untracked'],
+      'arquivos_fora_escopo' => after['violacoes_escopo'],
+      'arquivos_protegidos_alterados' => after['arquivos_protegidos_alterados'],
+      'commit_criado' => after['commit_criado'],
+      'refs_alteradas' => after['refs_alteradas'],
+      'timeout_observado' => spawn_result['timeout'],
+      'exit_code' => spawn_result['exit_code'],
+      'sinal' => spawn_result['sinal'],
+      'duracao_ms' => spawn_result['duracao_ms'],
+      'stdout_sha256' => spawn_result['stdout_sha256'],
+      'stderr_sha256' => spawn_result['stderr_sha256'],
+      'stdout_truncado' => spawn_result['stdout_truncado'],
+      'stderr_truncado' => spawn_result['stderr_truncado'],
+      'status_final' => status
+    )
+    observed_sha = AgentRunComparator.canonical_hash(observed)
+    comparacao = AgentRunComparator.compare(planned, observed)
+
+    if comparacao['status'] == 'violacao' && status == 'success'
+      status = 'denied'
+    end
+
+    t_end = begin
+      Time.parse(spawn_result['fim'].to_s)
+    rescue StandardError
+      Time.now.utc
+    end
+    AgentTaskLedger.finalize_from_run!(
+      ledger,
+      comparison_status: comparacao['status'],
+      run_status: status,
+      spawn_started: spawn_started,
+      at: t_end
+    )
+
     negacoes = after['negacoes'].map { |n| "#{n['codigo']}: #{n['mensagem']}" }
+    comparacao['itens'].select { |i| i['resultado'] == 'violacao' }.each do |i|
+      code = i['codigo'] || 'OBSERVED_VIOLATION'
+      line = "#{code}: #{i['mensagem']}"
+      negacoes << line unless negacoes.include?(line)
+    end
+
     avisos = [
       'REPORT_IS_NOT_CREDENTIAL',
       'EXTERNAL_SAFETY_REPORT_NOT_AUTHORIZATION',
       'NO_MERGE_PUSH_DEPLOY',
       'CODEX_SUBSTITUI_EXECUCAO_DOS_COMANDOS'
     ]
+    comparacao['itens'].select { |i| i['resultado'] == 'desvio' }.each do |i|
+      avisos << (i['codigo'] || 'DESVIO')
+    end
+
+    handoff = AgentTaskLedger.build_handoff(
+      missao_id: card['id'],
+      task_id: ledger.first['task_id'],
+      run_status: status,
+      comparison: comparacao,
+      arquivos_modificados: after['arquivos_modificados'],
+      avisos: avisos,
+      violacoes: negacoes
+    )
 
     build_observed_report(
       base: {
         'versao' => 1,
         'missao_id' => card['id'],
-        'plan_hash' => Digest::SHA256.hexdigest(JSON.generate(plan)),
+        'plan_hash' => planned['plan_hash'],
         'safety_report_hash' => external_hash || live['relatorio_sha256'],
         'prompt_sha256' => prompt_sha,
+        'planned_snapshot' => planned,
+        'planned_snapshot_sha256' => planned_sha,
+        'observed_snapshot' => observed,
+        'observed_snapshot_sha256' => observed_sha,
+        'comparacao' => comparacao,
+        'task_ledger' => ledger,
+        'handoff' => handoff,
         'modo' => 'agent-runtime',
         'status' => status,
         'inicio' => spawn_result['inicio'],
@@ -581,14 +697,17 @@ module AgentSingleRuntime
           }
         end,
         'negacoes' => negacoes,
-        'avisos' => avisos,
+        'avisos' => avisos.uniq,
         'evidencias' => [
           'three-key activation',
           'live preflight',
           'argv sem shell',
           'ambiente sanitizado',
           'escopo observado',
-          'codex substitui execução direta dos comandos do catálogo'
+          'codex substitui execução direta dos comandos do catálogo',
+          'planejado-versus-observado',
+          'task-ledger-1',
+          'handoff-humano'
         ],
         'runtime' => {
           'motor' => 'codex',
@@ -602,7 +721,7 @@ module AgentSingleRuntime
           'agente_observado' => spawn_result['processos_iniciados'],
           'writers_planejados' => 1,
           'processos_iniciados' => spawn_result['processos_iniciados'],
-          'processo_codex_iniciado' => spawn_result['processos_iniciados'].to_i.positive?,
+          'processo_codex_iniciado' => spawn_started,
           'comandos_catalogo_executados' => false,
           'timeout' => spawn_result['timeout'],
           'exit_code' => spawn_result['exit_code'],
@@ -614,9 +733,7 @@ module AgentSingleRuntime
           'arquivos_permitidos' => write_scope,
           'arquivos_modificados' => after['arquivos_modificados'],
           'violacoes_escopo' => after['violacoes_escopo'],
-          'arquivos_protegidos_alterados' => after['negacoes']
-            .select { |n| n['codigo'] == 'RUNTIME_PROTECTED_PATH_MUTATED' }
-            .map { |n| n['mensagem'] },
+          'arquivos_protegidos_alterados' => after['arquivos_protegidos_alterados'],
           'argv' => spawn_result['argv']
         }
       }

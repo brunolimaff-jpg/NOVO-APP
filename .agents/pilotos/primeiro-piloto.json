@@ -1,0 +1,55 @@
+{
+  "versao": 1,
+  "missao_id": "primeiro-piloto-supervisionado",
+  "missao": {
+    "id": "primeiro-piloto-supervisionado",
+    "titulo": "Primeiro piloto supervisionado do runtime Codex",
+    "objetivo": "Criar exatamente um arquivo sandbox comprovando execução single-agent.",
+    "contexto": "Piloto mínimo pós-3B.3C. Sem alteração funcional do Scout.",
+    "resultado_esperado": "Arquivo .agents/pilotos/sandbox/resultado-primeiro-piloto.md criado com formato fixo."
+  },
+  "card": {
+    "versao": 1,
+    "id": "primeiro-piloto-supervisionado",
+    "titulo": "Primeiro piloto supervisionado do runtime Codex",
+    "objetivo": "Criar exatamente um arquivo sandbox comprovando execução single-agent.",
+    "contexto": "Piloto mínimo. Conteúdo fixo: título, timestamp do runner, missao_id, texto de confirmação.",
+    "resultado_esperado": "Arquivo sandbox único criado; nenhuma outra alteração.",
+    "autorizacao": {
+      "nivel": "A3",
+      "acoes_permitidas": ["ler", "escrever", "testar"],
+      "acoes_solicitadas": [],
+      "acoes_proibidas": ["merge", "deploy", "push", "commit"]
+    },
+    "escopo": {
+      "leitura": [".agents/pilotos/"],
+      "escrita": [".agents/pilotos/sandbox/resultado-primeiro-piloto.md"]
+    },
+    "restricoes": ["sem rede", "sem subdelegacao", "sem multi-agent"],
+    "verificacao": ["arquivo sandbox existe", "nenhuma outra mudança"],
+    "evidencias_requeridas": ["run-report", "diff-worktree"],
+    "condicoes_parada": ["arquivo criado", "ambiguidade", "violacao de escopo"],
+    "executor": {
+      "comandos": ["git-diff-check"]
+    }
+  },
+  "formato_arquivo": {
+    "path": ".agents/pilotos/sandbox/resultado-primeiro-piloto.md",
+    "conteudo_obrigatorio": [
+      "# Resultado do primeiro piloto",
+      "timestamp: <ISO8601 informado pelo runner>",
+      "missao_id: primeiro-piloto-supervisionado",
+      "texto: runtime single-agent Codex executado sob piloto supervisionado"
+    ]
+  },
+  "limites": {
+    "max_tempo_segundos": 180,
+    "max_arquivos_escrita": 1,
+    "rede_permitida": false,
+    "delegacao_permitida": false,
+    "estrategia": "agente-unico",
+    "ferramenta": "codex",
+    "papel": "executor-escopo",
+    "permissao": "workspace-write"
+  }
+}

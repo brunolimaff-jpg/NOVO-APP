@@ -14,7 +14,7 @@ module SkillsGovernanceValidator
   ALLOWED_ROLES = Set.new(%w[explorador investigador-incidentes planejador-solucao executor-escopo revisor-contratos validador-entrega revisor-evidencias-dossie]).freeze
   WRITER_ROLES = Set.new(%w[executor-escopo]).freeze
   BOOLEAN_FIELDS = %w[selecionavel_por_missao possui_scripts acesso_rede pode_escrever pode_executar_shell pode_delegar].freeze
-  ALLOWED_DIRECTORIES = ['.agents/skills/', '.agents/orquestracao/', '.agents/seguranca/'].freeze
+  ALLOWED_DIRECTORIES = ['.agents/skills/', '.agents/orquestracao/', '.agents/seguranca/', '.agents/pilotos/'].freeze
   ALLOWED_EXACT_FILES = [
     'docs/SKILLS-GOVERNANCE.md',
     'AGENTS.md',
@@ -40,7 +40,12 @@ module SkillsGovernanceValidator
     'scripts/lib/codex_single_agent_runtime.rb',
     'scripts/lib/agent_single_runtime.rb',
     'scripts/lib/agent_mission_contract.rb',
+    'scripts/lib/agent_run_comparator.rb',
+    'scripts/lib/agent_task_ledger.rb',
+    'scripts/lib/agent_supervised_pilot.rb',
     'scripts/test-agent-runtime.rb',
+    'scripts/validate-agent-observation.rb',
+    'scripts/test-agent-observation.rb',
     'scripts/hook-sensitive-file-alert.sh',
     '.claude/settings.json',
     '.cursor/hooks.json',
