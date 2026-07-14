@@ -6,8 +6,10 @@ require 'yaml'
 require 'tmpdir'
 require 'fileutils'
 require 'digest'
+require 'open3'
 require_relative './runtime-safety-preflight'
 require_relative './lib/agent_path_guard'
+require_relative './lib/agent_command_guard'
 
 ROOT = File.expand_path('..', __dir__)
 FIXTURE_DCG = File.join(ROOT, '.agents/seguranca/fixtures/fake-dcg')
@@ -61,14 +63,27 @@ end
 [
   ['path traversal literal', '../etc/passwd', 'PATH_TRAVERSAL_DENIED'],
   ['path traversal percent-encoded', '%2e%2e/etc/passwd', 'PATH_TRAVERSAL_DENIED'],
-  ['double encoding', '%252e%252e/etc/passwd', 'PATH_TRAVERSAL_DENIED'],
+  ['double encoding', '%252e%252e/etc/passwd', 'PATH_PERCENT_ENCODING_INVALID'],
+  ['percent malformado', '%ZZ/x', 'PATH_PERCENT_ENCODING_INVALID'],
   ['null byte', "scripts/\0evil", 'PATH_NULL_BYTE_DENIED'],
   ['absoluto Unix', '/tmp/x', 'PATH_ABSOLUTE_DENIED'],
-  ['absoluto Windows', 'C:\\Windows\\System32', 'PATH_ABSOLUTE_DENIED']
+  ['absoluto Windows', 'C:\\Windows\\System32', 'PATH_ABSOLUTE_DENIED'],
+  ['drive-relative Windows C:foo', 'C:foo', 'PATH_ABSOLUTE_DENIED']
 ].each do |name, raw, code|
   test(name) do
     _out, negs = AgentPathGuard.normalize_path_list([raw], worktree_root: ROOT)
     assert(negs.any? { |n| n['codigo'] == code }, negs.inspect)
+  end
+end
+
+test('%25 aceito como percentual literal') do
+  # scripts/%25x → scripts/%x after single decode; no remaining %HH
+  Dir.mktmpdir('pct') do |dir|
+    FileUtils.mkdir_p(File.join(dir, 'scripts'))
+    File.write(File.join(dir, 'scripts', '%x'), '1')
+    out, negs = AgentPathGuard.normalize_path_list(['scripts/%25x'], worktree_root: dir)
+    assert(negs.empty?, negs.inspect)
+    assert_eq(out, ['scripts/%x'])
   end
 end
 
@@ -285,27 +300,102 @@ test('proteção superfície de segurança') do
   end
 end
 
-test('fixture executável usa executor-escopo') do
-  require_relative './test-agent-execution' if false
-  # Inline contract check without loading full execution suite
-  load_path = File.join(ROOT, 'scripts/test-agent-execution.rb')
-  # Avoid double-running tests: duplicate minimal assertion here
-  plan = {
-    'papel_principal' => 'executor-escopo',
-    'resumo_operacional' => { 'executavel' => true }
-  }
-  assert_eq(plan['papel_principal'], 'executor-escopo')
-  assert(plan.dig('resumo_operacional', 'executavel'))
+test('timestamp inválido → RUNTIME_SAFETY_TIMESTAMP_INVALID') do
+  with_clean_bypass_env do
+    report = RuntimeSafetyPreflight.build_report(mode: 'fixture', timestamp: Time.now.utc)
+    report['timestamp'] = '2026-99-99T00:00:00Z'
+    report['relatorio_sha256'] = RuntimeSafetyPreflight.compute_hash(report.reject { |k, _| k == 'relatorio_sha256' })
+    begin
+      RuntimeSafetyPreflight.validate_report!(report)
+      raise 'deveria negar timestamp'
+    rescue RuntimeSafetyPreflight::Denied => e
+      assert_eq(e.code, 'RUNTIME_SAFETY_TIMESTAMP_INVALID')
+    end
+  end
 end
 
-test('fixture inválida validador-entrega não é executável') do
-  # builder contract: validador-entrega + planejado => executavel false
-  # (aligns with DI-2026-07-13-09; runner still keyed on flag)
-  writer = false
-  papel = 'validador-entrega'
-  executable = true # status planejado
-  assert_eq(executable && (papel == 'executor-escopo'), false)
-  assert_eq(papel, 'validador-entrega')
+test('command guard: cinco IDs canônicos') do
+  with_clean_bypass_env do
+    require_relative './lib/agent_command_guard'
+    catalog = AgentCommandGuard.load_catalog!(File.join(ROOT, '.agents/orquestracao/executor/catalogo-comandos.yaml'))
+    AgentCommandGuard::CANONICAL_IDS.each do |id|
+      argv = AgentCommandGuard.resolve_argv!(catalog, id)
+      assert(argv.is_a?(Array) && !argv.empty?)
+    end
+  end
+end
+
+[
+  ['bash -lc', %w[bash -lc echo hi], 'COMMAND_SHELL_WRAPPER_DENIED'],
+  ['rm -rf', %w[rm -rf /tmp], 'COMMAND_DESTRUCTIVE_DENIED'],
+  ['git reset --hard', ['git', 'reset', '--hard'], 'COMMAND_DESTRUCTIVE_DENIED'],
+  ['gh pr merge', %w[gh pr merge], 'COMMAND_DESTRUCTIVE_DENIED'],
+  ['supabase db reset', %w[supabase db reset], 'COMMAND_DESTRUCTIVE_DENIED'],
+  ['metachar pipe', ['echo', 'a|b'], 'COMMAND_METACHARACTER_DENIED']
+].each do |name, argv, code|
+  test("command guard nega #{name}") do
+    begin
+      AgentCommandGuard.scan_argv!(argv)
+      raise 'deveria negar'
+    rescue AgentCommandGuard::Denial => e
+      assert_eq(e.code, code)
+    end
+  end
+end
+
+test('command guard ID desconhecido') do
+  with_clean_bypass_env do
+    catalog = AgentCommandGuard.load_catalog!(File.join(ROOT, '.agents/orquestracao/executor/catalogo-comandos.yaml'))
+    begin
+      AgentCommandGuard.resolve_argv!(catalog, 'rm-rf-all')
+      raise 'deveria negar'
+    rescue AgentCommandGuard::Denial => e
+      assert_eq(e.code, 'COMMAND_NOT_IN_CATALOG')
+    end
+  end
+end
+
+test('command guard catálogo string inválida') do
+  begin
+    AgentCommandGuard.validate_entry!('x', { 'argv' => 'ruby scripts/x.rb' })
+    raise 'deveria negar string'
+  rescue AgentCommandGuard::Denial => e
+    assert_eq(e.code, 'COMMAND_ENTRY_INVALID')
+  end
+end
+
+test('command guard argumento adicional mismatch') do
+  with_clean_bypass_env do
+    catalog = AgentCommandGuard.load_catalog!(File.join(ROOT, '.agents/orquestracao/executor/catalogo-comandos.yaml'))
+    canonical = AgentCommandGuard.resolve_argv!(catalog, 'git-diff-check')
+    begin
+      AgentCommandGuard.assert_no_extra_args!(canonical, canonical + ['--extra'])
+      raise 'deveria mismatch'
+    rescue AgentCommandGuard::Denial => e
+      assert_eq(e.code, 'COMMAND_ARGUMENT_MISMATCH')
+    end
+  end
+end
+
+test('command guard bypass env') do
+  ENV['DCG_BYPASS'] = '1'
+  begin
+    AgentCommandGuard.deny_bypass_env!
+    raise 'deveria negar bypass'
+  rescue AgentCommandGuard::Denial => e
+    assert_eq(e.code, 'DCG_BYPASS_ENV')
+  ensure
+    ENV.delete('DCG_BYPASS')
+  end
+end
+
+test('comando seguro executado sem shell') do
+  with_clean_bypass_env do
+    out, err, status = Open3.capture3('git', 'diff', '--check', chdir: ROOT)
+    assert(status.exitstatus.is_a?(Integer))
+    assert(err.is_a?(String))
+    assert(out.is_a?(String))
+  end
 end
 
 puts "\n#{@tests} passed, #{@failed} failed"

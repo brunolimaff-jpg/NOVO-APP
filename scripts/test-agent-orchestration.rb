@@ -1113,6 +1113,57 @@ module OrchestrationTests
         c
       end
 
+      test_denied("3B.3A caminho percent-encoded %2e%2e", code: 'PATH_TRAVERSAL_DENIED') do |card|
+        c = build_readonly_card
+        c['execucao_planejada'] = {
+          'estrategia' => 'agente-unico',
+          'agentes' => [
+            { 'id' => 'principal', 'papel' => 'explorador', 'permissao' => 'read-only', 'depende_de' => [] }
+          ],
+          'tarefas' => [
+            {
+              'id' => 'task-01', 'agente' => 'principal', 'objetivo' => 'x', 'entrega_esperada' => 'y',
+              'nao_fazer' => [], 'arquivos' => { 'leitura' => ['%2e%2e/etc/passwd'], 'escrita' => [] }, 'depende_de' => []
+            }
+          ]
+        }
+        c
+      end
+
+      test_denied("3B.3A caminho double-encoding %252e%252e", code: 'PATH_PERCENT_ENCODING_INVALID') do |card|
+        c = build_readonly_card
+        c['execucao_planejada'] = {
+          'estrategia' => 'agente-unico',
+          'agentes' => [
+            { 'id' => 'principal', 'papel' => 'explorador', 'permissao' => 'read-only', 'depende_de' => [] }
+          ],
+          'tarefas' => [
+            {
+              'id' => 'task-01', 'agente' => 'principal', 'objetivo' => 'x', 'entrega_esperada' => 'y',
+              'nao_fazer' => [], 'arquivos' => { 'leitura' => ['%252e%252e/etc/passwd'], 'escrita' => [] }, 'depende_de' => []
+            }
+          ]
+        }
+        c
+      end
+
+      test_denied("3B.3A caminho Windows C:foo", code: 'PATH_ABSOLUTE_DENIED') do |card|
+        c = build_readonly_card
+        c['execucao_planejada'] = {
+          'estrategia' => 'agente-unico',
+          'agentes' => [
+            { 'id' => 'principal', 'papel' => 'explorador', 'permissao' => 'read-only', 'depende_de' => [] }
+          ],
+          'tarefas' => [
+            {
+              'id' => 'task-01', 'agente' => 'principal', 'objetivo' => 'x', 'entrega_esperada' => 'y',
+              'nao_fazer' => [], 'arquivos' => { 'leitura' => ['C:foo'], 'escrita' => [] }, 'depende_de' => []
+            }
+          ]
+        }
+        c
+      end
+
       test_validation_error("3B.2B max_paralelo maior que 2 no schema") do |card|
         c = build_multi_reader_card
         c['execucao_planejada']['limites']['max_paralelo'] = 3

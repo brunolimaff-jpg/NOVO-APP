@@ -63,8 +63,20 @@ module RuntimeSafetyPreflight
     from_env = ENV['DCG_PATH']&.strip
     return from_env unless from_env.nil? || from_env.empty?
 
-    path, status = Open3.capture2('bash', '-lc', 'command -v dcg')
-    status.success? ? path.strip : nil
+    # PATH lookup sem shell (não usa bash -lc).
+    ENV.fetch('PATH', '').split(File::PATH_SEPARATOR).each do |dir|
+      next if dir.empty?
+
+      candidate = File.join(dir, 'dcg')
+      begin
+        return candidate if File.file?(candidate) && File.executable?(candidate)
+      rescue SystemCallError
+        next
+      end
+    end
+    nil
+  rescue SystemCallError
+    nil
   end
 
   def read_version(dcg_path)
@@ -73,12 +85,16 @@ module RuntimeSafetyPreflight
 
     m = out.match(/dcg\s+([0-9]+\.[0-9]+\.[0-9]+)/i)
     m && m[1]
+  rescue SystemCallError
+    nil
   end
 
   def file_sha256(path)
     return nil unless path && File.file?(path)
 
     Digest::SHA256.hexdigest(File.binread(path))
+  rescue SystemCallError
+    nil
   end
 
   def bypass_env_present(policy)
@@ -107,12 +123,13 @@ module RuntimeSafetyPreflight
       'stdout_preview' => out.byteslice(0, 200).to_s.force_encoding('UTF-8').scrub,
       'stderr_preview' => err.byteslice(0, 200).to_s.force_encoding('UTF-8').scrub
     }
-  rescue Errno::ENOENT
+  rescue SystemCallError
     {
       'executado' => false,
       'modo' => 'dcg test --format json',
       'resultado' => 'unsupported',
-      'comando_amostra' => sample
+      'comando_amostra' => sample,
+      'codigo' => 'DCG_EXECUTION_UNAVAILABLE'
     }
   end
 
@@ -135,7 +152,12 @@ module RuntimeSafetyPreflight
   def build_report(opts)
     policy = load_policy
     mode = opts[:mode] || 'live'
-    worktree = File.realpath(opts[:worktree] || ROOT)
+    begin
+      worktree = File.realpath(opts[:worktree] || ROOT)
+    rescue SystemCallError
+      # Fail-closed: report denied with scope mismatch rather than crashing.
+      return denied_bootstrap_report(policy, mode, 'RUNTIME_SAFETY_SCOPE_MISMATCH', 'worktree realpath inválido')
+    end
     negacoes = []
     avisos = []
 
@@ -164,6 +186,10 @@ module RuntimeSafetyPreflight
     checksum_obs = presente ? file_sha256(dcg_path) : nil
     versao_esp = policy['versao_esperada'].to_s
 
+    if presente && versao_obs.nil?
+      negacoes << { 'codigo' => 'DCG_EXECUTION_UNAVAILABLE', 'mensagem' => 'falha ao ler versão do DCG' }
+    end
+
     # Fixture mode pins checksum to the fixture file itself (CI never downloads release artifacts).
     if mode == 'fixture' && presente
       expected_checksum = checksum_obs
@@ -184,13 +210,17 @@ module RuntimeSafetyPreflight
         negacoes << { 'codigo' => 'DCG_MISSING', 'mensagem' => 'fixture DCG ausente' }
       end
     else
-      if versao_obs.nil? || versao_obs != versao_esp
+      if versao_obs && versao_obs != versao_esp
         negacoes << {
           'codigo' => 'DCG_VERSION_MISMATCH',
           'mensagem' => "versão observada=#{versao_obs.inspect} esperada=#{versao_esp}"
         }
       end
       if expected_checksum.nil?
+        negacoes << {
+          'codigo' => 'DCG_CHECKSUM_PLATFORM_UNKNOWN',
+          'mensagem' => "plataforma sem checksum conhecido: #{platform}"
+        }
         avisos << 'CHECKSUM_PLATFORM_UNKNOWN'
       elsif checksum_obs != expected_checksum
         negacoes << {
@@ -199,7 +229,12 @@ module RuntimeSafetyPreflight
         }
       end
       probe = run_probe(dcg_path, probe['comando_amostra'])
-      if probe['resultado'] != 'blocked'
+      if probe['codigo'] == 'DCG_EXECUTION_UNAVAILABLE'
+        negacoes << {
+          'codigo' => 'DCG_EXECUTION_UNAVAILABLE',
+          'mensagem' => 'falha ao iniciar probe dcg test'
+        }
+      elsif probe['resultado'] != 'blocked'
         negacoes << {
           'codigo' => 'DCG_PROBE_NOT_BLOCKED',
           'mensagem' => "probe não bloqueou amostra (resultado=#{probe['resultado']})"
@@ -255,10 +290,69 @@ module RuntimeSafetyPreflight
     # Strip probe previews from hashed document for stability in schema.
     probe_public = probe.slice('executado', 'modo', 'resultado', 'comando_amostra')
 
+    finalize_report(
+      status: status,
+      policy: policy,
+      mode: mode,
+      worktree: worktree,
+      presente: presente,
+      dcg_path: dcg_path,
+      versao_obs: versao_obs,
+      versao_esp: versao_esp,
+      checksum_obs: checksum_obs,
+      expected_checksum: expected_checksum,
+      config_ok: config_ok,
+      hook_detectado: hook_detectado,
+      hook_confiado: hook_confiado,
+      probe_public: probe_public,
+      bypass: bypass,
+      path_negs: path_negs,
+      normalized: normalized,
+      negacoes: negacoes,
+      avisos: avisos,
+      timestamp: opts[:timestamp] || Time.now.utc
+    )
+  end
+
+  def denied_bootstrap_report(policy, mode, code, message)
+    negacoes = [{ 'codigo' => code, 'mensagem' => message }]
+    finalize_report(
+      status: 'denied',
+      policy: policy,
+      mode: mode,
+      worktree: ROOT,
+      presente: false,
+      dcg_path: nil,
+      versao_obs: nil,
+      versao_esp: policy['versao_esperada'].to_s,
+      checksum_obs: nil,
+      expected_checksum: nil,
+      config_ok: File.file?(CONFIG_PATH),
+      hook_detectado: false,
+      hook_confiado: 'unknown',
+      probe_public: {
+        'executado' => false,
+        'modo' => 'dcg test --format json',
+        'resultado' => 'skipped',
+        'comando_amostra' => 'git reset --hard'
+      },
+      bypass: [],
+      path_negs: [],
+      normalized: [],
+      negacoes: negacoes,
+      avisos: ['REPORT_IS_NOT_CREDENTIAL'],
+      timestamp: Time.now.utc
+    )
+  end
+
+  def finalize_report(status:, policy:, mode:, worktree:, presente:, dcg_path:, versao_obs:, versao_esp:,
+                      checksum_obs:, expected_checksum:, config_ok:, hook_detectado:, hook_confiado:,
+                      probe_public:, bypass:, path_negs:, normalized:, negacoes:, avisos:, timestamp:)
+    avisos = (avisos + ['REPORT_IS_NOT_CREDENTIAL', 'AGENT_RUNTIME_DISABLED_IN_3B_3A']).uniq
     report = {
       'status' => status,
       'contrato_versao' => policy['contrato_versao'].to_s,
-      'timestamp' => (opts[:timestamp] || Time.now.utc).iso8601,
+      'timestamp' => timestamp.iso8601,
       'repo_root' => ROOT,
       'worktree_realpath' => worktree,
       'git_head' => git_head,
@@ -290,12 +384,17 @@ module RuntimeSafetyPreflight
   end
 
   def validate_report!(report, expect_worktree: nil, ttl_seconds: nil, now: Time.now.utc)
+    # Diagnóstico only: schema/TTL/hash/scope. NÃO concede autorização de runtime.
     schema = JSON.parse(File.read(SCHEMA_PATH))
     MissionPlanner.send(:validate_against_schema!, report, schema)
 
     policy = load_policy
     ttl = ttl_seconds || policy['preflight_ttl_segundos'].to_i
-    ts = Time.parse(report.fetch('timestamp'))
+    begin
+      ts = Time.parse(report.fetch('timestamp'))
+    rescue ArgumentError
+      raise Denied.new('RUNTIME_SAFETY_TIMESTAMP_INVALID', 'timestamp inválido no relatório')
+    end
     age = now - ts
     if age > ttl || age < -60
       raise Denied.new('RUNTIME_SAFETY_REPORT_EXPIRED', "relatório expirado (age=#{age.to_i}s ttl=#{ttl})")
@@ -306,9 +405,16 @@ module RuntimeSafetyPreflight
       raise Denied.new('RUNTIME_SAFETY_HASH_MISMATCH', 'hash do relatório adulterado')
     end
 
-    wt = expect_worktree ? File.realpath(expect_worktree) : File.realpath(ROOT)
-    unless File.realpath(report.fetch('worktree_realpath')) == wt &&
-           File.realpath(report.fetch('repo_root')) == File.realpath(ROOT)
+    begin
+      wt = expect_worktree ? File.realpath(expect_worktree) : File.realpath(ROOT)
+      report_wt = File.realpath(report.fetch('worktree_realpath'))
+      report_root = File.realpath(report.fetch('repo_root'))
+      root_real = File.realpath(ROOT)
+    rescue SystemCallError
+      raise Denied.new('RUNTIME_SAFETY_SCOPE_MISMATCH', 'realpath inválido no escopo do relatório')
+    end
+
+    unless report_wt == wt && report_root == root_real
       raise Denied.new('RUNTIME_SAFETY_SCOPE_MISMATCH', 'repo/worktree divergente')
     end
 

@@ -14,7 +14,7 @@ module AgentPathGuard
     end
   end
 
-  MAX_PERCENT_ROUNDS = 3
+  MAX_PERCENT_ROUNDS = 1
 
   PROTECTED_PREFIXES = [
     '.agents/seguranca/',
@@ -23,7 +23,8 @@ module AgentPathGuard
     'scripts/runtime-safety-preflight.rb',
     'scripts/validate-runtime-safety.rb',
     'scripts/test-runtime-safety.rb',
-    'scripts/lib/agent_path_guard.rb'
+    'scripts/lib/agent_path_guard.rb',
+    'scripts/lib/agent_command_guard.rb'
   ].freeze
 
   def self.normalize_path_list(paths, worktree_root:)
@@ -89,27 +90,24 @@ module AgentPathGuard
     end
   end
 
+  # Single-pass percent-decode. Double encoding and malformed %HH are denied.
+  # Literal '%' encoded as %25 is allowed (decodes to '%' without remaining %HH).
   def self.limited_percent_decode(input)
-    current = input
-    MAX_PERCENT_ROUNDS.times do
-      raise Denial.new('PATH_PERCENT_ENCODING_INVALID', 'percent-encoding inválido') if current.match?(/%(?![0-9A-Fa-f]{2})/)
+    raise Denial.new('PATH_PERCENT_ENCODING_INVALID', 'percent-encoding inválido') if input.match?(/%(?![0-9A-Fa-f]{2})/)
 
-      decoded = current.gsub(/%([0-9A-Fa-f]{2})/) { [::Regexp.last_match(1)].pack('H*') }
-      decoded.force_encoding(Encoding::UTF_8)
-      raise Denial.new('PATH_INVALID_ENCODING', 'UTF-8 inválido no percent-decode') unless decoded.valid_encoding?
-      break if decoded == current
+    decoded = input.gsub(/%([0-9A-Fa-f]{2})/) { [::Regexp.last_match(1)].pack('H*') }
+    decoded.force_encoding(Encoding::UTF_8)
+    raise Denial.new('PATH_INVALID_ENCODING', 'UTF-8 inválido no percent-decode') unless decoded.valid_encoding?
 
-      current = decoded
+    if decoded.match?(/%[0-9A-Fa-f]{2}/)
+      raise Denial.new('PATH_PERCENT_ENCODING_INVALID', 'double percent-encoding detectado')
     end
-    if current.match?(/%[0-9A-Fa-f]{2}/)
-      raise Denial.new('PATH_PERCENT_ENCODING_INVALID', 'percent-encoding excede limite de rounds')
-    end
-    current
+    decoded
   end
   private_class_method :limited_percent_decode
 
   def self.reject_absolute!(s)
-    if s.start_with?('/') || s.match?(/\A[a-zA-Z]:[\/]/) || s.start_with?('//')
+    if s.start_with?('/') || s.match?(/\A[a-zA-Z]:/) || s.start_with?('//')
       raise Denial.new('PATH_ABSOLUTE_DENIED', "caminho absoluto proibido: #{s}")
     end
   end

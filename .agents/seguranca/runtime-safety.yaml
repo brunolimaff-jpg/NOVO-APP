@@ -1,5 +1,7 @@
 # Runtime Safety Preflight — política project-local (Fase 3B.3A)
 # DCG é segunda barreira, não autorização primária de missão.
+# Relatório SHA-256 detecta adulteração, NÃO autentica origem nem concede runtime.
+# --agent-runtime permanece hard-disabled (AGENT_RUNTIME_NOT_ENABLED) nesta fase.
 # Não versionar binário. Não baixar artefato em CI. Não alterar hooks globais.
 
 contrato_versao: '1.0.0'
@@ -8,13 +10,19 @@ ferramenta: destructive-command-guard
 versao_esperada: '0.6.6'
 origem_oficial: 'https://github.com/Dicklesworthstone/destructive_command_guard'
 release_url: 'https://github.com/Dicklesworthstone/destructive_command_guard/releases/tag/v0.6.6'
+instalacao_manual: '.agents/seguranca/INSTALACAO-DCG-MACOS.md'
+
+# Plataforma principal do Bruno: Darwin arm64. x86_64-darwin = compat.
+plataforma_principal: aarch64-apple-darwin
+plataformas_compat:
+  - x86_64-apple-darwin
 
 # SHA256 dos artefatos oficiais (SHA256SUMS da release v0.6.6). CI não baixa.
 checksums_esperados:
+  aarch64-apple-darwin: '0d94fc8227d41521b27e9fe51e1bcd323a855fbe0df1a42fa17b2dc841c5c1ae'
+  x86_64-apple-darwin: 'dfac705093f85fbc3b99efb4c679f7ae0447620f060a75033a93b7e359a851bb'
   x86_64-unknown-linux-musl: 'd159ca99c20b2038bd61ad026e842e7b59870c9fab7593830c8481e0431d15ec'
   aarch64-unknown-linux-gnu: '9f1f57e8a6f5e8a548b5031836f68b91be83bbd7e0ce6a1932dc4eee4003c9bc'
-  x86_64-apple-darwin: 'dfac705093f85fbc3b99efb4c679f7ae0447620f060a75033a93b7e359a851bb'
-  aarch64-apple-darwin: '0d94fc8227d41521b27e9fe51e1bcd323a855fbe0df1a42fa17b2dc841c5c1ae'
   x86_64-pc-windows-msvc: '1c1a81104c25c03a73943c03e3cf364ea436e85b3632aea619951b097f0f3158'
 
 config_project_local: '.agents/seguranca/.dcg.toml'
@@ -24,25 +32,28 @@ hooks_exigidos:
     matcher: Bash
     comando: dcg
     notas: >
-      Trust do hook não é verificável de forma programática confiável no upstream
-      para todos os agentes. Sem evidência → hook_confiado=unknown → status denied.
-      Passo humano: confirmar hook dcg em settings do agente e /hooks-trust quando aplicável.
+      Integração oficial Codex: PreToolUse Bash → dcg (~/.codex/hooks.json).
+      Trust não é verificável de forma programática confiável → hook_confiado=unknown
+      → status denied. Passo humano: INSTALACAO-DCG-MACOS.md.
 
 packs_exigidos:
   - core.git
   - core.filesystem
 
-# Escape hatch oficial (README): DCG_BYPASS=1
-# DCG_DISABLE / packs.disabled via env enfraquecem proteção → tratar como bypass.
 bypass_env_proibidas:
   - DCG_BYPASS
   - DCG_DISABLE
 
 fail_closed: true
+# Fail-open interno do DCG NÃO substitui o agent_command_guard fail-closed.
+dcg_fail_open_nao_substitui_guard: true
 preflight_ttl_segundos: 900
 
-# Quando null, preflight usa realpath do repo atual e registra no relatório.
 worktree_esperada: null
+
+# Sem checksum conhecido para a plataforma → DCG_CHECKSUM_PLATFORM_UNKNOWN (denied)
+# ou unavailable se o binário não estiver presente.
+plataforma_sem_checksum: denied
 
 superficies_protegidas:
   - .agents/seguranca/
@@ -53,16 +64,22 @@ superficies_protegidas:
   - scripts/validate-runtime-safety.rb
   - scripts/test-runtime-safety.rb
   - scripts/lib/agent_path_guard.rb
+  - scripts/lib/agent_command_guard.rb
 
 probe:
   modo_oficial: 'dcg test --format json'
   comando_amostra: 'git reset --hard'
   esperado: blocked
   nota: >
-    Nunca executar o comando destrutivo no shell. Apenas `dcg test` (sem execução).
-    Se o modo de inspeção estiver indisponível → probe unsupported → status denied.
+    Nunca executar o comando destrutivo no shell. Apenas `dcg test` / `dcg explain`.
 
 passo_humano_hook_trust: >
-  Confirmar que o hook PreToolUse do agente aponta para o binário dcg pinado
-  e completar qualquer confirmação de trust exigida pelo agente (ex.: /hooks-trust).
-  Não simular confirmação no preflight.
+  Ver .agents/seguranca/INSTALACAO-DCG-MACOS.md. Não simular trust no preflight.
+
+contrato_relatorio:
+  hash_detecta_adulteracao: true
+  hash_autentica_origem: false
+  relatorio_concede_autorizacao: false
+  modo_fixture_nao_e_live: true
+  hook_confiado_json_nao_e_prova: true
+  runtime_habilitado_somente_em: '3B.3B'

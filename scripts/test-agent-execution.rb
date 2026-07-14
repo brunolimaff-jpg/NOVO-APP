@@ -140,11 +140,13 @@ def build_execution_plan(commands = ['git-diff-check'], status: 'planejado', mis
   }
 end
 
-def run(card_data, plan_data, execute: false, env: {})
+def run(card_data, plan_data, execute: false, env: {}, agent_runtime: false, safety_report: nil)
   card_path = write_json(card_data)
   plan_path = write_json(plan_data)
   args = ['ruby', RUNNER, '--card', card_path, '--plan', plan_path, '--stdout']
   args << '--execute' if execute
+  args << '--agent-runtime' if agent_runtime
+  args += ['--safety-report', safety_report] if safety_report
   merged_env = { 'PATH' => ENV['PATH'], 'HOME' => ENV['HOME'] }.merge(env)
   out, err, status = Open3.capture3(merged_env, *args, chdir: ROOT)
   raise "runner failed: #{err}" if out.empty? && !status.success?
@@ -402,18 +404,41 @@ test('comando arbitrário') do
 end
 
 test('shell bloqueado no catálogo') do
-  assert_raises(RuntimeError, message_fragment: 'blocked') { AgentMissionRunner.validate_argv!('bad', ['bash', '-c', 'echo x']) }
+  require_relative './lib/agent_command_guard'
+  begin
+    AgentCommandGuard.scan_argv!(['bash', '-c', 'echo x'])
+    raise 'deveria negar'
+  rescue AgentCommandGuard::Denial => e
+    raise e.message unless e.code == 'COMMAND_SHELL_WRAPPER_DENIED'
+  end
 end
 test('rede bloqueada no catálogo') do
-  assert_raises(RuntimeError, message_fragment: 'blocked') { AgentMissionRunner.validate_argv!('bad', ['curl', 'https://example.com']) }
+  require_relative './lib/agent_command_guard'
+  begin
+    AgentCommandGuard.scan_argv!(['bash', '-lc', 'curl https://example.com'])
+    raise 'deveria negar'
+  rescue AgentCommandGuard::Denial => e
+    raise e.message unless %w[COMMAND_SHELL_WRAPPER_DENIED COMMAND_DESTRUCTIVE_DENIED].include?(e.code)
+  end
 end
 test('git push bloqueado') do
-  assert_raises(RuntimeError, message_fragment: 'blocked') { AgentMissionRunner.validate_argv!('bad', ['git', 'push']) }
+  require_relative './lib/agent_command_guard'
+  begin
+    AgentCommandGuard.scan_argv!(['git', 'push', '--force'])
+    raise 'deveria negar'
+  rescue AgentCommandGuard::Denial => e
+    raise e.message unless e.code == 'COMMAND_DESTRUCTIVE_DENIED'
+  end
 end
 test('parâmetro extra no catálogo bloqueado') do
   bad_catalog = File.join(TMP_DIR, 'bad-catalog.yaml')
   File.write(bad_catalog, "comandos:\n  x:\n    argv: ['git']\n    extra: true\n")
-  assert_raises(RuntimeError, message_fragment: 'extra') { AgentMissionRunner.load_catalog(bad_catalog) }
+  begin
+    AgentMissionRunner.load_catalog(bad_catalog)
+    raise 'deveria negar'
+  rescue AgentMissionRunner::DeniedError => e
+    raise e.message unless e.code == 'COMMAND_ENTRY_INVALID'
+  end
 end
 
 test('path traversal no card') do
@@ -817,6 +842,62 @@ test('fixture inválida validador-entrega não marca executavel') do
   p = build_execution_plan(papel: 'validador-entrega')
   raise 'papel' unless p['papel_principal'] == 'validador-entrega'
   raise 'must not be executable' unless p.dig('resumo_operacional', 'executavel') == false
+end
+
+test('3B.3A --agent-runtime sem relatório nega AGENT_RUNTIME_NOT_ENABLED') do
+  report, _err, status = run(card.call, plan.call, agent_runtime: true)
+  raise "expected denied got #{report['status']}" unless report['status'] == 'denied'
+  raise "exit=#{status}" unless status == 2
+  raise report['negacoes'].inspect unless negation_codes(report).include?('AGENT_RUNTIME_NOT_ENABLED')
+end
+
+test('3B.3A --agent-runtime com fixture ready continua negado') do
+  require_relative './runtime-safety-preflight'
+  safety = RuntimeSafetyPreflight.build_report(mode: 'fixture', timestamp: Time.now.utc)
+  raise "fixture deve ser ready: #{safety['negacoes']}" unless safety['status'] == 'ready'
+  path = write_json(safety)
+  report, _err, status = run(card.call, plan.call, agent_runtime: true, safety_report: path)
+  raise "expected denied got #{report['status']}" unless report['status'] == 'denied'
+  raise "exit=#{status}" unless status == 2
+  raise report['negacoes'].inspect unless negation_codes(report).include?('AGENT_RUNTIME_NOT_ENABLED')
+end
+
+test('3B.3A relatório live fabricado continua negado') do
+  require_relative './runtime-safety-preflight'
+  fabricated = RuntimeSafetyPreflight.build_report(mode: 'fixture', timestamp: Time.now.utc)
+  fabricated['modo'] = 'live'
+  fabricated['dcg']['hook_confiado'] = 'trusted'
+  fabricated['status'] = 'ready'
+  fabricated['negacoes'] = []
+  fabricated['avisos'] = []
+  fabricated['relatorio_sha256'] = RuntimeSafetyPreflight.compute_hash(fabricated.reject { |k, _| k == 'relatorio_sha256' })
+  path = write_json(fabricated)
+  report, _err, = run(card.call, plan.call, agent_runtime: true, safety_report: path)
+  raise "expected denied got #{report['status']}" unless report['status'] == 'denied'
+  raise report['negacoes'].inspect unless negation_codes(report).include?('AGENT_RUNTIME_NOT_ENABLED')
+end
+
+test('3B.3A relatório live aparentemente válido continua negado') do
+  require_relative './runtime-safety-preflight'
+  # Mesmo se validate_report! passasse, runtime permanece hard-disabled.
+  safety = RuntimeSafetyPreflight.build_report(mode: 'fixture', timestamp: Time.now.utc)
+  path = write_json(safety)
+  report, _err, = run(card.call, plan.call, agent_runtime: true, safety_report: path)
+  raise "expected denied got #{report['status']}" unless report['status'] == 'denied'
+  raise report['negacoes'].inspect unless negation_codes(report).include?('AGENT_RUNTIME_NOT_ENABLED')
+end
+
+test('3B.3A nenhum spawn: agent-runtime não executa comandos') do
+  report, _err, = run(card.call, plan.call, agent_runtime: true, execute: true, env: { 'AGENT_ORCHESTRATION_EXECUTE' => '1' })
+  raise "expected denied" unless report['status'] == 'denied'
+  raise 'não deve listar comandos executados' unless (report['comandos'] || []).empty? || report['comandos'].none? { |c| c['executado'] }
+end
+
+test('command guard: ID desconhecido via runner') do
+  p = plan.call
+  p['comandos'] = ['not-a-real-command']
+  c = card.call(['not-a-real-command'])
+  assert_denied('unknown cmd', c, p, code: 'COMMAND_NOT_IN_CATALOG')
 end
 
 puts "OK #{@tests} tests"

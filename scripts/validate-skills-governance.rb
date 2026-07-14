@@ -36,6 +36,7 @@ module SkillsGovernanceValidator
     'scripts/validate-runtime-safety.rb',
     'scripts/test-runtime-safety.rb',
     'scripts/lib/agent_path_guard.rb',
+    'scripts/lib/agent_command_guard.rb',
     'scripts/hook-sensitive-file-alert.sh',
     '.claude/settings.json',
     '.cursor/hooks.json',
