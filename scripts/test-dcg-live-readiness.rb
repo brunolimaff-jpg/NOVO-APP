@@ -359,7 +359,12 @@ end
 
 # 19
 test('19 relatório externo não concede trust') do
-  report = RuntimeSafetyPreflight.build_report(mode: 'live', timestamp: Time.now.utc)
+  missing = File.join(TMP, 'no-trust-hooks.json')
+  report = RuntimeSafetyPreflight.build_report(
+    mode: 'live',
+    timestamp: Time.now.utc,
+    hooks_path: missing
+  )
   assert report['dcg']['hook_confiado'] != 'trusted'
   # Even if we forge, validate_report must not authorize — check comment path:
   forged = report.merge('dcg' => report['dcg'].merge('hook_confiado' => 'trusted', 'hook_detectado' => true))
@@ -371,7 +376,12 @@ end
 
 # 20
 test('20 fixture não concede trust em live') do
-  report = RuntimeSafetyPreflight.build_report(mode: 'live', timestamp: Time.now.utc)
+  missing = File.join(TMP, 'no-fixture-trust-hooks.json')
+  report = RuntimeSafetyPreflight.build_report(
+    mode: 'live',
+    timestamp: Time.now.utc,
+    hooks_path: missing
+  )
   assert report['dcg']['hook_confiado'] != 'fixture'
   assert report['modo'] == 'live'
 end
