@@ -140,12 +140,14 @@ def build_execution_plan(commands = ['git-diff-check'], status: 'planejado', mis
   }
 end
 
-def run(card_data, plan_data, execute: false, env: {}, agent_runtime: false, safety_report: nil)
+def run(card_data, plan_data, execute: false, env: {}, agent_runtime: false, safety_report: nil, runtime_ack: nil, worktree: nil)
   card_path = write_json(card_data)
   plan_path = write_json(plan_data)
   args = ['ruby', RUNNER, '--card', card_path, '--plan', plan_path, '--stdout']
   args << '--execute' if execute
   args << '--agent-runtime' if agent_runtime
+  args += ['--runtime-ack', runtime_ack] if runtime_ack
+  args += ['--worktree', worktree] if worktree
   args += ['--safety-report', safety_report] if safety_report
   merged_env = { 'PATH' => ENV['PATH'], 'HOME' => ENV['HOME'] }.merge(env)
   out, err, status = Open3.capture3(merged_env, *args, chdir: ROOT)
@@ -844,14 +846,14 @@ test('fixture inválida validador-entrega não marca executavel') do
   raise 'must not be executable' unless p.dig('resumo_operacional', 'executavel') == false
 end
 
-test('3B.3A --agent-runtime sem relatório nega AGENT_RUNTIME_NOT_ENABLED') do
+test('3B.3B --agent-runtime sem ack nega AGENT_RUNTIME_ACK_REQUIRED') do
   report, _err, status = run(card.call, plan.call, agent_runtime: true)
   raise "expected denied got #{report['status']}" unless report['status'] == 'denied'
   raise "exit=#{status}" unless status == 2
-  raise report['negacoes'].inspect unless negation_codes(report).include?('AGENT_RUNTIME_NOT_ENABLED')
+  raise report['negacoes'].inspect unless negation_codes(report).include?('AGENT_RUNTIME_ACK_REQUIRED')
 end
 
-test('3B.3A --agent-runtime com fixture ready continua negado') do
+test('3B.3B --agent-runtime com fixture ready sem ack continua negado') do
   require_relative './runtime-safety-preflight'
   safety = RuntimeSafetyPreflight.build_report(mode: 'fixture', timestamp: Time.now.utc)
   raise "fixture deve ser ready: #{safety['negacoes']}" unless safety['status'] == 'ready'
@@ -859,10 +861,10 @@ test('3B.3A --agent-runtime com fixture ready continua negado') do
   report, _err, status = run(card.call, plan.call, agent_runtime: true, safety_report: path)
   raise "expected denied got #{report['status']}" unless report['status'] == 'denied'
   raise "exit=#{status}" unless status == 2
-  raise report['negacoes'].inspect unless negation_codes(report).include?('AGENT_RUNTIME_NOT_ENABLED')
+  raise report['negacoes'].inspect unless negation_codes(report).include?('AGENT_RUNTIME_ACK_REQUIRED')
 end
 
-test('3B.3A relatório live fabricado continua negado') do
+test('3B.3B relatório live fabricado sem três chaves continua negado') do
   require_relative './runtime-safety-preflight'
   fabricated = RuntimeSafetyPreflight.build_report(mode: 'fixture', timestamp: Time.now.utc)
   fabricated['modo'] = 'live'
@@ -874,20 +876,17 @@ test('3B.3A relatório live fabricado continua negado') do
   path = write_json(fabricated)
   report, _err, = run(card.call, plan.call, agent_runtime: true, safety_report: path)
   raise "expected denied got #{report['status']}" unless report['status'] == 'denied'
-  raise report['negacoes'].inspect unless negation_codes(report).include?('AGENT_RUNTIME_NOT_ENABLED')
+  raise report['negacoes'].inspect unless negation_codes(report).include?('AGENT_RUNTIME_ACK_REQUIRED')
 end
 
-test('3B.3A relatório live aparentemente válido continua negado') do
-  require_relative './runtime-safety-preflight'
-  # Mesmo se validate_report! passasse, runtime permanece hard-disabled.
-  safety = RuntimeSafetyPreflight.build_report(mode: 'fixture', timestamp: Time.now.utc)
-  path = write_json(safety)
-  report, _err, = run(card.call, plan.call, agent_runtime: true, safety_report: path)
+test('3B.3B ack sem env nega AGENT_RUNTIME_ENV_REQUIRED') do
+  report, _err, status = run(card.call, plan.call, agent_runtime: true, runtime_ack: 'RUN_SINGLE_AGENT')
   raise "expected denied got #{report['status']}" unless report['status'] == 'denied'
-  raise report['negacoes'].inspect unless negation_codes(report).include?('AGENT_RUNTIME_NOT_ENABLED')
+  raise "exit=#{status}" unless status == 2
+  raise report['negacoes'].inspect unless negation_codes(report).include?('AGENT_RUNTIME_ENV_REQUIRED')
 end
 
-test('3B.3A nenhum spawn: agent-runtime não executa comandos') do
+test('3B.3B nenhum spawn: agent-runtime incompleto não executa comandos') do
   report, _err, = run(card.call, plan.call, agent_runtime: true, execute: true, env: { 'AGENT_ORCHESTRATION_EXECUTE' => '1' })
   raise "expected denied" unless report['status'] == 'denied'
   raise 'não deve listar comandos executados' unless (report['comandos'] || []).empty? || report['comandos'].none? { |c| c['executado'] }
