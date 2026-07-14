@@ -1,5 +1,13 @@
 # decisions.md — NOVO-APP
 
+## Novas Decisões (Sessão 2026-07-13 — Fase 3B.3B)
+
+### DI-2026-07-13-15: Runtime Codex só com três chaves + preflight live
+
+- **Decisão:** Spawn single-agent exige simultaneamente `--agent-runtime`, `--runtime-ack RUN_SINGLE_AGENT` e `AGENT_RUNTIME_EXECUTE=1`. Relatório externo é evidência, não credencial. Preflight **live** interno imediatamente antes do spawn; DCG obrigatório para `workspace-write`; hook não verificado → bloqueio (`DCG_HOOK_NOT_VERIFIED`). Um agente, um writer (`executor-escopo`), sem subdelegação/rede/multi-agent. Codex via argv/`Open3` (CLI testada 0.144.0). Testes usam fake Codex só com env de teste exclusiva.
+- **Impacto:** Substitui hard-deny `AGENT_RUNTIME_NOT_ENABLED` da 3B.3A pela barreira tripla da 3B.3B.
+- **Referência:** `.agents/seguranca/CODEX-RUNTIME.md`, `scripts/lib/codex_single_agent_runtime.rb`
+
 ## Novas Decisões (Sessão 2026-07-13 — Fase 3B.3A)
 
 ### DI-2026-07-13-14: DCG é barreira secundária; preflight fail-closed

@@ -1,37 +1,36 @@
-# Handoff — Fase 3B.3A (Runtime Safety Preflight)
+# Handoff — Fase 3B.3B (Runtime Codex single-agent)
 
 > **Atualizado:** 2026-07-13
-> **Branch:** `feat/fase-3b3a-runtime-safety-preflight`
-> **Baseline main:** `b7c6f671` (squash PR #427 — Fase 3B.2B)
-> **Próxima etapa:** 3B.3B (runtime supervisionado) — **não iniciada**
+> **Branch:** `feat/fase-3b3b-single-agent-runtime`
+> **Baseline main:** `2239975a` (squash PR #428 — Fase 3B.3A)
+> **Próxima etapa:** 3B.3C — **não iniciada**
 
 ## Estado
 
-| Fase  | Status                         | Entrega                                                            |
-| ----- | ------------------------------ | ------------------------------------------------------------------ |
-| 3B.2A | **MERGED** `#426` → `9f72b694` | topologia, `executavel`, runner `PLAN_NOT_EXECUTABLE`              |
-| 3B.2B | **MERGED** `#427` → `b7c6f671` | estratégia/tarefas explícitas; limites fail-closed                 |
-| 3B.3A | **em andamento**               | path hardening + DCG policy + preflight determinístico (sem spawn) |
-| 3B.3B | não iniciada                   | spawn supervisionado / handoff runtime                             |
+| Fase  | Status                         | Entrega                                                                |
+| ----- | ------------------------------ | ---------------------------------------------------------------------- |
+| 3B.3A | **MERGED** `#428` → `2239975a` | path hardening + DCG policy + preflight (sem spawn)                    |
+| 3B.3B | **em andamento**               | runtime Codex single-agent controlado (fake em testes; sem Codex real) |
+| 3B.3C | não iniciada                   | piloto supervisionado / correção automática                            |
 
-### Contagens (head 3B.3A)
+## Princípio 3B.3B
 
-- Orquestração: **133**
-- Executor: **58**
-- Skills Governance: **32**
-- Codex harness: **37**
-- Runtime Safety: **28**
+Runtime desligado por padrão. Só avança com **três chaves simultâneas**:
 
-## Princípio 3B.3A
+1. `--agent-runtime`
+2. `--runtime-ack RUN_SINGLE_AGENT`
+3. `AGENT_RUNTIME_EXECUTE=1`
 
-Barreira fail-closed **antes** de qualquer spawn real. DCG é segunda barreira, não autorização primária. Nenhum runtime de agente autorizado nesta fase.
+Relatório externo de preflight **não** autoriza. Imediatamente antes do spawn o runner refaz preflight **live**. DCG obrigatório para `workspace-write`. Codex só via argv/`Open3` (sem shell). Um agente, um writer, worktree isolada. Pós-execução: planejado × observado (escopo, HEAD, commit, protegidos).
 
-## DI-2026-07-13-12
+## Codex testado
 
-Path hardening canônico (UTF-8, null byte, percent-decode limitado, NFC, realpath/ancestral, symlink escape) — atendido nesta fase.
+- CLI: **0.144.0**
+- Doc: `.agents/seguranca/CODEX-RUNTIME.md`
+- Capacidades: `exec` + `-C` + `-s workspace-write` + `-c approval_policy=never` + `-c sandbox_workspace_write.network_access=false` + `--json` + prompt via stdin `-`
 
 ## Não fazer
 
-- Spawn real / `codex exec` / instalação global de DCG / curl\|bash
-- Alteração de hooks globais do usuário
-- Iniciar 3B.3B / merge sem **MERGE**
+- Codex real nesta PR / instalação global de DCG / alterar hooks globais
+- Multi-agent, subdelegação, commit/push/PR/merge/deploy automáticos
+- Iniciar 3B.3C / merge sem **MERGE**
