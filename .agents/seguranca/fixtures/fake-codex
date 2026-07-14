@@ -1,0 +1,111 @@
+#!/usr/bin/env bash
+# Fake Codex for AGENT_RUNTIME_TEST_CODEX=1 only. Not discovered by production runner.
+set -euo pipefail
+
+SCENARIO="${AGENT_RUNTIME_FAKE_SCENARIO:-success-noop}"
+WRITE_PATH="${AGENT_RUNTIME_FAKE_WRITE_PATH:-tmp/fake-write.txt}"
+PROTECTED_PATH="${AGENT_RUNTIME_FAKE_PROTECTED_PATH:-scripts/lib/agent_path_guard.rb}"
+
+if [[ "${1:-}" == "--version" ]]; then
+  if [[ "$SCENARIO" == "bad-version" ]]; then
+    echo "codex-cli 0.0.1"
+  else
+    echo "codex-cli 0.144.0"
+  fi
+  exit 0
+fi
+
+if [[ "${1:-}" == "exec" && "${2:-}" == "--help" ]]; then
+  if [[ "$SCENARIO" == "help-missing-capability" ]]; then
+    cat <<'EOF'
+Usage: codex exec [OPTIONS]
+  --json
+EOF
+    exit 0
+  fi
+  cat <<'EOF'
+Run Codex non-interactively
+Usage: codex exec [OPTIONS] [PROMPT]
+  -C, --cd <DIR>
+  -s, --sandbox <SANDBOX_MODE>
+          [possible values: read-only, workspace-write, danger-full-access]
+  -c, --config <key=value>
+      --json
+EOF
+  exit 0
+fi
+
+# Parse minimal exec argv; cwd already set by parent via chdir.
+shift || true # exec
+WORKDIR="$(pwd)"
+
+# Consume stdin prompt
+PROMPT="$(cat || true)"
+PROMPT_LEN=${#PROMPT}
+
+case "$SCENARIO" in
+  success-noop)
+    echo "{\"ok\":true,\"prompt_len\":$PROMPT_LEN}"
+    exit 0
+    ;;
+  write-in-scope)
+    mkdir -p "$(dirname "$WORKDIR/$WRITE_PATH")"
+    echo "fake-in-scope" > "$WORKDIR/$WRITE_PATH"
+    echo '{"ok":true,"wrote":"in-scope"}'
+    exit 0
+    ;;
+  write-out-of-scope)
+    mkdir -p "$WORKDIR/tmp"
+    echo "out" > "$WORKDIR/tmp/out-of-scope.txt"
+    echo '{"ok":true,"wrote":"out-of-scope"}'
+    exit 0
+    ;;
+  write-protected)
+    echo "mutated" >> "$WORKDIR/$PROTECTED_PATH"
+    echo '{"ok":true,"wrote":"protected"}'
+    exit 0
+    ;;
+  create-commit)
+    mkdir -p "$WORKDIR/tmp"
+    echo "commit-me" > "$WORKDIR/tmp/commit-me.txt"
+    git -C "$WORKDIR" add tmp/commit-me.txt
+    git -C "$WORKDIR" -c user.email=fake@test -c user.name=fake commit -m "fake commit" >/dev/null 2>&1 || true
+    echo '{"ok":true,"commit":true}'
+    exit 0
+    ;;
+  change-head)
+    # orphan commit then reset soft keeps dirty; use empty commit and stay
+    git -C "$WORKDIR" -c user.email=fake@test -c user.name=fake commit --allow-empty -m "fake head" >/dev/null 2>&1 || true
+    echo '{"ok":true,"head":true}'
+    exit 0
+    ;;
+  excess-stdout)
+    python3 - <<'PY'
+print("X" * (1024 * 1024 + 100))
+PY
+    exit 0
+    ;;
+  excess-stderr)
+    python3 - <<'PY'
+import sys
+sys.stderr.write("E" * (1024 * 1024 + 100))
+PY
+    exit 0
+    ;;
+  error)
+    echo "boom" >&2
+    exit 7
+    ;;
+  timeout)
+    sleep 120
+    exit 0
+    ;;
+  signal)
+    kill -TERM $$
+    exit 1
+    ;;
+  *)
+    echo "unknown scenario: $SCENARIO" >&2
+    exit 2
+    ;;
+esac

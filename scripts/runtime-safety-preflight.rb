@@ -243,15 +243,26 @@ module RuntimeSafetyPreflight
     end
 
     # Hook trust: without programmatic evidence → unknown (fail-closed).
-    hook_detectado = mode == 'fixture' && File.file?(File.join(ROOT, '.agents/seguranca/fixtures/hook-marker.json'))
+    # Never trust hook_confiado from an external JSON report — only local evidence.
+    hook_marker = File.file?(File.join(ROOT, '.agents/seguranca/fixtures/hook-marker.json'))
+    hook_detectado =
+      if mode == 'fixture'
+        hook_marker
+      elsif opts[:allow_test_hook] && ENV['AGENT_RUNTIME_TEST_PREFLIGHT'] == '1'
+        hook_marker
+      else
+        false
+      end
     hook_confiado =
       if mode == 'fixture' && hook_detectado
         'fixture'
+      elsif opts[:allow_test_hook] && ENV['AGENT_RUNTIME_TEST_PREFLIGHT'] == '1' && hook_detectado
+        'verified-test'
       else
         'unknown'
       end
 
-    unless mode == 'fixture' && hook_confiado == 'fixture'
+    unless hook_confiado == 'fixture' || hook_confiado == 'verified-test'
       negacoes << {
         'codigo' => 'DCG_HOOK_TRUST_UNKNOWN',
         'mensagem' => policy['passo_humano_hook_trust'].to_s.strip
@@ -348,7 +359,7 @@ module RuntimeSafetyPreflight
   def finalize_report(status:, policy:, mode:, worktree:, presente:, dcg_path:, versao_obs:, versao_esp:,
                       checksum_obs:, expected_checksum:, config_ok:, hook_detectado:, hook_confiado:,
                       probe_public:, bypass:, path_negs:, normalized:, negacoes:, avisos:, timestamp:)
-    avisos = (avisos + ['REPORT_IS_NOT_CREDENTIAL', 'AGENT_RUNTIME_DISABLED_IN_3B_3A']).uniq
+    avisos = (avisos + ['REPORT_IS_NOT_CREDENTIAL', 'REPORT_DOES_NOT_AUTHORIZE_RUNTIME']).uniq
     report = {
       'status' => status,
       'contrato_versao' => policy['contrato_versao'].to_s,

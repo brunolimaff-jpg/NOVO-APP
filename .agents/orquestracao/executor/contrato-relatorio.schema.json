@@ -2,14 +2,33 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "Relatório de Execução Controlada",
   "type": "object",
-  "required": ["versao", "missao_id", "plan_hash", "modo", "status", "inicio", "fim", "duracao_ms", "comandos", "negacoes", "avisos", "evidencias"],
+  "required": [
+    "versao",
+    "missao_id",
+    "plan_hash",
+    "modo",
+    "status",
+    "inicio",
+    "fim",
+    "duracao_ms",
+    "comandos",
+    "negacoes",
+    "avisos",
+    "evidencias"
+  ],
   "additionalProperties": false,
   "properties": {
     "versao": { "type": "integer", "const": 1 },
     "missao_id": { "type": "string", "minLength": 1 },
     "plan_hash": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
-    "modo": { "type": "string", "enum": ["dry-run", "execute"] },
-    "status": { "type": "string", "enum": ["dry-run", "success", "failure", "denied", "timeout", "internal-error"] },
+    "safety_report_hash": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "prompt_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "relatorio_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "modo": { "type": "string", "enum": ["dry-run", "execute", "agent-runtime"] },
+    "status": {
+      "type": "string",
+      "enum": ["dry-run", "success", "failure", "denied", "timeout", "internal-error", "unavailable"]
+    },
     "inicio": { "type": "string" },
     "fim": { "type": "string" },
     "duracao_ms": { "type": "integer", "minimum": 0 },
@@ -17,7 +36,17 @@
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["id", "argv", "executado", "exit_code", "timeout", "stdout_sha256", "stderr_sha256", "stdout_truncado", "stderr_truncado"],
+        "required": [
+          "id",
+          "argv",
+          "executado",
+          "exit_code",
+          "timeout",
+          "stdout_sha256",
+          "stderr_sha256",
+          "stdout_truncado",
+          "stderr_truncado"
+        ],
         "additionalProperties": false,
         "properties": {
           "id": { "type": "string" },
@@ -34,6 +63,37 @@
     },
     "negacoes": { "type": "array", "items": { "type": "string" } },
     "avisos": { "type": "array", "items": { "type": "string" } },
-    "evidencias": { "type": "array", "items": { "type": "string" } }
+    "evidencias": { "type": "array", "items": { "type": "string" } },
+    "runtime": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "motor": { "type": "string" },
+        "codex_version": { "type": "string" },
+        "dcg_version": { "type": ["string", "null"] },
+        "worktree": { "type": "string" },
+        "branch": { "type": "string" },
+        "head_inicial": { "type": "string" },
+        "head_final": { "type": ["string", "null"] },
+        "agente_planejado": { "type": "integer" },
+        "agente_observado": { "type": "integer" },
+        "writers_planejados": { "type": "integer" },
+        "processos_iniciados": { "type": "integer" },
+        "processo_codex_iniciado": { "type": "boolean" },
+        "comandos_catalogo_executados": { "type": "boolean", "const": false },
+        "timeout": { "type": "boolean" },
+        "exit_code": { "type": ["integer", "null"] },
+        "sinal": { "type": ["integer", "null"] },
+        "stdout_sha256": { "type": "string" },
+        "stderr_sha256": { "type": "string" },
+        "stdout_truncado": { "type": "boolean" },
+        "stderr_truncado": { "type": "boolean" },
+        "arquivos_permitidos": { "type": "array", "items": { "type": "string" } },
+        "arquivos_modificados": { "type": "array", "items": { "type": "string" } },
+        "violacoes_escopo": { "type": "array", "items": { "type": "string" } },
+        "arquivos_protegidos_alterados": { "type": "array", "items": { "type": "string" } },
+        "argv": { "type": "array", "items": { "type": "string" } }
+      }
+    }
   }
 }

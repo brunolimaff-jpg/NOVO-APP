@@ -12,6 +12,8 @@ require 'fileutils'
 require_relative './plan-agent-mission'
 require_relative './runtime-safety-preflight'
 require_relative './lib/agent_command_guard'
+require_relative './lib/agent_mission_contract'
+require_relative './lib/agent_single_runtime'
 
 module AgentMissionRunner
   ROOT = File.expand_path('..', __dir__)
@@ -30,7 +32,8 @@ module AgentMissionRunner
     'failure' => 1,
     'denied' => 2,
     'timeout' => 3,
-    'internal-error' => 4
+    'internal-error' => 4,
+    'unavailable' => 5
   }.freeze
 
   class DeniedError < StandardError
@@ -45,7 +48,7 @@ module AgentMissionRunner
   module_function
 
   def parse(argv)
-    opts = { execute: false, stdout: false, agent_runtime: false }
+    opts = { execute: false, stdout: false, agent_runtime: false, runtime_ack: nil, worktree: nil }
     OptionParser.new do |parser|
       parser.on('--card PATH') { |v| opts[:card] = v }
       parser.on('--plan PATH') { |v| opts[:plan] = v }
@@ -53,8 +56,9 @@ module AgentMissionRunner
       parser.on('--stdout') { opts[:stdout] = true }
       parser.on('--execute') { opts[:execute] = true }
       parser.on('--safety-report PATH') { |v| opts[:safety_report] = v }
-      # Future agent-runtime gate only. Does NOT spawn agents in 3B.3A.
       parser.on('--agent-runtime') { opts[:agent_runtime] = true }
+      parser.on('--runtime-ack VALUE') { |v| opts[:runtime_ack] = v }
+      parser.on('--worktree PATH') { |v| opts[:worktree] = v }
     end.parse!(argv)
     raise 'missing --card' unless opts[:card]
     raise 'missing --plan' unless opts[:plan]
@@ -63,23 +67,26 @@ module AgentMissionRunner
   end
 
   def enforce_runtime_safety!(opts)
-    return unless opts[:agent_runtime]
+    mode = AgentSingleRuntime.enforce_activation!(opts)
+    return mode if mode == :legacy
 
-    # Fase 3B.3A: runtime hard-disabled. Relatório é só diagnóstico —
-    # fixture/live/JSON fabricado NÃO concedem autorização.
+    # External safety report is diagnostic only — never authorizes.
     if opts[:safety_report] && !opts[:safety_report].to_s.strip.empty?
       begin
         report = JSON.parse(File.read(safe_path(opts[:safety_report], must_exist: true)))
         RuntimeSafetyPreflight.validate_report!(report)
       rescue RuntimeSafetyPreflight::Denied, MissionPlanner::SchemaError, JSON::ParserError, DeniedError
-        # Ignorado de propósito: mesmo relatório "ready" é negado abaixo.
+        # ignored: authorization comes only from live preflight inside AgentSingleRuntime
       end
     end
 
-    raise DeniedError.new(
-      'AGENT_RUNTIME_NOT_ENABLED',
-      'agent runtime is not enabled in phase 3B.3A'
-    )
+    unless opts[:worktree] && !opts[:worktree].to_s.strip.empty?
+      raise DeniedError.new('RUNTIME_PRIMARY_WORKTREE_DENIED', '--worktree dedicado obrigatório')
+    end
+
+    :agent_runtime
+  rescue AgentSingleRuntime::Denial => error
+    raise DeniedError.new(error.code, error.message)
   end
 
   def allowed_roots
@@ -207,66 +214,41 @@ module AgentMissionRunner
   end
 
   def normalize_commands(list)
-    Array(list).map(&:to_s).uniq.sort
+    AgentMissionContract.normalize_commands(list)
   end
 
   def card_commands(card)
-    card.dig('executor', 'comandos') || []
+    AgentMissionContract.card_commands(card)
   end
 
   def plan_commands(plan)
-    commands = plan['comandos']
-    raise DeniedError.new('MISSING_COMMANDS', 'plan has no comandos') unless commands.is_a?(Array) && !commands.empty?
-    commands
+    AgentMissionContract.plan_commands(plan)
+  rescue AgentMissionContract::Denial => error
+    raise DeniedError.new(error.code, error.message)
   end
 
   def validate_command_alignment!(card, plan)
-    card_norm = normalize_commands(card_commands(card))
-    plan_norm = normalize_commands(plan_commands(plan))
-    return plan_commands(plan) if card_norm == plan_norm
-
-    raise DeniedError.new(
-      'COMMAND_PLAN_MISMATCH',
-      "card commands #{card_norm.inspect} differ from plan commands #{plan_norm.inspect}"
-    )
+    AgentMissionContract.validate_command_alignment!(card, plan)
+  rescue AgentMissionContract::Denial => error
+    raise DeniedError.new(error.code, error.message)
   end
 
   def validate_executable_plan_commands!(plan)
-    return unless plan.dig('resumo_operacional', 'executavel') == true
-    return unless plan['status'] == 'planejado'
-
-    cmds = plan['comandos']
-    unless cmds.is_a?(Array) && !cmds.empty? && cmds.all? { |c| c.is_a?(String) }
-      raise DeniedError.new(
-        'PLANEJADO_REQUIRES_COMMANDS',
-        'plano planejado exige comandos array não vazio'
-      )
-    end
+    AgentMissionContract.validate_executable_plan_commands!(plan)
+  rescue AgentMissionContract::Denial => error
+    raise DeniedError.new(error.code, error.message)
   end
 
   def validate_schemas!(card, plan)
-    card_schema = load_schema(CARD_SCHEMA_PATH)
-    plan_schema = load_schema(PLAN_SCHEMA_PATH)
-    MissionPlanner.send(:validate_against_schema!, card, card_schema)
-    MissionPlanner.send(:validate_against_schema!, plan, plan_schema)
-    validate_executable_plan_commands!(plan)
+    AgentMissionContract.validate_schemas!(card, plan)
+  rescue AgentMissionContract::Denial => error
+    raise DeniedError.new(error.code, error.message)
   end
 
   def validate_inputs!(card, plan, catalog)
-    validate_schemas!(card, plan)
-    raise DeniedError.new('MISSION_MISMATCH', 'mission id mismatch') unless plan['missao_id'] == card['id']
-    raise DeniedError.new('PLAN_STATUS_INVALID', 'plan status must be planejado') unless plan['status'] == 'planejado'
-    raise DeniedError.new('PLAN_NEGATIONS', 'plan has negacoes') unless Array(plan['negacoes']).empty?
-    unless plan.dig('resumo_operacional', 'executavel') == true
-      raise DeniedError.new('PLAN_NOT_EXECUTABLE', 'plan is not marked as executable')
-    end
-    raise DeniedError.new('AUTH_INSUFFICIENT', 'insufficient authorization') unless %w[A2 A3 A4 A5].include?(card.dig('autorizacao', 'nivel'))
-
-    commands = validate_command_alignment!(card, plan)
-    commands.each do |id|
-      resolve_command_argv!(catalog, id)
-    end
-    commands
+    AgentMissionContract.validate_inputs!(card, plan, catalog)
+  rescue AgentMissionContract::Denial => error
+    raise DeniedError.new(error.code, error.message)
   end
 
   def sanitized_env
@@ -403,70 +385,103 @@ module AgentMissionRunner
     negacoes = []
     execute = false
     start = nil
+    runtime_report = nil
+    mode_label = 'dry-run'
 
     begin
-      enforce_runtime_safety!(opts)
+      runtime_mode = enforce_runtime_safety!(opts)
       card = load_json(opts[:card])
       plan = load_json(opts[:plan])
       catalog = load_catalog
-      execute = opts[:execute] && ENV['AGENT_ORCHESTRATION_EXECUTE'] == '1'
-      status = execute ? 'success' : 'dry-run'
-      start = execute ? Time.now.utc : nil
 
-      validated_commands = validate_inputs!(card, plan, catalog)
-      validated_commands.each do |id|
-        argv = resolve_command_argv!(catalog, id)
-        report = command_report(id, argv, execute)
-        if report['timeout']
-          status = 'timeout'
-        elsif execute && report['exit_code'] && report['exit_code'] != 0 && status == 'success'
-          status = 'failure'
+      if runtime_mode == :agent_runtime
+        mode_label = 'agent-runtime'
+        worktree = File.expand_path(opts[:worktree], ROOT)
+        validate_inputs!(card, plan, catalog)
+        runtime_report = AgentSingleRuntime.run!(
+          card: card,
+          plan: plan,
+          catalog: catalog,
+          worktree: worktree,
+          safety_report_path: opts[:safety_report] && safe_path(opts[:safety_report], must_exist: true),
+          repo_root: ROOT
+        )
+        status = runtime_report['status']
+        negacoes = Array(runtime_report['negacoes'])
+        execute = true
+        start = Time.parse(runtime_report['inicio']) rescue Time.now.utc
+      else
+        execute = opts[:execute] && ENV['AGENT_ORCHESTRATION_EXECUTE'] == '1'
+        status = execute ? 'success' : 'dry-run'
+        mode_label = execute ? 'execute' : 'dry-run'
+        start = execute ? Time.now.utc : nil
+
+        validated_commands = validate_inputs!(card, plan, catalog)
+        validated_commands.each do |id|
+          cmd_argv = resolve_command_argv!(catalog, id)
+          report = command_report(id, cmd_argv, execute)
+          if report['timeout']
+            status = 'timeout'
+          elsif execute && report['exit_code'] && report['exit_code'] != 0 && status == 'success'
+            status = 'failure'
+          end
+          commands << report
         end
-        commands << report
       end
-    rescue DeniedError, MissionPlanner::SchemaError => error
+    rescue DeniedError, MissionPlanner::SchemaError, AgentMissionContract::Denial, AgentSingleRuntime::Denial, CodexSingleAgentRuntime::Denial => error
       status = 'denied'
-      negacoes << denial_entry(error)
+      code = error.respond_to?(:code) ? error.code : nil
+      negacoes << (code ? "#{code}: #{error.message}" : denial_entry(error))
     rescue StandardError => error
       status = 'internal-error'
       negacoes << denial_entry(error)
     end
 
-    if execute
-      finish = Time.now.utc
-      inicio = (start || finish).iso8601
-      fim = finish.iso8601
-      duracao_ms = ((finish - (start || finish)) * 1000).round
+    if runtime_report
+      report = runtime_report
+      report['status'] = status if status == 'denied' && runtime_report['status'] != 'denied'
+      report['negacoes'] = negacoes if status == 'denied' && Array(runtime_report['negacoes']).empty?
+      # recompute hash if mutated
+      if report.key?('relatorio_sha256')
+        report['relatorio_sha256'] = AgentSingleRuntime.compute_report_hash(report)
+      end
     else
-      inicio = fim = DRY_RUN_TIMESTAMP
-      duracao_ms = 0
+      if execute
+        finish = Time.now.utc
+        inicio = (start || finish).iso8601
+        fim = finish.iso8601
+        duracao_ms = ((finish - (start || finish)) * 1000).round
+      else
+        inicio = fim = DRY_RUN_TIMESTAMP
+        duracao_ms = 0
+      end
+
+      missao_id = if card.is_a?(Hash) && card['id'].is_a?(String) && !card['id'].empty?
+                    card['id']
+                  else
+                    'unknown'
+                  end
+      plan_hash = if plan.is_a?(Hash)
+                    Digest::SHA256.hexdigest(JSON.generate(plan))
+                  else
+                    Digest::SHA256.hexdigest('')
+                  end
+
+      report = {
+        'avisos' => execute ? [] : ['dry-run: use --execute e AGENT_ORCHESTRATION_EXECUTE=1 para execução real'],
+        'comandos' => commands,
+        'duracao_ms' => duracao_ms,
+        'evidencias' => ['catalogo fixo', 'argv sem shell', 'ambiente sanitizado', 'sem git mutante'],
+        'fim' => fim,
+        'inicio' => inicio,
+        'missao_id' => missao_id,
+        'modo' => mode_label,
+        'negacoes' => negacoes,
+        'plan_hash' => plan_hash,
+        'status' => status,
+        'versao' => 1
+      }
     end
-
-    missao_id = if card.is_a?(Hash) && card['id'].is_a?(String) && !card['id'].empty?
-                  card['id']
-                else
-                  'unknown'
-                end
-    plan_hash = if plan.is_a?(Hash)
-                  Digest::SHA256.hexdigest(JSON.generate(plan))
-                else
-                  Digest::SHA256.hexdigest('')
-                end
-
-    report = {
-      'avisos' => execute ? [] : ['dry-run: use --execute e AGENT_ORCHESTRATION_EXECUTE=1 para execução real'],
-      'comandos' => commands,
-      'duracao_ms' => duracao_ms,
-      'evidencias' => ['catalogo fixo', 'argv sem shell', 'ambiente sanitizado', 'sem git mutante'],
-      'fim' => fim,
-      'inicio' => inicio,
-      'missao_id' => missao_id,
-      'modo' => execute ? 'execute' : 'dry-run',
-      'negacoes' => negacoes,
-      'plan_hash' => plan_hash,
-      'status' => status,
-      'versao' => 1
-    }
     json = JSON.pretty_generate(report) + "\n"
     begin
       if opts[:output]
