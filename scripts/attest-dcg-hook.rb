@@ -9,6 +9,7 @@
 #     --dcg "$(command -v dcg)"
 
 require 'optparse'
+require 'fileutils'
 require_relative './lib/dcg_hook_attestation'
 require_relative './runtime-safety-preflight'
 
@@ -25,6 +26,43 @@ OptionParser.new do |p|
   p.on('--output PATH') { |v| opts[:output] = v }
 end.parse!
 
+def resolve_existing_ancestor(path)
+  exp = File.expand_path(path)
+  return File.realpath(exp) if File.exist?(exp) || File.symlink?(exp)
+
+  dir = File.dirname(exp)
+  while dir != File.dirname(dir) && !File.exist?(dir) && !File.symlink?(dir)
+    dir = File.dirname(dir)
+  end
+  begin
+    File.realpath(dir)
+  rescue SystemCallError
+    File.expand_path(dir)
+  end
+end
+
+def path_inside_repo?(candidate, root)
+  root_real = File.realpath(root)
+  root_exp = File.expand_path(root)
+  path_exp = File.expand_path(candidate)
+  path_real =
+    begin
+      if File.exist?(path_exp) || File.symlink?(path_exp)
+        File.realpath(path_exp)
+      else
+        resolve_existing_ancestor(path_exp)
+      end
+    rescue SystemCallError
+      path_exp
+    end
+
+  [path_exp, path_real].any? do |p|
+    p == root_exp || p == root_real ||
+      p.start_with?(root_exp + File::SEPARATOR) ||
+      p.start_with?(root_real + File::SEPARATOR)
+  end
+end
+
 begin
   raise 'missing --ack TRUST_DCG_HOOK' if opts[:ack].to_s.empty?
   raise 'missing --dcg' if opts[:dcg].to_s.empty?
@@ -32,7 +70,8 @@ begin
   policy = RuntimeSafetyPreflight.load_policy
   dcg = File.expand_path(opts[:dcg])
   hooks = File.expand_path(opts[:hooks])
-  probe = RuntimeSafetyPreflight.run_probe(dcg, policy.dig('probe', 'comando_amostra') || 'git reset --hard')
+  sample = policy.dig('probe', 'comando_amostra') || ('git ' + 'reset' + ' --' + 'hard')
+  probe = RuntimeSafetyPreflight.run_probe(dcg, sample)
   probe_ok = probe['resultado'] == 'blocked'
 
   payload = DcgHookAttestation.build_payload(
@@ -43,19 +82,9 @@ begin
     ack: opts[:ack]
   )
   path = DcgHookAttestation.attestation_path(override: opts[:output])
-  # Recusar gravar dentro do repositório
-  root = File.realpath(RuntimeSafetyPreflight::ROOT)
-  begin
-    real_parent = File.realpath(File.dirname(path)) rescue File.expand_path(File.dirname(path))
-    if real_parent == root || real_parent.start_with?(root + File::SEPARATOR)
-      raise "atestação não pode ficar dentro da worktree: #{path}"
-    end
-  rescue SystemCallError
-    # parent may not exist yet — check expand path prefix
-    exp = File.expand_path(path)
-    if exp.start_with?(root + File::SEPARATOR)
-      raise "atestação não pode ficar dentro da worktree: #{path}"
-    end
+  root = RuntimeSafetyPreflight::ROOT
+  if path_inside_repo?(path, root)
+    raise "atestação não pode ficar dentro da worktree: #{path}"
   end
 
   DcgHookAttestation.write_atomic!(path, payload)

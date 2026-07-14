@@ -44,8 +44,12 @@ module DcgHookAttestation
   def build_payload(hooks_path:, dcg_path:, policy:, probe_ok:, ack:)
     raise Denial.new('DCG_HOOK_ATTESTATION_INVALID', "ack deve ser #{ACK}") unless ack.to_s == ACK
 
-    hooks_real = File.realpath(hooks_path)
-    dcg_real = File.realpath(dcg_path)
+    begin
+      hooks_real = File.realpath(hooks_path)
+      dcg_real = File.realpath(dcg_path)
+    rescue SystemCallError => e
+      raise Denial.new('DCG_HOOK_ATTESTATION_INVALID', "path ilegível: #{e.message}")
+    end
     platform = RuntimeSafetyPreflight.detect_platform_key
     binary_expected = (policy['binary_checksums_esperados'] || {})[platform]
     binary_obs = RuntimeSafetyPreflight.file_sha256(dcg_real)
@@ -66,11 +70,17 @@ module DcgHookAttestation
 
     now = Time.now.utc
     max_days = (policy.dig('attestation', 'max_dias') || 30).to_i
+    usuario =
+      begin
+        Etc.getpwuid(Process.euid).name
+      rescue ArgumentError, SystemCallError
+        ENV['USER'].to_s.empty? ? 'unknown' : ENV['USER']
+      end
     {
       'contrato_versao' => CONTRACT,
       'timestamp' => now.iso8601,
       'expira_em' => (now + (max_days * 24 * 60 * 60)).iso8601,
-      'usuario_local' => Etc.getpwuid(Process.euid).name,
+      'usuario_local' => usuario,
       'plataforma' => platform,
       'hooks_realpath' => hooks_real,
       'hooks_sha256' => Digest::SHA256.hexdigest(File.binread(hooks_real)),
@@ -125,10 +135,20 @@ module DcgHookAttestation
       raise Denial.new('DCG_HOOK_ATTESTATION_EXPIRED', "atestação expirada em #{attestation['expira_em']}")
     end
 
-    hooks_real = File.realpath(hooks_path)
-    dcg_real = File.realpath(dcg_path)
-    hooks_sha = Digest::SHA256.hexdigest(File.binread(hooks_real))
+    begin
+      hooks_real = File.realpath(hooks_path)
+      dcg_real = File.realpath(dcg_path)
+    rescue SystemCallError => e
+      raise Denial.new('DCG_HOOK_ATTESTATION_INVALID', "path ilegível: #{e.message}")
+    end
+    begin
+      hooks_sha = Digest::SHA256.hexdigest(File.binread(hooks_real))
+    rescue SystemCallError => e
+      raise Denial.new('DCG_HOOK_ATTESTATION_INVALID', "falha ao ler hooks: #{e.message}")
+    end
     dcg_sha = RuntimeSafetyPreflight.file_sha256(dcg_real)
+    raise Denial.new('DCG_HOOK_ATTESTATION_INVALID', 'falha ao ler checksum DCG') if dcg_sha.nil?
+
     pol_sha = policy_sha256
 
     if attestation['hooks_realpath'].to_s != hooks_real || attestation['hooks_sha256'] != hooks_sha

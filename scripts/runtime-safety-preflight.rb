@@ -191,6 +191,11 @@ module RuntimeSafetyPreflight
     end
     versao_obs = presente ? read_version(dcg_path) : nil
     binary_obs = presente ? file_sha256(dcg_path) : nil
+    # Test-only: never honor observed override outside fixture/explicit test preflight.
+    if opts.key?(:binary_checksum_observado_override) &&
+       (mode == 'fixture' || (opts[:allow_test_hook] && ENV['AGENT_RUNTIME_TEST_PREFLIGHT'] == '1'))
+      binary_obs = opts[:binary_checksum_observado_override]
+    end
     versao_esp = policy['versao_esperada'].to_s
 
     if presente && versao_obs.nil?

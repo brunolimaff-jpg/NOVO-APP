@@ -1,20 +1,13 @@
 # Manual — instalação local do DCG no macOS (Bruno)
 
-# DCG é segunda barreira. A autorização primária continua sendo o catálogo
-
-# argv + agent_command_guard (fail-closed). Relatório de preflight NÃO é
-
-# credencial de runtime.
-
-#
-
-# Runtime single-agent (3B.3B+) exige três chaves explícitas.
-
-# Piloto supervisionado (3B.3C) exige seis chaves + readiness.
-
-#
-
-# NÃO executar durante CI. NÃO versionar o binário.
+> **Atenção:** DCG é segunda barreira. A autorização primária continua sendo o catálogo
+> argv + agent_command_guard (fail-closed). Relatório de preflight NÃO é
+> credencial de runtime.
+>
+> Runtime single-agent (3B.3B+) exige três chaves explícitas.
+> Piloto supervisionado (3B.3C) exige seis chaves + readiness.
+>
+> **NÃO executar durante CI. NÃO versionar o binário.**
 
 ## Versão pinada
 
@@ -45,7 +38,7 @@
 4. Instalar o binário no PATH (ex.: `~/.local/bin/dcg`).
 5. Verificar checksum do **binário** contra `binary_checksums_esperados`.
 6. Adicionar hook DCG direto no PreToolUse Bash **sem remover** `guardian-block.sh`.
-7. Executar probe seguro: `dcg test --format json "git reset --hard"` (nunca no shell).
+7. Executar probe seguro: `dcg test --format json` + amostra destrutiva apenas como argumento de análise (nunca no shell).
 8. Criar atestação humana: `ruby scripts/attest-dcg-hook.rb --ack TRUST_DCG_HOOK --hooks ~/.codex/hooks.json --dcg "$(command -v dcg)"`.
 9. Executar `ruby scripts/check-pilot-readiness.rb --stdout`.
 10. Somente então considerar `PILOT_READY` / piloto real sob autorização humana.

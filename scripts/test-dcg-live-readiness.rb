@@ -72,6 +72,13 @@ asset_sha = policy.dig('asset_checksums_esperados', 'aarch64-apple-darwin')
 binary_sha = policy.dig('binary_checksums_esperados', 'aarch64-apple-darwin')
 assert asset_sha && binary_sha && asset_sha != binary_sha, 'policy must separate asset/binary hashes'
 
+REAL_HOOKS = File.expand_path('~/.codex/hooks.json')
+HOOKS_SHA_AT_START =
+  if File.file?(REAL_HOOKS)
+    Digest::SHA256.hexdigest(File.binread(REAL_HOOKS))
+  end
+
+
 # 1
 test('1 checksum do asset não é aceito como checksum do binário') do
   report = RuntimeSafetyPreflight.build_report(
@@ -91,14 +98,22 @@ test('1 checksum do asset não é aceito como checksum do binário') do
   assert codes.include?('DCG_BINARY_CHECKSUM_MISMATCH') || codes.include?('DCG_ASSET_CHECKSUM_MISMATCH')
 end
 
-# Simulate asset-hash-rejected path explicitly
 test('1b status asset_hash_rejected quando obs == asset') do
-  # Build synthetic: if observed equals asset expected while binary expected differs
-  status =
-    if asset_sha == asset_sha && asset_sha != binary_sha
-      'asset_hash_rejected'
-    end
-  assert status == 'asset_hash_rejected'
+  ENV['AGENT_RUNTIME_TEST_PREFLIGHT'] = '1'
+  report = RuntimeSafetyPreflight.build_report(
+    mode: 'live',
+    dcg_path: FAKE_DCG,
+    allow_test_hook: true,
+    binary_checksum_esperado_override: binary_sha,
+    binary_checksum_observado_override: asset_sha,
+    timestamp: Time.now.utc,
+    hooks_path: File.join(TMP, 'missing-hooks-1b.json')
+  )
+  assert report['dcg']['binary_checksum_status'] == 'asset_hash_rejected'
+  assert report['negacoes'].any? { |n| n['codigo'] == 'DCG_ASSET_CHECKSUM_MISMATCH' }
+  assert report['dcg']['binary_checksum_status'] != 'match'
+ensure
+  ENV.delete('AGENT_RUNTIME_TEST_PREFLIGHT')
 end
 
 # 2
@@ -122,27 +137,6 @@ end
 
 # 4
 test('4 plataforma sem hash de binário é negada') do
-  with_temp_home do |_h, _x|
-    # live without override: on arm64 we HAVE binary hash. Simulate via empty policy dig by override nil platform path:
-    report = RuntimeSafetyPreflight.build_report(
-      mode: 'live',
-      dcg_path: FAKE_DCG,
-      binary_checksum_esperado_override: nil,
-      # force nil by using a sentinel: pass empty string? method checks opts.key?
-      timestamp: Time.now.utc,
-      hooks_path: File.join(TMP, 'nope.json')
-    )
-    # checksum_esperado_override key not set; binary pin only for fixture. For live+FAKE without pin,
-    # expected is policy binary for aarch64 - will mismatch fake. Use unknown platform simulation:
-    # Call finalize logic: build with force and monkeypatch is heavy — use override that is literally unset
-    # Alternative: temporarily ensure status via direct compare helper.
-    # Direct unit: if binary_expected nil → platform_unknown
-    assert policy['binary_checksums_esperados']['x86_64-pc-windows-msvc'].nil?
-  end
-  # Explicit override using a custom approach: set expected via missing key by disabling fixture pin
-  # Live with dcg present: binary_expected from policy exists on darwin. For windows key missing:
-  # We inject by calling compare via build_report with binary_checksum_esperado_override: false?
-  # Use override nil with key set:
   report = RuntimeSafetyPreflight.build_report(
     mode: 'live',
     dcg_path: FAKE_DCG,
@@ -150,9 +144,8 @@ test('4 plataforma sem hash de binário é negada') do
     timestamp: Time.now.utc,
     hooks_path: File.join(TMP, 'no.json')
   )
-  # NOTE: `if opts.key?(:binary...)` then assign — nil still assigns → platform_unknown path when nil
-  assert report['dcg']['binary_checksum_status'] == 'platform_unknown' ||
-         report['negacoes'].any? { |n| n['codigo'] == 'DCG_BINARY_CHECKSUM_PLATFORM_UNKNOWN' }
+  assert report['dcg']['binary_checksum_status'] == 'platform_unknown'
+  assert report['negacoes'].any? { |n| n['codigo'] == 'DCG_BINARY_CHECKSUM_PLATFORM_UNKNOWN' }
 end
 
 homedir = nil
@@ -388,14 +381,19 @@ test('21 nenhum Codex real executado') do
 end
 
 test('22 nenhum hook real modificado') do
-  # this suite writes only under TMP / temp HOME
+  after =
+    if File.file?(REAL_HOOKS)
+      Digest::SHA256.hexdigest(File.binread(REAL_HOOKS))
+    end
+  assert HOOKS_SHA_AT_START == after, 'hooks.json do host não pode mudar durante a suite'
   assert TMP.start_with?(Dir.tmpdir) || TMP.include?('dcg-live-readiness')
 end
 
-test('23 nenhum binário instalado') do
-  assert !File.exist?(File.expand_path('~/.local/bin/dcg')) || true # readiness may still lack install
-  # Suite never copies to PATH install locations outside TMP
-  assert Dir.glob(File.join(TMP, '**/dcg')).all? { |p| p.start_with?(TMP) } || true
+test('23 nenhum binário instalado pelo suite') do
+  installed_candidates = Dir.glob(File.join(TMP, '**', 'dcg'))
+  assert installed_candidates.all? { |p| p.start_with?(TMP) }
+  leaked = Dir.glob(File.join(Dir.tmpdir, 'dcg-provenance-*'))
+  assert leaked.empty?, "temp provenance leftover: #{leaked}"
 end
 
 puts "OK #{@tests} tests"

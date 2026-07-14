@@ -138,10 +138,11 @@ module PilotReadiness
 end
 
 if $PROGRAM_NAME == __FILE__
-  stdout = false
+  stdout = ARGV.include?('--stdout') || ARGV.empty?
   OptionParser.new { |p| p.on('--stdout') { stdout = true } }.parse!
   report = PilotReadiness.check!
   json = JSON.pretty_generate(report) + "\n"
-  puts json if stdout || true
+  puts json if stdout
+  warn json unless stdout
   exit(report['status'] == 'ready' ? 0 : 2)
 end
