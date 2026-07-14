@@ -29,6 +29,56 @@
     "verificacao": ["arquivo sandbox existe", "nenhuma outra mudança"],
     "evidencias_requeridas": ["run-report", "diff-worktree"],
     "condicoes_parada": ["arquivo criado", "ambiguidade", "violacao de escopo"],
+    "papel_preferido": "executor-escopo",
+    "ferramentas_permitidas": ["codex"],
+    "rede_permitida": false,
+    "shell_permitido": false,
+    "delegacao_permitida": false,
+    "execucao_planejada": {
+      "estrategia": "agente-unico",
+      "perfil_execucao": "minimal-change",
+      "gate_qualidade": "evidence-first",
+      "agentes": [
+        {
+          "id": "principal",
+          "papel": "executor-escopo",
+          "permissao": "workspace-write",
+          "depende_de": []
+        }
+      ],
+      "tarefas": [
+        {
+          "id": "task-01",
+          "agente": "principal",
+          "objetivo": "Criar exatamente um arquivo sandbox comprovando execução single-agent.",
+          "entrega_esperada": "Arquivo sandbox único criado; nenhuma outra alteração.",
+          "nao_fazer": [
+            "alterar qualquer outro arquivo",
+            "usar rede",
+            "delegar",
+            "commit",
+            "push",
+            "merge",
+            "deploy"
+          ],
+          "arquivos": {
+            "leitura": [".agents/pilotos/"],
+            "escrita": [
+              ".agents/pilotos/sandbox/resultado-primeiro-piloto.md"
+            ]
+          },
+          "depende_de": []
+        }
+      ],
+      "limites": {
+        "max_agentes": 1,
+        "max_paralelo": 1,
+        "max_tempo_segundos": 180,
+        "max_retentativas": 0,
+        "max_rodadas_revisao": 0,
+        "permite_subdelegacao": false
+      }
+    },
     "executor": {
       "comandos": ["git-diff-check"]
     }
