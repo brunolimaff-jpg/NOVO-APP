@@ -13,6 +13,7 @@ require 'digest'
 require 'time'
 require 'fileutils'
 require_relative './lib/agent_path_guard'
+require_relative './lib/dcg_codex_hook_verifier'
 require_relative './plan-agent-mission'
 
 module RuntimeSafetyPreflight
@@ -172,7 +173,8 @@ module RuntimeSafetyPreflight
     end
 
     platform = detect_platform_key
-    expected_checksum = (policy.dig('checksums_esperados') || {})[platform]
+    asset_expected = (policy.dig('asset_checksums_esperados') || {})[platform]
+    binary_expected = (policy.dig('binary_checksums_esperados') || {})[platform]
     fixture_dcg = opts[:fixture_dcg] || FIXTURE_DCG
     dcg_path = find_dcg(
       mode: mode,
@@ -182,25 +184,58 @@ module RuntimeSafetyPreflight
     )
 
     presente = !dcg_path.nil? && File.exist?(dcg_path)
+    begin
+      dcg_realpath = presente ? File.realpath(dcg_path) : nil
+    rescue SystemCallError
+      dcg_realpath = dcg_path
+    end
     versao_obs = presente ? read_version(dcg_path) : nil
-    checksum_obs = presente ? file_sha256(dcg_path) : nil
+    binary_obs = presente ? file_sha256(dcg_path) : nil
+    # Test-only: never honor observed override outside fixture/explicit test preflight.
+    if opts.key?(:binary_checksum_observado_override) &&
+       (mode == 'fixture' || (opts[:allow_test_hook] && ENV['AGENT_RUNTIME_TEST_PREFLIGHT'] == '1'))
+      binary_obs = opts[:binary_checksum_observado_override]
+    end
     versao_esp = policy['versao_esperada'].to_s
 
     if presente && versao_obs.nil?
       negacoes << { 'codigo' => 'DCG_EXECUTION_UNAVAILABLE', 'mensagem' => 'falha ao ler versão do DCG' }
     end
 
-    # Fixture mode pins checksum to the fixture file itself (CI never downloads release artifacts).
-    if mode == 'fixture' && presente
-      expected_checksum = checksum_obs
+    # Fixture/test: pin expected binary checksum to the fixture itself (CI never downloads assets).
+    # Do NOT pin when the caller explicitly overrides binary_expected — the override
+    # must survive to exercise asset_hash_rejected / mismatch paths correctly on
+    # platforms that lack a binary_checksums_esperados entry (e.g. x86_64-unknown-linux-musl).
+    if (mode == 'fixture' || (opts[:allow_test_hook] && ENV['AGENT_RUNTIME_TEST_PREFLIGHT'] == '1')) && presente &&
+       !opts.key?(:checksum_esperado_override) && !opts.key?(:binary_checksum_esperado_override)
+      binary_expected = binary_obs
     end
-    expected_checksum = opts[:checksum_esperado_override] if opts.key?(:checksum_esperado_override)
+    binary_expected = opts[:checksum_esperado_override] if opts.key?(:checksum_esperado_override)
+    binary_expected = opts[:binary_checksum_esperado_override] if opts.key?(:binary_checksum_esperado_override)
 
+    binary_status =
+      if !presente
+        'skipped'
+      elsif binary_expected.nil?
+        'platform_unknown'
+      elsif binary_obs == binary_expected
+        'match'
+      elsif !asset_expected.nil? && binary_obs == asset_expected
+        'asset_hash_rejected'
+      else
+        'mismatch'
+      end
+
+    # Legacy fields mirror BINARY comparison only (never asset tarball hash as expected).
+    checksum_obs = binary_obs
+    expected_checksum = binary_expected
+
+    probe_sample = policy.dig('probe', 'comando_amostra') || ('git ' + 'reset' + ' --' + 'hard')
     probe = {
       'executado' => false,
       'modo' => 'dcg test --format json',
       'resultado' => 'skipped',
-      'comando_amostra' => policy.dig('probe', 'comando_amostra') || 'git reset --hard'
+      'comando_amostra' => probe_sample
     }
 
     if !presente
@@ -216,15 +251,20 @@ module RuntimeSafetyPreflight
           'mensagem' => "versão observada=#{versao_obs.inspect} esperada=#{versao_esp}"
         }
       end
-      if expected_checksum.nil?
+      if binary_status == 'platform_unknown'
         negacoes << {
-          'codigo' => 'DCG_CHECKSUM_PLATFORM_UNKNOWN',
-          'mensagem' => "plataforma sem checksum conhecido: #{platform}"
+          'codigo' => 'DCG_BINARY_CHECKSUM_PLATFORM_UNKNOWN',
+          'mensagem' => "plataforma sem checksum de binário conhecido: #{platform}"
         }
-        avisos << 'CHECKSUM_PLATFORM_UNKNOWN'
-      elsif checksum_obs != expected_checksum
+        avisos << 'BINARY_CHECKSUM_PLATFORM_UNKNOWN'
+      elsif binary_status == 'asset_hash_rejected'
         negacoes << {
-          'codigo' => 'DCG_CHECKSUM_MISMATCH',
+          'codigo' => 'DCG_ASSET_CHECKSUM_MISMATCH',
+          'mensagem' => 'hash do asset compactado não pode ser usado como checksum do binário'
+        }
+      elsif binary_status == 'mismatch'
+        negacoes << {
+          'codigo' => 'DCG_BINARY_CHECKSUM_MISMATCH',
           'mensagem' => 'checksum do binário diverge do esperado'
         }
       end
@@ -242,32 +282,60 @@ module RuntimeSafetyPreflight
       end
     end
 
-    # Hook trust: without programmatic evidence → unknown (fail-closed).
-    # Never trust hook_confiado from an external JSON report — only local evidence.
+    # Hook trust — live: verifier + human attestation. Never trust external JSON.
     hook_marker = File.file?(File.join(ROOT, '.agents/seguranca/fixtures/hook-marker.json'))
-    hook_detectado =
-      if mode == 'fixture'
-        hook_marker
-      elsif opts[:allow_test_hook] && ENV['AGENT_RUNTIME_TEST_PREFLIGHT'] == '1'
-        hook_marker
-      else
-        false
-      end
-    hook_confiado =
-      if mode == 'fixture' && hook_detectado
-        'fixture'
-      elsif opts[:allow_test_hook] && ENV['AGENT_RUNTIME_TEST_PREFLIGHT'] == '1' && hook_detectado
-        'verified-test'
-      else
-        'unknown'
-      end
+    hook_detectado = false
+    hook_confiado = 'unknown'
 
-    unless hook_confiado == 'fixture' || hook_confiado == 'verified-test'
-      negacoes << {
-        'codigo' => 'DCG_HOOK_TRUST_UNKNOWN',
-        'mensagem' => policy['passo_humano_hook_trust'].to_s.strip
-      }
+    if mode == 'fixture'
+      hook_detectado = hook_marker
+      hook_confiado = hook_detectado ? 'fixture' : 'unknown'
+    elsif opts[:allow_test_hook] && ENV['AGENT_RUNTIME_TEST_PREFLIGHT'] == '1'
+      hook_detectado = hook_marker
+      hook_confiado = hook_detectado ? 'verified-test' : 'unknown'
+    elsif mode == 'live' && presente && binary_status == 'match' && versao_obs == versao_esp
+      hooks_path = opts[:hooks_path] || DcgCodexHookVerifier.default_hooks_path
+      verify = DcgCodexHookVerifier.verify(
+        hooks_path: hooks_path,
+        expected_dcg_realpath: dcg_realpath
+      )
+      if verify.ok
+        hook_detectado = true
+        begin
+          require_relative './lib/dcg_hook_attestation'
+          att_path = opts[:attestation_path] || DcgHookAttestation.attestation_path
+          att = DcgHookAttestation.load_raw(att_path)
+          DcgHookAttestation.validate!(
+            attestation: att,
+            hooks_path: hooks_path,
+            dcg_path: dcg_realpath,
+            policy: policy
+          )
+          hook_confiado = 'verified-local-human'
+        rescue DcgHookAttestation::Denial => error
+          negacoes << { 'codigo' => error.code, 'mensagem' => error.message }
+          avisos << 'HOOK_TRUST_REQUIRES_HUMAN_ATTESTATION'
+        rescue LoadError, StandardError => error
+          negacoes << {
+            'codigo' => 'DCG_HOOK_ATTESTATION_MISSING',
+            'mensagem' => "atestação indisponível: #{error.message}"
+          }
+        end
+      else
+        hook_detectado = false
+        negacoes << { 'codigo' => verify.code || 'DCG_HOOK_ENTRY_MISSING', 'mensagem' => verify.message }
+      end
+    end
+
+    unless %w[fixture verified-test verified-local-human].include?(hook_confiado)
+      unless negacoes.any? { |n| n['codigo'].to_s.start_with?('DCG_HOOK') }
+        negacoes << {
+          'codigo' => 'DCG_HOOK_TRUST_UNKNOWN',
+          'mensagem' => policy['passo_humano_hook_trust'].to_s.strip
+        }
+      end
       avisos << 'HOOK_TRUST_REQUIRES_HUMAN'
+      hook_confiado = 'unknown'
     end
 
     sample_paths = opts[:paths] || %w[scripts/runtime-safety-preflight.rb .agents/seguranca/runtime-safety.yaml]
@@ -321,7 +389,12 @@ module RuntimeSafetyPreflight
       normalized: normalized,
       negacoes: negacoes,
       avisos: avisos,
-      timestamp: opts[:timestamp] || Time.now.utc
+      timestamp: opts[:timestamp] || Time.now.utc,
+      asset_checksum_esperado: asset_expected,
+      binary_checksum_esperado: binary_expected,
+      binary_checksum_observado: binary_obs,
+      binary_checksum_status: binary_status,
+      platform: platform
     )
   end
 
@@ -358,7 +431,9 @@ module RuntimeSafetyPreflight
 
   def finalize_report(status:, policy:, mode:, worktree:, presente:, dcg_path:, versao_obs:, versao_esp:,
                       checksum_obs:, expected_checksum:, config_ok:, hook_detectado:, hook_confiado:,
-                      probe_public:, bypass:, path_negs:, normalized:, negacoes:, avisos:, timestamp:)
+                      probe_public:, bypass:, path_negs:, normalized:, negacoes:, avisos:, timestamp:,
+                      asset_checksum_esperado: nil, binary_checksum_esperado: nil,
+                      binary_checksum_observado: nil, binary_checksum_status: nil, platform: nil)
     avisos = (avisos + ['REPORT_IS_NOT_CREDENTIAL', 'REPORT_DOES_NOT_AUTHORIZE_RUNTIME']).uniq
     report = {
       'status' => status,
@@ -374,6 +449,11 @@ module RuntimeSafetyPreflight
         'versao_esperada' => versao_esp,
         'checksum_observado' => checksum_obs,
         'checksum_esperado' => expected_checksum,
+        'asset_checksum_esperado' => asset_checksum_esperado,
+        'binary_checksum_esperado' => binary_checksum_esperado,
+        'binary_checksum_observado' => binary_checksum_observado,
+        'binary_checksum_status' => binary_checksum_status,
+        'plataforma' => platform,
         'configuracao_encontrada' => config_ok,
         'hook_detectado' => hook_detectado,
         'hook_confiado' => hook_confiado,

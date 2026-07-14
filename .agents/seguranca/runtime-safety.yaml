@@ -1,10 +1,10 @@
-# Runtime Safety Preflight — política project-local (Fase 3B.3A)
+# Runtime Safety Preflight — política project-local (Fase 3B.3C.1)
 # DCG é segunda barreira, não autorização primária de missão.
 # Relatório SHA-256 detecta adulteração, NÃO autentica origem nem concede runtime.
-# --agent-runtime permanece hard-disabled (AGENT_RUNTIME_NOT_ENABLED) nesta fase.
+# Runtime single-agent (3B.3B+) exige três chaves; piloto supervisionado exige seis.
 # Não versionar binário. Não baixar artefato em CI. Não alterar hooks globais.
 
-contrato_versao: '1.0.0'
+contrato_versao: '1.1.0'
 
 ferramenta: destructive-command-guard
 versao_esperada: '0.6.6'
@@ -17,13 +17,31 @@ plataforma_principal: aarch64-apple-darwin
 plataformas_compat:
   - x86_64-apple-darwin
 
-# SHA256 dos artefatos oficiais (SHA256SUMS da release v0.6.6). CI não baixa.
-checksums_esperados:
+# SHA256 dos artefatos oficiais COMPACTADOS (SHA256SUMS da release v0.6.6).
+# Usado apenas para validar o download do .tar.xz — NUNCA para comparar o binário instalado.
+asset_checksums_esperados:
   aarch64-apple-darwin: '0d94fc8227d41521b27e9fe51e1bcd323a855fbe0df1a42fa17b2dc841c5c1ae'
   x86_64-apple-darwin: 'dfac705093f85fbc3b99efb4c679f7ae0447620f060a75033a93b7e359a851bb'
   x86_64-unknown-linux-musl: 'd159ca99c20b2038bd61ad026e842e7b59870c9fab7593830c8481e0431d15ec'
   aarch64-unknown-linux-gnu: '9f1f57e8a6f5e8a548b5031836f68b91be83bbd7e0ce6a1932dc4eee4003c9bc'
   x86_64-pc-windows-msvc: '1c1a81104c25c03a73943c03e3cf364ea436e85b3632aea619951b097f0f3158'
+
+# SHA256 do EXECUTÁVEL extraído (após verificar o asset). Preflight live compara só estes.
+# Plataformas sem entrada → DCG_BINARY_CHECKSUM_PLATFORM_UNKNOWN (fail-closed).
+binary_checksums_esperados:
+  aarch64-apple-darwin: '6f5ab54413f9142902d57462da9f3cd0902b00bfffb4c2d6c9b77f0fd2980b86'
+
+proveniencia_binary_checksum:
+  plataforma: aarch64-apple-darwin
+  versao: '0.6.6'
+  asset: dcg-aarch64-apple-darwin.tar.xz
+  asset_url: 'https://github.com/Dicklesworthstone/destructive_command_guard/releases/download/v0.6.6/dcg-aarch64-apple-darwin.tar.xz'
+  asset_sha256: '0d94fc8227d41521b27e9fe51e1bcd323a855fbe0df1a42fa17b2dc841c5c1ae'
+  binary_sha256: '6f5ab54413f9142902d57462da9f3cd0902b00bfffb4c2d6c9b77f0fd2980b86'
+  obtido_em: '2026-07-14T13:51:51Z'
+  metodo: >
+    Download oficial em diretório temporário; SHA do asset verificado antes da
+    extração; SHA do executável dcg calculado; temp apagado; binário NÃO instalado.
 
 config_project_local: '.agents/seguranca/.dcg.toml'
 
@@ -32,9 +50,16 @@ hooks_exigidos:
     matcher: Bash
     comando: dcg
     notas: >
-      Integração oficial Codex: PreToolUse Bash → dcg (~/.codex/hooks.json).
-      Trust não é verificável de forma programática confiável → hook_confiado=unknown
-      → status denied. Passo humano: INSTALACAO-DCG-MACOS.md.
+      Integração Codex: PreToolUse Bash → entrada DIRETA para o binário dcg
+      (~/.codex/hooks.json), coexistindo com guardian-block.sh. Trust exige
+      atestação humana local (scripts/attest-dcg-hook.rb). Sem atestação válida
+      → hook_confiado=unknown → denied.
+
+attestation:
+  max_dias: 30
+  ack_literal: TRUST_DCG_HOOK
+  path_relativo_xdg: runtime-safety/dcg-hook-attestation.json
+  fallback_home: '.config/novo-app/runtime-safety/dcg-hook-attestation.json'
 
 packs_exigidos:
   - core.git
@@ -45,14 +70,11 @@ bypass_env_proibidas:
   - DCG_DISABLE
 
 fail_closed: true
-# Fail-open interno do DCG NÃO substitui o agent_command_guard fail-closed.
 dcg_fail_open_nao_substitui_guard: true
 preflight_ttl_segundos: 900
 
 worktree_esperada: null
 
-# Sem checksum conhecido para a plataforma → DCG_CHECKSUM_PLATFORM_UNKNOWN (denied)
-# ou unavailable se o binário não estiver presente.
 plataforma_sem_checksum: denied
 
 superficies_protegidas:
@@ -65,16 +87,20 @@ superficies_protegidas:
   - scripts/test-runtime-safety.rb
   - scripts/lib/agent_path_guard.rb
   - scripts/lib/agent_command_guard.rb
+  - scripts/lib/dcg_codex_hook_verifier.rb
+  - scripts/attest-dcg-hook.rb
+  - scripts/check-pilot-readiness.rb
 
 probe:
   modo_oficial: 'dcg test --format json'
   comando_amostra: 'git reset --hard'
   esperado: blocked
   nota: >
-    Nunca executar o comando destrutivo no shell. Apenas `dcg test` / `dcg explain`.
+    Nunca executar o comando destrutivo no shell. Apenas `dcg test`.
 
 passo_humano_hook_trust: >
-  Ver .agents/seguranca/INSTALACAO-DCG-MACOS.md. Não simular trust no preflight.
+  Adicionar entrada DCG direta no PreToolUse Bash (sem remover guardian),
+  rodar probe, depois: ruby scripts/attest-dcg-hook.rb --ack TRUST_DCG_HOOK
 
 contrato_relatorio:
   hash_detecta_adulteracao: true
@@ -82,4 +108,4 @@ contrato_relatorio:
   relatorio_concede_autorizacao: false
   modo_fixture_nao_e_live: true
   hook_confiado_json_nao_e_prova: true
-  runtime_habilitado_somente_em: '3B.3B'
+  runtime_habilitado_somente_em: '3B.3B+'

@@ -1,0 +1,171 @@
+# frozen_string_literal: true
+
+require 'json'
+require 'digest'
+require 'fileutils'
+require 'time'
+require 'etc'
+require_relative './dcg_codex_hook_verifier'
+require_relative '../runtime-safety-preflight'
+
+# Atestação humana local do hook DCG (fora do repositório). Fail-closed.
+module DcgHookAttestation
+  CONTRACT = '1.0.0'
+  ACK = 'TRUST_DCG_HOOK'
+
+  class Denial < StandardError
+    attr_reader :code
+
+    def initialize(code, message)
+      @code = code
+      super(message)
+    end
+  end
+
+  module_function
+
+  def attestation_path(override: nil)
+    return File.expand_path(override) if override && !override.to_s.strip.empty?
+
+    xdg = ENV['XDG_CONFIG_HOME'].to_s.strip
+    base =
+      if !xdg.empty?
+        File.join(xdg, 'novo-app')
+      else
+        File.join(Dir.home, '.config', 'novo-app')
+      end
+    File.join(base, 'runtime-safety', 'dcg-hook-attestation.json')
+  end
+
+  def policy_sha256(policy_path = RuntimeSafetyPreflight::POLICY_PATH)
+    Digest::SHA256.hexdigest(File.binread(policy_path))
+  end
+
+  def build_payload(hooks_path:, dcg_path:, policy:, probe_ok:, ack:)
+    raise Denial.new('DCG_HOOK_ATTESTATION_INVALID', "ack deve ser #{ACK}") unless ack.to_s == ACK
+
+    begin
+      hooks_real = File.realpath(hooks_path)
+      dcg_real = File.realpath(dcg_path)
+    rescue SystemCallError => e
+      raise Denial.new('DCG_HOOK_ATTESTATION_INVALID', "path ilegível: #{e.message}")
+    end
+    platform = RuntimeSafetyPreflight.detect_platform_key
+    binary_expected = (policy['binary_checksums_esperados'] || {})[platform]
+    binary_obs = RuntimeSafetyPreflight.file_sha256(dcg_real)
+    versao = RuntimeSafetyPreflight.read_version(dcg_real)
+
+    unless binary_expected && binary_obs == binary_expected
+      raise Denial.new('DCG_HOOK_ATTESTATION_INVALID', 'checksum do binário DCG inválido para atestação')
+    end
+    unless versao == policy['versao_esperada'].to_s
+      raise Denial.new('DCG_HOOK_ATTESTATION_INVALID', "versão DCG inválida: #{versao.inspect}")
+    end
+    raise Denial.new('DCG_HOOK_ATTESTATION_INVALID', 'probe não blocked') unless probe_ok
+
+    verify = DcgCodexHookVerifier.verify(hooks_path: hooks_real, expected_dcg_realpath: dcg_real)
+    unless verify.ok
+      raise Denial.new(verify.code || 'DCG_HOOK_ATTESTATION_INVALID', verify.message)
+    end
+
+    now = Time.now.utc
+    max_days = (policy.dig('attestation', 'max_dias') || 30).to_i
+    usuario =
+      begin
+        Etc.getpwuid(Process.euid).name
+      rescue ArgumentError, SystemCallError
+        ENV['USER'].to_s.empty? ? 'unknown' : ENV['USER']
+      end
+    {
+      'contrato_versao' => CONTRACT,
+      'timestamp' => now.iso8601,
+      'expira_em' => (now + (max_days * 24 * 60 * 60)).iso8601,
+      'usuario_local' => usuario,
+      'plataforma' => platform,
+      'hooks_realpath' => hooks_real,
+      'hooks_sha256' => Digest::SHA256.hexdigest(File.binread(hooks_real)),
+      'dcg_realpath' => dcg_real,
+      'dcg_sha256' => binary_obs,
+      'dcg_versao' => versao,
+      'policy_sha256' => policy_sha256,
+      'confirmacao_humana' => ACK,
+      'probe_resultado' => 'blocked'
+    }
+  end
+
+  def write_atomic!(path, payload)
+    dir = File.dirname(path)
+    FileUtils.mkdir_p(dir, mode: 0o700)
+    tmp = "#{path}.tmp.#{Process.pid}"
+    File.open(tmp, File::WRONLY | File::CREAT | File::TRUNC, 0o600) do |f|
+      f.write(JSON.pretty_generate(payload) + "\n")
+      f.flush
+      f.fsync
+    end
+    File.chmod(0o600, tmp)
+    File.rename(tmp, path)
+    File.chmod(0o600, path)
+    path
+  ensure
+    FileUtils.rm_f(tmp) if defined?(tmp) && tmp && File.exist?(tmp)
+  end
+
+  def load_raw(path)
+    unless File.file?(path)
+      raise Denial.new('DCG_HOOK_ATTESTATION_MISSING', "atestação ausente: #{path}")
+    end
+
+    JSON.parse(File.read(path))
+  rescue JSON::ParserError => e
+    raise Denial.new('DCG_HOOK_ATTESTATION_INVALID', "JSON inválido: #{e.message}")
+  end
+
+  def validate!(attestation:, hooks_path:, dcg_path:, policy:, now: Time.now.utc)
+    raise Denial.new('DCG_HOOK_ATTESTATION_INVALID', 'payload inválido') unless attestation.is_a?(Hash)
+    if attestation['confirmacao_humana'].to_s != ACK
+      raise Denial.new('DCG_HOOK_ATTESTATION_INVALID', 'confirmação humana ausente/ inválida')
+    end
+
+    begin
+      exp = Time.parse(attestation['expira_em'].to_s)
+    rescue ArgumentError, TypeError
+      raise Denial.new('DCG_HOOK_ATTESTATION_INVALID', 'expira_em inválido')
+    end
+    if now > exp
+      raise Denial.new('DCG_HOOK_ATTESTATION_EXPIRED', "atestação expirada em #{attestation['expira_em']}")
+    end
+
+    begin
+      hooks_real = File.realpath(hooks_path)
+      dcg_real = File.realpath(dcg_path)
+    rescue SystemCallError => e
+      raise Denial.new('DCG_HOOK_ATTESTATION_INVALID', "path ilegível: #{e.message}")
+    end
+    begin
+      hooks_sha = Digest::SHA256.hexdigest(File.binread(hooks_real))
+    rescue SystemCallError => e
+      raise Denial.new('DCG_HOOK_ATTESTATION_INVALID', "falha ao ler hooks: #{e.message}")
+    end
+    dcg_sha = RuntimeSafetyPreflight.file_sha256(dcg_real)
+    raise Denial.new('DCG_HOOK_ATTESTATION_INVALID', 'falha ao ler checksum DCG') if dcg_sha.nil?
+
+    pol_sha = policy_sha256
+
+    if attestation['hooks_realpath'].to_s != hooks_real || attestation['hooks_sha256'] != hooks_sha
+      raise Denial.new('DCG_HOOK_ATTESTATION_MISMATCH', 'hooks path/hash diverge da atestação')
+    end
+    if attestation['dcg_realpath'].to_s != dcg_real || attestation['dcg_sha256'] != dcg_sha
+      raise Denial.new('DCG_HOOK_ATTESTATION_MISMATCH', 'DCG path/hash diverge da atestação')
+    end
+    if attestation['policy_sha256'] != pol_sha
+      raise Denial.new('DCG_HOOK_ATTESTATION_MISMATCH', 'política diverge da atestação')
+    end
+
+    verify = DcgCodexHookVerifier.verify(hooks_path: hooks_real, expected_dcg_realpath: dcg_real)
+    unless verify.ok
+      raise Denial.new(verify.code || 'DCG_HOOK_ATTESTATION_MISMATCH', verify.message)
+    end
+
+    true
+  end
+end

@@ -1,36 +1,27 @@
-# Handoff — Fase 3B.3C (Planejado × Observado + piloto supervisionado)
+# Handoff — Fase 3B.3C.1 (Pilot readiness alcançável no macOS)
 
 > **Atualizado:** 2026-07-14
-> **Branch:** `feat/fase-3b3c-planned-observed-pilot`
-> **Baseline main:** `c14ffef1` (squash PR #429 — Fase 3B.3B)
-> **Próxima etapa:** piloto real supervisionado **somente após merge** + autorização humana
+> **Branch:** `fix/fase-3b3c1-live-readiness-macos`
+> **Baseline main:** `636c3d4e` (squash PR #430 — Fase 3B.3C)
+> **Próxima etapa:** instalar DCG + hook + atestação → `check-pilot-readiness` → só então piloto real
 
 ## Estado
 
-| Fase  | Status                         | Entrega                                                            |
-| ----- | ------------------------------ | ------------------------------------------------------------------ |
-| 3B.3A | **MERGED** `#428` → `2239975a` | path hardening + DCG policy + preflight (sem spawn)                |
-| 3B.3B | **MERGED** `#429` → `c14ffef1` | runtime Codex single-agent (fake em testes; sem Codex real)        |
-| 3B.3C | **em andamento**               | snapshots planejado×observado, ledger, handoff humano, piloto prep |
+| Fase    | Status                         | Entrega                                              |
+| ------- | ------------------------------ | ---------------------------------------------------- |
+| 3B.3C   | **MERGED** `#430` → `636c3d4e` | planejado×observado + piloto preparado               |
+| 3B.3C.1 | **em andamento**               | asset≠binary checksum + hook live + atestação humana |
 
-## Princípio 3B.3C
+## Correções desta fatia
 
-Runtime da 3B.3B permanece **desligado por padrão** (três chaves). Esta fase transforma a execução em evidência auditável: snapshot planejado, snapshot observado, comparação `conforme|desvio|violacao|indisponivel`, task ledger de **uma** tarefa, handoff para revisor humano (`requer_aprovacao_humana: true`).
-
-Piloto real exige **seis** condições (`--agent-runtime` + ack + env + `--supervised-pilot` + pilot-ack + `AGENT_RUNTIME_PILOT=1`). **Nenhum piloto real nesta PR.**
-
-## Contagens de suites (início da 3B.3C)
-
-| Suite                         | Contagem |
-| ----------------------------- | -------- |
-| `test-agent-runtime.rb`       | 50       |
-| `test-agent-execution.rb`     | 64       |
-| `test-runtime-safety.rb`      | 42       |
-| `test-agent-orchestration.rb` | 136      |
+1. Preflight compara SHA do **binário** (`binary_checksums_esperados`), nunca do tar.xz.
+2. Hash do binário arm64 com proveniência oficial documentada.
+3. Hook live verificado por `dcg_codex_hook_verifier` (DCG direto; guardian pode coexistir).
+4. Trust via atestação humana fora do repo (`TRUST_DCG_HOOK`, ≤30 dias).
+5. `check-pilot-readiness.rb` — somente leitura.
 
 ## Não fazer
 
-- Codex real / piloto real nesta PR
-- Instalação global de DCG / alterar hooks globais
-- Multi-agent, subdelegação, commit/push/PR/merge/deploy automáticos
-- Iniciar Fase 3C / merge sem **MERGE**
+- Instalar DCG / editar `~/.codex/hooks.json` nesta PR
+- Codex real / piloto real / `AGENT_RUNTIME_*=1`
+- Fase 3C / merge sem **MERGE**

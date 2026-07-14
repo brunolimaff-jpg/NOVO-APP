@@ -165,3 +165,5 @@ jobs:
         run: ruby scripts/validate-runtime-safety.rb
       - name: Run runtime safety tests
         run: ruby scripts/test-runtime-safety.rb
+      - name: Run DCG live readiness tests
+        run: ruby scripts/test-dcg-live-readiness.rb

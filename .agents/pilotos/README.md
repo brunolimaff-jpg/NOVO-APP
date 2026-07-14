@@ -106,3 +106,15 @@ Não fazer commit/push/PR/merge automáticos.
 ## Estado local
 
 `.agents/pilotos/state/` é **gitignored**. Guarda só `missao_id`, timestamp e hash do relatório (criação atômica). Não é scheduler.
+
+## 0. Pilot Readiness (antes de qualquer piloto)
+
+```bash
+ruby scripts/check-pilot-readiness.rb --stdout
+```
+
+Exige: Codex 0.144.0, DCG v0.6.6 com checksum do **binário** (não do tar.xz),
+probe blocked, hook PreToolUse Bash com entrada DCG direta (guardian pode coexistir),
+atestação humana (`ruby scripts/attest-dcg-hook.rb --ack TRUST_DCG_HOOK ...`).
+
+Ordem completa: ver `.agents/seguranca/INSTALACAO-DCG-MACOS.md`.
