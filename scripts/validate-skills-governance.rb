@@ -62,7 +62,10 @@ module SkillsGovernanceValidator
     'docs/benchmarks/codex-harness-5.6.md',
     '.gitignore',
     '.github/workflows/ci.yml',
-    '.ruby-version'
+    '.ruby-version',
+    '.agents/governanca/contrato-comunicacao-bruno.md',
+    'scripts/lib/merge_authorization.rb',
+    'scripts/test-merge-authorization.rb'
   ].freeze
 
   def fail!(msg)
