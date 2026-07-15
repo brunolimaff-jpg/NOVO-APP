@@ -11,6 +11,7 @@ require_relative './agent_mission_contract'
 require_relative './codex_single_agent_runtime'
 require_relative './agent_run_comparator'
 require_relative './agent_task_ledger'
+require_relative './codex_jsonl_diagnostics'
 require_relative '../runtime-safety-preflight'
 
 # Orquestração do runtime single-agent (Fase 3B.3B).
@@ -500,6 +501,37 @@ module AgentSingleRuntime
     Digest::SHA256.hexdigest(canonical)
   end
 
+  def build_resultado_dimensoes(status, after, comparacao, spawn_result)
+    execution =
+      if spawn_result['timeout']
+        'timeout'
+      elsif !spawn_result['processos_iniciados'].to_i.positive?
+        'unavailable'
+      elsif spawn_result['exit_code'] == 0
+        'succeeded'
+      else
+        'failed'
+      end
+
+    delivery =
+      if Array(comparacao.dig('itens')).any? { |i| i['codigo'] == 'OBSERVED_EXPECTED_FILE_UNCHANGED' }
+        'failed'
+      elsif Array(comparacao.dig('itens')).none? { |i| i['campo'] == 'arquivo_planejado' && i['resultado'] == 'desvio' }
+        'succeeded'
+      else
+        'unknown'
+      end
+
+    compliance =
+      case comparacao['status']
+      when 'violacao' then 'violacao'
+      when 'indisponivel' then 'indisponivel'
+      else 'conforme'
+      end
+
+    { 'execution' => execution, 'delivery' => delivery, 'compliance' => compliance }
+  end
+
   def build_observed_report(base:)
     report = RuntimeSafetyPreflight.sort_keys_deep(base)
     report['relatorio_sha256'] = compute_report_hash(report)
@@ -662,7 +694,8 @@ module AgentSingleRuntime
       'REPORT_IS_NOT_CREDENTIAL',
       'EXTERNAL_SAFETY_REPORT_NOT_AUTHORIZATION',
       'NO_MERGE_PUSH_DEPLOY',
-      'CODEX_SUBSTITUI_EXECUCAO_DOS_COMANDOS'
+      'CODEX_SUBSTITUI_EXECUCAO_DOS_COMANDOS',
+      'DIAGNOSTIC_IS_AUDIT_ONLY'
     ]
     comparacao['itens'].select { |i| i['resultado'] == 'desvio' }.each do |i|
       avisos << (i['codigo'] || 'DESVIO')
@@ -716,6 +749,7 @@ module AgentSingleRuntime
         end,
         'negacoes' => negacoes,
         'avisos' => avisos.uniq,
+        'resultado_dimensoes' => build_resultado_dimensoes(status, after, comparacao, spawn_result),
         'evidencias' => [
           'three-key activation',
           'live preflight',
@@ -752,7 +786,8 @@ module AgentSingleRuntime
           'arquivos_modificados' => after['arquivos_modificados'],
           'violacoes_escopo' => after['violacoes_escopo'],
           'arquivos_protegidos_alterados' => after['arquivos_protegidos_alterados'],
-          'argv' => spawn_result['argv']
+          'argv' => spawn_result['argv'],
+          'diagnostico_jsonl' => spawn_result['diagnostico_jsonl'] || CodexJsonlDiagnostics.unavailable('CODEX_JSONL_UNAVAILABLE', 'spawn não iniciou')
         }
       }
     )

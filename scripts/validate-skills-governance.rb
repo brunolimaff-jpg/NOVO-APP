@@ -62,7 +62,10 @@ module SkillsGovernanceValidator
     'docs/benchmarks/codex-harness-5.6.md',
     '.gitignore',
     '.github/workflows/ci.yml',
-    '.ruby-version'
+    '.ruby-version',
+    'scripts/lib/codex_jsonl_diagnostics.rb',
+    'scripts/test-codex-jsonl-diagnostics.rb',
+    '.agents/orquestracao/executor/contrato-relatorio.schema.json'
   ].freeze
 
   def fail!(msg)

@@ -114,6 +114,20 @@ o arquivo sandbox obrigatório é verificado pelo comparador como
 
 Novas execuções com o mesmo `missao_id` continuam bloqueadas (state one-shot).
 
+## Diagnóstico JSONL
+
+O Run Report inclui `runtime.diagnostico_jsonl` — análise agregada e sanitizada
+da saída JSONL do Codex (`codex exec --json`).
+
+**Regras:**
+- diagnóstico é **audit-only** — não concede autorização não altera status;
+- saída bruta **não é persistida** (apenas SHA-256);
+- conteúdo de mensagens, comandos, ferramentas e arquivos é descartado;
+- tipos desconhecidos são contados mas nunca classificados;
+- truncamento gera diagnóstico `partial` (código `CODEX_JSONL_TRUNCATED`);
+- diagnóstico não autoriza retry nem novo piloto;
+- segundo piloto depende de aprovação humana separada.
+
 ## 0. Pilot Readiness (antes de qualquer piloto)
 
 ```bash
