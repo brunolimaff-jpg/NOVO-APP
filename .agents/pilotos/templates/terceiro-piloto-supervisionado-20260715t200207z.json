@@ -1,0 +1,97 @@
+{
+  "versao": 1,
+  "missao_id": "terceiro-piloto-supervisionado-20260715t200207z",
+  "missao": {
+    "id": "terceiro-piloto-supervisionado-20260715t200207z",
+    "titulo": "Terceiro piloto supervisionado — contrato explícito de entrega",
+    "objetivo": "Criar exatamente um arquivo Markdown para validar o contrato explícito de entrega, a comparação byte a byte e o diagnóstico JSONL do runtime Codex.",
+    "contexto": "Terceiro piloto após a integração da PR #438. O runtime já possui contrato explícito de entrega e verificação determinística do conteúdo observado.",
+    "resultado_esperado": "Arquivo .agents/pilotos/sandbox/resultado-terceiro-piloto.md criado com formato fixo."
+  },
+  "card": {
+    "versao": 1,
+    "id": "terceiro-piloto-supervisionado-20260715t200207z",
+    "titulo": "Terceiro piloto supervisionado",
+    "objetivo": "Criar exatamente um arquivo Markdown para validar o contrato explícito de entrega, a comparação byte a byte e o diagnóstico JSONL do runtime Codex.",
+    "contexto": "Terceiro piloto. Diagnóstico JSONL habilitado. Contrato explícito de entrega.",
+    "resultado_esperado": "Arquivo sandbox único criado; nenhuma outra alteração.",
+    "autorizacao": {
+      "nivel": "A3",
+      "acoes_permitidas": ["ler", "escrever", "testar"],
+      "acoes_solicitadas": [],
+      "acoes_proibidas": ["merge", "deploy", "push", "commit"]
+    },
+    "escopo": {
+      "leitura": [".agents/pilotos/"],
+      "escrita": [".agents/pilotos/sandbox/resultado-terceiro-piloto.md"]
+    },
+    "restricoes": ["sem rede", "sem subdelegacao", "sem multi-agent"],
+    "verificacao": ["arquivo sandbox existe", "nenhuma outra mudança"],
+    "evidencias_requeridas": ["run-report", "diff-worktree"],
+    "condicoes_parada": ["arquivo criado", "ambiguidade", "violacao de escopo"],
+    "papel_preferido": "executor-escopo",
+    "ferramentas_permitidas": ["codex"],
+    "rede_permitida": false,
+    "shell_permitido": false,
+    "delegacao_permitida": false,
+    "execucao_planejada": {
+      "estrategia": "agente-unico",
+      "perfil_execucao": "minimal-change",
+      "gate_qualidade": "evidence-first",
+      "agentes": [
+        {
+          "id": "principal",
+          "papel": "executor-escopo",
+          "permissao": "workspace-write",
+          "depende_de": []
+        }
+      ],
+      "tarefas": [
+        {
+          "id": "task-01",
+          "agente": "principal",
+          "objetivo": "Criar arquivo Markdown com evidência de execução single-agent",
+          "entrega_esperada": "Arquivo sandbox único criado; nenhuma outra alteração.",
+          "nao_fazer": ["alterar qualquer outro arquivo", "usar rede", "delegar", "commit", "push", "merge", "deploy"],
+          "arquivos": {
+            "leitura": [".agents/pilotos/"],
+            "escrita": [".agents/pilotos/sandbox/resultado-terceiro-piloto.md"]
+          },
+          "depende_de": []
+        }
+      ],
+      "limites": {
+        "max_agentes": 1,
+        "max_paralelo": 1,
+        "max_tempo_segundos": 180,
+        "max_retentativas": 0,
+        "max_rodadas_revisao": 0,
+        "permite_subdelegacao": false
+      }
+    },
+    "executor": {
+      "comandos": ["git-diff-check"]
+    }
+  },
+  "formato_arquivo": {
+    "path": ".agents/pilotos/sandbox/resultado-terceiro-piloto.md",
+    "conteudo_obrigatorio": [
+      "# Terceiro piloto supervisionado",
+      "runtime: codex",
+      "modo: single-agent",
+      "diagnostico_jsonl: habilitado",
+      "contrato_entrega: explícito",
+      "resultado: entrega observada"
+    ]
+  },
+  "limites": {
+    "max_tempo_segundos": 180,
+    "max_arquivos_escrita": 1,
+    "rede_permitida": false,
+    "delegacao_permitida": false,
+    "estrategia": "agente-unico",
+    "ferramenta": "codex",
+    "papel": "executor-escopo",
+    "permissao": "workspace-write"
+  }
+}
