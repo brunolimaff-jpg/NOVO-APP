@@ -650,12 +650,88 @@ ensure
   ENV.delete('DCG_BYPASS')
 end
 
-test('29 um único processo') do
+test('29 um único processo com entrega ausente → failure') do
   with_worktree do |wt, _|
     report, _err, = run_runtime(build_card, build_plan, worktree: wt)
-    raise report['negacoes'].inspect unless report['status'] == 'success'
+    # success-noop scenario: exit 0 but no file written → delivery failure
+    raise report['negacoes'].inspect unless report['status'] == 'failure'
     raise 'processos' unless report.dig('runtime', 'processos_iniciados') == 1
     raise 'agentes' unless report.dig('runtime', 'agente_observado') == 1
+    ledger_code = report.dig('task_ledger', 0, 'codigo_final')
+    raise "ledger codigo esperado DELIVERY_FAILED, obtido #{ledger_code.inspect}" unless ledger_code == 'DELIVERY_FAILED'
+    ledger_status = report.dig('task_ledger', 0, 'status')
+    raise "ledger status esperado failed, obtido #{ledger_status.inspect}" unless ledger_status == 'failed'
+    raise "sem OBSERVED_EXPECTED_FILE_UNCHANGED" unless Array(report['avisos']).any? { |a| a.include?('OBSERVED_EXPECTED_FILE_UNCHANGED') }
+    raise "handoff esperado corrigir_manualmente" unless report.dig('handoff', 'proxima_acao_recomendada') == 'corrigir_manualmente'
+    raise "snapshot status_final esperado failure, obtido #{report.dig('observed_snapshot','status_final')}" unless report.dig('observed_snapshot', 'status_final') == 'failure'
+    recalc = AgentRunComparator.canonical_hash(report['observed_snapshot'])
+    raise "observed_snapshot_sha256 mismatch: #{recalc} vs #{report['observed_snapshot_sha256']}" unless recalc == report['observed_snapshot_sha256']
+  end
+end
+
+test('29b diretório como escopo → aceita arquivo abaixo dele') do
+  with_worktree do |wt, _|
+    card = build_card.merge('escopo' => { 'leitura' => ['scripts/'], 'escrita' => ['tmp/resultados/'] })
+    plan = build_plan(
+      'tarefas_planejadas' => [
+        {
+          'id' => 'task-dir',
+          'agente' => 'principal',
+          'objetivo' => 'Escrita em diretório',
+          'entrega_esperada' => 'Arquivo dentro do diretório',
+          'nao_fazer' => %w[commit push merge],
+          'arquivos' => { 'leitura' => ['scripts/'], 'escrita' => ['tmp/resultados/'] },
+          'depende_de' => []
+        }
+      ]
+    )
+    report, = run_runtime(card, plan, worktree: wt, env: { 'AGENT_RUNTIME_FAKE_SCENARIO' => 'write-in-scope', 'AGENT_RUNTIME_FAKE_WRITE_PATH' => 'tmp/resultados/saida.md' })
+    raise "expected success, got #{report['status']}: #{report['negacoes'].inspect}" unless report['status'] == 'success'
+    raise "DELIVERY_FAILED detectado indevidamente" if Array(report['avisos']).any? { |a| a.include?('OBSERVED_EXPECTED_FILE_UNCHANGED') }
+  end
+end
+
+test('29c diretório como escopo sem escrita → DELIVERY_FAILED') do
+  with_worktree do |wt, _|
+    card = build_card.merge('escopo' => { 'leitura' => ['scripts/'], 'escrita' => ['tmp/nao-criado/'] })
+    plan = build_plan(
+      'tarefas_planejadas' => [
+        {
+          'id' => 'task-dir-empty',
+          'agente' => 'principal',
+          'objetivo' => 'Escrita em diretório sem nada',
+          'entrega_esperada' => 'Nada',
+          'nao_fazer' => %w[commit push merge],
+          'arquivos' => { 'leitura' => ['scripts/'], 'escrita' => ['tmp/nao-criado/'] },
+          'depende_de' => []
+        }
+      ]
+    )
+    report, = run_runtime(card, plan, worktree: wt, env: { 'AGENT_RUNTIME_FAKE_SCENARIO' => 'success-noop' })
+    raise "expected failure, got #{report['status']}" unless report['status'] == 'failure'
+    raise "DELIVERY_FAILED esperado" unless report.dig('task_ledger', 0, 'codigo_final') == 'DELIVERY_FAILED'
+  end
+end
+
+test('30 entrega dentro do escopo → success') do
+  with_worktree do |wt, _|
+    report, = run_runtime(build_card, build_plan, worktree: wt, env: { 'AGENT_RUNTIME_FAKE_SCENARIO' => 'write-in-scope' })
+    $stderr.puts "DEBUG30 status=#{report['status']} mod=#{report.dig('runtime','arquivos_modificados').inspect} ledger=#{report['task_ledger'].inspect} comp=#{report.dig('comparacao','itens').inspect}" if ENV['DEBUG']
+    raise report['negacoes'].inspect unless report['status'] == 'success'
+    raise 'mod' unless report.dig('runtime', 'arquivos_modificados').include?('tmp/runtime-write.txt')
+    ledger_code = report.dig('task_ledger', 0, 'codigo_final')
+    raise "ledger codigo esperado OK, obtido #{ledger_code.inspect}" unless ledger_code == 'OK'
+    ledger_status = report.dig('task_ledger', 0, 'status')
+    raise "ledger status esperado succeeded, obtido #{ledger_status.inspect}" unless ledger_status == 'succeeded'
+  end
+end
+
+test('31 Codex error → CODEX_FAILED') do
+  with_worktree do |wt, _|
+    report, = run_runtime(build_card, build_plan, worktree: wt, env: { 'AGENT_RUNTIME_FAKE_SCENARIO' => 'error' })
+    raise "expected failure, got #{report['status']}" unless report['status'] == 'failure'
+    ledger_code = report.dig('task_ledger', 0, 'codigo_final')
+    raise "ledger codigo esperado CODEX_FAILED, obtido #{ledger_code.inspect}" unless ledger_code == 'CODEX_FAILED'
   end
 end
 
@@ -665,23 +741,17 @@ test('30 timeout mata process group') do
     report, _err, status = run_runtime(build_card, plan, worktree: wt, env: { 'AGENT_RUNTIME_FAKE_SCENARIO' => 'timeout' })
     raise "status=#{report['status']} exit=#{status}" unless report['status'] == 'timeout'
     raise 'timeout flag' unless report.dig('runtime', 'timeout') == true
+    raise 'TIMEOUT ledger' unless report.dig('task_ledger', 0, 'codigo_final') == 'TIMEOUT'
   end
 end
 
 # --- Pós-execução ---
-test('31 alteração dentro do escopo aceita') do
-  with_worktree do |wt, _|
-    report, = run_runtime(build_card, build_plan, worktree: wt, env: { 'AGENT_RUNTIME_FAKE_SCENARIO' => 'write-in-scope' })
-    raise report['negacoes'].inspect unless report['status'] == 'success'
-    raise 'mod' unless report.dig('runtime', 'arquivos_modificados').include?('tmp/runtime-write.txt')
-  end
-end
-
 test('32 alteração fora do escopo negada') do
   with_worktree do |wt, _|
     report, = run_runtime(build_card, build_plan, worktree: wt, env: { 'AGENT_RUNTIME_FAKE_SCENARIO' => 'write-out-of-scope' })
     raise 'expected denied' unless report['status'] == 'denied'
     raise report['negacoes'].inspect unless negation_codes(report).include?('RUNTIME_SCOPE_VIOLATION')
+    raise 'VIOLATION ledger' unless report.dig('task_ledger', 0, 'codigo_final') == 'VIOLATION'
   end
 end
 
@@ -690,6 +760,7 @@ test('33 untracked fora do escopo negado') do
     report, = run_runtime(build_card, build_plan, worktree: wt, env: { 'AGENT_RUNTIME_FAKE_SCENARIO' => 'write-out-of-scope' })
     raise 'expected denied' unless report['status'] == 'denied'
     raise 'violations' if report.dig('runtime', 'violacoes_escopo').to_a.empty?
+    raise 'VIOLATION ledger' unless report.dig('task_ledger', 0, 'codigo_final') == 'VIOLATION'
   end
 end
 
@@ -698,6 +769,7 @@ test('34 arquivo protegido modificado') do
     report, = run_runtime(build_card, build_plan, worktree: wt, env: { 'AGENT_RUNTIME_FAKE_SCENARIO' => 'write-protected' })
     raise 'expected denied' unless report['status'] == 'denied'
     raise report['negacoes'].inspect unless negation_codes(report).include?('RUNTIME_PROTECTED_PATH_MUTATED')
+    raise 'VIOLATION ledger' unless report.dig('task_ledger', 0, 'codigo_final') == 'VIOLATION'
   end
 end
 
@@ -900,6 +972,30 @@ test('adapter incompatível negado') do
     raise 'should deny'
   rescue AgentSingleRuntime::Denial => e
     raise e.code unless e.code == 'RUNTIME_HARNESS_MISMATCH'
+  end
+end
+
+# --- State one-shot ---
+test('state one-shot bloqueia segundo missao_id') do
+  require_relative './lib/agent_supervised_pilot'
+  Dir.mktmpdir('state-oneshot') do |dir|
+    AgentSupervisedPilot.claim_mission!(
+      state_dir: dir,
+      missao_id: 'primeiro-piloto-supervisionado',
+      report_hash: 'a' * 64
+    )
+    raise 'already_executed false' unless AgentSupervisedPilot.already_executed?(state_dir: dir, missao_id: 'primeiro-piloto-supervisionado')
+    raise 'already_executed true falso' if AgentSupervisedPilot.already_executed?(state_dir: dir, missao_id: 'outra-missao')
+    begin
+      AgentSupervisedPilot.claim_mission!(
+        state_dir: dir,
+        missao_id: 'primeiro-piloto-supervisionado',
+        report_hash: 'b' * 64
+      )
+      raise 'deveria negar duplicata'
+    rescue AgentSupervisedPilot::Denial => e
+      raise e.code unless e.code == 'SUPERVISED_PILOT_ALREADY_EXECUTED'
+    end
   end
 end
 

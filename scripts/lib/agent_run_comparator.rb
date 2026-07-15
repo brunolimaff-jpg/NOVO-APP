@@ -310,7 +310,9 @@ module AgentRunComparator
     escrita = Array(planned['arquivos_escrita'])
     mods = Array(observed['arquivos_modificados'])
     escrita.each do |path|
-      next if mods.include?(path)
+      dir_prefix = path.end_with?('/') ? path : "#{path}/"
+      written = mods.include?(path) || mods.any? { |m| m.start_with?(dir_prefix) }
+      next if written
 
       add.call(item(
         campo: 'arquivo_planejado',

@@ -109,7 +109,7 @@ module AgentTaskLedger
     ledger
   end
 
-  def finalize_from_run!(ledger, comparison_status:, run_status:, spawn_started:, at: Time.now.utc)
+  def finalize_from_run!(ledger, comparison_status:, run_status:, spawn_started:, comparison_codes: [], run_exit_code: nil, at: Time.now.utc)
     validate!(ledger)
     task = ledger.first
     if task['status'] == 'planned'
@@ -136,6 +136,8 @@ module AgentTaskLedger
     when 'failure'
       if comparison_status == 'violacao'
         transition!(ledger, to: 'denied', at: at, codigo: 'VIOLATION')
+      elsif comparison_codes.include?('OBSERVED_EXPECTED_FILE_UNCHANGED') && run_exit_code == 0
+        transition!(ledger, to: 'failed', at: at, codigo: 'DELIVERY_FAILED')
       else
         transition!(ledger, to: 'failed', at: at, codigo: 'CODEX_FAILED')
       end
