@@ -625,6 +625,15 @@ module AgentSingleRuntime
 
     if comparacao['status'] == 'violacao' && status == 'success'
       status = 'denied'
+      observed = AgentRunComparator.build_observed_snapshot(observed.merge('status_final' => 'denied'))
+      observed_sha = AgentRunComparator.canonical_hash(observed)
+    end
+
+    # Delivery failure: exit 0 + arquivo planejado não criado/modificado.
+    if status == 'success' && Array(comparacao['itens']).any? { |i| i['codigo'] == 'OBSERVED_EXPECTED_FILE_UNCHANGED' }
+      status = 'failure'
+      observed = AgentRunComparator.build_observed_snapshot(observed.merge('status_final' => 'failure'))
+      observed_sha = AgentRunComparator.canonical_hash(observed)
     end
 
     t_end = begin
@@ -637,6 +646,8 @@ module AgentSingleRuntime
       comparison_status: comparacao['status'],
       run_status: status,
       spawn_started: spawn_started,
+      comparison_codes: comparacao['itens'].map { |i| i['codigo'] }.compact,
+      run_exit_code: spawn_result['exit_code'],
       at: t_end
     )
 

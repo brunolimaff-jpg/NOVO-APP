@@ -107,6 +107,13 @@ Não fazer commit/push/PR/merge automáticos.
 
 `.agents/pilotos/state/` é **gitignored**. Guarda só `missao_id`, timestamp e hash do relatório (criação atômica). Não é scheduler.
 
+**O state registra que uma tentativa foi consumida, não que foi bem-sucedida.**  
+Uma execução pode registrar `DELIVERY_FAILED` no ledger mesmo com Codex exit 0 —
+o arquivo sandbox obrigatório é verificado pelo comparador como
+`OBSERVED_EXPECTED_FILE_UNCHANGED` e o status final vira `failure`.
+
+Novas execuções com o mesmo `missao_id` continuam bloqueadas (state one-shot).
+
 ## 0. Pilot Readiness (antes de qualquer piloto)
 
 ```bash
