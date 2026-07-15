@@ -154,7 +154,7 @@ module AgentTaskLedger
     end
   end
 
-  def build_handoff(missao_id:, task_id:, run_status:, comparison:, arquivos_modificados:, avisos:, violacoes:)
+  def build_handoff(missao_id:, task_id:, run_status:, comparison:, arquivos_modificados:, avisos:, violacoes:, delivery_verification: nil)
     cmp_status = comparison.is_a?(Hash) ? comparison['status'].to_s : 'indisponivel'
     next_action =
       case cmp_status
@@ -170,6 +170,11 @@ module AgentTaskLedger
         end
       end
     next_action = 'investigar_violacao' if run_status == 'denied' && cmp_status != 'conforme'
+
+    if delivery_verification && delivery_verification['status'] != 'succeeded' && run_status == 'failure' && cmp_status != 'violacao'
+      next_action = 'corrigir_manualmente'
+    end
+
     unless NEXT_ACTIONS.include?(next_action)
       next_action = 'nenhuma_acao'
     end
