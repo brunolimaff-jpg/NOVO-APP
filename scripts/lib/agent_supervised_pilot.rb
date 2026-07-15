@@ -46,6 +46,87 @@ module AgentSupervisedPilot
 
   module_function
 
+  def validate_delivery_contract!(contract)
+    raise Denial.new('SUPERVISED_PILOT_DELIVERY_CONTRACT_INVALID', 'contract deve ser Hash') unless contract.is_a?(Hash)
+    path = contract['path']
+    raise Denial.new('SUPERVISED_PILOT_DELIVERY_CONTRACT_INVALID', 'path deve ser string não vazia') unless path.is_a?(String) && !path.empty?
+    content = contract['conteudo_obrigatorio']
+    raise Denial.new('SUPERVISED_PILOT_DELIVERY_CONTRACT_INVALID', 'conteudo_obrigatorio deve ser Array') unless content.is_a?(Array)
+    raise Denial.new('SUPERVISED_PILOT_DELIVERY_CONTRACT_INVALID', 'conteudo_obrigatorio vazio') if content.empty?
+    content.each_with_index do |line, i|
+      raise Denial.new('SUPERVISED_PILOT_DELIVERY_CONTRACT_INVALID', "linha #{i} não é String") unless line.is_a?(String)
+      raise Denial.new('SUPERVISED_PILOT_DELIVERY_CONTRACT_INVALID', "linha #{i} vazia") if line.empty?
+    end
+    serialized = JSON.generate(contract)
+    raise Denial.new('SUPERVISED_PILOT_DELIVERY_CONTRACT_INVALID', "contrato excede 4096 bytes") if serialized.bytesize > 4096
+    true
+  end
+
+  CONTRACT_MAX_BYTES = 4096
+
+  def extract_delivery_contract(template)
+    raise Denial.new('SUPERVISED_PILOT_DELIVERY_CONTRACT_INVALID', 'template deve ser Hash') unless template.is_a?(Hash)
+    fmt = template['formato_arquivo']
+    raise Denial.new('SUPERVISED_PILOT_DELIVERY_CONTRACT_INVALID', 'template sem formato_arquivo') unless fmt.is_a?(Hash)
+    raw_path = fmt['path']
+    raw_content = fmt['conteudo_obrigatorio']
+
+    raise Denial.new('SUPERVISED_PILOT_DELIVERY_CONTRACT_INVALID', 'path deve ser String') unless raw_path.is_a?(String)
+    raise Denial.new('SUPERVISED_PILOT_DELIVERY_CONTRACT_INVALID', 'path não pode ser vazio') if raw_path.empty?
+    raise Denial.new('SUPERVISED_PILOT_DELIVERY_CONTRACT_INVALID', 'conteudo_obrigatorio deve ser Array') unless raw_content.is_a?(Array)
+    raise Denial.new('SUPERVISED_PILOT_DELIVERY_CONTRACT_INVALID', 'conteudo_obrigatorio não pode ser vazio') if raw_content.empty?
+
+    raw_content.each_with_index do |item, i|
+      raise Denial.new('SUPERVISED_PILOT_DELIVERY_CONTRACT_INVALID', "item #{i} deve ser String") unless item.is_a?(String)
+      raise Denial.new('SUPERVISED_PILOT_DELIVERY_CONTRACT_INVALID', "item #{i} não pode ser vazio") if item.empty?
+    end
+
+    contracted_content = raw_content.dup
+    contracted_content.each_with_index do |line, i|
+      raise Denial.new('SUPERVISED_PILOT_DELIVERY_CONTRACT_INVALID', "item #{i} contém newline") if line.include?("\n") || line.include?("\r")
+      raise Denial.new('SUPERVISED_PILOT_DELIVERY_CONTRACT_INVALID', "item #{i} contém BEGIN_DELIVERY_CONTENT") if line.include?('BEGIN_DELIVERY_CONTENT')
+      raise Denial.new('SUPERVISED_PILOT_DELIVERY_CONTRACT_INVALID', "item #{i} contém END_DELIVERY_CONTENT") if line.include?('END_DELIVERY_CONTENT')
+    end
+
+    deep_copy = {
+      'path' => raw_path.dup.freeze,
+      'conteudo_obrigatorio' => contracted_content.freeze
+    }
+
+    serialized = JSON.generate(deep_copy)
+    raise Denial.new('SUPERVISED_PILOT_DELIVERY_CONTRACT_INVALID', "contrato excede #{CONTRACT_MAX_BYTES} bytes") if serialized.bytesize > CONTRACT_MAX_BYTES
+
+    deep_copy.freeze
+    deep_copy.each_value { |v| v.freeze if v.is_a?(Array) }
+
+    deep_copy
+  end
+
+  def validate_contract_against_outputs!(contract, template)
+    authorized = plan2writes(template)
+    raise Denial.new('SUPERVISED_PILOT_DELIVERY_CONTRACT_INVALID', 'nenhum output autorizado no template') unless authorized.size == 1
+
+    authorized_path = authorized.first
+    contract_path = contract['path']
+
+    raise Denial.new('SUPERVISED_PILOT_DELIVERY_CONTRACT_INVALID', 'exatamente um output esperado') if authorized.size != 1
+    raise Denial.new('SUPERVISED_PILOT_DELIVERY_CONTRACT_INVALID', "contract.path (#{contract_path}) != output autorizado (#{authorized_path})") unless contract_path == authorized_path
+
+    segments = contract_path.split('/')
+    raise Denial.new('SUPERVISED_PILOT_DELIVERY_CONTRACT_INVALID', 'path com segmento vazio') if segments.any?(&:empty?)
+    raise Denial.new('SUPERVISED_PILOT_DELIVERY_CONTRACT_INVALID', 'path com traversal') if segments.include?('.') || segments.include?('..')
+    raise Denial.new('SUPERVISED_PILOT_DELIVERY_CONTRACT_INVALID', 'path absoluto não permitido') if contract_path.start_with?('/')
+    raise Denial.new('SUPERVISED_PILOT_DELIVERY_CONTRACT_INVALID', 'path com backslash') if contract_path.include?('\\')
+    raise Denial.new('SUPERVISED_PILOT_DELIVERY_CONTRACT_INVALID', "path difere da normalização: #{contract_path} vs #{segments.join('/')}") unless contract_path == segments.join('/')
+    raise Denial.new('SUPERVISED_PILOT_DELIVERY_CONTRACT_INVALID', "path fora do sandbox: #{contract_path}") unless contract_path.start_with?(ALLOWED_WRITE_PREFIX)
+
+    protected = contract_path.start_with?('.agents/seguranca') || contract_path.start_with?('.agents/orquestracao') ||
+               contract_path.start_with?('scripts/') || contract_path.start_with?('.github/')
+    raise Denial.new('SUPERVISED_PILOT_DELIVERY_CONTRACT_INVALID', "path protegido: #{contract_path}") if protected
+
+    true
+  end
+
   def pilot_requested?(opts)
     opts[:supervised_pilot] == true || !opts[:pilot_ack].to_s.empty? || ENV['AGENT_RUNTIME_PILOT'] == '1'
   end
@@ -140,6 +221,10 @@ module AgentSupervisedPilot
 
     template_id!(template, requested_id: raw_id)
     validate_template_outputs!(template)
+
+    contract = extract_delivery_contract(template)
+    validate_contract_against_outputs!(contract, template)
+
     template
   rescue JSON::ParserError => error
     raise Denial.new('SUPERVISED_PILOT_TEMPLATE_NOT_APPROVED', "template JSON inválido: #{error.message}")

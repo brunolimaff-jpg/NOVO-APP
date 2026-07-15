@@ -105,6 +105,20 @@
         "compliance": { "type": "string", "enum": ["conforme", "violacao", "indisponivel"] }
       }
     },
+    "delivery_verification": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "required": ["status", "path", "expected_sha256", "observed_sha256", "expected_bytes", "observed_bytes"],
+      "properties": {
+        "status": { "type": "string", "enum": ["succeeded", "missing", "mismatch", "unavailable"] },
+        "path": { "type": "string" },
+        "expected_sha256": { "type": "string" },
+        "observed_sha256": { "type": ["string", "null"] },
+        "expected_bytes": { "type": "integer" },
+        "observed_bytes": { "type": "integer" },
+        "codigo": { "type": ["string", "null"] }
+      }
+    },
     "handoff": {
       "type": "object",
       "required": [

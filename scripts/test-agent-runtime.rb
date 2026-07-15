@@ -996,7 +996,425 @@ test('state one-shot bloqueia segundo missao_id') do
     rescue AgentSupervisedPilot::Denial => e
       raise e.code unless e.code == 'SUPERVISED_PILOT_ALREADY_EXECUTED'
     end
+    end
+end
+
+# === Delivery Contract Tests (§10) ===
+
+DELIVERY_TMP = Dir.mktmpdir('delivery-contract-tests')
+at_exit { FileUtils.rm_rf(DELIVERY_TMP) if File.directory?(DELIVERY_TMP) }
+
+def delivery_contract_template(path:, content:)
+  base_card = {
+    'versao' => 1,
+    'id' => 'piloto-delivery-test',
+    'titulo' => 'Delivery test',
+    'objetivo' => 'Test delivery contract',
+    'contexto' => 'Test',
+    'resultado_esperado' => 'File',
+    'autorizacao' => { 'nivel' => 'A4', 'acoes_permitidas' => ['escrever'], 'acoes_solicitadas' => [], 'acoes_proibidas' => ['merge'] },
+    'escopo' => { 'leitura' => [], 'escrita' => [path] },
+    'restricoes' => [], 'verificacao' => [], 'evidencias_requiridas' => [],
+    'condicoes_parada' => ['done'],
+    'execucao_planejada' => {
+      'tarefas' => [{ 'arquivos' => { 'escrita' => [path] } }]
+    }
+  }
+  {
+    'missao_id' => 'piloto-delivery-test',
+    'card' => base_card,
+    'formato_arquivo' => {
+      'path' => path,
+      'conteudo_obrigatorio' => content
+    }
+  }
+end
+
+def valid_pilot_plan_for(path:)
+  {
+    'versao' => 1, 'missao_id' => 'piloto-delivery-test', 'status' => 'planejado',
+    'negacoes' => [],
+    'papel_principal' => 'executor-escopo', 'ferramenta_selecionada' => 'codex',
+    'adaptador_selecionado' => 'codex-runtime', 'skills_selecionadas' => [],
+    'autorizacao_fornecida' => 'A4', 'autorizacao_necessaria' => 'A4',
+    'leitura_permitida' => true, 'escrita_permitida' => true, 'shell_permitido' => false,
+    'rede_permitida' => false, 'delegacao_permitida' => false,
+    'tarefas_planejadas' => [
+      { 'id' => 't1', 'titulo' => 'T1', 'arquivos' => { 'escrita' => [path] } }
+    ],
+    'comandos' => ['noop-codex'], 'resumo_operacional' => {
+      'executavel' => true, 'estrategia' => 'agente-unico',
+      'agentes_planejados' => 1, 'writers' => 1, 'max_paralelo' => 1
+    },
+    'topologia' => { 'agentes' => [{ 'papel' => 'executor-escopo', 'permissao' => 'workspace-write' }], 'max_agentes' => 1, 'permite_subdelegacao' => false },
+    'limites' => { 'max_tempo_segundos' => 10 },
+    'decisao_execucao' => { 'estrategia' => 'agente-unico' }
+  }
+end
+
+test('1. extract_delivery_contract nega sem formato_arquivo') do
+  tmpl = delivery_contract_template(path: '.agents/pilotos/sandbox/out.txt', content: ['line1'])
+  tmpl.delete('formato_arquivo')
+  begin
+    AgentSupervisedPilot.extract_delivery_contract(tmpl)
+    raise 'deveria negar'
+  rescue AgentSupervisedPilot::Denial => e
+    raise "wrong code: #{e.code}" unless e.code == 'SUPERVISED_PILOT_DELIVERY_CONTRACT_INVALID'
   end
+end
+
+test('2. contract path diferente do output autorizado é negado') do
+  tmpl = delivery_contract_template(path: '.agents/pilotos/sandbox/out.txt', content: ['line1'])
+  tmpl['formato_arquivo']['path'] = '.agents/pilotos/sandbox/wrong.txt'
+  begin
+    contract = AgentSupervisedPilot.extract_delivery_contract(tmpl)
+    AgentSupervisedPilot.validate_contract_against_outputs!(contract, tmpl)
+    raise 'deveria negar'
+  rescue AgentSupervisedPilot::Denial => e
+    raise "wrong code: #{e.code}" unless e.code == 'SUPERVISED_PILOT_DELIVERY_CONTRACT_INVALID'
+  end
+end
+
+test('3. path fora do sandbox é negado') do
+  tmpl = delivery_contract_template(path: '.agents/pilotos/sandbox/out.txt', content: ['line1'])
+  tmpl['formato_arquivo']['path'] = 'components/não.txt'
+  begin
+    contract = AgentSupervisedPilot.extract_delivery_contract(tmpl)
+    AgentSupervisedPilot.validate_contract_against_outputs!(contract, tmpl)
+    raise 'deveria negar'
+  rescue AgentSupervisedPilot::Denial => e
+    raise "wrong code: #{e.code}" unless e.code == 'SUPERVISED_PILOT_DELIVERY_CONTRACT_INVALID'
+  end
+end
+
+test('4. contrato acima de 4096 bytes é negado') do
+  big_content = Array.new(500) { |i| "linha#{i}" }
+  tmpl = delivery_contract_template(path: '.agents/pilotos/sandbox/out.txt', content: big_content)
+  begin
+    AgentSupervisedPilot.extract_delivery_contract(tmpl)
+    raise 'deveria negar'
+  rescue AgentSupervisedPilot::Denial => e
+    raise "wrong code: #{e.code}" unless e.code == 'SUPERVISED_PILOT_DELIVERY_CONTRACT_INVALID'
+  end
+end
+
+test('5. prompt contém path exato') do
+  contract = { 'path' => '.agents/pilotos/sandbox/out.txt', 'conteudo_obrigatorio' => ['hello'] }.freeze
+  prompt = AgentSingleRuntime.build_prompt(
+    { 'id' => 'm1', 'titulo' => 'T', 'objetivo' => 'O', 'contexto' => 'C', 'resultado_esperado' => 'R',
+      'verificacao' => [], 'condicoes_parada' => [] },
+    valid_pilot_plan_for(path: '.agents/pilotos/sandbox/out.txt'),
+    write_scope: ['.agents/pilotos/sandbox/'],
+    read_scope: [],
+    delivery_contract: contract
+  )
+  raise 'prompt sem path' unless prompt.include?('.agents/pilotos/sandbox/out.txt')
+end
+
+test('6. prompt contém conteúdo delimitado') do
+  contract = { 'path' => '.agents/pilotos/sandbox/out.txt', 'conteudo_obrigatorio' => ['line1', 'line2'] }.freeze
+  prompt = AgentSingleRuntime.build_prompt(
+    { 'id' => 'm1', 'titulo' => 'T', 'objetivo' => 'O', 'contexto' => 'C', 'resultado_esperado' => 'R',
+      'verificacao' => [], 'condicoes_parada' => [] },
+    valid_pilot_plan_for(path: '.agents/pilotos/sandbox/out.txt'),
+    write_scope: ['.agents/pilotos/sandbox/'],
+    read_scope: [],
+    delivery_contract: contract
+  )
+  raise 'prompt sem BEGIN' unless prompt.include?('BEGIN_DELIVERY_CONTENT')
+  raise 'prompt sem END' unless prompt.include?('END_DELIVERY_CONTENT')
+  raise 'prompt sem line1' unless prompt.include?('line1')
+  raise 'prompt sem line2' unless prompt.include?('line2')
+  raise 'prompt sem quebra de linha obrigatória' unless prompt.include?('quebra de linha final')
+end
+
+test('7. prompt exige escrita e proíbe apenas descrição') do
+  contract = { 'path' => '.agents/pilotos/sandbox/out.txt', 'conteudo_obrigatorio' => ['data'] }.freeze
+  prompt = AgentSingleRuntime.build_prompt(
+    { 'id' => 'm1', 'titulo' => 'T', 'objetivo' => 'O', 'contexto' => 'C', 'resultado_esperado' => 'R',
+      'verificacao' => [], 'condicoes_parada' => [] },
+    valid_pilot_plan_for(path: '.agents/pilotos/sandbox/out.txt'),
+    write_scope: ['.agents/pilotos/sandbox/'],
+    read_scope: [],
+    delivery_contract: contract
+  )
+  raise 'prompt sem "DEVE"' unless prompt.include?('DEVE')
+  raise 'prompt sem "Copie LITERALMENTE"' unless prompt.include?('Copie LITERALMENTE')
+  raise 'prompt sem "Crie exatamente um arquivo"' unless prompt.include?('Crie exatamente um arquivo')
+  raise 'prompt sem "Não apenas descreva"' unless prompt.include?('Nenhum outro arquivo')
+end
+
+test('8. arquivo ausente → DELIVERY_FILE_MISSING') do
+  path = File.join(DELIVERY_TMP, 'missing-test')
+  FileUtils.mkdir_p(path)
+  contract = { 'path' => 'missing-test/file.txt', 'conteudo_obrigatorio' => ['data'] }
+  result = AgentSingleRuntime.verify_delivery!(DELIVERY_TMP, contract)
+  raise 'wrong status' unless result['status'] == 'missing'
+  raise 'wrong codigo' unless result['codigo'] == 'DELIVERY_FILE_MISSING'
+  raise 'sha nil' if result['observed_sha256']
+  raise 'bytes 0' unless result['observed_bytes'] == 0
+end
+
+test('9. arquivo com linha faltante → DELIVERY_CONTENT_MISMATCH') do
+  path = File.join(DELIVERY_TMP, 'partial-test')
+  FileUtils.mkdir_p(path)
+  File.write(File.join(path, 'out.txt'), "data\n")
+  contract = { 'path' => 'out.txt', 'conteudo_obrigatorio' => ['data', 'extra'] }
+  result = AgentSingleRuntime.verify_delivery!(path, contract)
+  raise 'wrong status' unless result['status'] == 'mismatch'
+  raise 'wrong codigo' unless result['codigo'] == 'DELIVERY_CONTENT_MISMATCH'
+end
+
+test('10. arquivo com linhas fora de ordem → DELIVERY_CONTENT_MISMATCH') do
+  path = File.join(DELIVERY_TMP, 'order-test')
+  FileUtils.mkdir_p(path)
+  File.write(File.join(path, 'out.txt'), "line2\nline1\n")
+  contract = { 'path' => 'out.txt', 'conteudo_obrigatorio' => ['line1', 'line2'] }
+  result = AgentSingleRuntime.verify_delivery!(path, contract)
+  raise 'wrong status' unless result['status'] == 'mismatch'
+  raise 'wrong codigo' unless result['codigo'] == 'DELIVERY_CONTENT_MISMATCH'
+end
+
+test('11. arquivo com conteúdo extra → DELIVERY_CONTENT_MISMATCH') do
+  path = File.join(DELIVERY_TMP, 'extra-test')
+  FileUtils.mkdir_p(path)
+  File.write(File.join(path, 'out.txt'), "line1\nextra\n")
+  contract = { 'path' => 'out.txt', 'conteudo_obrigatorio' => ['line1'] }
+  result = AgentSingleRuntime.verify_delivery!(path, contract)
+  raise 'wrong status' unless result['status'] == 'mismatch'
+  raise 'wrong codigo' unless result['codigo'] == 'DELIVERY_CONTENT_MISMATCH'
+end
+
+test('12. arquivo com bytes inválidos → DELIVERY_CONTENT_MISMATCH') do
+  path = File.join(DELIVERY_TMP, 'invalid-test')
+  FileUtils.mkdir_p(path)
+  File.binwrite(File.join(path, 'out.txt'), "line1\x00junk\n")
+  contract = { 'path' => 'out.txt', 'conteudo_obrigatorio' => ['line1'] }
+  result = AgentSingleRuntime.verify_delivery!(path, contract)
+  raise 'wrong status' unless result['status'] == 'mismatch'
+  raise 'wrong codigo' unless result['codigo'] == 'DELIVERY_CONTENT_MISMATCH'
+end
+
+test('13. arquivo exato → delivery succeeded') do
+  path = File.join(DELIVERY_TMP, 'exact-test')
+  FileUtils.mkdir_p(path)
+  File.write(File.join(path, 'out.txt'), "line1\nline2\n")
+  contract = { 'path' => 'out.txt', 'conteudo_obrigatorio' => ['line1', 'line2'] }
+  result = AgentSingleRuntime.verify_delivery!(path, contract)
+  raise 'wrong status' unless result['status'] == 'succeeded'
+  raise 'codigo not nil' unless result['codigo'].nil?
+  raise 'sha mismatch' unless result['expected_sha256'] == result['observed_sha256']
+  raise 'bytes mismatch' unless result['expected_bytes'] == result['observed_bytes']
+end
+
+test('14. exit 0 sem arquivo → execution=succeeded, delivery=failed, compliance=conforme, status=failure') do
+  path = File.join(DELIVERY_TMP, 'run-14')
+  FileUtils.mkdir_p(path)
+  contract = { 'path' => 'run-14/out.txt', 'conteudo_obrigatorio' => ['data'] }
+  result = AgentSingleRuntime.verify_delivery!(DELIVERY_TMP, contract)
+  raise 'wrong status' unless result['status'] == 'missing'
+  raise 'wrong codigo' unless result['codigo'] == 'DELIVERY_FILE_MISSING'
+  raise 'sha nil' if result['observed_sha256']
+  dim = AgentSingleRuntime.build_resultado_dimensoes(
+    'failure',
+    { 'negacoes' => [] },
+    { 'status' => 'conforme', 'itens' => [] },
+    { 'processos_iniciados' => 1, 'exit_code' => 0, 'timeout' => false },
+    delivery_verification: result
+  )
+  raise 'wrong execution' unless dim['execution'] == 'succeeded'
+  raise 'wrong delivery' unless dim['delivery'] == 'failed'
+  raise 'wrong compliance' unless dim['compliance'] == 'conforme'
+end
+
+test('15. exit 0 com conteúdo divergente → execution=succeeded, delivery=failed, compliance=conforme') do
+  path = File.join(DELIVERY_TMP, 'run-15')
+  FileUtils.mkdir_p(path)
+  File.write(File.join(path, 'out.txt'), "wrong\n")
+  contract = { 'path' => 'run-15/out.txt', 'conteudo_obrigatorio' => ['data'] }
+  result = AgentSingleRuntime.verify_delivery!(DELIVERY_TMP, contract)
+  raise 'wrong status' unless result['status'] == 'mismatch'
+  raise 'wrong codigo' unless result['codigo'] == 'DELIVERY_CONTENT_MISMATCH'
+  raise 'observed_sha nil' if result['observed_sha256'].nil?
+  dim = AgentSingleRuntime.build_resultado_dimensoes(
+    'failure',
+    { 'negacoes' => [] },
+    { 'status' => 'conforme', 'itens' => [] },
+    { 'processos_iniciados' => 1, 'exit_code' => 0, 'timeout' => false },
+    delivery_verification: result
+  )
+  raise 'wrong execution' unless dim['execution'] == 'succeeded'
+  raise 'wrong delivery' unless dim['delivery'] == 'failed'
+  raise 'wrong compliance' unless dim['compliance'] == 'conforme'
+end
+
+test('16. arquivo correto + alteração fora do escopo → delivery=succeeded, compliance=violacao, status=denied') do
+  path = File.join(DELIVERY_TMP, 'run-16')
+  FileUtils.mkdir_p(path)
+  File.write(File.join(path, 'out.txt'), "data\n")
+  contract = { 'path' => 'run-16/out.txt', 'conteudo_obrigatorio' => ['data'] }
+  result = AgentSingleRuntime.verify_delivery!(DELIVERY_TMP, contract)
+  dim = AgentSingleRuntime.build_resultado_dimensoes(
+    'denied',
+    { 'negacoes' => [{ 'codigo' => 'RUNTIME_SCOPE_VIOLATION' }] },
+    { 'status' => 'violacao', 'itens' => [] },
+    { 'processos_iniciados' => 1, 'exit_code' => 0, 'timeout' => false },
+    delivery_verification: result
+  )
+  raise 'wrong delivery' unless dim['delivery'] == 'succeeded'
+  raise 'wrong compliance' unless dim['compliance'] == 'violacao'
+end
+
+test('17. contrato imutável — extração gela') do
+  tmpl = delivery_contract_template(path: '.agents/pilotos/sandbox/out.txt', content: ['line1'])
+  contract = AgentSupervisedPilot.extract_delivery_contract(tmpl)
+  begin
+    contract['path'] = 'foo'
+    raise 'não deveria permitir mutação'
+  rescue FrozenError
+  else
+    raise 'deveria ter congelado'
+  end
+  begin
+    contract['conteudo_obrigatorio'] << 'linha_extra'
+    raise 'não deveria permitir mutação'
+  rescue FrozenError
+  else
+    raise 'deveria ter congelado'
+  end
+end
+
+test('17b. conteúdo UTF-8 com acentos exato → succeeded') do
+  path = File.join(DELIVERY_TMP, 'utf8-test')
+  FileUtils.mkdir_p(path)
+  content = "diagnóstico\n".encode('UTF-8')
+  File.write(File.join(path, 'out.txt'), content)
+  contract = { 'path' => 'utf8-test/out.txt', 'conteudo_obrigatorio' => ['diagnóstico'] }
+  result = AgentSingleRuntime.verify_delivery!(DELIVERY_TMP, contract)
+  raise 'wrong status' unless result['status'] == 'succeeded'
+  raise 'codigo not nil' unless result['codigo'].nil?
+  raise 'sha mismatch' unless result['expected_sha256'] == result['observed_sha256']
+end
+
+test('17c. UTF-8 com um byte diferente → mismatch') do
+  path = File.join(DELIVERY_TMP, 'utf8-diff')
+  FileUtils.mkdir_p(path)
+  correct = "diagnóstico\n".encode('UTF-8')
+  wrong = "diagnóstico\n".encode('UTF-8').sub('ó', 'o')
+  File.write(File.join(path, 'out.txt'), wrong)
+  contract = { 'path' => 'utf8-diff/out.txt', 'conteudo_obrigatorio' => ['diagnóstico'] }
+  result = AgentSingleRuntime.verify_delivery!(DELIVERY_TMP, contract)
+  raise 'wrong status' unless result['status'] == 'mismatch'
+  raise 'observed_sha nil' if result['observed_sha256'].nil?
+end
+
+test('17d. planned required_content_sha256 == expected_sha256') do
+  path = File.join(DELIVERY_TMP, 'sha-equal')
+  FileUtils.mkdir_p(path)
+  File.write(File.join(path, 'out.txt'), "line1\n")
+  contract = { 'path' => 'sha-equal/out.txt', 'conteudo_obrigatorio' => ['line1'] }
+  result = AgentSingleRuntime.verify_delivery!(DELIVERY_TMP, contract)
+  expected = Digest::SHA256.hexdigest("line1\n")
+  raise 'sha mismatch' unless result['expected_sha256'] == expected
+  raise 'observed different from expected' unless result['observed_sha256'] == result['expected_sha256']
+end
+
+test('17e. conteúdo com BEGIN marker → negado') do
+  tmpl = delivery_contract_template(path: '.agents/pilotos/sandbox/out.txt', content: ['linha BEGIN_DELIVERY_CONTENT teste'])
+  begin
+    AgentSupervisedPilot.extract_delivery_contract(tmpl)
+    raise 'deveria negar'
+  rescue AgentSupervisedPilot::Denial => e
+    raise "wrong code: #{e.code}" unless e.code == 'SUPERVISED_PILOT_DELIVERY_CONTRACT_INVALID'
+  end
+end
+
+test('17f. conteúdo com END marker → negado') do
+  tmpl = delivery_contract_template(path: '.agents/pilotos/sandbox/out.txt', content: ['linha END_DELIVERY_CONTENT teste'])
+  begin
+    AgentSupervisedPilot.extract_delivery_contract(tmpl)
+    raise 'deveria negar'
+  rescue AgentSupervisedPilot::Denial => e
+    raise "wrong code: #{e.code}" unless e.code == 'SUPERVISED_PILOT_DELIVERY_CONTRACT_INVALID'
+  end
+end
+
+test('17g. conteúdo com newline interno → negado') do
+  tmpl = delivery_contract_template(path: '.agents/pilotos/sandbox/out.txt', content: ["linha\ncomnewline"])
+  begin
+    AgentSupervisedPilot.extract_delivery_contract(tmpl)
+    raise 'deveria negar'
+  rescue AgentSupervisedPilot::Denial => e
+    raise "wrong code: #{e.code}" unless e.code == 'SUPERVISED_PILOT_DELIVERY_CONTRACT_INVALID'
+  end
+end
+
+test('17h. path numérico → negado') do
+  tmpl = delivery_contract_template(path: '.agents/pilotos/sandbox/out.txt', content: ['line1'])
+  tmpl['formato_arquivo']['path'] = 12345
+  begin
+    AgentSupervisedPilot.extract_delivery_contract(tmpl)
+    raise 'deveria negar'
+  rescue AgentSupervisedPilot::Denial => e
+    raise "wrong code: #{e.code}" unless e.code == 'SUPERVISED_PILOT_DELIVERY_CONTRACT_INVALID'
+  end
+end
+
+test('17i. conteúdo String em vez de Array → negado') do
+  tmpl = delivery_contract_template(path: '.agents/pilotos/sandbox/out.txt', content: ['line1'])
+  tmpl['formato_arquivo']['conteudo_obrigatorio'] = 'não é array'
+  begin
+    AgentSupervisedPilot.extract_delivery_contract(tmpl)
+    raise 'deveria negar'
+  rescue AgentSupervisedPilot::Denial => e
+    raise "wrong code: #{e.code}" unless e.code == 'SUPERVISED_PILOT_DELIVERY_CONTRACT_INVALID'
+  end
+end
+
+test('17j. item numérico → negado') do
+  tmpl = delivery_contract_template(path: '.agents/pilotos/sandbox/out.txt', content: ['line1'])
+  tmpl['formato_arquivo']['conteudo_obrigatorio'] = [123]
+  begin
+    AgentSupervisedPilot.extract_delivery_contract(tmpl)
+    raise 'deveria negar'
+  rescue AgentSupervisedPilot::Denial => e
+    raise "wrong code: #{e.code}" unless e.code == 'SUPERVISED_PILOT_DELIVERY_CONTRACT_INVALID'
+  end
+end
+
+test('17k. item nil → negado') do
+  tmpl = delivery_contract_template(path: '.agents/pilotos/sandbox/out.txt', content: ['line1'])
+  tmpl['formato_arquivo']['conteudo_obrigatorio'] = [nil]
+  begin
+    AgentSupervisedPilot.extract_delivery_contract(tmpl)
+    raise 'deveria negar'
+  rescue AgentSupervisedPilot::Denial => e
+    raise "wrong code: #{e.code}" unless e.code == 'SUPERVISED_PILOT_DELIVERY_CONTRACT_INVALID'
+  end
+end
+
+test('17l. delivery mismatch + violacao → investigar_violacao') do
+  path = File.join(DELIVERY_TMP, 'run-17l')
+  FileUtils.mkdir_p(path)
+  File.write(File.join(path, 'out.txt'), "wrong\n")
+  contract = { 'path' => 'run-17l/out.txt', 'conteudo_obrigatorio' => ['data'] }
+  result = AgentSingleRuntime.verify_delivery!(DELIVERY_TMP, contract)
+  ledger = AgentTaskLedger.build_handoff(
+    missao_id: 'm1',
+    task_id: 't1',
+    run_status: 'failure',
+    comparison: { 'status' => 'violacao' },
+    arquivos_modificados: [],
+    avisos: [],
+    violacoes: ['VIOLATION_TEST'],
+    delivery_verification: result
+  )
+  raise 'wrong proxima_acao' unless ledger['proxima_acao_recomendada'] == 'investigar_violacao'
+end
+
+test('18. nenhum teste executa Codex real') do
+  fake_codex = File.join(ROOT, '.agents/seguranca/fixtures/fake-codex')
+  raise "fake-codex NÃO existe — pode estar usando codex real" unless File.executable?(fake_codex)
 end
 
 puts "OK #{@tests} tests"

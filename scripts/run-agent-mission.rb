@@ -420,9 +420,11 @@ module AgentMissionRunner
         validate_inputs!(card, plan, catalog)
 
         pilot_mode = AgentSupervisedPilot.pilot_requested?(opts)
+        delivery_contract = nil
         if pilot_mode
           template = AgentSupervisedPilot.load_template!(ROOT, missao_id: card['id'].to_s)
           AgentSupervisedPilot.validate_mission!(card: card, plan: plan, template: template, root: ROOT)
+          delivery_contract = AgentSupervisedPilot.extract_delivery_contract(template)
           state_dir = AgentSupervisedPilot.state_dir(ROOT, override: opts[:pilot_state_dir])
           if AgentSupervisedPilot.already_executed?(state_dir: state_dir, missao_id: card['id'])
             raise DeniedError.new('SUPERVISED_PILOT_ALREADY_EXECUTED', "piloto já registrado: #{card['id']}")
@@ -435,7 +437,8 @@ module AgentMissionRunner
           catalog: catalog,
           worktree: worktree,
           safety_report_path: opts[:safety_report] && safe_path(opts[:safety_report], must_exist: true),
-          repo_root: ROOT
+          repo_root: ROOT,
+          delivery_contract: delivery_contract
         )
         status = runtime_report['status']
         negacoes = Array(runtime_report['negacoes'])
