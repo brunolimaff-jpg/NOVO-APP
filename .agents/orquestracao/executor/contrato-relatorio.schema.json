@@ -95,6 +95,16 @@
         }
       }
     },
+    "resultado_dimensoes": {
+      "type": "object",
+      "required": ["execution", "delivery", "compliance"],
+      "additionalProperties": false,
+      "properties": {
+        "execution": { "type": "string", "enum": ["succeeded", "failed", "timeout", "unavailable"] },
+        "delivery": { "type": "string", "enum": ["succeeded", "failed", "unknown"] },
+        "compliance": { "type": "string", "enum": ["conforme", "violacao", "indisponivel"] }
+      }
+    },
     "handoff": {
       "type": "object",
       "required": [

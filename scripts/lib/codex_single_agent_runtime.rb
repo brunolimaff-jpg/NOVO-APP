@@ -5,6 +5,7 @@ require 'digest'
 require 'json'
 require 'rbconfig'
 require 'time'
+require_relative './codex_jsonl_diagnostics'
 
 # Adapter Codex single-agent (Fase 3B.3B).
 # Executa apenas via argv + Open3. Sem shell, sem eval, sem fallback livre.
@@ -255,6 +256,7 @@ module CodexSingleAgentRuntime
     out, out_trunc = trunc(stdout_data)
     err, err_trunc = trunc(stderr_data)
     finished = Time.now.utc
+    diagnostico = CodexJsonlDiagnostics.parse(out, truncated: out_trunc)
     {
       'processos_iniciados' => pid ? 1 : 0,
       'pid' => pid,
@@ -269,7 +271,8 @@ module CodexSingleAgentRuntime
       'stdout_truncado' => out_trunc,
       'stderr_truncado' => err_trunc,
       'argv' => argv,
-      'codex_version_tested' => TESTED_VERSION
+      'codex_version_tested' => TESTED_VERSION,
+      'diagnostico_jsonl' => diagnostico
     }
   rescue SystemCallError => error
     raise Denial.new('CODEX_SPAWN_FAILED', error.message)
