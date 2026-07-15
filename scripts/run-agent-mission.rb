@@ -421,7 +421,7 @@ module AgentMissionRunner
 
         pilot_mode = AgentSupervisedPilot.pilot_requested?(opts)
         if pilot_mode
-          template = AgentSupervisedPilot.load_template!(ROOT)
+          template = AgentSupervisedPilot.load_template!(ROOT, missao_id: card['id'].to_s)
           AgentSupervisedPilot.validate_mission!(card: card, plan: plan, template: template, root: ROOT)
           state_dir = AgentSupervisedPilot.state_dir(ROOT, override: opts[:pilot_state_dir])
           if AgentSupervisedPilot.already_executed?(state_dir: state_dir, missao_id: card['id'])

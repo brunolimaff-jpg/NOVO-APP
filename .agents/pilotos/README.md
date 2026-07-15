@@ -107,6 +107,10 @@ Não fazer commit/push/PR/merge automáticos.
 
 `.agents/pilotos/state/` é **gitignored**. Guarda só `missao_id`, timestamp e hash do relatório (criação atômica). Não é scheduler.
 
+`.agents/pilotos/templates/` é **versionado**. Cada missão autorizada possui um
+template JSON próprio (`<missao_id>.json`). State ausente não é autorização —
+missão sem template é negada mesmo sem state.
+
 **O state registra que uma tentativa foi consumida, não que foi bem-sucedida.**  
 Uma execução pode registrar `DELIVERY_FAILED` no ledger mesmo com Codex exit 0 —
 o arquivo sandbox obrigatório é verificado pelo comparador como

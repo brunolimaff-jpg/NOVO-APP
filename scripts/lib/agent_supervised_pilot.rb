@@ -5,14 +5,16 @@ require 'fileutils'
 require 'digest'
 require 'time'
 
-# Ativação e barreiras do piloto supervisionado (Fase 3B.3C).
-# Não executa Codex real nesta PR — apenas valida pré-condições e estado.
+# Ativação e barreiras do piloto supervisionado (Fase 3B.3C+).
+# Não executa Codex real — apenas valida pré-condições e estado.
 module AgentSupervisedPilot
   ACK_VALUE = 'RUN_SUPERVISED_PILOT'
   PILOT_MAX_TIMEOUT = 180
   TEMPLATE_REL = '.agents/pilotos/primeiro-piloto.json'
+  TEMPLATES_DIR = '.agents/pilotos/templates'
   DEFAULT_STATE_REL = '.agents/pilotos/state'
   ALLOWED_WRITE_PREFIX = '.agents/pilotos/sandbox/'
+  SAFE_ID_RE = /\A[a-z0-9][a-zA-Z0-9_.-]*\z/
 
   FORBIDDEN_WRITE_PATTERNS = [
     %r{\Apackage\.json\z},
@@ -20,11 +22,11 @@ module AgentSupervisedPilot
     %r{\Ayarn\.lock\z},
     %r{\Apnpm-lock\.yaml\z},
     %r{\A\.github/},
+    %r{\Aapi/},
     %r{\A\.agents/seguranca/},
     %r{\Ascripts/},
     %r{\Acomponents/},
     %r{\Aservices/},
-    %r{\Aapi/},
     %r{\Ahooks/},
     %r{\Autils/},
     %r{\Acontexts/},
@@ -48,7 +50,6 @@ module AgentSupervisedPilot
     opts[:supervised_pilot] == true || !opts[:pilot_ack].to_s.empty? || ENV['AGENT_RUNTIME_PILOT'] == '1'
   end
 
-  # Piloto: seis chaves. Runtime normal 3B.3B: ignorar (não exige piloto).
   def enforce_activation!(opts)
     return :not_pilot unless pilot_requested?(opts)
 
@@ -65,19 +66,172 @@ module AgentSupervisedPilot
     :supervised_pilot
   end
 
-  def load_template!(root)
-    path = File.join(root, TEMPLATE_REL)
-    raise Denial.new('SUPERVISED_PILOT_SCOPE_DENIED', "template ausente: #{TEMPLATE_REL}") unless File.file?(path)
+  def template_id!(template, requested_id:)
+    raise Denial.new('SUPERVISED_PILOT_TEMPLATE_NOT_APPROVED', 'template deve ser objeto') unless template.is_a?(Hash)
 
-    JSON.parse(File.read(path))
+    ids = []
+    if template.key?('missao_id')
+      v = template['missao_id']
+      raise Denial.new('SUPERVISED_PILOT_TEMPLATE_NOT_APPROVED', 'missao_id deve ser string') unless v.is_a?(String) && !v.empty?
+      ids << v
+    end
+    if template.key?('missao')
+      v = template['missao']
+      raise Denial.new('SUPERVISED_PILOT_TEMPLATE_NOT_APPROVED', 'missao deve ser Hash') unless v.is_a?(Hash)
+      vid = v['id']
+      raise Denial.new('SUPERVISED_PILOT_TEMPLATE_NOT_APPROVED', 'missao.id deve ser string não vazia') unless vid.is_a?(String) && !vid.empty?
+      ids << vid
+    end
+    if template.key?('card')
+      v = template['card']
+      raise Denial.new('SUPERVISED_PILOT_TEMPLATE_NOT_APPROVED', 'card deve ser Hash') unless v.is_a?(Hash)
+      vid = v['id']
+      raise Denial.new('SUPERVISED_PILOT_TEMPLATE_NOT_APPROVED', 'card.id deve ser string não vazia') unless vid.is_a?(String) && !vid.empty?
+      ids << vid
+    end
+
+    raise Denial.new('SUPERVISED_PILOT_TEMPLATE_NOT_APPROVED', 'template sem ID interno') if ids.empty?
+    raise Denial.new('SUPERVISED_PILOT_TEMPLATE_ID_MISMATCH', "IDs internos divergentes: #{ids.uniq.inspect}") unless ids.uniq.size == 1
+    raise Denial.new('SUPERVISED_PILOT_TEMPLATE_ID_MISMATCH', "ID interno (#{ids.first}) != solicitado (#{requested_id})") unless ids.first == requested_id.to_s
+
+    ids.first
+  end
+
+  def contain_path!(root_real, path_real, label)
+    raise Denial.new('SUPERVISED_PILOT_TEMPLATE_NOT_APPROVED', "#{label} não está sob #{root_real}") unless path_real.start_with?(root_real + '/') || path_real == root_real
+  end
+
+  def safe_template_path(root, missao_id:)
+    safe_id = missao_id.to_s
+    raise Denial.new('SUPERVISED_PILOT_TEMPLATE_NOT_APPROVED', "mission_id inválido: #{missao_id.inspect}") unless safe_id.match?(SAFE_ID_RE)
+    raise Denial.new('SUPERVISED_PILOT_TEMPLATE_NOT_APPROVED', "mission_id contém caracteres proibidos") if safe_id.include?('/') || safe_id.include?('\\') || safe_id.include?('..')
+    raise Denial.new('SUPERVISED_PILOT_TEMPLATE_NOT_APPROVED', "mission_id não normalizado") unless safe_id == safe_id.strip
+
+    root_real = File.realpath(root)
+
+    if safe_id == 'primeiro-piloto-supervisionado'
+      legado = File.expand_path(File.join(root, TEMPLATE_REL))
+      legado_real = File.realpath(legado)
+      contain_path!(root_real, legado_real, 'template legado')
+      # Verificar que está dentro de .agents/pilotos/
+      pilotos_real = File.realpath(File.join(root, '.agents', 'pilotos'))
+      contain_path!(pilotos_real, legado_real, 'template legado sob pilotos')
+      [legado, legado_real]
+    else
+      dir_raw = File.expand_path(File.join(root, TEMPLATES_DIR))
+      dir_real = File.realpath(dir_raw)
+      contain_path!(root_real, dir_real, 'diretório de templates')
+      cand = File.expand_path(File.join(dir_raw, "#{safe_id}.json"))
+      cand_real = File.realpath(cand)
+      contain_path!(dir_real, cand_real, 'template')
+      [cand, cand_real]
+    end
+  rescue SystemCallError => e
+    raise Denial.new('SUPERVISED_PILOT_TEMPLATE_NOT_APPROVED', "erro ao acessar template: #{e.message}")
+  end
+
+  def load_template!(root, missao_id:)
+    raw_id = missao_id.to_s
+    raise Denial.new('SUPERVISED_PILOT_TEMPLATE_NOT_APPROVED', "mission_id inválido") unless raw_id.match?(SAFE_ID_RE)
+
+    _cand, real = safe_template_path(root, missao_id: raw_id)
+    template = JSON.parse(File.read(real))
+    raise Denial.new('SUPERVISED_PILOT_TEMPLATE_NOT_APPROVED', 'template JSON inválido: raiz deve ser objeto') unless template.is_a?(Hash)
+
+    template_id!(template, requested_id: raw_id)
+    validate_template_outputs!(template)
+    template
   rescue JSON::ParserError => error
-    raise Denial.new('SUPERVISED_PILOT_SCOPE_DENIED', "template JSON inválido: #{error.message}")
+    raise Denial.new('SUPERVISED_PILOT_TEMPLATE_NOT_APPROVED', "template JSON inválido: #{error.message}")
+  end
+
+  def validate_template_outputs!(template)
+    raise Denial.new('SUPERVISED_PILOT_TEMPLATE_NOT_APPROVED', 'template deve ser Hash') unless template.is_a?(Hash)
+
+    card = template['card']
+    raise Denial.new('SUPERVISED_PILOT_TEMPLATE_NOT_APPROVED', 'card deve ser Hash') unless card.is_a?(Hash)
+
+    # A. outputs de execucao_planejada.tarefas[].arquivos.escrita
+    a_paths = []
+    ep = card['execucao_planejada']
+    raise Denial.new('SUPERVISED_PILOT_TEMPLATE_OUTPUT_INVALID', 'execucao_planejada deve ser Hash') unless ep.is_a?(Hash)
+
+    tasks = ep['tarefas']
+    raise Denial.new('SUPERVISED_PILOT_TEMPLATE_OUTPUT_INVALID', 'tarefas deve ser Array') unless tasks.is_a?(Array)
+
+    tasks.each do |t|
+      raise Denial.new('SUPERVISED_PILOT_TEMPLATE_OUTPUT_INVALID', 'cada tarefa deve ser Hash') unless t.is_a?(Hash)
+
+      arquivos = t['arquivos']
+      raise Denial.new('SUPERVISED_PILOT_TEMPLATE_OUTPUT_INVALID', 'tarefa.arquivos deve ser Hash') unless arquivos.is_a?(Hash)
+
+      escrita = arquivos['escrita']
+      raise Denial.new('SUPERVISED_PILOT_TEMPLATE_OUTPUT_INVALID', 'tarefa.arquivos.escrita deve ser Array') unless escrita.is_a?(Array)
+
+      escrita.each { |p| a_paths << p.to_s if p.is_a?(String) && !p.to_s.empty? }
+    end
+    a_paths = a_paths.uniq
+    raise Denial.new('SUPERVISED_PILOT_TEMPLATE_OUTPUT_INVALID', "execucao_planejada com #{a_paths.size} output(s), esperado 1") unless a_paths.size == 1
+
+    # B. outputs de card.escopo.escrita
+    escopo = card['escopo']
+    raise Denial.new('SUPERVISED_PILOT_TEMPLATE_OUTPUT_INVALID', 'card.escopo deve ser Hash') unless escopo.is_a?(Hash)
+
+    b_writes = escopo['escrita']
+    raise Denial.new('SUPERVISED_PILOT_TEMPLATE_OUTPUT_INVALID', 'card.escopo.escrita deve ser Array') unless b_writes.is_a?(Array)
+
+    b_paths = b_writes.map(&:to_s).reject(&:empty?).uniq
+    raise Denial.new('SUPERVISED_PILOT_TEMPLATE_OUTPUT_INVALID', "card.escopo.escrita com #{b_paths.size} path(s), esperado 1") unless b_paths.size == 1
+
+    # C. formato_arquivo.path
+    fmt = template['formato_arquivo']
+    raise Denial.new('SUPERVISED_PILOT_TEMPLATE_OUTPUT_INVALID', 'formato_arquivo deve ser Hash') unless fmt.is_a?(Hash)
+
+    c_path = fmt['path']
+    raise Denial.new('SUPERVISED_PILOT_TEMPLATE_OUTPUT_INVALID', 'formato_arquivo.path deve ser string não vazia') unless c_path.is_a?(String) && !c_path.empty?
+
+    unless a_paths.first == b_paths.first && b_paths.first == c_path
+      raise Denial.new('SUPERVISED_PILOT_TEMPLATE_OUTPUT_INVALID', "outputs divergentes: A=#{a_paths.first} B=#{b_paths.first} C=#{c_path}")
+    end
+  end
+
+  def plan2writes(plan_or_template)
+    return [] unless plan_or_template.is_a?(Hash)
+
+    writes = []
+    card = plan_or_template['card']
+    if card.is_a?(Hash)
+      ep = card['execucao_planejada']
+      if ep.is_a?(Hash)
+        tasks = ep['tarefas']
+        if tasks.is_a?(Array)
+          tasks.each do |t|
+            next unless t.is_a?(Hash)
+
+            arquivos = t['arquivos']
+            next unless arquivos.is_a?(Hash)
+
+            escrita = arquivos['escrita']
+            next unless escrita.is_a?(Array)
+
+            escrita.each { |p| writes << p.to_s if p.is_a?(String) && !p.to_s.empty? }
+          end
+        end
+      end
+      escopo = card['escopo']
+      if escopo.is_a?(Hash)
+        ew = escopo['escrita']
+        writes.concat(ew.map(&:to_s)) if ew.is_a?(Array)
+      end
+    end
+
+    writes.reject(&:empty?).uniq
   end
 
   def validate_mission!(card:, plan:, template:, root:)
-    tmpl_id = template.dig('missao', 'id') || template['missao_id'] || template.dig('card', 'id')
-    unless card['id'].to_s == tmpl_id.to_s && plan['missao_id'].to_s == tmpl_id.to_s
-      raise Denial.new('SUPERVISED_PILOT_SCOPE_DENIED', 'missão fora do template do primeiro piloto')
+    tmpl_id = template_id!(template, requested_id: card['id'].to_s)
+    unless card['id'].to_s == tmpl_id && plan['missao_id'].to_s == tmpl_id
+      raise Denial.new('SUPERVISED_PILOT_SCOPE_DENIED', "missão fora do template autorizado (esperado=#{tmpl_id})")
     end
 
     auth = (card.dig('autorizacao', 'nivel') || plan['autorizacao_fornecida']).to_s
@@ -106,6 +260,12 @@ module AgentSupervisedPilot
     unless rel.start_with?(ALLOWED_WRITE_PREFIX)
       raise Denial.new('SUPERVISED_PILOT_SCOPE_DENIED', "path fora do sandbox do piloto: #{rel}")
     end
+
+    tmpl_writes = plan2writes(template)
+    if tmpl_writes.size != 1 || rel != tmpl_writes.first
+      raise Denial.new('SUPERVISED_PILOT_OUTPUT_MISMATCH', "arquivo planejado (#{rel}) difere do autorizado no template (#{tmpl_writes.first})")
+    end
+
     FORBIDDEN_WRITE_PATTERNS.each do |pat|
       if rel.match?(pat)
         raise Denial.new('SUPERVISED_PILOT_SCOPE_DENIED', "path funcional/proibido: #{rel}")
@@ -126,7 +286,6 @@ module AgentSupervisedPilot
     File.join(dir, "#{safe}.json")
   end
 
-  # Criação atômica: O_EXCL. Colisão → SUPERVISED_PILOT_ALREADY_EXECUTED.
   def claim_mission!(state_dir:, missao_id:, report_hash:, dry_run: false)
     return nil if dry_run
 
