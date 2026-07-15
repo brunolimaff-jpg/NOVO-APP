@@ -425,7 +425,7 @@ test('30 env ausente') do
 end
 
 test('31 missão fora do template') do
-  tmpl = AgentSupervisedPilot.load_template!(ROOT)
+  tmpl = AgentSupervisedPilot.load_template!(ROOT, missao_id: 'primeiro-piloto-supervisionado')
   begin
     AgentSupervisedPilot.validate_mission!(
       card: build_card_pilot(id: 'outra'),
@@ -435,12 +435,12 @@ test('31 missão fora do template') do
     )
     raise 'should deny'
   rescue AgentSupervisedPilot::Denial => e
-    assert e.code == 'SUPERVISED_PILOT_SCOPE_DENIED'
+    assert %w[SUPERVISED_PILOT_SCOPE_DENIED SUPERVISED_PILOT_TEMPLATE_ID_MISMATCH].include?(e.code)
   end
 end
 
 test('32 mais de um arquivo permitido') do
-  tmpl = AgentSupervisedPilot.load_template!(ROOT)
+  tmpl = AgentSupervisedPilot.load_template!(ROOT, missao_id: 'primeiro-piloto-supervisionado')
   begin
     AgentSupervisedPilot.validate_mission!(
       card: build_card_pilot(escrita: ['.agents/pilotos/sandbox/a.md', '.agents/pilotos/sandbox/b.md']),
@@ -455,7 +455,7 @@ test('32 mais de um arquivo permitido') do
 end
 
 test('33 path funcional proibido') do
-  tmpl = AgentSupervisedPilot.load_template!(ROOT)
+  tmpl = AgentSupervisedPilot.load_template!(ROOT, missao_id: 'primeiro-piloto-supervisionado')
   begin
     AgentSupervisedPilot.validate_mission!(
       card: build_card_pilot(escrita: ['package.json']),
@@ -470,7 +470,7 @@ test('33 path funcional proibido') do
 end
 
 test('34 timeout acima de 180') do
-  tmpl = AgentSupervisedPilot.load_template!(ROOT)
+  tmpl = AgentSupervisedPilot.load_template!(ROOT, missao_id: 'primeiro-piloto-supervisionado')
   begin
     AgentSupervisedPilot.validate_mission!(
       card: build_card_pilot,
@@ -485,7 +485,7 @@ test('34 timeout acima de 180') do
 end
 
 test('35 autorização abaixo de A3') do
-  tmpl = AgentSupervisedPilot.load_template!(ROOT)
+  tmpl = AgentSupervisedPilot.load_template!(ROOT, missao_id: 'primeiro-piloto-supervisionado')
   begin
     AgentSupervisedPilot.validate_mission!(
       card: build_card_pilot(auth: 'A2'),
@@ -748,6 +748,446 @@ test('45 nenhum Codex real é descoberto durante os testes') do
   ensure
     # leave clean
   end
+end
+
+# ── Template registry (Fase 3B.4B.1) ──
+
+test('t01 primeiro piloto resolve pelo legado') do
+  tmpl = AgentSupervisedPilot.load_template!(ROOT, missao_id: 'primeiro-piloto-supervisionado')
+  assert tmpl.is_a?(Hash)
+  assert tmpl.dig('missao', 'id') == 'primeiro-piloto-supervisionado' || tmpl['missao_id'] == 'primeiro-piloto-supervisionado'
+end
+
+test('t02 segundo piloto resolve pelo template versionado') do
+  tmpl = AgentSupervisedPilot.load_template!(ROOT, missao_id: 'segundo-piloto-supervisionado-20260715t142707z')
+  assert tmpl.is_a?(Hash)
+  assert(tmpl.dig('missao', 'id') == 'segundo-piloto-supervisionado-20260715t142707z')
+end
+
+test('t03 mission_id desconhecido → TEMPLATE_NOT_APPROVED') do
+  begin
+    AgentSupervisedPilot.load_template!(ROOT, missao_id: 'misso-desconhecida-xyz')
+    raise 'deveria negar'
+  rescue AgentSupervisedPilot::Denial => e
+    raise e.code unless e.code == 'SUPERVISED_PILOT_TEMPLATE_NOT_APPROVED'
+  end
+end
+
+test('t04 path traversal ../ → negado') do
+  begin
+    AgentSupervisedPilot.load_template!(ROOT, missao_id: '../etc/passwd')
+    raise 'deveria negar'
+  rescue AgentSupervisedPilot::Denial => e
+    raise e.code unless e.code == 'SUPERVISED_PILOT_TEMPLATE_NOT_APPROVED'
+  end
+end
+
+test('t05 mission_id com slash → negado') do
+  begin
+    AgentSupervisedPilot.load_template!(ROOT, missao_id: 'foo/bar')
+    raise 'deveria negar'
+  rescue AgentSupervisedPilot::Denial => e
+    raise e.code unless e.code == 'SUPERVISED_PILOT_TEMPLATE_NOT_APPROVED'
+  end
+end
+
+test('t06 card id diferente do plan → denied') do
+  tmpl = AgentSupervisedPilot.load_template!(ROOT, missao_id: 'primeiro-piloto-supervisionado')
+  begin
+    AgentSupervisedPilot.validate_mission!(
+      card: build_card_pilot(id: 'a'),
+      plan: build_plan_pilot('missao_id' => 'b'),
+      template: tmpl,
+      root: ROOT
+    )
+    raise 'deveria negar'
+  rescue AgentSupervisedPilot::Denial => e
+    assert %w[SUPERVISED_PILOT_SCOPE_DENIED SUPERVISED_PILOT_TEMPLATE_ID_MISMATCH].include?(e.code)
+  end
+end
+
+test('t07 card e plan iguais mas divergem do template → denied') do
+  tmpl = AgentSupervisedPilot.load_template!(ROOT, missao_id: 'primeiro-piloto-supervisionado')
+  begin
+    AgentSupervisedPilot.validate_mission!(
+      card: build_card_pilot(id: 'missao-alheia'),
+      plan: build_plan_pilot('missao_id' => 'missao-alheia'),
+      template: tmpl,
+      root: ROOT
+    )
+    raise 'deveria negar'
+  rescue AgentSupervisedPilot::Denial => e
+    assert %w[SUPERVISED_PILOT_SCOPE_DENIED SUPERVISED_PILOT_TEMPLATE_ID_MISMATCH].include?(e.code)
+  end
+end
+
+test('t08 segundo piloto com output exato → válido') do
+  tmpl = AgentSupervisedPilot.load_template!(ROOT, missao_id: 'segundo-piloto-supervisionado-20260715t142707z')
+  r = AgentSupervisedPilot.validate_mission!(
+    card: build_card_pilot(id: 'segundo-piloto-supervisionado-20260715t142707z', escrita: ['.agents/pilotos/sandbox/resultado-segundo-piloto.md']),
+    plan: build_plan_pilot('missao_id' => 'segundo-piloto-supervisionado-20260715t142707z', 'write' => ['.agents/pilotos/sandbox/resultado-segundo-piloto.md']),
+    template: tmpl,
+    root: ROOT
+  )
+  assert r == true
+end
+
+test('t09 segundo piloto com output diferente → OUTPUT_MISMATCH') do
+  tmpl = AgentSupervisedPilot.load_template!(ROOT, missao_id: 'segundo-piloto-supervisionado-20260715t142707z')
+  begin
+    AgentSupervisedPilot.validate_mission!(
+      card: build_card_pilot(id: 'segundo-piloto-supervisionado-20260715t142707z', escrita: ['.agents/pilotos/sandbox/outro-arquivo.md']),
+      plan: build_plan_pilot('missao_id' => 'segundo-piloto-supervisionado-20260715t142707z', 'write' => ['.agents/pilotos/sandbox/outro-arquivo.md']),
+      template: tmpl,
+      root: ROOT
+    )
+    raise 'deveria negar'
+  rescue AgentSupervisedPilot::Denial => e
+    raise e.code unless e.code == 'SUPERVISED_PILOT_OUTPUT_MISMATCH'
+  end
+end
+
+test('t10 dois arquivos → negado') do
+  tmpl = AgentSupervisedPilot.load_template!(ROOT, missao_id: 'primeiro-piloto-supervisionado')
+  begin
+    AgentSupervisedPilot.validate_mission!(
+      card: build_card_pilot(escrita: ['.agents/pilotos/sandbox/a.md', '.agents/pilotos/sandbox/b.md']),
+      plan: build_plan_pilot('write' => ['.agents/pilotos/sandbox/a.md', '.agents/pilotos/sandbox/b.md']),
+      template: tmpl,
+      root: ROOT
+    )
+    raise 'deveria negar'
+  rescue AgentSupervisedPilot::Denial => e
+    raise e.code unless e.code == 'SUPERVISED_PILOT_SCOPE_DENIED'
+  end
+end
+
+# ── Hardening fail-closed (Fase 3B.4B.1 corretiva) ──
+
+def with_tmp_template(data, name: 'tmp-template')
+  Dir.mktmpdir('tpl-test') do |dir|
+    tdir = File.join(dir, '.agents', 'pilotos', 'templates')
+    FileUtils.mkdir_p(tdir)
+    path = File.join(tdir, "#{name}.json")
+    File.write(path, data.is_a?(String) ? data : JSON.pretty_generate(data))
+    yield dir, path, tdir
+  end
+end
+
+test('t11 template JSON array → negado') do
+  with_tmp_template('[1,2,3]') do |dir, path, _tdir|
+    # Simular load_template com template não Hash
+    begin
+      AgentSupervisedPilot.load_template!(dir, missao_id: 'tmp-template')
+      raise 'deveria negar'
+    rescue AgentSupervisedPilot::Denial => e
+      raise e.code unless e.code == 'SUPERVISED_PILOT_TEMPLATE_NOT_APPROVED'
+    end
+  end
+end
+
+test('t12 template JSON string → negado') do
+  with_tmp_template('"apenas string"') do |dir, path, _tdir|
+    begin
+      AgentSupervisedPilot.load_template!(dir, missao_id: 'tmp-template')
+      raise 'deveria negar'
+    rescue AgentSupervisedPilot::Denial => e
+      raise e.code unless e.code == 'SUPERVISED_PILOT_TEMPLATE_NOT_APPROVED'
+    end
+  end
+end
+
+test('t13 missao como string → negado controlado') do
+  data = { 'versao' => 1, 'missao' => 'string-invalida', 'card' => { 'id' => 'x', 'escopo' => { 'escrita' => ['a.md'] } } }
+  Dir.mktmpdir('tpl-missao-str') do |dir|
+    tdir = File.join(dir, '.agents', 'pilotos', 'templates')
+    FileUtils.mkdir_p(tdir)
+    File.write(File.join(tdir, 'x.json'), JSON.pretty_generate(data))
+    begin
+      AgentSupervisedPilot.load_template!(dir, missao_id: 'x')
+      raise 'deveria negar'
+    rescue AgentSupervisedPilot::Denial => e
+      # template sem ID interno → negado
+      assert %w[SUPERVISED_PILOT_TEMPLATE_NOT_APPROVED SUPERVISED_PILOT_TEMPLATE_ID_MISMATCH SUPERVISED_PILOT_TEMPLATE_OUTPUT_INVALID].include?(e.code)
+    end
+  end
+end
+
+test('t14 card como array → negado controlado') do
+  data = { 'versao' => 1, 'missao' => { 'id' => 'x' }, 'card' => ['invalido'] }
+  Dir.mktmpdir('tpl-card-array') do |dir|
+    tdir = File.join(dir, '.agents', 'pilotos', 'templates')
+    FileUtils.mkdir_p(tdir)
+    File.write(File.join(tdir, 'x.json'), JSON.pretty_generate(data))
+    begin
+      AgentSupervisedPilot.load_template!(dir, missao_id: 'x')
+      raise 'deveria negar'
+    rescue AgentSupervisedPilot::Denial => e
+      assert %w[SUPERVISED_PILOT_TEMPLATE_NOT_APPROVED SUPERVISED_PILOT_TEMPLATE_ID_MISMATCH SUPERVISED_PILOT_TEMPLATE_OUTPUT_INVALID].include?(e.code)
+    end
+  end
+end
+
+test('t15 tarefa interna não Hash → negado') do
+  data = {
+    'missao' => { 'id' => 'x' },
+    'card' => {
+      'id' => 'x',
+      'escopo' => { 'escrita' => ['a.md'] },
+      'execucao_planejada' => {
+        'tarefas' => ['nao-sou-hash']
+      }
+    },
+    'formato_arquivo' => { 'path' => 'a.md' }
+  }
+  Dir.mktmpdir('tpl-task-bad') do |dir|
+    tdir = File.join(dir, '.agents', 'pilotos', 'templates')
+    FileUtils.mkdir_p(tdir)
+    File.write(File.join(tdir, 'x.json'), JSON.pretty_generate(data))
+    begin
+      AgentSupervisedPilot.load_template!(dir, missao_id: 'x')
+      raise 'deveria negar'
+    rescue AgentSupervisedPilot::Denial => e
+      raise e.code unless e.code == 'SUPERVISED_PILOT_TEMPLATE_OUTPUT_INVALID'
+    end
+  end
+end
+
+test('t16 missao.id correto + card.id divergente → TEMPLATE_ID_MISMATCH') do
+  data = { 'missao' => { 'id' => 'a' }, 'card' => { 'id' => 'b' } }
+  Dir.mktmpdir('tpl-id-div') do |dir|
+    tdir = File.join(dir, '.agents', 'pilotos', 'templates')
+    FileUtils.mkdir_p(tdir)
+    File.write(File.join(tdir, 'a.json'), JSON.pretty_generate(data))
+    begin
+      AgentSupervisedPilot.load_template!(dir, missao_id: 'a')
+      raise 'deveria negar'
+    rescue AgentSupervisedPilot::Denial => e
+      raise e.code unless e.code == 'SUPERVISED_PILOT_TEMPLATE_ID_MISMATCH'
+    end
+  end
+end
+
+test('t17 missao_id diverge de missao.id → TEMPLATE_ID_MISMATCH') do
+  data = { 'missao_id' => 'a', 'missao' => { 'id' => 'b' } }
+  Dir.mktmpdir('tpl-id-div2') do |dir|
+    tdir = File.join(dir, '.agents', 'pilotos', 'templates')
+    FileUtils.mkdir_p(tdir)
+    File.write(File.join(tdir, 'a.json'), JSON.pretty_generate(data))
+    begin
+      AgentSupervisedPilot.load_template!(dir, missao_id: 'a')
+      raise 'deveria negar'
+    rescue AgentSupervisedPilot::Denial => e
+      raise e.code unless e.code == 'SUPERVISED_PILOT_TEMPLATE_ID_MISMATCH'
+    end
+  end
+end
+
+test('t18 execucao_planejada output diverge de escopo.escrita → OUTPUT_INVALID') do
+  data = {
+    'missao' => { 'id' => 'x' },
+    'card' => {
+      'id' => 'x',
+      'escopo' => { 'escrita' => ['a.md'] },
+      'execucao_planejada' => { 'tarefas' => [{ 'arquivos' => { 'escrita' => ['b.md'] } }] }
+    },
+    'formato_arquivo' => { 'path' => 'a.md' }
+  }
+  Dir.mktmpdir('tpl-out-div') do |dir|
+    tdir = File.join(dir, '.agents', 'pilotos', 'templates')
+    FileUtils.mkdir_p(tdir)
+    File.write(File.join(tdir, 'x.json'), JSON.pretty_generate(data))
+    begin
+      AgentSupervisedPilot.load_template!(dir, missao_id: 'x')
+      raise 'deveria negar'
+    rescue AgentSupervisedPilot::Denial => e
+      raise e.code unless e.code == 'SUPERVISED_PILOT_TEMPLATE_OUTPUT_INVALID'
+    end
+  end
+end
+
+test('t19 formato_arquivo.path diverge → OUTPUT_INVALID') do
+  data = {
+    'missao' => { 'id' => 'x' },
+    'card' => {
+      'id' => 'x',
+      'escopo' => { 'escrita' => ['a.md'] },
+      'execucao_planejada' => { 'tarefas' => [{ 'arquivos' => { 'escrita' => ['a.md'] } }] }
+    },
+    'formato_arquivo' => { 'path' => 'c.md' }
+  }
+  Dir.mktmpdir('tpl-out-div2') do |dir|
+    tdir = File.join(dir, '.agents', 'pilotos', 'templates')
+    FileUtils.mkdir_p(tdir)
+    File.write(File.join(tdir, 'x.json'), JSON.pretty_generate(data))
+    begin
+      AgentSupervisedPilot.load_template!(dir, missao_id: 'x')
+      raise 'deveria negar'
+    rescue AgentSupervisedPilot::Denial => e
+      raise e.code unless e.code == 'SUPERVISED_PILOT_TEMPLATE_OUTPUT_INVALID'
+    end
+  end
+end
+
+test('t20 load_template e validate_mission não criam state nem sandbox') do
+  tmpl = AgentSupervisedPilot.load_template!(ROOT, missao_id: 'segundo-piloto-supervisionado-20260715t142707z')
+  AgentSupervisedPilot.validate_mission!(
+    card: build_card_pilot(id: 'segundo-piloto-supervisionado-20260715t142707z', escrita: ['.agents/pilotos/sandbox/resultado-segundo-piloto.md']),
+    plan: build_plan_pilot('missao_id' => 'segundo-piloto-supervisionado-20260715t142707z', 'write' => ['.agents/pilotos/sandbox/resultado-segundo-piloto.md']),
+    template: tmpl,
+    root: ROOT
+  )
+  sdir = File.join(ROOT, '.agents/pilotos/state')
+  sfile = File.join(sdir, 'segundo-piloto-supervisionado-20260715t142707z.json')
+  raise 'state não deveria existir' if File.file?(sfile)
+  raise 'sandbox não deveria existir' if File.file?(File.join(ROOT, '.agents/pilotos/sandbox/resultado-segundo-piloto.md'))
+end
+
+test('t21 segundo template válido continua aceito') do
+  tmpl = AgentSupervisedPilot.load_template!(ROOT, missao_id: 'segundo-piloto-supervisionado-20260715t142707z')
+  assert tmpl.is_a?(Hash)
+end
+
+test('t22 primeiro template legado continua aceito') do
+  tmpl = AgentSupervisedPilot.load_template!(ROOT, missao_id: 'primeiro-piloto-supervisionado')
+  assert tmpl.is_a?(Hash)
+end
+
+test('t23 mission_id com whitespace → negado') do
+  begin
+    AgentSupervisedPilot.load_template!(ROOT, missao_id: '  com-espaco  ')
+    raise 'deveria negar'
+  rescue AgentSupervisedPilot::Denial => e
+    raise e.code unless e.code == 'SUPERVISED_PILOT_TEMPLATE_NOT_APPROVED'
+  end
+end
+
+# ── Hardening tipos inválidos (Fase 3B.4B.1 corretiva 2) ──
+
+def with_tmp_template_full(data, name: 'tmp-tpl')
+  Dir.mktmpdir('tpl-harden') do |dir|
+    tdir = File.join(dir, '.agents', 'pilotos', 'templates')
+    FileUtils.mkdir_p(tdir)
+    path = File.join(tdir, "#{name}.json")
+    File.write(path, data.is_a?(String) ? data : JSON.pretty_generate(data))
+    yield dir, path, tdir
+  end
+end
+
+test('t24 tarefa.arquivos como String → OUTPUT_INVALID') do
+  with_tmp_template_full({
+    'missao' => { 'id' => 'x' },
+    'card' => { 'id' => 'x', 'escopo' => { 'escrita' => ['a.md'] }, 'execucao_planejada' => { 'tarefas' => [{ 'arquivos' => 'string-invalida' }] } },
+    'formato_arquivo' => { 'path' => 'a.md' }
+  }, name: 'x') do |dir, _p, _tdir|
+    begin
+      AgentSupervisedPilot.load_template!(dir, missao_id: 'x')
+      raise 'deveria negar'
+    rescue AgentSupervisedPilot::Denial => e
+      raise e.code unless e.code == 'SUPERVISED_PILOT_TEMPLATE_OUTPUT_INVALID'
+    end
+  end
+end
+
+test('t25 tarefa.arquivos.escrita como String → OUTPUT_INVALID') do
+  with_tmp_template_full({
+    'missao' => { 'id' => 'x' },
+    'card' => { 'id' => 'x', 'escopo' => { 'escrita' => ['a.md'] }, 'execucao_planejada' => { 'tarefas' => [{ 'arquivos' => { 'escrita' => 'string' } }] } },
+    'formato_arquivo' => { 'path' => 'a.md' }
+  }, name: 'x') do |dir, _p, _tdir|
+    begin
+      AgentSupervisedPilot.load_template!(dir, missao_id: 'x')
+      raise 'deveria negar'
+    rescue AgentSupervisedPilot::Denial => e
+      raise e.code unless e.code == 'SUPERVISED_PILOT_TEMPLATE_OUTPUT_INVALID'
+    end
+  end
+end
+
+test('t26 card.escopo como String → OUTPUT_INVALID') do
+  with_tmp_template_full({
+    'missao' => { 'id' => 'x' },
+    'card' => { 'id' => 'x', 'escopo' => 'string' },
+    'formato_arquivo' => { 'path' => 'a.md' }
+  }, name: 'x') do |dir, _p, _tdir|
+    begin
+      AgentSupervisedPilot.load_template!(dir, missao_id: 'x')
+      raise 'deveria negar'
+    rescue AgentSupervisedPilot::Denial => e
+      raise e.code unless e.code == 'SUPERVISED_PILOT_TEMPLATE_OUTPUT_INVALID'
+    end
+  end
+end
+
+test('t27 card.escopo.escrita como String → OUTPUT_INVALID') do
+  with_tmp_template_full({
+    'missao' => { 'id' => 'x' },
+    'card' => { 'id' => 'x', 'escopo' => { 'escrita' => 'string' } },
+    'formato_arquivo' => { 'path' => 'a.md' }
+  }, name: 'x') do |dir, _p, _tdir|
+    begin
+      AgentSupervisedPilot.load_template!(dir, missao_id: 'x')
+      raise 'deveria negar'
+    rescue AgentSupervisedPilot::Denial => e
+      raise e.code unless e.code == 'SUPERVISED_PILOT_TEMPLATE_OUTPUT_INVALID'
+    end
+  end
+end
+
+test('t28 formato_arquivo como String → OUTPUT_INVALID') do
+  with_tmp_template_full({
+    'missao' => { 'id' => 'x' },
+    'card' => { 'id' => 'x', 'escopo' => { 'escrita' => ['a.md'] }, 'execucao_planejada' => { 'tarefas' => [{ 'arquivos' => { 'escrita' => ['a.md'] } }] } },
+    'formato_arquivo' => 'string'
+  }, name: 'x') do |dir, _p, _tdir|
+    begin
+      AgentSupervisedPilot.load_template!(dir, missao_id: 'x')
+      raise 'deveria negar'
+    rescue AgentSupervisedPilot::Denial => e
+      raise e.code unless e.code == 'SUPERVISED_PILOT_TEMPLATE_OUTPUT_INVALID'
+    end
+  end
+end
+
+test('t29 missao como string + demais válidos → NOT_APPROVED') do
+  with_tmp_template_full({
+    'missao' => 'string-invalida',
+    'card' => { 'id' => 'x', 'escopo' => { 'escrita' => ['a.md'] } },
+    'formato_arquivo' => { 'path' => 'a.md' }
+  }, name: 'x') do |dir, _p, _tdir|
+    begin
+      AgentSupervisedPilot.load_template!(dir, missao_id: 'x')
+      raise 'deveria negar'
+    rescue AgentSupervisedPilot::Denial => e
+      raise e.code unless e.code == 'SUPERVISED_PILOT_TEMPLATE_NOT_APPROVED'
+    end
+  end
+end
+
+test('t30 plan2writes com estruturas inválidas → [] sem exceção') do
+  assert(AgentSupervisedPilot.plan2writes(nil) == [])
+  assert(AgentSupervisedPilot.plan2writes('string') == [])
+  assert(AgentSupervisedPilot.plan2writes([]) == [])
+  assert(AgentSupervisedPilot.plan2writes({}) == [])
+  assert(AgentSupervisedPilot.plan2writes({ 'card' => nil }) == [])
+  assert(AgentSupervisedPilot.plan2writes({ 'card' => { 'execucao_planejada' => 'str' } }) == [])
+  assert(AgentSupervisedPilot.plan2writes({ 'card' => { 'execucao_planejada' => { 'tarefas' => 'str' } } }) == [])
+  assert(AgentSupervisedPilot.plan2writes({ 'card' => { 'execucao_planejada' => { 'tarefas' => [nil] } } }) == [])
+  assert(AgentSupervisedPilot.plan2writes({ 'card' => { 'execucao_planejada' => { 'tarefas' => [{}] } } }) == [])
+  assert(AgentSupervisedPilot.plan2writes({ 'card' => { 'execucao_planejada' => { 'tarefas' => [{ 'arquivos' => nil }] } } }) == [])
+  assert(AgentSupervisedPilot.plan2writes({ 'card' => { 'execucao_planejada' => { 'tarefas' => [{ 'arquivos' => { 'escrita' => nil } }] } } }) == [])
+  assert(AgentSupervisedPilot.plan2writes({ 'card' => { 'escopo' => nil } }) == [])
+  assert(AgentSupervisedPilot.plan2writes({ 'card' => { 'escopo' => { 'escrita' => 'str' } } }) == [])
+end
+
+test('t31 plan2writes com estrutura válida → paths') do
+  r = AgentSupervisedPilot.plan2writes({
+    'card' => {
+      'execucao_planejada' => { 'tarefas' => [{ 'arquivos' => { 'escrita' => ['a.md'] } }] },
+      'escopo' => { 'escrita' => ['a.md'] }
+    }
+  })
+  assert(r == ['a.md'], "esperado ['a.md'], got #{r.inspect}")
 end
 
 puts "OK #{@tests} tests"
