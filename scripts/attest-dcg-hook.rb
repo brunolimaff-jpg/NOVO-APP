@@ -79,7 +79,8 @@ begin
     dcg_path: dcg,
     policy: policy,
     probe_ok: probe_ok,
-    ack: opts[:ack]
+    ack: opts[:ack],
+    policy_path: RuntimeSafetyPreflight::POLICY_PATH
   )
   path = DcgHookAttestation.attestation_path(override: opts[:output])
   root = RuntimeSafetyPreflight::ROOT

@@ -241,7 +241,7 @@ with_temp_home do |home, xdg|
 
   fake_sha = Digest::SHA256.hexdigest(File.binread(FAKE_DCG))
   hooks_sha = Digest::SHA256.hexdigest(File.binread(hooks_path))
-  pol_sha = DcgHookAttestation.policy_sha256
+  pol_sha = DcgHookAttestation.policy_sha256(RuntimeSafetyPreflight::POLICY_PATH)
   now = Time.now.utc
   good = {
     'contrato_versao' => '1.0.0',
@@ -282,7 +282,8 @@ with_temp_home do |home, xdg|
         attestation: expired,
         hooks_path: hooks_path,
         dcg_path: dcg_real,
-        policy: pol
+        policy: pol,
+        policy_path: RuntimeSafetyPreflight::POLICY_PATH
       )
       raise 'should deny'
     rescue DcgHookAttestation::Denial => e
@@ -299,7 +300,8 @@ with_temp_home do |home, xdg|
         attestation: DcgHookAttestation.load_raw(att_path),
         hooks_path: hooks_path,
         dcg_path: dcg_real,
-        policy: pol
+        policy: pol,
+        policy_path: RuntimeSafetyPreflight::POLICY_PATH
       )
       raise 'should deny'
     rescue DcgHookAttestation::Denial => e
@@ -321,7 +323,8 @@ with_temp_home do |home, xdg|
         attestation: bad,
         hooks_path: hooks_path,
         dcg_path: dcg_real,
-        policy: pol
+        policy: pol,
+        policy_path: RuntimeSafetyPreflight::POLICY_PATH
       )
       raise 'should deny'
     rescue DcgHookAttestation::Denial => e
@@ -337,7 +340,8 @@ with_temp_home do |home, xdg|
         attestation: bad,
         hooks_path: hooks_path,
         dcg_path: dcg_real,
-        policy: pol
+        policy: pol,
+        policy_path: RuntimeSafetyPreflight::POLICY_PATH
       )
       raise 'should deny'
     rescue DcgHookAttestation::Denial => e
@@ -352,7 +356,8 @@ with_temp_home do |home, xdg|
       attestation: DcgHookAttestation.load_raw(att_path),
       hooks_path: hooks_path,
       dcg_path: dcg_real,
-      policy: pol
+      policy: pol,
+      policy_path: RuntimeSafetyPreflight::POLICY_PATH
     )
   end
 end

@@ -331,7 +331,8 @@ module RuntimeSafetyPreflight
             attestation: att,
             hooks_path: hooks_path,
             dcg_path: dcg_realpath,
-            policy: policy
+            policy: policy,
+            policy_path: POLICY_PATH
           )
           hook_confiado = 'verified-local-human'
         rescue DcgHookAttestation::Denial => error

@@ -108,7 +108,8 @@ module PilotReadiness
         attestation: att,
         hooks_path: hooks,
         dcg_path: File.realpath(dcg),
-        policy: policy
+        policy: policy,
+        policy_path: RuntimeSafetyPreflight::POLICY_PATH
       )
     rescue DcgHookAttestation::Denial => e
       return blocked(e.code.sub(/\ADCG_/, ''), e.message)
