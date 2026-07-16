@@ -1,6 +1,6 @@
 # Pilotos supervisionados
 
-Preparação do **primeiro piloto real** do runtime Codex single-agent (Fase 3B.3C).
+Registro e preparação de pilotos supervisionados do runtime Codex single-agent (Fase 3B.3C+).
 
 > Nesta documentação o comando real aparece marcado.
 > **NÃO EXECUTAR SEM AUTORIZAÇÃO HUMANA EXPLÍCITA.**
@@ -66,8 +66,8 @@ ruby scripts/run-agent-mission.rb \
   --output PATH_RUN_REPORT.json
 ```
 
-Escopo permitido: exatamente
-`.agents/pilotos/sandbox/resultado-primeiro-piloto.md`
+Escopo permitido: exatamente um arquivo sandbox não funcional autorizado pelo
+template versionado da missão.
 
 ## 5. Revisar o relatório
 
@@ -132,6 +132,10 @@ da saída JSONL do Codex (`codex exec --json`).
 - diagnóstico não autoriza retry nem novo piloto;
 - segundo piloto depende de aprovação humana separada.
 
+O diagnóstico agregado não equivale ao JSONL bruto. Sem persistência forense
+sanitizada, mensagens completas, comandos internos, `cwd` e exit codes
+individuais não é possível atribuir causalmente uma falha de entrega.
+
 ## Resultado do terceiro piloto supervisionado
 
 | Campo | Resultado |
@@ -154,6 +158,22 @@ Regras derivadas do encerramento:
 - `exit_code=0` do Codex não equivale a missão concluída;
 - ausência da entrega obrigatória mantém o status `failure`;
 - recomendações automáticas de “corrigir manualmente” não substituem o contrato da missão.
+
+O terceiro piloto foi concluído como execução operacional, mas falhou como
+missão funcional. `exit_code=0` significa apenas que o processo Codex terminou;
+não significa que a entrega foi concluída.
+
+### Baseline e próximo piloto
+
+A baseline `e1c803f0f2bc3413b537864e5cd9f419c7604235` é metadado documental
+externo do recibo do piloto. `baseline` não faz parte do schema do Card nem do
+schema do Plan e não deve ser inserido nesses artefatos. Preparadores futuros
+devem emitir recibo separado para a baseline autorizada e seus hashes.
+
+O terceiro piloto terminou com `THIRD_PILOT_FAILED_NO_RETRY`; sua
+`mission_id` não pode ser repetida. Um quarto piloto exige nova `mission_id` e
+permanece `NO-GO` até que a observabilidade forense sanitizada seja
+implementada e testada.
 
 ## 0. Pilot Readiness (antes de qualquer piloto)
 

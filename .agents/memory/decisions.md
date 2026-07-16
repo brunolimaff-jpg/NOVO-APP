@@ -9,6 +9,14 @@
 - **Regra:** Nenhuma nova tentativa deve ocorrer antes do hardening de observabilidade e de testes específicos para a persistência forense.
 - **Referência:** `.agents/pilotos/relatorios/terceiro-piloto-supervisionado-20260715t200207z.md`.
 
+### DI-2026-07-16-02: Baseline externo e encerramento do terceiro piloto
+
+- **Decisão:** `baseline` não pertence ao schema do Card nem ao schema do Plan. A baseline autorizada do terceiro piloto (`e1c803f0f2bc3413b537864e5cd9f419c7604235`) permanece somente em recibo documental externo; preparadores futuros não devem inserir o campo nos artefatos canônicos.
+- **Resultado:** o terceiro piloto encerrou como `THIRD_PILOT_FAILED_NO_RETRY`, com uma tentativa consumida, `exit_code=0`, `DELIVERY_FILE_MISSING` e compliance não conforme. State, Run Report, ledger, handoff e diagnóstico agregado existem; JSONL bruto, mensagens completas e comandos internos não foram persistidos.
+- **Causa:** `INSUFFICIENT_EVIDENCE`. O prompt continha o contrato explícito de entrega, mas a evidência forense ausente impede atribuir a não entrega ao agente, ao runtime, ao cwd, às permissões ou ao prompt.
+- **Regra:** a mesma `mission_id` não pode ser repetida. O quarto piloto exige nova `mission_id` e permanece em `NO-GO` até o hardening de observabilidade forense ser implementado e testado.
+- **Referências:** `.agents/pilotos/README.md`, `.agents/pilotos/relatorios/terceiro-piloto-supervisionado-20260715t200207z.md`.
+
 ## Novas Decisões (Sessão 2026-07-14 — Fase 3B.3C.1)
 
 ### DI-2026-07-14-03: Checksum do asset ≠ checksum do binário DCG

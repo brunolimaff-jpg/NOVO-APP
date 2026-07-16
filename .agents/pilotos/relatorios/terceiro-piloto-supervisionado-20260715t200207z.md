@@ -6,6 +6,10 @@ A missão `terceiro-piloto-supervisionado-20260715t200207z` foi executada uma ú
 
 O runtime supervisionado iniciou corretamente, o Codex encerrou com `exit_code=0` e a worktree permaneceu limpa. A entrega obrigatória não foi criada. O resultado formal é `THIRD_PILOT_FAILED_NO_RETRY`, com código `DELIVERY_FILE_MISSING`.
 
+Estado operacional: `runtime_started=true`, `codex_started=true`,
+`codex_exit_code=0`, `timeout=false`, `sinal=ausente`,
+`attempts_consumed=1`, `retry=false`.
+
 Não houve sucesso funcional do piloto. A causa específica da ausência do arquivo permaneceu inconclusiva por uma lacuna confirmada de observabilidade: o JSONL bruto não foi persistido.
 
 ## 2. Escopo e baseline
@@ -16,6 +20,9 @@ Não houve sucesso funcional do piloto. A causa específica da ausência do arqu
 - Tentativa consumida: 1
 - Worktree alterada: não
 - Output esperado: `.agents/pilotos/sandbox/resultado-terceiro-piloto.md`
+- Output existente: não
+- Entrega: `failed`
+- Compliance: não conforme
 
 O Card e o Plan foram preparados fora do repositório, com remoção exclusiva do campo top-level `baseline`. Os originais permaneceram inalterados.
 
@@ -36,6 +43,10 @@ normalized = original.reject { |key, _| key == "baseline" }
 ```
 
 Card e Plan passaram nos schemas canônicos. O staging final permaneceu com exatamente dois arquivos: `card.json` e `plan.json`.
+
+`baseline` é somente metadado documental externo. Não integra o schema do Card
+nem o schema do Plan e não deve ser inserido nesses artefatos. Preparadores
+futuros devem emitir recibo separado para a baseline autorizada.
 
 ## 5. Gates executados
 
@@ -64,6 +75,10 @@ Fatos observados:
 ## 7. Evidências de que a tentativa foi consumida
 
 O state da missão foi criado com `tentativa=1`. O ledger registrou uma tarefa, `status=failed` e `codigo_final=DELIVERY_FAILED`. O Run Report registrou `status=failure` e vinculou o resultado ao `mission_id` correto.
+
+Evidências existentes: state da missão, Run Report, ledger, handoff e
+diagnóstico JSONL agregado. Evidências não persistidas: JSONL bruto, mensagens
+completas do agente e comandos internos completos.
 
 O state registra consumo de tentativa, não sucesso funcional.
 
@@ -115,6 +130,10 @@ O JSONL bruto não foi persistido. Por isso, não foi possível comprovar:
 
 Essas ausências não mudam o código formal `DELIVERY_FILE_MISSING`. Elas impedem apenas a atribuição da causa específica ao prompt, ao runtime ou ao comportamento do agente.
 
+Categoria causal: `INSUFFICIENT_EVIDENCE`. O prompt continha o contrato de
+entrega; não há evidência suficiente para atribuir a falha a prompt, cwd,
+permissões, sandbox, modelo, agente ou runtime.
+
 ## 12. Conclusão formal
 
 `THIRD_PILOT_FAILED_NO_RETRY`
@@ -130,4 +149,7 @@ O piloto não entregou o artefato e não deve ser considerado sucesso funcional.
 
 ## 14. Próxima ação recomendada
 
-Não repetir a missão. Implementar, em missão técnica separada, o hardening de observabilidade forense e seus testes específicos. Somente depois de validar esse hardening poderá existir nova decisão humana sobre outro piloto.
+Não repetir a missão. Implementar, em missão técnica separada, o hardening de
+observabilidade forense e seus testes específicos. Somente depois de validar
+esse hardening poderá existir nova decisão humana sobre outro piloto, que
+deverá usar uma nova `mission_id`.
