@@ -31,6 +31,15 @@ def assert(cond, msg = 'assertion')
   raise msg unless cond
 end
 
+def assert_nil(expr, msg = 'assertion')
+  raise msg unless expr.nil?
+end
+
+def assert_equal(expected, actual, msg = nil)
+  msg ||= "esperava #{expected.inspect}, obtive #{actual.inspect}"
+  raise msg unless expected == actual
+end
+
 def write_hooks(dir, payload)
   path = File.join(dir, 'hooks.json')
   File.write(path, JSON.pretty_generate(payload))
@@ -491,6 +500,98 @@ test('26 nenhuma escrita fora do TMP') do
     assert ENV.fetch('XDG_CONFIG_HOME', '').start_with?(TMP) || ENV['XDG_CONFIG_HOME'].empty?,
       "XDG_CONFIG_HOME=#{ENV['XDG_CONFIG_HOME']} não está dentro do TMP=#{TMP}"
   end
+end
+
+def _make_version_script(content, exit_code = 0)
+  path = File.join(TMP, "vscript-#{rand(10000)}.sh")
+  File.write(path, "#!/bin/bash\n#{content}\nexit #{exit_code}")
+  File.chmod(0o755, path)
+  path
+end
+
+test('_dcg_version: versao pura em stdout') do
+  s = _make_version_script('echo "0.6.6"')
+  assert_equal '0.6.6', DcgHookAttestation._dcg_version(s)
+end
+
+test('_dcg_version: versao com v em stdout') do
+  s = _make_version_script('echo "v0.6.6"')
+  assert_equal '0.6.6', DcgHookAttestation._dcg_version(s)
+end
+
+test('_dcg_version: banner dcg em stdout') do
+  s = _make_version_script('echo "dcg 0.6.6"')
+  assert_equal '0.6.6', DcgHookAttestation._dcg_version(s)
+end
+
+test('_dcg_version: banner dcg v em stdout') do
+  s = _make_version_script('echo "dcg v0.6.6"')
+  assert_equal '0.6.6', DcgHookAttestation._dcg_version(s)
+end
+
+test('_dcg_version: banner em stderr') do
+  s = _make_version_script('echo "dcg 0.6.6" >&2')
+  assert_equal '0.6.6', DcgHookAttestation._dcg_version(s)
+end
+
+test('_dcg_version: stdout sem newline + stderr') do
+  s = _make_version_script('printf "0.6.6"; echo "dcg 0.6.6" >&2')
+  assert_equal '0.6.6', DcgHookAttestation._dcg_version(s)
+end
+
+test('_dcg_version: versoes divergentes entre streams → nil') do
+  s = _make_version_script('echo "0.6.6"; echo "0.7.0" >&2')
+  assert_nil DcgHookAttestation._dcg_version(s)
+end
+
+test('_dcg_version: texto invalido → nil') do
+  s = _make_version_script('echo "not-a-version at all"')
+  assert_nil DcgHookAttestation._dcg_version(s)
+end
+
+test('_dcg_version: exit code nao zero → nil') do
+  s = _make_version_script('echo "0.6.6"', 1)
+  assert_nil DcgHookAttestation._dcg_version(s)
+end
+
+test('build_payload com FAKE_DCG e hooks validos') do
+  fake_sha = DcgHookAttestation._sha256_file(FAKE_DCG)
+  pol_overridden = RuntimeSafetyPreflight.load_policy.dup
+  pol_overridden['binary_checksums_esperados'] =
+    RuntimeSafetyPreflight.load_policy['binary_checksums_esperados'].dup
+  pol_overridden['binary_checksums_esperados']['aarch64-apple-darwin'] = fake_sha
+
+  home = File.join(TMP, "home-build-payload-#{Process.pid}")
+  FileUtils.mkdir_p(home, mode: 0o700)
+  guardian = File.join(home, 'guardian-block.sh')
+  File.write(guardian, "#!/bin/sh\nexit 0\n")
+  FileUtils.chmod(0o755, guardian)
+  hooks_path = File.join(home, '.codex', 'hooks.json')
+  FileUtils.mkdir_p(File.dirname(hooks_path), mode: 0o700)
+  File.write(hooks_path, JSON.pretty_generate({
+    'hooks' => {
+      'PreToolUse' => [{
+        'matcher' => 'Bash',
+        'hooks' => [
+          { 'type' => 'command', 'command' => guardian },
+          { 'type' => 'command', 'command' => FAKE_DCG }
+        ]
+      }]
+    }
+  }))
+
+  payload = DcgHookAttestation.build_payload(
+    hooks_path: hooks_path,
+    dcg_path: FAKE_DCG,
+    policy: pol_overridden,
+    probe_ok: true,
+    ack: 'TRUST_DCG_HOOK',
+    policy_path: RuntimeSafetyPreflight::POLICY_PATH
+  )
+  assert_equal '0.6.6', payload['dcg_versao']
+  assert_equal fake_sha, payload['dcg_sha256']
+  assert_equal 'TRUST_DCG_HOOK', payload['confirmacao_humana']
+  assert_equal 'blocked', payload['probe_resultado']
 end
 
 puts "OK #{@tests} tests"
