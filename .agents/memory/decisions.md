@@ -1,5 +1,14 @@
 # decisions.md — NOVO-APP
 
+## Novas Decisões (Sessão 2026-07-16 — Encerramento do terceiro piloto)
+
+### DI-2026-07-16-01: Persistência forense obrigatória para pilotos supervisionados
+
+- **Decisão:** Antes de autorizar um novo piloto real, o runtime supervisionado deverá preservar evidência suficiente para investigar falhas após o spawn, incluindo JSONL bruto sanitizado ou representação equivalente auditável, stdout e stderr do processo, exit code persistido, mensagem final do agente, comandos observados com sequência, argv sanitizado, cwd e exit code, verificação da entrega, hashes das evidências e indicação explícita quando uma evidência não estiver disponível.
+- **Resultado observado:** A execução e o enforcement do terceiro piloto funcionaram, mas a ausência do arquivo obrigatório manteve `DELIVERY_FILE_MISSING`. A ausência do JSONL bruto impediu atribuir a causa ao prompt, ao runtime ou ao comportamento do agente.
+- **Regra:** Nenhuma nova tentativa deve ocorrer antes do hardening de observabilidade e de testes específicos para a persistência forense.
+- **Referência:** `.agents/pilotos/relatorios/terceiro-piloto-supervisionado-20260715t200207z.md`.
+
 ## Novas Decisões (Sessão 2026-07-14 — Fase 3B.3C.1)
 
 ### DI-2026-07-14-03: Checksum do asset ≠ checksum do binário DCG

@@ -132,6 +132,29 @@ da saída JSONL do Codex (`codex exec --json`).
 - diagnóstico não autoriza retry nem novo piloto;
 - segundo piloto depende de aprovação humana separada.
 
+## Resultado do terceiro piloto supervisionado
+
+| Campo | Resultado |
+|---|---|
+| `mission_id` | `terceiro-piloto-supervisionado-20260715t200207z` |
+| Baseline | `e1c803f0f2bc3413b537864e5cd9f419c7604235` |
+| Tentativa consumida | 1 |
+| Runtime iniciado | sim |
+| Codex exit code | 0 |
+| Entrega | falhou |
+| Código | `DELIVERY_FILE_MISSING` |
+| Worktree alterada | não |
+| Retry permitido | não |
+| Causa raiz | `INSUFFICIENT_EVIDENCE` |
+| Próxima ação | endurecer observabilidade antes de um novo piloto |
+
+Regras derivadas do encerramento:
+
+- o relatório de encerramento não deve ser escrito no caminho do arquivo de entrega ausente;
+- `exit_code=0` do Codex não equivale a missão concluída;
+- ausência da entrega obrigatória mantém o status `failure`;
+- recomendações automáticas de “corrigir manualmente” não substituem o contrato da missão.
+
 ## 0. Pilot Readiness (antes de qualquer piloto)
 
 ```bash
