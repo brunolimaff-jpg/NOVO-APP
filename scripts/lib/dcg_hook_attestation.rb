@@ -9,40 +9,6 @@ require 'open3'
 require 'rbconfig'
 require_relative './dcg_codex_hook_verifier'
 
-def _platform_key
-  host = RbConfig::CONFIG['host_os'].to_s
-  cpu = RbConfig::CONFIG['host_cpu'].to_s
-  if host =~ /darwin/i
-    return cpu =~ /arm|aarch64/i ? 'aarch64-apple-darwin' : 'x86_64-apple-darwin'
-  end
-  if host =~ /linux/i
-    return cpu =~ /arm|aarch64/i ? 'aarch64-unknown-linux-gnu' : 'x86_64-unknown-linux-musl'
-  end
-  if host =~ /mswin|mingw|cygwin/i
-    return 'x86_64-pc-windows-msvc'
-  end
-  'unknown'
-end
-
-def _dcg_version(dcg_path)
-  return nil if dcg_path.nil? || dcg_path.to_s.empty?
-  return nil unless File.file?(dcg_path) && File.executable?(dcg_path)
-  out, err, status = Open3.capture3(dcg_path, '--version')
-  return nil unless status.success?
-  uniq = (out + err).each_line.map(&:strip).grep(/\Av?([0-9]+\.[0-9]+\.[0-9]+)\z/) { $1 }.compact.uniq
-  return uniq.first if uniq.size == 1
-  nil
-rescue SystemCallError
-  nil
-end
-
-def _sha256_file(path)
-  return nil unless path && File.file?(path)
-  Digest::SHA256.hexdigest(File.binread(path))
-rescue SystemCallError
-  nil
-end
-
 # Atestação humana local do hook DCG (fora do repositório). Fail-closed.
 module DcgHookAttestation
   CONTRACT = '1.0.0'
@@ -59,6 +25,55 @@ module DcgHookAttestation
 
   module_function
 
+  def _platform_key
+    host = RbConfig::CONFIG['host_os'].to_s
+    cpu = RbConfig::CONFIG['host_cpu'].to_s
+    if host =~ /darwin/i
+      return cpu =~ /arm|aarch64/i ? 'aarch64-apple-darwin' : 'x86_64-apple-darwin'
+    end
+    if host =~ /linux/i
+      return cpu =~ /arm|aarch64/i ? 'aarch64-unknown-linux-gnu' : 'x86_64-unknown-linux-musl'
+    end
+    if host =~ /mswin|mingw|cygwin/i
+      return 'x86_64-pc-windows-msvc'
+    end
+    'unknown'
+  end
+
+  def _extract_version_candidates(text)
+    found = []
+    text.to_s.each_line do |raw|
+      line = raw.strip
+      next if line.empty?
+
+      if (m = line.match(/\Av?([0-9]+\.[0-9]+\.[0-9]+)\z/))
+        found << m[1]
+      elsif (m = line.match(/\Adcg\s+v?([0-9]+\.[0-9]+\.[0-9]+)\z/i))
+        found << m[1]
+      end
+    end
+    found
+  end
+
+  def _dcg_version(dcg_path)
+    return nil if dcg_path.nil? || dcg_path.to_s.empty?
+    return nil unless File.file?(dcg_path) && File.executable?(dcg_path)
+    out, err, status = Open3.capture3(dcg_path, '--version')
+    return nil unless status.success?
+    uniq = (_extract_version_candidates(out) + _extract_version_candidates(err)).uniq
+    return uniq.first if uniq.size == 1
+    nil
+  rescue SystemCallError
+    nil
+  end
+
+  def _sha256_file(path)
+    return nil unless path && File.file?(path)
+    Digest::SHA256.hexdigest(File.binread(path))
+  rescue SystemCallError
+    nil
+  end
+
   def attestation_path(override: nil)
     return File.expand_path(override) if override && !override.to_s.strip.empty?
 
@@ -74,6 +89,8 @@ module DcgHookAttestation
 
   def policy_sha256(policy_path)
     Digest::SHA256.hexdigest(File.binread(policy_path))
+  rescue SystemCallError => e
+    raise Denial.new('RUNTIME_SAFETY_POLICY_UNREADABLE', "policy unreadable: #{e.message}")
   end
 
   def build_payload(hooks_path:, dcg_path:, policy:, probe_ok:, ack:, policy_path:)
