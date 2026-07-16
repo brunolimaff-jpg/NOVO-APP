@@ -5,8 +5,9 @@ require 'digest'
 require 'fileutils'
 require 'time'
 require 'etc'
+require 'open3'
+require 'rbconfig'
 require_relative './dcg_codex_hook_verifier'
-require_relative '../runtime-safety-preflight'
 
 # Atestação humana local do hook DCG (fora do repositório). Fail-closed.
 module DcgHookAttestation
@@ -24,6 +25,55 @@ module DcgHookAttestation
 
   module_function
 
+  def _platform_key
+    host = RbConfig::CONFIG['host_os'].to_s
+    cpu = RbConfig::CONFIG['host_cpu'].to_s
+    if host =~ /darwin/i
+      return cpu =~ /arm|aarch64/i ? 'aarch64-apple-darwin' : 'x86_64-apple-darwin'
+    end
+    if host =~ /linux/i
+      return cpu =~ /arm|aarch64/i ? 'aarch64-unknown-linux-gnu' : 'x86_64-unknown-linux-musl'
+    end
+    if host =~ /mswin|mingw|cygwin/i
+      return 'x86_64-pc-windows-msvc'
+    end
+    'unknown'
+  end
+
+  def _extract_version_candidates(text)
+    found = []
+    text.to_s.each_line do |raw|
+      line = raw.strip
+      next if line.empty?
+
+      if (m = line.match(/\Av?([0-9]+\.[0-9]+\.[0-9]+)\z/))
+        found << m[1]
+      elsif (m = line.match(/\Adcg\s+v?([0-9]+\.[0-9]+\.[0-9]+)\z/i))
+        found << m[1]
+      end
+    end
+    found
+  end
+
+  def _dcg_version(dcg_path)
+    return nil if dcg_path.nil? || dcg_path.to_s.empty?
+    return nil unless File.file?(dcg_path) && File.executable?(dcg_path)
+    out, err, status = Open3.capture3(dcg_path, '--version')
+    return nil unless status.success?
+    uniq = (_extract_version_candidates(out) + _extract_version_candidates(err)).uniq
+    return uniq.first if uniq.size == 1
+    nil
+  rescue SystemCallError
+    nil
+  end
+
+  def _sha256_file(path)
+    return nil unless path && File.file?(path)
+    Digest::SHA256.hexdigest(File.binread(path))
+  rescue SystemCallError
+    nil
+  end
+
   def attestation_path(override: nil)
     return File.expand_path(override) if override && !override.to_s.strip.empty?
 
@@ -37,11 +87,13 @@ module DcgHookAttestation
     File.join(base, 'runtime-safety', 'dcg-hook-attestation.json')
   end
 
-  def policy_sha256(policy_path = RuntimeSafetyPreflight::POLICY_PATH)
+  def policy_sha256(policy_path)
     Digest::SHA256.hexdigest(File.binread(policy_path))
+  rescue SystemCallError => e
+    raise Denial.new('RUNTIME_SAFETY_POLICY_UNREADABLE', "policy unreadable: #{e.message}")
   end
 
-  def build_payload(hooks_path:, dcg_path:, policy:, probe_ok:, ack:)
+  def build_payload(hooks_path:, dcg_path:, policy:, probe_ok:, ack:, policy_path:)
     raise Denial.new('DCG_HOOK_ATTESTATION_INVALID', "ack deve ser #{ACK}") unless ack.to_s == ACK
 
     begin
@@ -50,10 +102,10 @@ module DcgHookAttestation
     rescue SystemCallError => e
       raise Denial.new('DCG_HOOK_ATTESTATION_INVALID', "path ilegível: #{e.message}")
     end
-    platform = RuntimeSafetyPreflight.detect_platform_key
+    platform = _platform_key
     binary_expected = (policy['binary_checksums_esperados'] || {})[platform]
-    binary_obs = RuntimeSafetyPreflight.file_sha256(dcg_real)
-    versao = RuntimeSafetyPreflight.read_version(dcg_real)
+    binary_obs = _sha256_file(dcg_real)
+    versao = _dcg_version(dcg_real)
 
     unless binary_expected && binary_obs == binary_expected
       raise Denial.new('DCG_HOOK_ATTESTATION_INVALID', 'checksum do binário DCG inválido para atestação')
@@ -87,7 +139,7 @@ module DcgHookAttestation
       'dcg_realpath' => dcg_real,
       'dcg_sha256' => binary_obs,
       'dcg_versao' => versao,
-      'policy_sha256' => policy_sha256,
+      'policy_sha256' => policy_sha256(policy_path),
       'confirmacao_humana' => ACK,
       'probe_resultado' => 'blocked'
     }
@@ -120,7 +172,7 @@ module DcgHookAttestation
     raise Denial.new('DCG_HOOK_ATTESTATION_INVALID', "JSON inválido: #{e.message}")
   end
 
-  def validate!(attestation:, hooks_path:, dcg_path:, policy:, now: Time.now.utc)
+  def validate!(attestation:, hooks_path:, dcg_path:, policy:, now: Time.now.utc, policy_path:)
     raise Denial.new('DCG_HOOK_ATTESTATION_INVALID', 'payload inválido') unless attestation.is_a?(Hash)
     if attestation['confirmacao_humana'].to_s != ACK
       raise Denial.new('DCG_HOOK_ATTESTATION_INVALID', 'confirmação humana ausente/ inválida')
@@ -146,10 +198,10 @@ module DcgHookAttestation
     rescue SystemCallError => e
       raise Denial.new('DCG_HOOK_ATTESTATION_INVALID', "falha ao ler hooks: #{e.message}")
     end
-    dcg_sha = RuntimeSafetyPreflight.file_sha256(dcg_real)
+    dcg_sha = _sha256_file(dcg_real)
     raise Denial.new('DCG_HOOK_ATTESTATION_INVALID', 'falha ao ler checksum DCG') if dcg_sha.nil?
 
-    pol_sha = policy_sha256
+    pol_sha = policy_sha256(policy_path)
 
     if attestation['hooks_realpath'].to_s != hooks_real || attestation['hooks_sha256'] != hooks_sha
       raise Denial.new('DCG_HOOK_ATTESTATION_MISMATCH', 'hooks path/hash diverge da atestação')
