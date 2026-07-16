@@ -559,7 +559,9 @@ test('build_payload com FAKE_DCG e hooks validos') do
   pol_overridden = RuntimeSafetyPreflight.load_policy.dup
   pol_overridden['binary_checksums_esperados'] =
     RuntimeSafetyPreflight.load_policy['binary_checksums_esperados'].dup
-  pol_overridden['binary_checksums_esperados']['aarch64-apple-darwin'] = fake_sha
+  platform = DcgHookAttestation._platform_key
+  raise 'platform undef' if platform.nil? || platform.empty?
+  pol_overridden['binary_checksums_esperados'][platform] = fake_sha
 
   home = File.join(TMP, "home-build-payload-#{Process.pid}")
   FileUtils.mkdir_p(home, mode: 0o700)
