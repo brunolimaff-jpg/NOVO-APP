@@ -159,9 +159,11 @@ state.
 
 ```bash
 # NAO_EXECUTAR_SEM_AUTORIZACAO_HUMANA_EXPLICITA
+EVIDENCE_ROOT="${XDG_STATE_HOME:-$HOME/.local/state}/novo-app/agent-evidence"
+test "${EVIDENCE_ROOT#/}" != "$EVIDENCE_ROOT"
 AGENT_RUNTIME_EXECUTE=1 \
 AGENT_RUNTIME_PILOT=1 \
-AGENT_RUNTIME_EVIDENCE_ROOT='${XDG_STATE_HOME:-$HOME/.local/state}/novo-app/agent-evidence' \
+AGENT_RUNTIME_EVIDENCE_ROOT="$EVIDENCE_ROOT" \
 ruby scripts/run-agent-mission.rb \
   --card PATH_CARD \
   --plan PATH_PLAN \
@@ -170,7 +172,7 @@ ruby scripts/run-agent-mission.rb \
   --runtime-ack RUN_SINGLE_AGENT \
   --supervised-pilot \
   --pilot-ack RUN_SUPERVISED_PILOT \
-  --evidence-root '${XDG_STATE_HOME:-$HOME/.local/state}/novo-app/agent-evidence' \
+  --evidence-root "$EVIDENCE_ROOT" \
   --output PATH_OUTPUT
 ```
 
