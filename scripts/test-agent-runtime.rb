@@ -1004,6 +1004,10 @@ test('dry-run forense não reserva tentativa e real preserva one-shot') do
     end
     CodexSingleAgentRuntime.singleton_class.define_method(:spawn!) { |**| raise 'dry-run fixture stop' }
     AgentSingleRuntime.singleton_class.define_method(:assert_live_preflight!) { |worktree:| { 'relatorio_sha256' => 'safety' } }
+    ENV['AGENT_RUNTIME_TEST_PREFLIGHT'] = '1'
+    ENV['AGENT_RUNTIME_TEST_DCG_BIN'] = FAKE_DCG
+    ENV['AGENT_RUNTIME_TEST_CODEX'] = '1'
+    ENV['AGENT_RUNTIME_TEST_CODEX_BIN'] = FAKE_CODEX
     begin
       2.times do
         begin
@@ -1023,6 +1027,10 @@ test('dry-run forense não reserva tentativa e real preserva one-shot') do
       raise 'real execution did not reserve attempt-001' unless reserve_calls == 1 &&
         File.file?(File.join(root, 'missao-runtime-1', 'attempt-001', 'evidence-manifest.json'))
     ensure
+      ENV.delete('AGENT_RUNTIME_TEST_PREFLIGHT')
+      ENV.delete('AGENT_RUNTIME_TEST_DCG_BIN')
+      ENV.delete('AGENT_RUNTIME_TEST_CODEX')
+      ENV.delete('AGENT_RUNTIME_TEST_CODEX_BIN')
       AgentForensicEvidence.define_method(:reserve!, old_reserve)
       CodexSingleAgentRuntime.singleton_class.define_method(:spawn!, old_spawn)
       AgentSingleRuntime.singleton_class.define_method(:assert_live_preflight!, old_live)
