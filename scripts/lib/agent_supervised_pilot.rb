@@ -394,7 +394,8 @@ module AgentSupervisedPilot
   end
 
   def reserve_mission!(state_dir:, missao_id:, report_hash: nil)
-    FileUtils.mkdir_p(state_dir)
+    FileUtils.mkdir_p(state_dir, mode: 0o700)
+    File.chmod(0o700, state_dir)
     path = state_path(state_dir, missao_id)
     payload = JSON.generate(
       'missao_id' => missao_id.to_s,

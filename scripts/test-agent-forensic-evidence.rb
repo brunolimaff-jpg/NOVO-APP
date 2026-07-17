@@ -61,8 +61,41 @@ test('manifesto é determinístico e registra artefatos') do
     manifest = evidence.finalize!(status: 'complete')
     assert manifest['schema_version'] == 1
     assert manifest['retention_days'] == 30
-    assert manifest['artifacts'].any? { |a| a['name'] == 'execution-stream.sanitized.jsonl' }
+    assert manifest['artifacts'].map { |a| a['name'] } == %w[execution-evidence.json execution-stream.sanitized.jsonl stderr.sanitized.log].sort
+    manifest_path = File.join(root, 'm1', 'attempt-001', 'evidence-manifest.json')
+    assert manifest['manifest_sha256'] == Digest::SHA256.file(manifest_path).hexdigest
     assert File.file?(File.join(root, 'm1', 'attempt-001', 'evidence-manifest.json'))
+  end
+end
+
+test('checkpoint sanitiza argv e limita permissões') do
+  Dir.mktmpdir('forensic-permissions', '/private/tmp') do |dir|
+    root = File.join(dir, 'evidence')
+    evidence = AgentForensicEvidence.new(root: root, mission_id: 'safe', paths: { 'worktree' => '/Users/bruno/repo' })
+    evidence.reserve!
+    evidence.checkpoint('spawn_started', 'process' => { 'argv' => ['codex', '--token=secret-value'], 'cwd' => '/Users/bruno/repo' })
+    raw = File.read(File.join(root, 'safe', 'attempt-001', 'execution-evidence.json'))
+    assert !raw.include?('secret-value')
+    assert raw.include?('<WORKTREE>')
+    assert (File.stat(root).mode & 0o777) == 0o700
+    assert (File.stat(File.join(root, 'safe', 'attempt-001', 'execution-evidence.json')).mode & 0o777) == 0o600
+  end
+end
+
+test('symlink de missão é rejeitado sem escrever fora da raiz') do
+  Dir.mktmpdir('forensic-symlink', '/private/tmp') do |dir|
+    root = File.join(dir, 'evidence')
+    outside = File.join(dir, 'outside')
+    FileUtils.mkdir(outside, mode: 0o700)
+    FileUtils.mkdir(root, mode: 0o700)
+    File.symlink(outside, File.join(root, 'escape'))
+    begin
+      AgentForensicEvidence.new(root: root, mission_id: 'escape').reserve!
+      raise 'expected symlink denial'
+    rescue AgentForensicEvidence::Denial => e
+      assert e.code == 'FORENSIC_EVIDENCE_SYMLINK'
+    end
+    assert !File.exist?(File.join(outside, 'attempt-001', 'execution-evidence.json'))
   end
 end
 

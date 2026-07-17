@@ -32,7 +32,7 @@ module AgentEvidenceSanitizer
     raw = value.to_s
     return '[REDACTED]' if key && SECRET_RE.match?(key.to_s)
 
-    text = raw.gsub(/(Bearer\s+|(?:token|api[_-]?key|secret|password|cookie)\s*[=:]\s*)[^\s,;]+/i) { "#{$1}[REDACTED]" }
+    text = raw.gsub(/(authorization\s*:\s*(?:Bearer|Basic)\s+|authorization\s*:\s*|Bearer\s+|Basic\s+|(?:token|api[_-]?key|secret|password|cookie)\s*[=:]\s*)[^\s,;]+/i) { "#{$1}[REDACTED]" }
     context.each { |name, path| text = text.gsub(path.to_s, "<#{name.to_s.upcase}>") unless path.to_s.empty? }
     text = text.gsub(PATH_RE, '<HOME>')
     text = text.gsub(%r{https?://([^/?#]+)(?:\?[^\s#]*)}) { "https://#{$1}/[REDACTED_QUERY]" }

@@ -718,6 +718,7 @@ module AgentSingleRuntime
       }
     )
     evidence.reserve!
+    mark_spawn_started.call(reservation_path) if mark_spawn_started && reservation_path
     spawn_result = CodexSingleAgentRuntime.spawn!(
       argv: prepared['argv'],
       prompt: prompt,
@@ -725,7 +726,6 @@ module AgentSingleRuntime
       timeout_seconds: validated['timeout'],
       evidence: evidence
     )
-    mark_spawn_started.call(reservation_path) if mark_spawn_started && reservation_path
     mark_process_finished.call(reservation_path) if mark_process_finished && reservation_path
     evidence.checkpoint('process_finished')
     spawn_started = spawn_result['processos_iniciados'].to_i.positive?

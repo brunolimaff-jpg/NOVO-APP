@@ -54,8 +54,17 @@ class AgentForensicEvidence
   end
 
   def reserve!
-    FileUtils.mkdir_p(@dir, mode: 0o700)
-    raise Denial.new('FORENSIC_EVIDENCE_SYMLINK', 'diretório de evidência é symlink') unless File.realpath(@dir) == @dir
+    FileUtils.mkdir_p(@root, mode: 0o700)
+    File.chmod(0o700, @root) if File.directory?(@root)
+    mission_dir = File.join(@root, @mission_id)
+    ensure_directory!(mission_dir)
+    File.chmod(0o700, mission_dir)
+    attempt_parent = File.dirname(@dir)
+    ensure_directory!(attempt_parent)
+    File.chmod(0o700, attempt_parent)
+    ensure_directory!(@dir)
+    File.chmod(0o700, @dir)
+    %w[execution-stream.sanitized.jsonl stderr.sanitized.log].each { |name| ensure_file!(File.join(@dir, name)) }
     write_json('execution-evidence.json', base_record.merge('state' => 'reserved'))
     @state = 'reserved'
     self
@@ -65,7 +74,9 @@ class AgentForensicEvidence
 
   def checkpoint(state, extra = {})
     @state = state.to_s
-    write_json('execution-evidence.json', base_record.merge('state' => @state).merge(extra))
+    sanitized_extra = AgentEvidenceSanitizer.sanitize(extra, nil, @paths)
+    @sanitization_failed ||= sanitized_extra.is_a?(Hash) && sanitized_extra['sanitization_failed'] == true
+    write_json('execution-evidence.json', base_record.merge('state' => @state).merge(sanitized_extra))
   end
 
   def append_stdout(line)
@@ -107,7 +118,7 @@ class AgentForensicEvidence
 
   def finalize!(status: 'complete', delivery: nil, limitations: [])
     @state = status.to_s
-    checkpoint('report_finalized', 'delivery' => AgentEvidenceSanitizer.sanitize(delivery || {}), 'limitations' => Array(limitations))
+    checkpoint('report_finalized', 'delivery' => delivery || {}, 'limitations' => Array(limitations))
     artifacts = %w[execution-stream.sanitized.jsonl execution-evidence.json stderr.sanitized.log].each_with_object([]) do |name, list|
       path = File.join(@dir, name)
       next unless File.file?(path)
@@ -126,7 +137,7 @@ class AgentForensicEvidence
       'integrity' => { 'manifest_hash_excludes_self' => true }
     }
     write_json('evidence-manifest.json', manifest)
-    manifest.merge('manifest_sha256' => Digest::SHA256.hexdigest(JSON.generate(sort_keys(manifest))))
+    manifest.merge('manifest_sha256' => Digest::SHA256.file(File.join(@dir, 'evidence-manifest.json')).hexdigest)
   rescue SystemCallError => e
     raise Denial.new('FORENSIC_PERSISTENCE_FAILED', e.message)
   end
@@ -162,6 +173,19 @@ class AgentForensicEvidence
     File.rename(tmp, path)
   ensure
     File.delete(tmp) if tmp && File.exist?(tmp)
+  end
+
+  def ensure_directory!(path)
+    raise Denial.new('FORENSIC_EVIDENCE_SYMLINK', "diretório de evidência é symlink: #{path}") if File.symlink?(path)
+    FileUtils.mkdir(path, mode: 0o700) unless File.exist?(path)
+    raise Denial.new('FORENSIC_EVIDENCE_INVALID', "diretório de evidência inválido: #{path}") unless File.directory?(path)
+    raise Denial.new('FORENSIC_EVIDENCE_SYMLINK', "ancestor de evidência é symlink: #{path}") unless File.realpath(path) == path
+  end
+
+  def ensure_file!(path)
+    raise Denial.new('FORENSIC_EVIDENCE_SYMLINK', "arquivo de evidência é symlink: #{path}") if File.symlink?(path)
+    File.open(path, File::WRONLY | File::CREAT, 0o600) {} unless File.exist?(path)
+    File.chmod(0o600, path)
   end
 
   def sort_keys(value)
