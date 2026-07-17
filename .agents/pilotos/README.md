@@ -196,3 +196,20 @@ e não permite retry automático.
 
 As evidências externas são sanitizadas e limitadas. O Run Report referencia
 somente o caminho relativo e o hash do manifesto, nunca a raiz absoluta.
+
+## Pacote da prova final supervisionada
+
+A missão final possui três modelos versionados e coerentes:
+
+- `.agents/pilotos/templates/quarto-piloto-supervisionado-20260717t-final.json`;
+- `.agents/pilotos/templates/quarto-piloto-supervisionado-20260717t-final.card.json`;
+- `.agents/pilotos/templates/quarto-piloto-supervisionado-20260717t-final.plan.json`.
+
+Para esta missão, use o controlador
+`scripts/final-supervised-proof-control.rb` e o runbook
+`.agents/planos/executar-prova-final-supervisionada.md`. O state deve ser
+fornecido externamente por `--pilot-state-dir`; o default local
+`.agents/pilotos/state/` continua válido para os demais pilotos.
+
+O pacote final continua one-shot: a ausência de state não é autorização, a
+reserva ocorre antes do spawn e não existe retry automático.
