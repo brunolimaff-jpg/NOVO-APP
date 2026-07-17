@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Evidência Forense Sanitizada do Runtime",
+  "type": "object",
+  "required": ["schema_version", "mission_id", "attempt", "evidence_status", "artifacts", "limits", "sanitization", "integrity"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": { "type": "integer", "const": 1 },
+    "mission_id": { "type": "string", "minLength": 1 },
+    "attempt": { "type": "integer", "const": 1 },
+    "evidence_status": { "type": "string", "enum": ["complete", "partial", "unavailable"] },
+    "retention_days": { "type": "integer", "const": 30 },
+    "truncated": { "type": "boolean" },
+    "discarded_bytes": { "type": "integer", "minimum": 0 },
+    "discarded_records": { "type": "integer", "minimum": 0 },
+    "limits": { "type": "object", "additionalProperties": { "type": "integer" } },
+    "artifacts": { "type": "array", "items": { "type": "object", "additionalProperties": false,
+      "required": ["name", "sha256", "bytes", "encoding", "truncated", "sanitized"],
+      "properties": {
+        "name": { "type": "string" }, "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "bytes": { "type": "integer", "minimum": 0 }, "encoding": { "type": "string" },
+        "truncated": { "type": "boolean" }, "sanitized": { "type": "boolean", "const": true }
+      }
+    } },
+    "sanitization": { "type": "object", "required": ["sanitized", "fail_closed"], "additionalProperties": false,
+      "properties": { "sanitized": { "type": "boolean", "const": true }, "fail_closed": { "type": "boolean", "const": true }, "sanitization_failed": { "type": "boolean" } }
+    },
+    "integrity": { "type": "object", "required": ["manifest_hash_excludes_self"], "additionalProperties": false,
+      "properties": { "manifest_hash_excludes_self": { "type": "boolean", "const": true } }
+    }
+  }
+}

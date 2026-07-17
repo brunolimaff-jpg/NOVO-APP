@@ -379,7 +379,9 @@ module AgentSupervisedPilot
     payload = JSON.generate(
       'missao_id' => missao_id.to_s,
       'timestamp' => Time.now.utc.iso8601,
-      'report_hash' => report_hash.to_s
+      'report_hash' => report_hash.to_s,
+      'attempt' => 1,
+      'status' => 'report_finalized'
     )
     begin
       File.open(path, File::WRONLY | File::CREAT | File::EXCL) do |f|
@@ -389,6 +391,35 @@ module AgentSupervisedPilot
       raise Denial.new('SUPERVISED_PILOT_ALREADY_EXECUTED', "piloto já registrado: #{missao_id}")
     end
     path
+  end
+
+  def reserve_mission!(state_dir:, missao_id:, report_hash: nil)
+    FileUtils.mkdir_p(state_dir)
+    path = state_path(state_dir, missao_id)
+    payload = JSON.generate(
+      'missao_id' => missao_id.to_s,
+      'timestamp' => Time.now.utc.iso8601,
+      'report_hash' => report_hash,
+      'attempt' => 1,
+      'status' => 'reserved'
+    )
+    begin
+      File.open(path, File::WRONLY | File::CREAT | File::EXCL, 0o600) { |f| f.write(payload); f.flush; f.fsync }
+    rescue Errno::EEXIST
+      raise Denial.new('SUPERVISED_PILOT_ALREADY_EXECUTED', "piloto já registrado: #{missao_id}")
+    end
+    path
+  end
+
+  def update_state!(path, status:, report_hash: nil)
+    current = JSON.parse(File.read(path))
+    current['status'] = status.to_s
+    current['report_hash'] = report_hash.to_s if report_hash
+    tmp = "#{path}.tmp-#{Process.pid}"
+    File.open(tmp, File::WRONLY | File::CREAT | File::EXCL, 0o600) { |f| f.write(JSON.generate(current)); f.flush; f.fsync }
+    File.rename(tmp, path)
+  ensure
+    File.delete(tmp) if tmp && File.exist?(tmp)
   end
 
   def already_executed?(state_dir:, missao_id:)

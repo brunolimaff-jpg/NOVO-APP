@@ -1,0 +1,59 @@
+# frozen_string_literal: true
+
+require 'digest'
+
+module AgentEvidenceSanitizer
+  MAX_FIELD_BYTES = 16 * 1024
+  SECRET_RE = /(authorization|bearer|token|api[_-]?key|secret|cookie|password|credential)/i
+  PATH_RE = %r{\A/(?:Users|home)/[^/]+}
+
+  module_function
+
+  def sanitize(value, key = nil, context = {})
+    if value.is_a?(Hash)
+      value.each_with_object({ 'sanitized' => true, 'sanitization_failed' => false }) do |(k, v), out|
+        next if SECRET_RE.match?(k.to_s)
+
+        out[k.to_s] = sanitize(v, k.to_s, context)
+      end
+    elsif value.is_a?(Array)
+      value.map { |v| sanitize(v, key, context) }
+    elsif value.is_a?(String)
+      sanitize_string(value, key, context)
+    else
+      value
+    end
+  rescue StandardError
+    { 'availability' => 'unavailable', 'reason' => 'sanitization_failed', 'sanitized' => true,
+      'sanitization_failed' => true }
+  end
+
+  def sanitize_string(value, key = nil, context = {})
+    raw = value.to_s
+    return '[REDACTED]' if key && SECRET_RE.match?(key.to_s)
+
+    text = raw.gsub(/(Bearer\s+|(?:token|api[_-]?key|secret|password|cookie)\s*[=:]\s*)[^\s,;]+/i) { "#{$1}[REDACTED]" }
+    context.each { |name, path| text = text.gsub(path.to_s, "<#{name.to_s.upcase}>") unless path.to_s.empty? }
+    text = text.gsub(PATH_RE, '<HOME>')
+    text = text.gsub(%r{https?://([^/?#]+)(?:\?[^\s#]*)}) { "https://#{$1}/[REDACTED_QUERY]" }
+    text = text.encode('UTF-8', invalid: :replace, undef: :replace, replace: '�')
+    text = text.byteslice(0, MAX_FIELD_BYTES).to_s
+    text.force_encoding(Encoding::UTF_8).scrub
+  rescue StandardError
+    '[REDACTED]'
+  end
+
+  def invalid_jsonl_record(sequence, line, reason)
+    raw = line.to_s.b
+    {
+      'sequence' => sequence,
+      'type' => 'invalid_jsonl_line',
+      'original_sha256' => Digest::SHA256.hexdigest(raw),
+      'observed_bytes' => raw.bytesize,
+      'original' => '[REDACTED]',
+      'content_sanitized' => '[REDACTED]',
+      'reason' => sanitize_string(reason.to_s),
+      'sanitized' => true
+    }
+  end
+end

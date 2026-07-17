@@ -1,5 +1,14 @@
 # decisions.md — NOVO-APP
 
+## Nova Decisão (Hardening de observabilidade forense)
+
+- Execução real exige raiz externa explícita para evidência forense; `Dir.tmpdir`
+  fica restrito a testes e temporários de escrita atômica.
+- A reserva one-shot ocorre antes do spawn e nunca é removida automaticamente.
+- Captura de stdout/stderr é concorrente e limitada durante a leitura.
+- Falha forense após a reserva mantém a tentativa consumida e impede sucesso.
+- Evidências são sanitizadas, limitadas, externas e vinculadas por manifesto.
+
 ## Novas Decisões (Sessão 2026-07-16 — Encerramento do terceiro piloto)
 
 ### DI-2026-07-16-01: Persistência forense obrigatória para pilotos supervisionados

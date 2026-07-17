@@ -6,6 +6,7 @@ require 'json'
 require 'rbconfig'
 require 'time'
 require_relative './codex_jsonl_diagnostics'
+require_relative './agent_forensic_evidence'
 
 # Adapter Codex single-agent (Fase 3B.3B).
 # Executa apenas via argv + Open3. Sem shell, sem eval, sem fallback livre.
@@ -211,7 +212,7 @@ module CodexSingleAgentRuntime
     end
   end
 
-  def spawn!(argv:, prompt:, chdir:, timeout_seconds:)
+  def spawn!(argv:, prompt:, chdir:, timeout_seconds:, evidence: nil)
     assert_argv_safe!(argv)
     stdout_data = +''
     stderr_data = +''
@@ -221,13 +222,81 @@ module CodexSingleAgentRuntime
     pid = nil
     started = Time.now.utc
 
+    raw_stdout_bytes = 0
+    raw_stderr_bytes = 0
+    stdout_truncated = false
+    stderr_truncated = false
+    stdout_for_diagnostics = +''
+    output_mutex = Mutex.new
+
+    read_stdout = lambda do |io|
+      buffer = +''
+      line_sequence = 0
+      discard_long_line = false
+      loop do
+        chunk = io.readpartial(16 * 1024)
+        raw_stdout_bytes += chunk.bytesize
+        if stdout_data.bytesize < MAX_OUTPUT_BYTES
+          take = [MAX_OUTPUT_BYTES - stdout_data.bytesize, chunk.bytesize].min
+          stdout_data << chunk.byteslice(0, take)
+          stdout_truncated = true if take < chunk.bytesize
+        else
+          stdout_truncated = true
+        end
+        next if discard_long_line
+
+        buffer << chunk.byteslice(0, [chunk.bytesize, AgentEvidenceSanitizer::MAX_FIELD_BYTES].min).to_s
+        while (idx = buffer.index("\n"))
+          line = buffer.slice!(0..idx)
+          line_sequence += 1
+          sanitized_line = evidence ? evidence.append_stdout(line) : line
+          output_mutex.synchronize do
+            if stdout_for_diagnostics.bytesize < MAX_OUTPUT_BYTES
+              stdout_for_diagnostics << sanitized_line.to_s.byteslice(0, MAX_OUTPUT_BYTES - stdout_for_diagnostics.bytesize).to_s
+            end
+          end
+        end
+        if buffer.bytesize > AgentEvidenceSanitizer::MAX_FIELD_BYTES
+          line_sequence += 1
+          evidence&.append_stdout(buffer)
+          buffer = +''
+          discard_long_line = true
+        end
+      end
+    rescue EOFError
+      unless buffer.empty? || discard_long_line
+        line_sequence += 1
+        sanitized_line = evidence ? evidence.append_stdout(buffer) : buffer
+        output_mutex.synchronize { stdout_for_diagnostics << sanitized_line.to_s.byteslice(0, MAX_OUTPUT_BYTES - stdout_for_diagnostics.bytesize).to_s }
+      end
+    end
+
+    read_stderr = lambda do |io|
+      loop do
+        chunk = io.readpartial(16 * 1024)
+        raw_stderr_bytes += chunk.bytesize
+        if stderr_data.bytesize < MAX_OUTPUT_BYTES
+          take = [MAX_OUTPUT_BYTES - stderr_data.bytesize, chunk.bytesize].min
+          stderr_data << chunk.byteslice(0, take)
+          stderr_truncated = true if take < chunk.bytesize
+        else
+          stderr_truncated = true
+        end
+        evidence&.append_stderr(chunk)
+      end
+    rescue EOFError
+      nil
+    end
+
     Open3.popen3(sanitized_env, *argv, chdir: chdir, unsetenv_others: true, pgroup: true) do |stdin, stdout, stderr, thr|
       pid = thr.pid
+      evidence&.checkpoint('spawn_started', 'process' => { 'pid' => pid, 'argv' => argv })
       stdin.write(prompt.to_s)
       stdin.close
 
-      out_reader = Thread.new { stdout.read.to_s }
-      err_reader = Thread.new { stderr.read.to_s }
+      evidence&.checkpoint('stream_capture_started')
+      out_reader = Thread.new { read_stdout.call(stdout) }
+      err_reader = Thread.new { read_stderr.call(stderr) }
 
       deadline = Time.now + timeout_seconds
       until thr.join(0.05)
@@ -241,8 +310,9 @@ module CodexSingleAgentRuntime
       status = thr.value
       exit_code = status&.exitstatus
       signal = status&.termsig
-      stdout_data = out_reader.value
-      stderr_data = err_reader.value
+      out_reader.value
+      err_reader.value
+      evidence&.checkpoint('streams_drained')
     end
 
     if pid && process_alive?(pid)
@@ -255,8 +325,10 @@ module CodexSingleAgentRuntime
 
     out, out_trunc = trunc(stdout_data)
     err, err_trunc = trunc(stderr_data)
+    out_trunc ||= stdout_truncated
+    err_trunc ||= stderr_truncated
     finished = Time.now.utc
-    diagnostico = CodexJsonlDiagnostics.parse(out, truncated: out_trunc)
+    diagnostico = CodexJsonlDiagnostics.parse(stdout_for_diagnostics.empty? ? out : stdout_for_diagnostics, truncated: out_trunc)
     {
       'processos_iniciados' => pid ? 1 : 0,
       'pid' => pid,
@@ -270,6 +342,10 @@ module CodexSingleAgentRuntime
       'stderr_sha256' => Digest::SHA256.hexdigest(err),
       'stdout_truncado' => out_trunc,
       'stderr_truncado' => err_trunc,
+      'stdout_bytes_observados' => raw_stdout_bytes,
+      'stderr_bytes_observados' => raw_stderr_bytes,
+      'evidence_status' => evidence ? (evidence.truncated || evidence.sanitization_failed ? 'partial' : 'complete') : 'unavailable',
+      'evidence_dir_rel' => evidence&.evidence_relpath,
       'argv' => argv,
       'codex_version_tested' => TESTED_VERSION,
       'diagnostico_jsonl' => diagnostico

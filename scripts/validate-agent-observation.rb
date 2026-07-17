@@ -18,9 +18,13 @@ end
   scripts/lib/agent_supervised_pilot.rb
   scripts/validate-agent-observation.rb
   scripts/test-agent-observation.rb
+  scripts/test-agent-forensic-evidence.rb
+  scripts/lib/agent_evidence_sanitizer.rb
+  scripts/lib/agent_forensic_evidence.rb
   .agents/pilotos/primeiro-piloto.json
   .agents/pilotos/README.md
   .agents/orquestracao/executor/contrato-relatorio.schema.json
+  .agents/orquestracao/executor/contrato-evidencia-forense.schema.json
 ].each do |rel|
   path = File.join(ROOT, rel)
   fail!("missing #{rel}", errors) unless File.file?(path)
@@ -30,6 +34,7 @@ schema = JSON.parse(File.read(File.join(ROOT, '.agents/orquestracao/executor/con
 %w[planned_snapshot observed_snapshot comparacao task_ledger handoff planned_snapshot_sha256 observed_snapshot_sha256].each do |key|
   fail!("schema missing #{key}", errors) unless schema.dig('properties', key)
 end
+fail!('schema missing forensic_evidence', errors) unless schema.dig('properties', 'forensic_evidence')
 
 tmpl = JSON.parse(File.read(File.join(ROOT, '.agents/pilotos/primeiro-piloto.json')))
 fail!('piloto template id', errors) unless tmpl.dig('missao', 'id') == 'primeiro-piloto-supervisionado'
@@ -84,6 +89,7 @@ fail!('readme warn', errors) unless readme.include?('N√ÉO EXECUTAR SEM AUTORIZA√
 
 ci = File.read(File.join(ROOT, '.github/workflows/ci.yml'))
 fail!('ci observation gate', errors) unless ci.include?('test-agent-observation.rb')
+fail!('ci forensic gate', errors) unless ci.include?('test-agent-forensic-evidence.rb')
 
 # Fixtures must not be loadable without test env markers (static check).
 src = File.read(File.join(ROOT, 'scripts/lib/codex_single_agent_runtime.rb'))

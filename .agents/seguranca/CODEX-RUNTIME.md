@@ -78,3 +78,23 @@ O runner **nunca** descobre fixtures. Fake Codex só quando:
 
 - `AGENT_RUNTIME_TEST_CODEX=1`
 - `AGENT_RUNTIME_TEST_CODEX_BIN=<path absoluto do fake>`
+
+## Observabilidade forense
+
+Execuções reais em `agent-runtime` exigem uma raiz externa explícita por
+`--evidence-root PATH` ou `AGENT_RUNTIME_EVIDENCE_ROOT`. `Dir.tmpdir` não é
+fallback operacional. A raiz recomendada é
+`${XDG_STATE_HOME:-$HOME/.local/state}/novo-app/agent-evidence`.
+
+Cada missão/tentativa preserva, com sanitização fail-closed e permissões
+restritas:
+
+- `execution-stream.sanitized.jsonl`;
+- `execution-evidence.json`;
+- `stderr.sanitized.log`;
+- `evidence-manifest.json`.
+
+O stream e stderr são limitados a 1 MiB; o stream também limita 10.000
+registros e campos a 16 KiB. O manifesto registra hashes, bytes, truncamento,
+sanitização e retenção de 30 dias. Falha ou evidência parcial após a reserva
+one-shot mantém a tentativa consumida e impede `success`.

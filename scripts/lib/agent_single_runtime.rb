@@ -645,7 +645,8 @@ module AgentSingleRuntime
     true
   end
 
-  def run!(card:, plan:, catalog:, worktree:, safety_report_path: nil, repo_root:, delivery_contract: nil)
+  def run!(card:, plan:, catalog:, worktree:, safety_report_path: nil, repo_root:, delivery_contract: nil,
+           evidence_root: nil, reserve_attempt: nil, mark_spawn_started: nil, mark_process_finished: nil)
     # Defesa pública: não confiar que o CLI já validou.
     begin
       AgentMissionContract.validate_inputs!(card, plan, catalog)
@@ -700,17 +701,39 @@ module AgentSingleRuntime
     prompt_sha = Digest::SHA256.hexdigest(prompt)
 
     prepared = CodexSingleAgentRuntime.prepare!(worktree: snap['worktree_realpath'])
+    evidence_path = File.expand_path(evidence_root.to_s)
+    if evidence_path == snap['worktree_realpath'] || evidence_path.start_with?(snap['worktree_realpath'] + File::SEPARATOR)
+      raise Denial.new('FORENSIC_EVIDENCE_ROOT_INVALID', 'raiz forense não pode estar dentro da worktree')
+    end
+    reservation_path = reserve_attempt.call(planned_sha) if reserve_attempt
+    evidence = AgentForensicEvidence.new(
+      root: evidence_root,
+      mission_id: card['id'],
+      attempt: 1,
+      paths: {
+        'worktree' => snap['worktree_realpath'],
+        'repository' => repo_root.to_s,
+        'home' => ENV['HOME'].to_s,
+        'evidence_root' => evidence_root.to_s
+      }
+    )
+    evidence.reserve!
     spawn_result = CodexSingleAgentRuntime.spawn!(
       argv: prepared['argv'],
       prompt: prompt,
       chdir: snap['worktree_realpath'],
-      timeout_seconds: validated['timeout']
+      timeout_seconds: validated['timeout'],
+      evidence: evidence
     )
+    mark_spawn_started.call(reservation_path) if mark_spawn_started && reservation_path
+    mark_process_finished.call(reservation_path) if mark_process_finished && reservation_path
+    evidence.checkpoint('process_finished')
     spawn_started = spawn_result['processos_iniciados'].to_i.positive?
 
     after = verify_after!(snap: snap, write_scope: write_scope, protected_before: protected_before)
 
     delivery_verification = verify_delivery!(snap['worktree_realpath'], delivery_contract)
+    evidence.checkpoint('delivery_verified', 'delivery' => delivery_verification || {})
 
     status =
       if spawn_result['timeout']
@@ -761,6 +784,7 @@ module AgentSingleRuntime
     )
     observed_sha = AgentRunComparator.canonical_hash(observed)
     comparacao = AgentRunComparator.compare(planned, observed)
+    evidence.checkpoint('comparison_completed', 'comparison_status' => comparacao['status'])
 
     if comparacao['status'] == 'violacao' && status == 'success'
       status = 'denied'
@@ -815,6 +839,12 @@ module AgentSingleRuntime
     if delivery_verification && delivery_verification['codigo']
       avisos << delivery_verification['codigo']
     end
+    if spawn_result['evidence_status'] != 'complete'
+      status = 'failure' unless status == 'denied'
+      avisos << 'FORENSIC_EVIDENCE_INCOMPLETE'
+      observed = AgentRunComparator.build_observed_snapshot(observed.merge('status_final' => status))
+      observed_sha = AgentRunComparator.canonical_hash(observed)
+    end
 
     handoff = AgentTaskLedger.build_handoff(
       missao_id: card['id'],
@@ -825,6 +855,12 @@ module AgentSingleRuntime
       avisos: avisos,
       violacoes: negacoes,
       delivery_verification: delivery_verification
+    )
+
+    manifest = evidence.finalize!(
+      status: spawn_result['evidence_status'] == 'complete' && status != 'success' ? 'complete' : spawn_result['evidence_status'],
+      delivery: delivery_verification,
+      limitations: spawn_result['evidence_status'] == 'complete' ? [] : ['bounded_capture_or_persistence_incomplete']
     )
 
     build_observed_report(
@@ -867,6 +903,13 @@ module AgentSingleRuntime
         'avisos' => avisos.uniq,
         'resultado_dimensoes' => build_resultado_dimensoes(status, after, comparacao, spawn_result, delivery_verification: delivery_verification),
         'delivery_verification' => delivery_verification,
+        'forensic_evidence' => {
+          'evidence_status' => spawn_result['evidence_status'],
+          'manifest_relpath' => evidence.evidence_relpath + '/evidence-manifest.json',
+          'manifest_sha256' => manifest['manifest_sha256'],
+          'schema_version' => AgentForensicEvidence::SCHEMA_VERSION,
+          'limitations' => spawn_result['evidence_status'] == 'complete' ? [] : ['FORENSIC_EVIDENCE_INCOMPLETE']
+        },
         'evidencias' => [
           'three-key activation',
           'live preflight',
