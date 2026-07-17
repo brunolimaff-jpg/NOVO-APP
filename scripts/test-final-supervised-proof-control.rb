@@ -5,6 +5,8 @@ require 'json'
 require 'tmpdir'
 require 'fileutils'
 require 'digest'
+require 'open3'
+require 'rbconfig'
 require_relative './final-supervised-proof-control'
 
 module FinalSupervisedProofControlTest
@@ -132,6 +134,18 @@ module FinalSupervisedProofControlTest
     old_path = ENV['PATH']
     ENV['PATH'] = File.join(f[:root], 'bin') + File::PATH_SEPARATOR + old_path
     begin
+      runbook = File.read(File.join(File.expand_path('..', __dir__), '.agents/planos/executar-prova-final-supervisionada.md'))
+      assert(runbook.include?('--report-root "$REPORT_ROOT" \\'), 'runbook passa report root no inspect')
+      script = File.join(File.expand_path('..', __dir__), 'scripts/final-supervised-proof-control.rb')
+      prepare_out, = Open3.capture3(RbConfig.ruby, script, 'prepare', '--stdout', '--runner-root', '/path/does/not/exist')
+      prepare_result = JSON.parse(prepare_out)
+      assert(prepare_result['status'] == 'BLOCKED_BEFORE_RESERVATION' && prepare_result['runtime_executed'] == false, 'prepare blocked preserva classificação pré-reserva')
+      inspect_out, = Open3.capture3(RbConfig.ruby, script, 'inspect', '--stdout', '--runner-root', '/path/does/not/exist')
+      inspect_result = JSON.parse(inspect_out)
+      assert(inspect_result['status'] == 'PROVA_FINAL_FAILURE_NO_RETRY' && inspect_result['runtime_executed'] == true && inspect_result['state_reserved'] == true, 'inspect blocked é no-retry')
+      json_error = FinalSupervisedProofControl.error_result('inspect', 'JSON_INVALID')
+      assert(json_error['runtime_executed'] == true && json_error['state_reserved'] == true && !json_error['failures'].empty?, 'JSON inspect nunca informa execução falsa')
+
       ready = FinalSupervisedProofControl.prepare(prepare_opts(f))
       assert(ready['status'] == 'READY_FOR_FINAL_PROOF', 'happy path ready')
       assert(ready['runtime_executed'] == false && ready['state_reserved'] == false, 'prepare is read-only')
@@ -209,7 +223,7 @@ module FinalSupervisedProofControlTest
       FinalSupervisedProofControl.atomic_copy(File.join(f[:root], 'source.json'), copied)
       assert(JSON.parse(File.read(copied))['ok'] == true, 'persistent report copy')
 
-      puts 'final-supervised-proof-control: 32 scenarios passed'
+      puts 'final-supervised-proof-control: 36 scenarios passed'
     ensure
       ENV['PATH'] = old_path
       FileUtils.remove_entry(f[:root]) if f && File.exist?(f[:root])

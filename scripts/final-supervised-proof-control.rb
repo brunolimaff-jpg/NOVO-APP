@@ -51,20 +51,32 @@ module FinalSupervisedProofControl
     puts JSON.pretty_generate(result) if opts[:stdout]
     result
   rescue Blocked => e
-    result = {
-      'status' => 'BLOCKED_BEFORE_RESERVATION',
-      'code' => e.code,
-      'message' => e.message,
-      'runtime_executed' => false,
-      'state_reserved' => false
-    }
+    result = error_result(mode, e.code, e.message)
     puts JSON.pretty_generate(result) if opts && opts[:stdout]
     exit 1
   rescue JSON::ParserError => e
-    result = {'status' => 'BLOCKED_BEFORE_RESERVATION', 'code' => 'JSON_INVALID', 'message' => e.message,
-              'runtime_executed' => false, 'state_reserved' => false}
+    result = error_result(mode, 'JSON_INVALID', e.message)
     puts JSON.pretty_generate(result) if opts && opts[:stdout]
     exit 1
+  end
+
+  def error_result(mode, code, message = nil)
+    if mode == 'inspect'
+      {
+        'status' => 'PROVA_FINAL_FAILURE_NO_RETRY',
+        'failures' => [code.to_s],
+        'runtime_executed' => true,
+        'state_reserved' => true
+      }
+    else
+      {
+        'status' => 'BLOCKED_BEFORE_RESERVATION',
+        'code' => code,
+        'message' => message || code,
+        'runtime_executed' => false,
+        'state_reserved' => false
+      }
+    end
   end
 
   def help

@@ -112,6 +112,7 @@ ruby "$RUNNER_ROOT/scripts/final-supervised-proof-control.rb" inspect \
   --runner-root "$RUNNER_ROOT" --target-worktree "$TARGET_WORKTREE" \
   --output "$PATH_OUTPUT" \
   --persistent-report "$REPORT_ROOT/quarto-piloto-supervisionado-20260717t-final.run-report.json" \
+  --report-root "$REPORT_ROOT" \
   --evidence-root "$EVIDENCE_ROOT" --state-dir "$STATE_DIR" --stdout
 ```
 
