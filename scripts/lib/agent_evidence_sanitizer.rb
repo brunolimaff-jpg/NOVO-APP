@@ -4,7 +4,8 @@ require 'digest'
 
 module AgentEvidenceSanitizer
   MAX_FIELD_BYTES = 16 * 1024
-  SECRET_RE = /(authorization|bearer|token|api[_-]?key|secret|cookie|password|credential)/i
+  SECRET_KEY_RE = /\A(?:authorization|bearer|token|(?:access|refresh|api|auth|id)[_-]?token|api[_-]?key|secret(?:[_-].*)?|password(?:[_-].*)?|credential(?:[_-].*)?|cookie(?:[_-].*)?)\z/i
+  SECRET_ASSIGNMENT_RE = /(?:authorization|bearer|token|(?:access|refresh|api|auth|id)[_-]?token|api[_-]?key|secret(?:[_-]\w+)?|password(?:[_-]\w+)?|credential(?:[_-]\w+)?|cookie(?:[_-]\w+)?)[\s]*[=:]\s*/i
   PATH_RE = %r{/(?:Users|home)/[^/]+}
 
   module_function
@@ -12,7 +13,7 @@ module AgentEvidenceSanitizer
   def sanitize(value, key = nil, context = {})
     if value.is_a?(Hash)
       value.each_with_object({}) do |(k, v), out|
-        out[k.to_s] = SECRET_RE.match?(k.to_s) ? '[REDACTED]' : sanitize(v, k.to_s, context)
+        out[k.to_s] = SECRET_KEY_RE.match?(k.to_s) ? '[REDACTED]' : sanitize(v, k.to_s, context)
       end
     elsif value.is_a?(Array)
       value.map { |v| sanitize(v, key, context) }
@@ -28,9 +29,9 @@ module AgentEvidenceSanitizer
 
   def sanitize_string(value, key = nil, context = {}, max_bytes: MAX_FIELD_BYTES)
     raw = value.to_s
-    return '[REDACTED]' if key && SECRET_RE.match?(key.to_s)
+    return '[REDACTED]' if key && SECRET_KEY_RE.match?(key.to_s)
 
-    text = raw.gsub(/(authorization\s*:\s*(?:Bearer|Basic)\s+|authorization\s*:\s*|Bearer\s+|Basic\s+|(?:token|api[_-]?key|secret|password|cookie)\s*[=:]\s*)[^\s,;]+/i) { "#{$1}[REDACTED]" }
+    text = raw.gsub(/(authorization\s*:\s*(?:Bearer|Basic)\s+|authorization\s*:\s*|Bearer\s+|Basic\s+|#{SECRET_ASSIGNMENT_RE})[^\s,;]+/i) { "#{$1}[REDACTED]" }
     context.each { |name, path| text = text.gsub(path.to_s, "<#{name.to_s.upcase}>") unless path.to_s.empty? }
     text = text.gsub(PATH_RE, '<HOME>')
     text = text.gsub(%r{https?://([^?\s#]+)\?[^\s#]*}) { "https://#{$1}/[REDACTED_QUERY]" }

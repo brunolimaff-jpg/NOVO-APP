@@ -40,6 +40,29 @@ test('sanitiza segredos e caminhos sem preservar o original') do
   assert result['cwd'] == '<HOME>/projeto'
 end
 
+test('preserva métricas de tokens e redige credenciais') do
+  result = AgentEvidenceSanitizer.sanitize(
+    'token_count' => 3,
+    'prompt_tokens' => 1,
+    'completion_tokens' => 2,
+    'total_tokens' => 3,
+    'cached_tokens' => 0,
+    'reasoning_tokens' => 0,
+    'access_token' => 'access-secret',
+    'api_token' => 'api-secret',
+    'api_key' => 'key-secret'
+  )
+  assert result['token_count'] == 3
+  assert result['prompt_tokens'] == 1
+  assert result['completion_tokens'] == 2
+  assert result['total_tokens'] == 3
+  assert result['cached_tokens'] == 0
+  assert result['reasoning_tokens'] == 0
+  assert result['access_token'] == '[REDACTED]'
+  assert result['api_token'] == '[REDACTED]'
+  assert result['api_key'] == '[REDACTED]'
+end
+
 test('linha inválida vira registro explícito e limitado') do
   record = AgentEvidenceSanitizer.invalid_jsonl_record(3, 'not-json', 'unexpected token')
   assert record['type'] == 'invalid_jsonl_line'
@@ -103,7 +126,7 @@ test('symlink de missão é rejeitado sem escrever fora da raiz') do
 end
 
 test('reserva exclusiva marca tentativa antes de qualquer processo') do
-  Dir.mktmpdir('state-test', '/private/tmp') do |dir|
+  Dir.mktmpdir('state-test') do |dir|
     path = File.join(dir, 'mission.json')
     File.open(path, File::WRONLY | File::CREAT | File::EXCL, 0o600) { |f| f.write('{"status":"reserved"}') }
     assert JSON.parse(File.read(path))['status'] == 'reserved'
