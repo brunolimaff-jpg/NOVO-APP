@@ -5,16 +5,14 @@ require 'digest'
 module AgentEvidenceSanitizer
   MAX_FIELD_BYTES = 16 * 1024
   SECRET_RE = /(authorization|bearer|token|api[_-]?key|secret|cookie|password|credential)/i
-  PATH_RE = %r{\A/(?:Users|home)/[^/]+}
+  PATH_RE = %r{/(?:Users|home)/[^/]+}
 
   module_function
 
   def sanitize(value, key = nil, context = {})
     if value.is_a?(Hash)
-      value.each_with_object({ 'sanitized' => true, 'sanitization_failed' => false }) do |(k, v), out|
-        next if SECRET_RE.match?(k.to_s)
-
-        out[k.to_s] = sanitize(v, k.to_s, context)
+      value.each_with_object({}) do |(k, v), out|
+        out[k.to_s] = SECRET_RE.match?(k.to_s) ? '[REDACTED]' : sanitize(v, k.to_s, context)
       end
     elsif value.is_a?(Array)
       value.map { |v| sanitize(v, key, context) }
@@ -28,16 +26,16 @@ module AgentEvidenceSanitizer
       'sanitization_failed' => true }
   end
 
-  def sanitize_string(value, key = nil, context = {})
+  def sanitize_string(value, key = nil, context = {}, max_bytes: MAX_FIELD_BYTES)
     raw = value.to_s
     return '[REDACTED]' if key && SECRET_RE.match?(key.to_s)
 
     text = raw.gsub(/(authorization\s*:\s*(?:Bearer|Basic)\s+|authorization\s*:\s*|Bearer\s+|Basic\s+|(?:token|api[_-]?key|secret|password|cookie)\s*[=:]\s*)[^\s,;]+/i) { "#{$1}[REDACTED]" }
     context.each { |name, path| text = text.gsub(path.to_s, "<#{name.to_s.upcase}>") unless path.to_s.empty? }
     text = text.gsub(PATH_RE, '<HOME>')
-    text = text.gsub(%r{https?://([^/?#]+)(?:\?[^\s#]*)}) { "https://#{$1}/[REDACTED_QUERY]" }
+    text = text.gsub(%r{https?://([^?\s#]+)\?[^\s#]*}) { "https://#{$1}/[REDACTED_QUERY]" }
     text = text.encode('UTF-8', invalid: :replace, undef: :replace, replace: '�')
-    text = text.byteslice(0, MAX_FIELD_BYTES).to_s
+    text = text.byteslice(0, max_bytes).to_s
     text.force_encoding(Encoding::UTF_8).scrub
   rescue StandardError
     '[REDACTED]'

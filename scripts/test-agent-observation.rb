@@ -559,7 +559,7 @@ def test_env(extra = {})
     'AGENT_RUNTIME_TEST_CODEX_BIN' => FAKE_CODEX,
     'AGENT_RUNTIME_TEST_PREFLIGHT' => '1',
     'AGENT_RUNTIME_TEST_DCG_BIN' => FAKE_DCG,
-    'AGENT_RUNTIME_EVIDENCE_ROOT' => File.join('/private/tmp', "agent-observation-evidence-#{Process.pid}")
+    'AGENT_RUNTIME_EVIDENCE_ROOT' => File.join(File.realpath(Dir.tmpdir), "agent-observation-evidence-#{Process.pid}-#{@counter}")
   }.merge(extra)
 end
 

@@ -362,8 +362,12 @@ module AgentSupervisedPilot
 
   def state_dir(root, override: nil)
     dir = override.to_s.strip.empty? ? File.join(root, DEFAULT_STATE_REL) : override
-    FileUtils.mkdir_p(dir)
-    dir
+    expanded = File.expand_path(dir)
+    raise Denial.new('SUPERVISED_PILOT_STATE_SYMLINK', 'diretório de state é symlink') if File.symlink?(expanded)
+    FileUtils.mkdir_p(expanded, mode: 0o700)
+    raise Denial.new('SUPERVISED_PILOT_STATE_SYMLINK', 'ancestor de state é symlink') unless File.realpath(expanded) == expanded
+    File.chmod(0o700, expanded)
+    expanded
   end
 
   def state_path(dir, missao_id)
@@ -416,7 +420,7 @@ module AgentSupervisedPilot
     current = JSON.parse(File.read(path))
     current['status'] = status.to_s
     current['report_hash'] = report_hash.to_s if report_hash
-    tmp = "#{path}.tmp-#{Process.pid}"
+    tmp = "#{path}.tmp-#{Process.pid}-#{Thread.current.object_id}"
     File.open(tmp, File::WRONLY | File::CREAT | File::EXCL, 0o600) { |f| f.write(JSON.generate(current)); f.flush; f.fsync }
     File.rename(tmp, path)
   ensure

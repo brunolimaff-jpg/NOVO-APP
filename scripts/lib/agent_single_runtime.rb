@@ -718,13 +718,13 @@ module AgentSingleRuntime
       }
     )
     evidence.reserve!
-    mark_spawn_started.call(reservation_path) if mark_spawn_started && reservation_path
     spawn_result = CodexSingleAgentRuntime.spawn!(
       argv: prepared['argv'],
       prompt: prompt,
       chdir: snap['worktree_realpath'],
       timeout_seconds: validated['timeout'],
-      evidence: evidence
+      evidence: evidence,
+      on_spawn: lambda { |_pid| mark_spawn_started.call(reservation_path) if mark_spawn_started && reservation_path }
     )
     mark_process_finished.call(reservation_path) if mark_process_finished && reservation_path
     evidence.checkpoint('process_finished')
@@ -809,16 +809,6 @@ module AgentSingleRuntime
     rescue StandardError
       Time.now.utc
     end
-    AgentTaskLedger.finalize_from_run!(
-      ledger,
-      comparison_status: comparacao['status'],
-      run_status: status,
-      spawn_started: spawn_started,
-      comparison_codes: comparacao['itens'].map { |i| i['codigo'] }.compact,
-      run_exit_code: spawn_result['exit_code'],
-      at: t_end
-    )
-
     negacoes = after['negacoes'].map { |n| "#{n['codigo']}: #{n['mensagem']}" }
     comparacao['itens'].select { |i| i['resultado'] == 'violacao' }.each do |i|
       code = i['codigo'] || 'OBSERVED_VIOLATION'
@@ -840,11 +830,21 @@ module AgentSingleRuntime
       avisos << delivery_verification['codigo']
     end
     if spawn_result['evidence_status'] != 'complete'
-      status = 'failure' unless status == 'denied'
+      status = 'failure' if status == 'success'
       avisos << 'FORENSIC_EVIDENCE_INCOMPLETE'
       observed = AgentRunComparator.build_observed_snapshot(observed.merge('status_final' => status))
       observed_sha = AgentRunComparator.canonical_hash(observed)
     end
+
+    AgentTaskLedger.finalize_from_run!(
+      ledger,
+      comparison_status: comparacao['status'],
+      run_status: status,
+      spawn_started: spawn_started,
+      comparison_codes: comparacao['itens'].map { |i| i['codigo'] }.compact,
+      run_exit_code: spawn_result['exit_code'],
+      at: t_end
+    )
 
     handoff = AgentTaskLedger.build_handoff(
       missao_id: card['id'],

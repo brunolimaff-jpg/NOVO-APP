@@ -521,8 +521,8 @@ module AgentMissionRunner
 
     if runtime_report
       report = runtime_report
-      report['status'] = status if status == 'denied' && runtime_report['status'] != 'denied'
-      report['negacoes'] = negacoes if status == 'denied' && Array(runtime_report['negacoes']).empty?
+      report['status'] = status if runtime_report['status'] != status
+      report['negacoes'] = negacoes unless negacoes.empty?
       # recompute hash if mutated
       if report.key?('relatorio_sha256')
         report['relatorio_sha256'] = AgentSingleRuntime.compute_report_hash(report)

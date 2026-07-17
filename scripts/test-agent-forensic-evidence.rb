@@ -6,6 +6,7 @@ require 'tmpdir'
 require 'fileutils'
 require_relative './lib/agent_evidence_sanitizer'
 require_relative './lib/agent_forensic_evidence'
+require_relative './lib/codex_single_agent_runtime'
 
 TESTS = []
 def test(name, &block)
@@ -35,7 +36,8 @@ test('sanitiza segredos e caminhos sem preservar o original') do
   assert !json.include?('sk-secret-token')
   assert !json.include?('session-secret')
   assert !json.include?('/Users/bruno')
-  assert result['sanitized'] == true
+  assert result['command'].include?('[REDACTED]')
+  assert result['cwd'] == '<HOME>/projeto'
 end
 
 test('linha inválida vira registro explícito e limitado') do
@@ -53,8 +55,8 @@ test('limite de bytes e registros é aplicado antes de acumular') do
 end
 
 test('manifesto é determinístico e registra artefatos') do
-  Dir.mktmpdir('forensic-test', '/private/tmp') do |dir|
-    root = File.join(dir, 'evidence')
+  Dir.mktmpdir('forensic-test') do |dir|
+    root = File.join(File.realpath(dir), 'evidence')
     evidence = AgentForensicEvidence.new(root: root, mission_id: 'm1', attempt: 1)
     evidence.reserve!
     evidence.append_stdout('{"type":"turn.completed"}\n')
@@ -63,28 +65,29 @@ test('manifesto é determinístico e registra artefatos') do
     assert manifest['retention_days'] == 30
     assert manifest['artifacts'].map { |a| a['name'] } == %w[execution-evidence.json execution-stream.sanitized.jsonl stderr.sanitized.log].sort
     manifest_path = File.join(root, 'm1', 'attempt-001', 'evidence-manifest.json')
+    assert File.file?(manifest_path)
     assert manifest['manifest_sha256'] == Digest::SHA256.file(manifest_path).hexdigest
-    assert File.file?(File.join(root, 'm1', 'attempt-001', 'evidence-manifest.json'))
   end
 end
 
 test('checkpoint sanitiza argv e limita permissões') do
-  Dir.mktmpdir('forensic-permissions', '/private/tmp') do |dir|
-    root = File.join(dir, 'evidence')
+  Dir.mktmpdir('forensic-permissions') do |dir|
+    root = File.join(File.realpath(dir), 'evidence')
     evidence = AgentForensicEvidence.new(root: root, mission_id: 'safe', paths: { 'worktree' => '/Users/bruno/repo' })
     evidence.reserve!
     evidence.checkpoint('spawn_started', 'process' => { 'argv' => ['codex', '--token=secret-value'], 'cwd' => '/Users/bruno/repo' })
-    raw = File.read(File.join(root, 'safe', 'attempt-001', 'execution-evidence.json'))
+    evidence_path = File.join(root, 'safe', 'attempt-001', 'execution-evidence.json')
+    raw = File.read(evidence_path)
     assert !raw.include?('secret-value')
     assert raw.include?('<WORKTREE>')
     assert (File.stat(root).mode & 0o777) == 0o700
-    assert (File.stat(File.join(root, 'safe', 'attempt-001', 'execution-evidence.json')).mode & 0o777) == 0o600
+    assert (File.stat(evidence_path).mode & 0o777) == 0o600
   end
 end
 
 test('symlink de missão é rejeitado sem escrever fora da raiz') do
-  Dir.mktmpdir('forensic-symlink', '/private/tmp') do |dir|
-    root = File.join(dir, 'evidence')
+  Dir.mktmpdir('forensic-symlink') do |dir|
+    root = File.join(File.realpath(dir), 'evidence')
     outside = File.join(dir, 'outside')
     FileUtils.mkdir(outside, mode: 0o700)
     FileUtils.mkdir(root, mode: 0o700)
@@ -110,6 +113,57 @@ test('reserva exclusiva marca tentativa antes de qualquer processo') do
     rescue Errno::EEXIST
       true
     end
+  end
+end
+
+test('JSONL retoma após linha acima do limite') do
+  Dir.mktmpdir('forensic-jsonl') do |dir|
+    root = File.join(File.realpath(dir), 'evidence')
+    evidence = AgentForensicEvidence.new(root: root, mission_id: 'jsonl')
+    evidence.reserve!
+    old = ENV.to_h
+    ENV['AGENT_RUNTIME_TEST_CODEX'] = '1'
+    ENV['AGENT_RUNTIME_TEST_CODEX_BIN'] = File.expand_path('../.agents/seguranca/fixtures/fake-codex', __dir__)
+    ENV['AGENT_RUNTIME_FAKE_SCENARIO'] = 'oversized-jsonl'
+    result = CodexSingleAgentRuntime.spawn!(argv: [ENV['AGENT_RUNTIME_TEST_CODEX_BIN'], 'exec', '-'], prompt: '', chdir: Dir.pwd, timeout_seconds: 5, evidence: evidence)
+    stream = File.read(File.join(root, 'jsonl', 'attempt-001', 'execution-stream.sanitized.jsonl'))
+    assert result['evidence_status'] == 'partial'
+    assert stream.include?('turn.completed')
+  ensure
+    ENV.replace(old) if old
+  end
+end
+
+test('stderr dividido em chunks não vaza credencial') do
+  Dir.mktmpdir('forensic-stderr') do |dir|
+    root = File.join(File.realpath(dir), 'evidence')
+    evidence = AgentForensicEvidence.new(root: root, mission_id: 'stderr')
+    evidence.reserve!
+    old = ENV.to_h
+    ENV['AGENT_RUNTIME_TEST_CODEX'] = '1'
+    ENV['AGENT_RUNTIME_TEST_CODEX_BIN'] = File.expand_path('../.agents/seguranca/fixtures/fake-codex', __dir__)
+    ENV['AGENT_RUNTIME_FAKE_SCENARIO'] = 'stderr-split-secret'
+    CodexSingleAgentRuntime.spawn!(argv: [ENV['AGENT_RUNTIME_TEST_CODEX_BIN'], 'exec', '-'], prompt: '', chdir: Dir.pwd, timeout_seconds: 5, evidence: evidence)
+    stderr = File.read(File.join(root, 'stderr', 'attempt-001', 'stderr.sanitized.log'))
+    assert !stderr.include?('sk-live-secret')
+  ensure
+    ENV.replace(old) if old
+  end
+end
+
+test('JSON válido não objeto e sanitização de URL/path são explícitos') do
+  Dir.mktmpdir('forensic-values') do |dir|
+    root = File.join(File.realpath(dir), 'evidence')
+    evidence = AgentForensicEvidence.new(root: root, mission_id: 'values')
+    evidence.reserve!
+    evidence.append_stdout("[1,2,3]\n")
+    evidence.append_stdout("{\"nested\":{\"api_key\":\"secret\"}}\n")
+    raw = File.read(File.join(root, 'values', 'attempt-001', 'execution-stream.sanitized.jsonl'))
+    assert raw.include?('jsonl_value')
+    assert !raw.include?('secret')
+    sanitized = AgentEvidenceSanitizer.sanitize_string('erro em /Users/bruno/app https://host/api?token=secret')
+    assert !sanitized.include?('/Users/bruno')
+    assert !sanitized.include?('token=secret')
   end
 end
 

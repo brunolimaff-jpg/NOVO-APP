@@ -92,6 +92,24 @@ sys.stderr.write("E" * (1024 * 1024 + 100))
 PY
     exit 0
     ;;
+  oversized-jsonl)
+    python3 - <<'PY'
+import sys
+sys.stdout.write('{"type":"message","text":"' + ('X' * 17000) + '"}\n')
+sys.stdout.write('{"type":"turn.completed"}\n')
+PY
+    exit 0
+    ;;
+  stderr-split-secret)
+    python3 - <<'PY'
+import sys
+sys.stderr.write('Authorization: Bearer ')
+sys.stderr.flush()
+sys.stderr.write('sk-live-secret\n')
+sys.stderr.flush()
+PY
+    exit 0
+    ;;
   error)
     echo "boom" >&2
     exit 7

@@ -45,6 +45,7 @@ class AgentForensicEvidence
     @dir = File.join(@root, @mission_id, format('attempt-%03d', @attempt))
     @stream_bytes = 0
     @stream_records = 0
+    @stderr_bytes = 0
     @truncated = false
     @discarded_bytes = 0
     @discarded_records = 0
@@ -62,7 +63,11 @@ class AgentForensicEvidence
     attempt_parent = File.dirname(@dir)
     ensure_directory!(attempt_parent)
     File.chmod(0o700, attempt_parent)
-    ensure_directory!(@dir)
+    begin
+      FileUtils.mkdir(@dir, mode: 0o700)
+    rescue Errno::EEXIST
+      raise Denial.new('FORENSIC_ATTEMPT_ALREADY_RESERVED', 'tentativa de evidência já reservada')
+    end
     File.chmod(0o700, @dir)
     %w[execution-stream.sanitized.jsonl stderr.sanitized.log].each { |name| ensure_file!(File.join(@dir, name)) }
     write_json('execution-evidence.json', base_record.merge('state' => 'reserved'))
@@ -87,7 +92,11 @@ class AgentForensicEvidence
       parsed = JSON.parse(line)
       sanitized = AgentEvidenceSanitizer.sanitize(parsed, nil, @paths)
       @sanitization_failed ||= sanitized.is_a?(Hash) && sanitized['sanitization_failed'] == true
-      sanitized.merge('sequence' => @stream_records + 1)
+      if sanitized.is_a?(Hash)
+        sanitized.merge('sequence' => @stream_records + 1)
+      else
+        { 'type' => 'jsonl_value', 'value' => sanitized, 'sequence' => @stream_records + 1, 'sanitized' => true }
+      end
     rescue JSON::ParserError => e
       AgentEvidenceSanitizer.invalid_jsonl_record(@stream_records + 1, line, e.message)
     end
@@ -106,12 +115,13 @@ class AgentForensicEvidence
 
   def append_stderr(chunk)
     raw = chunk.to_s.b
-    return drop!(raw.bytesize) if @stderr_bytes.to_i >= MAX_STREAM_BYTES
-    remaining = MAX_STREAM_BYTES - @stderr_bytes.to_i
-    text = AgentEvidenceSanitizer.sanitize_string(raw.byteslice(0, remaining).to_s)
+    return drop!(raw.bytesize) if @stderr_bytes >= MAX_STREAM_BYTES
+    remaining = MAX_STREAM_BYTES - @stderr_bytes
+    sanitized = AgentEvidenceSanitizer.sanitize_string(raw, max_bytes: raw.bytesize)
+    text = sanitized.byteslice(0, remaining).to_s
     File.open(File.join(@dir, 'stderr.sanitized.log'), 'ab', 0o600) { |f| f.write(text) }
-    @stderr_bytes = @stderr_bytes.to_i + text.bytesize
-    @discarded_bytes += [raw.bytesize - remaining, 0].max
+    @stderr_bytes += text.bytesize
+    @discarded_bytes += [sanitized.bytesize - remaining, 0].max
   rescue SystemCallError => e
     raise Denial.new('FORENSIC_PERSISTENCE_FAILED', e.message)
   end
@@ -144,6 +154,10 @@ class AgentForensicEvidence
 
   def evidence_relpath
     File.join(@mission_id, format('attempt-%03d', @attempt))
+  end
+
+  def mark_truncated!(bytes:, records: 0)
+    drop!(bytes, record: records.positive?)
   end
 
   private

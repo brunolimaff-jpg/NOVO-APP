@@ -181,7 +181,7 @@ def test_env(extra = {})
     'AGENT_RUNTIME_TEST_CODEX_BIN' => FAKE_CODEX,
     'AGENT_RUNTIME_TEST_PREFLIGHT' => '1',
     'AGENT_RUNTIME_TEST_DCG_BIN' => FAKE_DCG,
-    'AGENT_RUNTIME_EVIDENCE_ROOT' => File.join('/private/tmp', "agent-runtime-evidence-#{Process.pid}"),
+    'AGENT_RUNTIME_EVIDENCE_ROOT' => File.join(File.realpath(Dir.tmpdir), "agent-runtime-evidence-#{Process.pid}-#{@counter}"),
     'AGENT_RUNTIME_FAKE_SCENARIO' => 'success-noop',
     'AGENT_RUNTIME_FAKE_WRITE_PATH' => 'tmp/runtime-write.txt'
   }.merge(extra)

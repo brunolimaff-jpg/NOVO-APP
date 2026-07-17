@@ -212,7 +212,7 @@ module CodexSingleAgentRuntime
     end
   end
 
-  def spawn!(argv:, prompt:, chdir:, timeout_seconds:, evidence: nil)
+  def spawn!(argv:, prompt:, chdir:, timeout_seconds:, evidence: nil, on_spawn: nil)
     assert_argv_safe!(argv)
     stdout_data = +''
     stderr_data = +''
@@ -227,6 +227,8 @@ module CodexSingleAgentRuntime
     stdout_truncated = false
     stderr_truncated = false
     stdout_for_diagnostics = +''
+    stderr_buffer = +''
+    stderr_capture_limit = AgentForensicEvidence::MAX_STREAM_BYTES + AgentEvidenceSanitizer::MAX_FIELD_BYTES
     output_mutex = Mutex.new
 
     read_stdout = lambda do |io|
@@ -243,22 +245,35 @@ module CodexSingleAgentRuntime
         else
           stdout_truncated = true
         end
-        next if discard_long_line
+        if discard_long_line
+          newline = chunk.index("\n")
+          if newline
+            evidence&.mark_truncated!(bytes: newline + 1)
+            discard_long_line = false
+            chunk = chunk.byteslice(newline + 1, chunk.bytesize).to_s
+            next if chunk.empty?
+          else
+            evidence&.mark_truncated!(bytes: chunk.bytesize)
+            next
+          end
+        end
 
         buffer << chunk.byteslice(0, [chunk.bytesize, AgentEvidenceSanitizer::MAX_FIELD_BYTES].min).to_s
         while (idx = buffer.index("\n"))
           line = buffer.slice!(0..idx)
           line_sequence += 1
           sanitized_line = evidence ? evidence.append_stdout(line) : line
+          evidence&.mark_truncated!(bytes: line.bytesize, records: 1) if line.bytesize > AgentEvidenceSanitizer::MAX_FIELD_BYTES
           output_mutex.synchronize do
             if stdout_for_diagnostics.bytesize < MAX_OUTPUT_BYTES
-              stdout_for_diagnostics << sanitized_line.to_s.byteslice(0, MAX_OUTPUT_BYTES - stdout_for_diagnostics.bytesize).to_s
+              stdout_for_diagnostics << line.to_s.byteslice(0, MAX_OUTPUT_BYTES - stdout_for_diagnostics.bytesize).to_s
             end
           end
         end
         if buffer.bytesize > AgentEvidenceSanitizer::MAX_FIELD_BYTES
           line_sequence += 1
-          evidence&.append_stdout(buffer)
+          evidence&.append_stdout(buffer.byteslice(0, AgentEvidenceSanitizer::MAX_FIELD_BYTES).to_s)
+          evidence&.mark_truncated!(bytes: buffer.bytesize, records: 1)
           buffer = +''
           discard_long_line = true
         end
@@ -267,7 +282,7 @@ module CodexSingleAgentRuntime
       unless buffer.empty? || discard_long_line
         line_sequence += 1
         sanitized_line = evidence ? evidence.append_stdout(buffer) : buffer
-        output_mutex.synchronize { stdout_for_diagnostics << sanitized_line.to_s.byteslice(0, MAX_OUTPUT_BYTES - stdout_for_diagnostics.bytesize).to_s }
+        output_mutex.synchronize { stdout_for_diagnostics << buffer.to_s.byteslice(0, MAX_OUTPUT_BYTES - stdout_for_diagnostics.bytesize).to_s }
       end
     end
 
@@ -282,14 +297,21 @@ module CodexSingleAgentRuntime
         else
           stderr_truncated = true
         end
-        evidence&.append_stderr(chunk)
+        remaining = stderr_capture_limit - stderr_buffer.bytesize
+        if remaining.positive?
+          stderr_buffer << chunk.byteslice(0, remaining).to_s
+          evidence&.mark_truncated!(bytes: chunk.bytesize - remaining) if chunk.bytesize > remaining
+        else
+          evidence&.mark_truncated!(bytes: chunk.bytesize)
+        end
       end
     rescue EOFError
-      nil
+      evidence&.append_stderr(stderr_buffer)
     end
 
     Open3.popen3(sanitized_env, *argv, chdir: chdir, unsetenv_others: true, pgroup: true) do |stdin, stdout, stderr, thr|
       pid = thr.pid
+      on_spawn&.call(pid)
       evidence&.checkpoint('spawn_started', 'process' => { 'pid' => pid, 'argv' => argv })
       stdin.write(prompt.to_s)
       stdin.close
