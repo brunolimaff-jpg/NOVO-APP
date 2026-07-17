@@ -35,6 +35,19 @@ Qualquer falha após a reserva consome a tentativa e não existe retry automáti
 Nova tentativa exigiria outra especificação, outra `mission_id` e nova
 autorização humana.
 
+Os templates versionados obrigatórios da prova são:
+
+```text
+PATH_CARD: .agents/pilotos/templates/quarto-piloto-supervisionado-20260717t-final.card.json
+PATH_PLAN: .agents/pilotos/templates/quarto-piloto-supervisionado-20260717t-final.plan.json
+```
+
+Esses dois arquivos ainda não existem e não devem ser criados nesta tarefa. A
+prova fica bloqueada antes da reserva enquanto não forem criados, revisados e
+mergeados na baseline autorizada. Antes da execução, seus SHA-256 devem ser
+congelados no recibo de autorização e conferidos; ausência ou divergência
+produz `PROVA_FINAL_BLOCKED_BEFORE_RESERVATION`.
+
 ## 4. Worktree futura
 
 A execução deverá usar uma worktree nova e limpa, derivada diretamente da
@@ -123,13 +136,19 @@ exigida antes da criação desta worktree.
 ```bash
 git fetch origin
 test "$(git rev-parse origin/main)" = "95c415da2311cfceaf1e00c616e9eefe7638714f"
+PATH_WORKTREE="/Users/brunolima/Documents/NOVO-APP-final-supervised-proof-run"
+EXPECTED_BASELINE="95c415da2311cfceaf1e00c616e9eefe7638714f"
+test "$(git -C "$PATH_WORKTREE" rev-parse HEAD)" = "$EXPECTED_BASELINE"
+test -z "$(git -C "$PATH_WORKTREE" status --porcelain)"
 ```
 
 ### 8.2 Worktree limpa
 
 ```bash
-git -C PATH_WORKTREE status --porcelain
-test -z "$(git -C PATH_WORKTREE status --porcelain)"
+PATH_WORKTREE="/Users/brunolima/Documents/NOVO-APP-final-supervised-proof-run"
+EXPECTED_BASELINE="95c415da2311cfceaf1e00c616e9eefe7638714f"
+test "$(git -C "$PATH_WORKTREE" rev-parse HEAD)" = "$EXPECTED_BASELINE"
+test -z "$(git -C "$PATH_WORKTREE" status --porcelain)"
 ```
 
 ### 8.3 Readiness
@@ -149,46 +168,180 @@ O resultado exigido é `ready`.
 ### 8.5 Ausência de state
 
 ```bash
-test ! -e PATH_STATE_DIR/quarto-piloto-supervisionado-20260717t-final.json
+PATH_WORKTREE="/Users/brunolima/Documents/NOVO-APP-final-supervised-proof-run"
+PATH_STATE_DIR="$PATH_WORKTREE/.agents/pilotos/state"
+PATH_STATE_FILE="$PATH_STATE_DIR/quarto-piloto-supervisionado-20260717t-final.json"
+test ! -e "$PATH_STATE_FILE"
 ```
 
-`PATH_STATE_DIR` será definido no momento da execução; esta verificação não cria
-state.
+O valor corresponde ao default atual de `AgentSupervisedPilot::DEFAULT_STATE_REL`.
+Somente uma autorização futura explícita com `--pilot-state-dir` poderá alterá-lo.
+Esta verificação não cria state.
+
+### 8.5.1 Templates e hashes congelados
+
+```bash
+PATH_WORKTREE="/Users/brunolima/Documents/NOVO-APP-final-supervised-proof-run"
+PATH_CARD="$PATH_WORKTREE/.agents/pilotos/templates/quarto-piloto-supervisionado-20260717t-final.card.json"
+PATH_PLAN="$PATH_WORKTREE/.agents/pilotos/templates/quarto-piloto-supervisionado-20260717t-final.plan.json"
+test -f "$PATH_CARD" || { echo "PROVA_FINAL_BLOCKED_BEFORE_RESERVATION" >&2; exit 1; }
+test -f "$PATH_PLAN" || { echo "PROVA_FINAL_BLOCKED_BEFORE_RESERVATION" >&2; exit 1; }
+test "$(shasum -a 256 "$PATH_CARD" | awk '{print $1}')" = "$CARD_SHA256_EXPECTED" || { echo "PROVA_FINAL_BLOCKED_BEFORE_RESERVATION" >&2; exit 1; }
+test "$(shasum -a 256 "$PATH_PLAN" | awk '{print $1}')" = "$PLAN_SHA256_EXPECTED" || { echo "PROVA_FINAL_BLOCKED_BEFORE_RESERVATION" >&2; exit 1; }
+```
+
+`CARD_SHA256_EXPECTED` e `PLAN_SHA256_EXPECTED` só podem receber valores
+congelados em autorização humana posterior. A ausência dos templates ou dos
+hashes não autoriza criação, reparo ou reserva.
+
+### 8.5.2 Raiz externa de evidência
+
+```bash
+EVIDENCE_ROOT="${XDG_STATE_HOME:-$HOME/.local/state}/novo-app/agent-evidence"
+test "${EVIDENCE_ROOT#/}" != "$EVIDENCE_ROOT"
+PATH_WORKTREE="/Users/brunolima/Documents/NOVO-APP-final-supervised-proof-run"
+test -d "$PATH_WORKTREE"
+WORKTREE_REAL="$(realpath "$PATH_WORKTREE")"
+
+check_no_symlink_chain() {
+  local candidate="$1"
+  while [ "$candidate" != "/" ]; do
+    test ! -L "$candidate" || return 1
+    candidate="$(dirname "$candidate")"
+  done
+}
+
+EVIDENCE_PARENT="$EVIDENCE_ROOT"
+while [ ! -e "$EVIDENCE_PARENT" ]; do
+  NEXT="$(dirname "$EVIDENCE_PARENT")"
+  test "$NEXT" != "$EVIDENCE_PARENT"
+  EVIDENCE_PARENT="$NEXT"
+done
+check_no_symlink_chain "$EVIDENCE_PARENT"
+EVIDENCE_PARENT_REAL="$(realpath "$EVIDENCE_PARENT")"
+EVIDENCE_SUFFIX="${EVIDENCE_ROOT#"$EVIDENCE_PARENT"}"
+EVIDENCE_ROOT_REAL="$EVIDENCE_PARENT_REAL$EVIDENCE_SUFFIX"
+check_no_symlink_chain "$EVIDENCE_ROOT"
+case "$EVIDENCE_ROOT_REAL/" in
+  "$WORKTREE_REAL/"*)
+    echo "FORENSIC_EVIDENCE_ROOT_INSIDE_WORKTREE" >&2
+    exit 1
+    ;;
+esac
+test "$EVIDENCE_ROOT_REAL" != "$WORKTREE_REAL"
+```
+
+O bloco não cria a raiz. Ele exige worktree existente, caminho absoluto, ancestor
+existente resolvido por `realpath`, cadeia sem symlink, e rejeita raiz igual ou
+descendente da worktree.
 
 ### 8.6 Única chamada ao runner
 
 ```bash
 # NAO_EXECUTAR_SEM_AUTORIZACAO_HUMANA_EXPLICITA
+PATH_WORKTREE="/Users/brunolima/Documents/NOVO-APP-final-supervised-proof-run"
+PATH_CARD="$PATH_WORKTREE/.agents/pilotos/templates/quarto-piloto-supervisionado-20260717t-final.card.json"
+PATH_PLAN="$PATH_WORKTREE/.agents/pilotos/templates/quarto-piloto-supervisionado-20260717t-final.plan.json"
+PATH_STATE_DIR="$PATH_WORKTREE/.agents/pilotos/state"
+PATH_STATE_FILE="$PATH_STATE_DIR/quarto-piloto-supervisionado-20260717t-final.json"
+EXPECTED_BASELINE="95c415da2311cfceaf1e00c616e9eefe7638714f"
+test "$(git -C "$PATH_WORKTREE" rev-parse HEAD)" = "$EXPECTED_BASELINE"
+test -z "$(git -C "$PATH_WORKTREE" status --porcelain)"
+test ! -e "$PATH_STATE_FILE"
+test -f "$PATH_CARD" && test -f "$PATH_PLAN"
+test "$(shasum -a 256 "$PATH_CARD" | awk '{print $1}')" = "$CARD_SHA256_EXPECTED"
+test "$(shasum -a 256 "$PATH_PLAN" | awk '{print $1}')" = "$PLAN_SHA256_EXPECTED"
 EVIDENCE_ROOT="${XDG_STATE_HOME:-$HOME/.local/state}/novo-app/agent-evidence"
 test "${EVIDENCE_ROOT#/}" != "$EVIDENCE_ROOT"
 AGENT_RUNTIME_EXECUTE=1 \
 AGENT_RUNTIME_PILOT=1 \
 AGENT_RUNTIME_EVIDENCE_ROOT="$EVIDENCE_ROOT" \
 ruby scripts/run-agent-mission.rb \
-  --card PATH_CARD \
-  --plan PATH_PLAN \
-  --worktree PATH_WORKTREE \
+  --card "$PATH_CARD" \
+  --plan "$PATH_PLAN" \
+  --worktree "$PATH_WORKTREE" \
   --agent-runtime \
   --runtime-ack RUN_SINGLE_AGENT \
   --supervised-pilot \
   --pilot-ack RUN_SUPERVISED_PILOT \
   --evidence-root "$EVIDENCE_ROOT" \
+  --pilot-state-dir "$PATH_STATE_DIR" \
   --output PATH_OUTPUT
 ```
 
-Esta chamada é permitida uma única vez. `PATH_CARD`, `PATH_PLAN`, `PATH_WORKTREE`
-e `PATH_OUTPUT` só serão definidos no momento autorizado.
+Esta chamada é permitida uma única vez. A validação da baseline, limpeza,
+templates, hashes, state e raiz externa é repetida imediatamente antes dela.
+`PATH_OUTPUT` só será definido no momento autorizado.
 
 ### 8.7 Inspeção do Run Report
 
 ```bash
-ruby -rjson -e 'r=JSON.parse(File.read(ARGV.fetch(0))); abort unless r["status"] && r["forensic_evidence"]; puts JSON.pretty_generate(r)' PATH_OUTPUT
+ruby -I. -rjson -rdigest -rpathname -e '
+require_relative "scripts/plan-agent-mission"
+report = JSON.parse(File.read(ARGV.fetch(0)))
+schema = JSON.parse(File.read(".agents/orquestracao/executor/contrato-relatorio.schema.json"))
+MissionPlanner.send(:validate_against_schema!, report, schema)
+mission = "quarto-piloto-supervisionado-20260717t-final"
+abort "REPORT_CONTRACT_FAILED" unless report.fetch("missao_id") == mission
+abort "REPORT_CONTRACT_FAILED" unless report.fetch("status") == "success"
+runtime = report.fetch("runtime")
+abort "REPORT_CONTRACT_FAILED" unless runtime.fetch("processo_codex_iniciado") == true
+abort "REPORT_CONTRACT_FAILED" unless runtime.fetch("exit_code") == 0
+abort "REPORT_CONTRACT_FAILED" unless runtime.fetch("timeout") == false
+abort "REPORT_CONTRACT_FAILED" unless runtime.fetch("sinal").nil?
+abort "REPORT_CONTRACT_FAILED" unless report.dig("comparacao", "status") == "conforme"
+delivery = report.fetch("delivery_verification")
+abort "REPORT_CONTRACT_FAILED" unless delivery.fetch("status") == "succeeded"
+abort "REPORT_CONTRACT_FAILED" unless delivery.fetch("expected_sha256") == delivery.fetch("observed_sha256")
+abort "REPORT_CONTRACT_FAILED" unless delivery.fetch("expected_bytes") == delivery.fetch("observed_bytes")
+abort "REPORT_CONTRACT_FAILED" unless report.dig("forensic_evidence", "evidence_status") == "complete"
+manifest_rel = report.dig("forensic_evidence", "manifest_relpath")
+abort "REPORT_CONTRACT_FAILED" unless manifest_rel && !Pathname.new(manifest_rel).absolute? && !manifest_rel.split(File::SEPARATOR).include?("..")
+manifest_path = File.expand_path(ARGV.fetch(1))
+abort "REPORT_CONTRACT_FAILED" unless File.basename(manifest_path) == "evidence-manifest.json"
+abort "REPORT_CONTRACT_FAILED" unless Digest::SHA256.file(manifest_path).hexdigest == report.dig("forensic_evidence", "manifest_sha256")
+abort "REPORT_CONTRACT_FAILED" unless report.fetch("task_ledger").length == 1
+abort "REPORT_CONTRACT_FAILED" unless report.dig("handoff", "requer_aprovacao_humana") == true
+puts JSON.pretty_generate(report)
+' PATH_OUTPUT PATH_MANIFEST
 ```
 
 ### 8.8 Manifesto e hashes
 
 ```bash
-ruby -rjson -rdigest -e 'm=JSON.parse(File.read(ARGV.fetch(0))); abort unless m["evidence_status"]=="complete"; m["artifacts"].each{|a| p=File.join(File.dirname(ARGV.fetch(0)),a["name"]); abort unless Digest::SHA256.file(p).hexdigest==a["sha256"]}' PATH_MANIFEST
+ruby -I. -rjson -rdigest -e '
+require "pathname"
+require_relative "scripts/plan-agent-mission"
+manifest_path = File.expand_path(ARGV.fetch(0))
+manifest = JSON.parse(File.read(manifest_path))
+schema = JSON.parse(File.read(".agents/orquestracao/executor/contrato-evidencia-forense.schema.json"))
+MissionPlanner.send(:validate_against_schema!, manifest, schema)
+mission = "quarto-piloto-supervisionado-20260717t-final"
+abort "MANIFEST_CONTRACT_FAILED" unless manifest.fetch("mission_id") == mission
+abort "MANIFEST_CONTRACT_FAILED" unless manifest.fetch("attempt") == 1
+abort "MANIFEST_CONTRACT_FAILED" unless manifest.fetch("evidence_status") == "complete"
+abort "MANIFEST_CONTRACT_FAILED" unless manifest.fetch("schema_version") == 1
+sanitization = manifest.fetch("sanitization")
+abort "MANIFEST_CONTRACT_FAILED" unless sanitization.fetch("sanitized") == true
+abort "MANIFEST_CONTRACT_FAILED" unless sanitization.fetch("fail_closed") == true
+abort "MANIFEST_CONTRACT_FAILED" if sanitization["sanitization_failed"] == true
+expected = %w[execution-evidence.json execution-stream.sanitized.jsonl stderr.sanitized.log].sort
+abort "MANIFEST_CONTRACT_FAILED" unless manifest.fetch("artifacts").map { |a| a.fetch("name") }.sort == expected
+manifest_dir = File.realpath(File.dirname(manifest_path))
+manifest.fetch("artifacts").each do |artifact|
+  name = artifact.fetch("name")
+  abort "MANIFEST_PATH_INVALID" if Pathname.new(name).absolute? || name.split(File::SEPARATOR).include?("..")
+  artifact_path = File.expand_path(name, manifest_dir)
+  real = File.realpath(artifact_path)
+  abort "MANIFEST_PATH_INVALID" unless real == manifest_dir || real.start_with?(manifest_dir + File::SEPARATOR)
+  abort "MANIFEST_ARTIFACT_FAILED" unless File.file?(real)
+  abort "MANIFEST_ARTIFACT_FAILED" unless File.size(real) == artifact.fetch("bytes")
+  abort "MANIFEST_ARTIFACT_FAILED" unless Digest::SHA256.file(real).hexdigest == artifact.fetch("sha256")
+  abort "MANIFEST_ARTIFACT_FAILED" unless artifact.fetch("sanitized") == true
+  abort "MANIFEST_ARTIFACT_FAILED" unless artifact.fetch("truncated") == false
+end
+puts JSON.pretty_generate(manifest)
+' PATH_MANIFEST
 ```
 
 ### 8.9 Ledger
@@ -200,9 +353,17 @@ ruby -rjson -e 'r=JSON.parse(File.read(ARGV.fetch(0))); l=r.fetch("task_ledger")
 ### 8.10 Diff e arquivo entregue
 
 ```bash
-git -C PATH_WORKTREE status --porcelain
-git -C PATH_WORKTREE diff -- .agents/pilotos/sandbox/quarto-piloto-supervisionado-20260717t-final.txt
-test -f PATH_WORKTREE/.agents/pilotos/sandbox/quarto-piloto-supervisionado-20260717t-final.txt
+DELIVERY_REL=".agents/pilotos/sandbox/quarto-piloto-supervisionado-20260717t-final.txt"
+DELIVERY_ABS="$PATH_WORKTREE/$DELIVERY_REL"
+test -f "$DELIVERY_ABS"
+STATUS_OUTPUT="$(git -C "$PATH_WORKTREE" status --porcelain=v1 --untracked-files=all -z)"
+ruby -e '
+expected = ARGV.fetch(0)
+entries = STDIN.read.split("\0").reject(&:empty?)
+abort "OUT_OF_SCOPE_DIFF" unless entries.length == 1
+path = entries.first.byteslice(3..)
+abort "OUT_OF_SCOPE_DIFF" unless path == expected
+' "$DELIVERY_REL" <<<"$STATUS_OUTPUT"
 ```
 
 Todos os comandos desta seção estão proibidos nesta tarefa.
