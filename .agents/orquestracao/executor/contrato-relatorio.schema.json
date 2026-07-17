@@ -14,7 +14,8 @@
     "comandos",
     "negacoes",
     "avisos",
-    "evidencias"
+    "evidencias",
+    "forensic_evidence"
   ],
   "additionalProperties": false,
   "properties": {
@@ -117,6 +118,18 @@
         "expected_bytes": { "type": "integer" },
         "observed_bytes": { "type": "integer" },
         "codigo": { "type": ["string", "null"] }
+      }
+    },
+    "forensic_evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["evidence_status", "manifest_relpath", "manifest_sha256", "schema_version", "limitations"],
+      "properties": {
+        "evidence_status": { "type": "string", "enum": ["complete", "partial", "unavailable"] },
+        "manifest_relpath": { "type": "string", "pattern": "^[^/].*evidence-manifest\\.json$" },
+        "manifest_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "schema_version": { "type": "integer", "const": 1 },
+        "limitations": { "type": "array", "items": { "type": "string" } }
       }
     },
     "handoff": {

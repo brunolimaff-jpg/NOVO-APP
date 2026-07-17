@@ -15,6 +15,7 @@ require_relative './lib/agent_command_guard'
 require_relative './lib/agent_mission_contract'
 require_relative './lib/agent_single_runtime'
 require_relative './lib/agent_supervised_pilot'
+require_relative './lib/agent_forensic_evidence'
 
 module AgentMissionRunner
   ROOT = File.expand_path('..', __dir__)
@@ -57,7 +58,8 @@ module AgentMissionRunner
       worktree: nil,
       supervised_pilot: false,
       pilot_ack: nil,
-      pilot_state_dir: nil
+      pilot_state_dir: nil,
+      evidence_root: nil
     }
     OptionParser.new do |parser|
       parser.on('--card PATH') { |v| opts[:card] = v }
@@ -72,6 +74,7 @@ module AgentMissionRunner
       parser.on('--supervised-pilot') { opts[:supervised_pilot] = true }
       parser.on('--pilot-ack VALUE') { |v| opts[:pilot_ack] = v }
       parser.on('--pilot-state-dir PATH') { |v| opts[:pilot_state_dir] = v }
+      parser.on('--evidence-root PATH') { |v| opts[:evidence_root] = v }
     end.parse!(argv)
     raise 'missing --card' unless opts[:card]
     raise 'missing --plan' unless opts[:plan]
@@ -406,7 +409,10 @@ module AgentMissionRunner
     execute = false
     start = nil
     runtime_report = nil
+    forensic_failure = nil
     mode_label = 'dry-run'
+    reservation_path = nil
+    pilot_state_dir = nil
 
     begin
       runtime_mode = enforce_runtime_safety!(opts)
@@ -425,10 +431,30 @@ module AgentMissionRunner
           template = AgentSupervisedPilot.load_template!(ROOT, missao_id: card['id'].to_s)
           AgentSupervisedPilot.validate_mission!(card: card, plan: plan, template: template, root: ROOT)
           delivery_contract = AgentSupervisedPilot.extract_delivery_contract(template)
-          state_dir = AgentSupervisedPilot.state_dir(ROOT, override: opts[:pilot_state_dir])
-          if AgentSupervisedPilot.already_executed?(state_dir: state_dir, missao_id: card['id'])
+          pilot_state_dir = AgentSupervisedPilot.state_dir(ROOT, override: opts[:pilot_state_dir])
+          if AgentSupervisedPilot.already_executed?(state_dir: pilot_state_dir, missao_id: card['id'])
             raise DeniedError.new('SUPERVISED_PILOT_ALREADY_EXECUTED', "piloto já registrado: #{card['id']}")
           end
+        end
+
+        evidence_root = AgentForensicEvidence.resolve_root!(opts[:evidence_root])
+        pilot_state_dir = AgentSupervisedPilot.state_dir(ROOT, override: opts[:pilot_state_dir]) if pilot_mode
+        reserve_attempt = nil
+        mark_spawn_started = nil
+        mark_process_finished = nil
+        if pilot_mode
+          pilot_dry_run = ENV['AGENT_RUNTIME_PILOT_DRY'] == '1'
+          reserve_attempt = lambda do |planned_hash|
+            reservation_path = AgentSupervisedPilot.reserve_mission!(
+              state_dir: pilot_state_dir,
+              missao_id: card['id'],
+              report_hash: planned_hash,
+              dry_run: pilot_dry_run
+            )
+            reservation_path
+          end
+          mark_spawn_started = lambda { |path| AgentSupervisedPilot.update_state!(path, status: 'spawn_started') }
+          mark_process_finished = lambda { |path| AgentSupervisedPilot.update_state!(path, status: 'process_finished') }
         end
 
         runtime_report = AgentSingleRuntime.run!(
@@ -438,7 +464,12 @@ module AgentMissionRunner
           worktree: worktree,
           safety_report_path: opts[:safety_report] && safe_path(opts[:safety_report], must_exist: true),
           repo_root: ROOT,
-          delivery_contract: delivery_contract
+          delivery_contract: delivery_contract,
+          evidence_root: evidence_root,
+          forensic_dry_run: pilot_dry_run,
+          reserve_attempt: reserve_attempt,
+          mark_spawn_started: mark_spawn_started,
+          mark_process_finished: mark_process_finished
         )
         status = runtime_report['status']
         negacoes = Array(runtime_report['negacoes'])
@@ -446,13 +477,12 @@ module AgentMissionRunner
         start = Time.parse(runtime_report['inicio']) rescue Time.now.utc
 
         if pilot_mode
-          sdir = AgentSupervisedPilot.state_dir(ROOT, override: opts[:pilot_state_dir])
-          AgentSupervisedPilot.claim_mission!(
-            state_dir: sdir,
-            missao_id: card['id'],
-            report_hash: runtime_report['relatorio_sha256'],
-            dry_run: ENV['AGENT_RUNTIME_PILOT_DRY'] == '1'
-          )
+          next_status = runtime_report['status'] == 'success' ? 'report_finalized' : 'failed'
+          AgentSupervisedPilot.update_state!(
+            AgentSupervisedPilot.state_path(pilot_state_dir, card['id']),
+            status: next_status,
+            report_hash: runtime_report['relatorio_sha256']
+          ) unless ENV['AGENT_RUNTIME_PILOT_DRY'] == '1'
         end
       else
         execute = opts[:execute] && ENV['AGENT_ORCHESTRATION_EXECUTE'] == '1'
@@ -473,18 +503,37 @@ module AgentMissionRunner
         end
       end
     rescue DeniedError, MissionPlanner::SchemaError, AgentMissionContract::Denial, AgentSingleRuntime::Denial, CodexSingleAgentRuntime::Denial, AgentSupervisedPilot::Denial => error
-      status = 'denied'
+      forensic_failure = error.forensic_evidence if error.respond_to?(:forensic_evidence)
+      if reservation_path && File.file?(reservation_path)
+        AgentSupervisedPilot.update_state!(reservation_path, status: 'failed') rescue nil
+        status = 'failure'
+      else
+        status = forensic_failure ? 'failure' : 'denied'
+      end
       code = error.respond_to?(:code) ? error.code : nil
       negacoes << (code ? "#{code}: #{error.message}" : denial_entry(error))
+    rescue AgentForensicEvidence::Denial => error
+      forensic_failure = error.forensic_evidence if error.respond_to?(:forensic_evidence)
+      if reservation_path && File.file?(reservation_path)
+        AgentSupervisedPilot.update_state!(reservation_path, status: 'failed') rescue nil
+        status = 'failure'
+      else
+        status = forensic_failure ? 'failure' : 'denied'
+      end
+      negacoes << "#{error.code}: #{error.message}"
     rescue StandardError => error
-      status = 'internal-error'
+      forensic_failure = error.forensic_evidence if error.respond_to?(:forensic_evidence)
+      if reservation_path && File.file?(reservation_path)
+        AgentSupervisedPilot.update_state!(reservation_path, status: 'failed') rescue nil
+      end
+      status = forensic_failure ? 'failure' : 'internal-error'
       negacoes << denial_entry(error)
     end
 
     if runtime_report
       report = runtime_report
-      report['status'] = status if status == 'denied' && runtime_report['status'] != 'denied'
-      report['negacoes'] = negacoes if status == 'denied' && Array(runtime_report['negacoes']).empty?
+      report['status'] = status if runtime_report['status'] != status
+      report['negacoes'] = negacoes unless negacoes.empty?
       # recompute hash if mutated
       if report.key?('relatorio_sha256')
         report['relatorio_sha256'] = AgentSingleRuntime.compute_report_hash(report)
@@ -516,6 +565,13 @@ module AgentMissionRunner
         'comandos' => commands,
         'duracao_ms' => duracao_ms,
         'evidencias' => ['catalogo fixo', 'argv sem shell', 'ambiente sanitizado', 'sem git mutante'],
+        'forensic_evidence' => forensic_failure || {
+          'evidence_status' => 'unavailable',
+          'manifest_relpath' => 'unavailable/evidence-manifest.json',
+          'manifest_sha256' => Digest::SHA256.hexdigest(''),
+          'schema_version' => 1,
+          'limitations' => ['evidência forense disponível apenas no modo agent-runtime']
+        },
         'fim' => fim,
         'inicio' => inicio,
         'missao_id' => missao_id,

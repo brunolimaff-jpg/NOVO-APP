@@ -186,3 +186,13 @@ probe blocked, hook PreToolUse Bash com entrada DCG direta (guardian pode coexis
 atestação humana (`ruby scripts/attest-dcg-hook.rb --ack TRUST_DCG_HOOK ...`).
 
 Ordem completa: ver `.agents/seguranca/INSTALACAO-DCG-MACOS.md`.
+
+## Evidência forense
+
+O runtime real exige `--evidence-root PATH` ou `AGENT_RUNTIME_EVIDENCE_ROOT`.
+Não usa `/tmp` ou `Dir.tmpdir` como raiz operacional. A reserva one-shot da
+mission_id ocorre antes do spawn; qualquer falha posterior consome a tentativa
+e não permite retry automático.
+
+As evidências externas são sanitizadas e limitadas. O Run Report referencia
+somente o caminho relativo e o hash do manifesto, nunca a raiz absoluta.

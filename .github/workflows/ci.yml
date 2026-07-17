@@ -147,6 +147,8 @@ jobs:
         run: ruby scripts/validate-agent-observation.rb
       - name: Run observation and supervised-pilot tests
         run: ruby scripts/test-agent-observation.rb
+      - name: Run forensic evidence tests
+        run: ruby scripts/test-agent-forensic-evidence.rb
 
   runtime-safety-preflight:
     name: Runtime Safety Preflight
