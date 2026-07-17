@@ -1,0 +1,754 @@
+# Especificação congelada — prova final supervisionada v1
+
+## 1. Identificação
+
+```text
+schema_documental: prova-final-supervisionada-v1
+baseline: 95c415da2311cfceaf1e00c616e9eefe7638714f
+etapa: 4
+status: CONGELADA_NAO_AUTORIZADA
+execucoes_permitidas: 1
+retry_automatico: false
+```
+
+Esta especificação é documental e não autoriza execução por si só.
+
+## 2. Objetivo da prova
+
+Demonstrar, em uma única execução real supervisionada, que o runtime inicia de
+forma controlada, reserva a missão antes do spawn, usa exatamente um writer,
+cria o arquivo obrigatório, valida a entrega por bytes e hash, produz
+comparação `conforme`, mantém evidência forense `complete`, preserva coerência
+entre manifesto, state, ledger, Run Report e handoff, não persiste segredo ou
+path indevido e não trata `exit_code=0` isolado como sucesso.
+
+## 3. Identidade congelada da missão
+
+```text
+mission_id: quarto-piloto-supervisionado-20260717t-final
+delivery_file: .agents/pilotos/sandbox/quarto-piloto-supervisionado-20260717t-final.txt
+evidence_root: ${XDG_STATE_HOME:-$HOME/.local/state}/novo-app/agent-evidence
+```
+
+A `mission_id` não pode ser reutilizada. State existente bloqueia a execução.
+Qualquer falha após a reserva consome a tentativa e não existe retry automático.
+Nova tentativa exigiria outra especificação, outra `mission_id` e nova
+autorização humana.
+
+Os templates versionados obrigatórios da prova são:
+
+```text
+PATH_CARD: .agents/pilotos/templates/quarto-piloto-supervisionado-20260717t-final.card.json
+PATH_PLAN: .agents/pilotos/templates/quarto-piloto-supervisionado-20260717t-final.plan.json
+```
+
+Esses dois arquivos ainda não existem e não devem ser criados nesta tarefa. A
+prova fica bloqueada antes da reserva enquanto não forem criados, revisados e
+mergeados na baseline autorizada. Antes da execução, seus SHA-256 devem ser
+congelados no recibo de autorização e conferidos; ausência ou divergência
+produz `PROVA_FINAL_BLOCKED_BEFORE_RESERVATION`.
+
+O control plane da prova também exige um template monolítico versionado:
+
+```text
+PATH_TEMPLATE_MONOLITHIC: .agents/pilotos/templates/quarto-piloto-supervisionado-20260717t-final.json
+```
+
+Os três templates (`{mission_id}.json`, `.card.json` e `.plan.json`) devem estar
+no `RUNNER_ROOT`, existir e ter SHA-256 congelado antes da execução. Nenhum dos
+três é criado nesta tarefa; qualquer ausência ou divergência mantém o bloqueio
+`PROVA_FINAL_BLOCKED_BEFORE_RESERVATION`.
+
+## 4. Worktree futura
+
+A execução deverá usar uma worktree nova e limpa, derivada diretamente da
+baseline congelada:
+
+```text
+/Users/brunolima/Documents/NOVO-APP-final-supervised-proof-run
+```
+
+Essa worktree não é criada nesta tarefa e não pode conter alterações locais
+antes da execução.
+
+O runner/control plane deverá usar uma worktree separada, também limpa e
+derivada da baseline autorizada:
+
+```text
+RUNNER_ROOT: /Users/brunolima/Documents/NOVO-APP-final-supervised-proof-runner
+```
+
+`RUNNER_ROOT` contém o código do runner e os três templates versionados; não é
+`PATH_WORKTREE`, não recebe a entrega e não pode ser usado como worktree alvo.
+Essa worktree também não é criada nesta tarefa.
+
+`RUNNER_HEAD_EXPECTED` não pode ser igualado antecipadamente à baseline
+`95c415d`. Ele será o SHA exato do commit futuro que conterá esta especificação
+mergeada, o template monolítico, o Card e o Plan. Esse SHA será congelado após a
+PR futura dos templates ser revisada e mergeada. Sua ausência produz
+`PROVA_FINAL_BLOCKED_BEFORE_RESERVATION`; o `RUNNER_ROOT` deve estar limpo e
+exatamente nesse SHA. Em contraste, `PATH_WORKTREE` permanece exatamente em
+`TARGET_HEAD_EXPECTED` (`95c415da2311cfceaf1e00c616e9eefe7638714f`).
+
+## 5. Falhas conhecidas fora do escopo
+
+As falhas gerais conhecidas são:
+
+- Typecheck;
+- Tests;
+- Dossier Golden;
+- E2E Critical Browser;
+- Skills Governance.
+
+Elas pertencem ao app/repositório geral, não foram introduzidas pela PR #442 e
+não devem ser corrigidas durante a prova. Não bloqueiam automaticamente a
+prova do runtime. Só serão bloqueantes se evidência objetiva demonstrar impacto
+direto no runner, na entrega, no preflight ou nos artefatos forenses.
+
+## 6. Gates obrigatórios
+
+Antes da execução, devem estar conformes:
+
+- Agent Execution Control;
+- Agent Runtime Observation;
+- Agent Orchestration;
+- Runtime Safety Preflight;
+- Build;
+- readiness estático;
+- preflight live com resultado `ready`;
+- Codex CLI `0.144.0`;
+- DCG `v0.6.6`;
+- checksum do binário DCG conforme;
+- hook DCG direto confirmado;
+- nenhuma variável ou flag de bypass;
+- worktree limpa;
+- baseline exata;
+- contratos e schemas válidos;
+- raiz externa de evidência válida;
+- ausência de state anterior para a `mission_id`;
+- autorização humana A3+;
+- autorização explícita para uma única execução.
+
+Preflight live é evidência de prontidão, não substitui as chaves nem a
+autorização humana.
+
+## 7. Autorizações e raiz de evidência
+
+As seis chaves são:
+
+```text
+--agent-runtime
+--runtime-ack RUN_SINGLE_AGENT
+AGENT_RUNTIME_EXECUTE=1
+--supervised-pilot
+--pilot-ack RUN_SUPERVISED_PILOT
+AGENT_RUNTIME_PILOT=1
+```
+
+A raiz deve ser fornecida por:
+
+```text
+AGENT_RUNTIME_EVIDENCE_ROOT
+--evidence-root PATH
+```
+
+A presença técnica dessas chaves não substitui autorização humana explícita.
+
+## 8. Comandos futuros — proibidos nesta tarefa
+
+Os comandos abaixo definem a execução futura. Nenhum comando operacional de
+readiness, preflight live, state, runtime, Codex ou piloto foi executado nesta
+tarefa; a confirmação inicial da baseline foi a única exceção documental
+exigida antes da criação desta worktree.
+
+### 8.1 Baseline
+
+```bash
+RUNNER_ROOT="/Users/brunolima/Documents/NOVO-APP-final-supervised-proof-runner"
+TARGET_HEAD_EXPECTED="95c415da2311cfceaf1e00c616e9eefe7638714f"
+: "${RUNNER_HEAD_EXPECTED:?RUNNER_HEAD_EXPECTED_NOT_FROZEN}"
+git -C "$RUNNER_ROOT" fetch origin
+PATH_WORKTREE="/Users/brunolima/Documents/NOVO-APP-final-supervised-proof-run"
+test "$(git -C "$RUNNER_ROOT" rev-parse HEAD)" = "$RUNNER_HEAD_EXPECTED"
+test "$(git -C "$PATH_WORKTREE" rev-parse HEAD)" = "$TARGET_HEAD_EXPECTED"
+test -z "$(git -C "$RUNNER_ROOT" status --porcelain)"
+test -z "$(git -C "$PATH_WORKTREE" status --porcelain)"
+```
+
+### 8.2 Worktree limpa
+
+```bash
+RUNNER_ROOT="/Users/brunolima/Documents/NOVO-APP-final-supervised-proof-runner"
+TARGET_HEAD_EXPECTED="95c415da2311cfceaf1e00c616e9eefe7638714f"
+: "${RUNNER_HEAD_EXPECTED:?RUNNER_HEAD_EXPECTED_NOT_FROZEN}"
+PATH_WORKTREE="/Users/brunolima/Documents/NOVO-APP-final-supervised-proof-run"
+test "$(git -C "$RUNNER_ROOT" rev-parse HEAD)" = "$RUNNER_HEAD_EXPECTED"
+test "$(git -C "$PATH_WORKTREE" rev-parse HEAD)" = "$TARGET_HEAD_EXPECTED"
+test -z "$(git -C "$RUNNER_ROOT" status --porcelain)"
+test -z "$(git -C "$PATH_WORKTREE" status --porcelain)"
+```
+
+### 8.3 Readiness
+
+```bash
+RUNNER_ROOT="/Users/brunolima/Documents/NOVO-APP-final-supervised-proof-runner"
+PATH_WORKTREE="/Users/brunolima/Documents/NOVO-APP-final-supervised-proof-run"
+ruby "$RUNNER_ROOT/scripts/check-pilot-readiness.rb" --stdout
+```
+
+### 8.4 Preflight live
+
+```bash
+RUNNER_ROOT="/Users/brunolima/Documents/NOVO-APP-final-supervised-proof-runner"
+PATH_WORKTREE="/Users/brunolima/Documents/NOVO-APP-final-supervised-proof-run"
+ruby "$RUNNER_ROOT/scripts/runtime-safety-preflight.rb" \
+  --mode live \
+  --worktree "$PATH_WORKTREE" \
+  --stdout
+```
+
+O resultado exigido é `ready`.
+
+### 8.5 Ausência de state
+
+```bash
+PATH_WORKTREE="/Users/brunolima/Documents/NOVO-APP-final-supervised-proof-run"
+RUNNER_ROOT="/Users/brunolima/Documents/NOVO-APP-final-supervised-proof-runner"
+PATH_STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/novo-app/agent-state"
+PATH_STATE_FILE="$PATH_STATE_DIR/quarto-piloto-supervisionado-20260717t-final.json"
+test "${PATH_STATE_DIR#/}" != "$PATH_STATE_DIR"
+test ! -e "$PATH_STATE_FILE"
+STATE_PARENT="$PATH_STATE_DIR"
+while [ ! -e "$STATE_PARENT" ]; do
+  NEXT="$(dirname "$STATE_PARENT")"
+  test "$NEXT" != "$STATE_PARENT"
+  STATE_PARENT="$NEXT"
+done
+check_no_symlink_chain() {
+  local candidate="$1"
+  while [ "$candidate" != "/" ]; do
+    test ! -L "$candidate" || return 1
+    candidate="$(dirname "$candidate")"
+  done
+}
+check_no_symlink_chain "$STATE_PARENT"
+check_no_symlink_chain "$PATH_STATE_DIR"
+STATE_PARENT_REAL="$(realpath "$STATE_PARENT")"
+STATE_SUFFIX="${PATH_STATE_DIR#"$STATE_PARENT"}"
+STATE_DIR_REAL="$STATE_PARENT_REAL$STATE_SUFFIX"
+RUNNER_ROOT_REAL="$(realpath "$RUNNER_ROOT")"
+WORKTREE_REAL="$(realpath "$PATH_WORKTREE")"
+case "$STATE_DIR_REAL/" in
+  "$RUNNER_ROOT_REAL/"*|"$WORKTREE_REAL/"*)
+    echo "PILOT_STATE_ROOT_INSIDE_FORBIDDEN_ROOT" >&2
+    exit 1
+    ;;
+esac
+test "$STATE_DIR_REAL" != "$RUNNER_ROOT_REAL"
+test "$STATE_DIR_REAL" != "$WORKTREE_REAL"
+```
+
+O valor corresponde à raiz persistente externa
+`${XDG_STATE_HOME:-$HOME/.local/state}/novo-app/agent-state`. O state é externo,
+persistente e não pertence à worktree-alvo nem ao runner; remover worktrees não
+remove o registro one-shot. A mesma `mission_id` continua bloqueada depois do
+encerramento. O state deve ser preservado junto ao Run Report e às evidências;
+ausência do state após uma execução reservada é falha de integridade. O runtime
+poderá criar o diretório somente quando a execução autorizada começar, e a
+chamada deve manter `--pilot-state-dir "$PATH_STATE_DIR"`. Esta verificação não
+cria state.
+
+### 8.5.1 Templates e hashes congelados
+
+```bash
+RUNNER_ROOT="/Users/brunolima/Documents/NOVO-APP-final-supervised-proof-runner"
+PATH_TEMPLATE_ROOT="$RUNNER_ROOT/.agents/pilotos/templates"
+PATH_TEMPLATE_MONOLITHIC="$PATH_TEMPLATE_ROOT/quarto-piloto-supervisionado-20260717t-final.json"
+PATH_CARD="$PATH_TEMPLATE_ROOT/quarto-piloto-supervisionado-20260717t-final.card.json"
+PATH_PLAN="$PATH_TEMPLATE_ROOT/quarto-piloto-supervisionado-20260717t-final.plan.json"
+test -f "$PATH_TEMPLATE_MONOLITHIC" || { echo "PROVA_FINAL_BLOCKED_BEFORE_RESERVATION" >&2; exit 1; }
+test -f "$PATH_CARD" || { echo "PROVA_FINAL_BLOCKED_BEFORE_RESERVATION" >&2; exit 1; }
+test -f "$PATH_PLAN" || { echo "PROVA_FINAL_BLOCKED_BEFORE_RESERVATION" >&2; exit 1; }
+test "$(shasum -a 256 "$PATH_TEMPLATE_MONOLITHIC" | awk '{print $1}')" = "$MONOLITHIC_TEMPLATE_SHA256_EXPECTED" || { echo "PROVA_FINAL_BLOCKED_BEFORE_RESERVATION" >&2; exit 1; }
+test "$(shasum -a 256 "$PATH_CARD" | awk '{print $1}')" = "$CARD_SHA256_EXPECTED" || { echo "PROVA_FINAL_BLOCKED_BEFORE_RESERVATION" >&2; exit 1; }
+test "$(shasum -a 256 "$PATH_PLAN" | awk '{print $1}')" = "$PLAN_SHA256_EXPECTED" || { echo "PROVA_FINAL_BLOCKED_BEFORE_RESERVATION" >&2; exit 1; }
+```
+
+`MONOLITHIC_TEMPLATE_SHA256_EXPECTED`, `CARD_SHA256_EXPECTED` e
+`PLAN_SHA256_EXPECTED` só podem receber valores congelados em autorização humana
+posterior. A ausência de qualquer template ou hash não autoriza criação, reparo
+ou reserva.
+
+### 8.5.2 Raiz externa de evidência
+
+```bash
+EVIDENCE_ROOT="${XDG_STATE_HOME:-$HOME/.local/state}/novo-app/agent-evidence"
+test "${EVIDENCE_ROOT#/}" != "$EVIDENCE_ROOT"
+RUNNER_ROOT="/Users/brunolima/Documents/NOVO-APP-final-supervised-proof-runner"
+PATH_WORKTREE="/Users/brunolima/Documents/NOVO-APP-final-supervised-proof-run"
+test -d "$RUNNER_ROOT"
+test -d "$PATH_WORKTREE"
+RUNNER_ROOT_REAL="$(realpath "$RUNNER_ROOT")"
+WORKTREE_REAL="$(realpath "$PATH_WORKTREE")"
+
+check_no_symlink_chain() {
+  local candidate="$1"
+  while [ "$candidate" != "/" ]; do
+    test ! -L "$candidate" || return 1
+    candidate="$(dirname "$candidate")"
+  done
+}
+
+EVIDENCE_PARENT="$EVIDENCE_ROOT"
+while [ ! -e "$EVIDENCE_PARENT" ]; do
+  NEXT="$(dirname "$EVIDENCE_PARENT")"
+  test "$NEXT" != "$EVIDENCE_PARENT"
+  EVIDENCE_PARENT="$NEXT"
+done
+check_no_symlink_chain "$EVIDENCE_PARENT"
+EVIDENCE_PARENT_REAL="$(realpath "$EVIDENCE_PARENT")"
+EVIDENCE_SUFFIX="${EVIDENCE_ROOT#"$EVIDENCE_PARENT"}"
+EVIDENCE_ROOT_REAL="$EVIDENCE_PARENT_REAL$EVIDENCE_SUFFIX"
+check_no_symlink_chain "$EVIDENCE_ROOT"
+case "$EVIDENCE_ROOT_REAL/" in
+  "$RUNNER_ROOT_REAL/"*)
+    echo "FORENSIC_EVIDENCE_ROOT_INSIDE_RUNNER_ROOT" >&2
+    exit 1
+    ;;
+  "$WORKTREE_REAL/"*)
+    echo "FORENSIC_EVIDENCE_ROOT_INSIDE_WORKTREE" >&2
+    exit 1
+    ;;
+esac
+test "$EVIDENCE_ROOT_REAL" != "$WORKTREE_REAL"
+MISSION_ID="quarto-piloto-supervisionado-20260717t-final"
+EVIDENCE_ATTEMPT_DIR="$EVIDENCE_ROOT/$MISSION_ID/attempt-001"
+if [ -e "$EVIDENCE_ATTEMPT_DIR" ] || [ -L "$EVIDENCE_ATTEMPT_DIR" ]; then
+  echo "PROVA_FINAL_BLOCKED_BEFORE_RESERVATION: FORENSIC_ATTEMPT_ALREADY_EXISTS" >&2
+  exit 1
+fi
+```
+
+O bloco não cria a raiz. Ele exige worktree existente, caminho absoluto, ancestor
+existente resolvido por `realpath`, cadeia sem symlink, e rejeita raiz igual ou
+descendente da worktree. A tentativa `attempt-001` também deve estar ausente;
+essa checagem não cria a raiz nem o diretório da tentativa. O runtime reserva o
+state antes de `AgentForensicEvidence.reserve!`; uma colisão descoberta somente
+dentro do runner consumiria a tentativa, por isso este é um gate obrigatório
+anterior à única chamada. A criação exclusiva interna do runtime permanece
+obrigatória.
+
+### 8.6 Única chamada ao runner
+
+```bash
+# NAO_EXECUTAR_SEM_AUTORIZACAO_HUMANA_EXPLICITA
+RUNNER_ROOT="/Users/brunolima/Documents/NOVO-APP-final-supervised-proof-runner"
+TARGET_HEAD_EXPECTED="95c415da2311cfceaf1e00c616e9eefe7638714f"
+: "${RUNNER_HEAD_EXPECTED:?RUNNER_HEAD_EXPECTED_NOT_FROZEN}"
+PATH_WORKTREE="/Users/brunolima/Documents/NOVO-APP-final-supervised-proof-run"
+PATH_TEMPLATE_ROOT="$RUNNER_ROOT/.agents/pilotos/templates"
+PATH_TEMPLATE_MONOLITHIC="$PATH_TEMPLATE_ROOT/quarto-piloto-supervisionado-20260717t-final.json"
+PATH_CARD="$PATH_TEMPLATE_ROOT/quarto-piloto-supervisionado-20260717t-final.card.json"
+PATH_PLAN="$PATH_TEMPLATE_ROOT/quarto-piloto-supervisionado-20260717t-final.plan.json"
+PATH_STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/novo-app/agent-state"
+PATH_STATE_FILE="$PATH_STATE_DIR/quarto-piloto-supervisionado-20260717t-final.json"
+test "$(git -C "$RUNNER_ROOT" rev-parse HEAD)" = "$RUNNER_HEAD_EXPECTED"
+test "$(git -C "$PATH_WORKTREE" rev-parse HEAD)" = "$TARGET_HEAD_EXPECTED"
+test -z "$(git -C "$RUNNER_ROOT" status --porcelain)"
+test -z "$(git -C "$PATH_WORKTREE" status --porcelain)"
+test ! -e "$PATH_STATE_FILE"
+test -f "$PATH_TEMPLATE_MONOLITHIC" && test -f "$PATH_CARD" && test -f "$PATH_PLAN"
+test "$(shasum -a 256 "$PATH_TEMPLATE_MONOLITHIC" | awk '{print $1}')" = "$MONOLITHIC_TEMPLATE_SHA256_EXPECTED"
+test "$(shasum -a 256 "$PATH_CARD" | awk '{print $1}')" = "$CARD_SHA256_EXPECTED"
+test "$(shasum -a 256 "$PATH_PLAN" | awk '{print $1}')" = "$PLAN_SHA256_EXPECTED"
+EVIDENCE_ROOT="${XDG_STATE_HOME:-$HOME/.local/state}/novo-app/agent-evidence"
+test "${EVIDENCE_ROOT#/}" != "$EVIDENCE_ROOT"
+test -d "$RUNNER_ROOT" && test -d "$PATH_WORKTREE"
+RUNNER_ROOT_REAL="$(realpath "$RUNNER_ROOT")"
+WORKTREE_REAL="$(realpath "$PATH_WORKTREE")"
+check_no_symlink_chain() {
+  local candidate="$1"
+  while [ "$candidate" != "/" ]; do
+    test ! -L "$candidate" || return 1
+    candidate="$(dirname "$candidate")"
+  done
+}
+EVIDENCE_PARENT="$EVIDENCE_ROOT"
+while [ ! -e "$EVIDENCE_PARENT" ]; do
+  NEXT="$(dirname "$EVIDENCE_PARENT")"
+  test "$NEXT" != "$EVIDENCE_PARENT"
+  EVIDENCE_PARENT="$NEXT"
+done
+check_no_symlink_chain "$EVIDENCE_PARENT"
+EVIDENCE_PARENT_REAL="$(realpath "$EVIDENCE_PARENT")"
+EVIDENCE_SUFFIX="${EVIDENCE_ROOT#"$EVIDENCE_PARENT"}"
+EVIDENCE_ROOT_REAL="$EVIDENCE_PARENT_REAL$EVIDENCE_SUFFIX"
+check_no_symlink_chain "$EVIDENCE_ROOT"
+case "$EVIDENCE_ROOT_REAL/" in
+  "$RUNNER_ROOT_REAL/"*) echo "FORENSIC_EVIDENCE_ROOT_INSIDE_RUNNER_ROOT" >&2; exit 1 ;;
+  "$WORKTREE_REAL/"*) echo "FORENSIC_EVIDENCE_ROOT_INSIDE_WORKTREE" >&2; exit 1 ;;
+esac
+test "$EVIDENCE_ROOT_REAL" != "$RUNNER_ROOT_REAL"
+test "$EVIDENCE_ROOT_REAL" != "$WORKTREE_REAL"
+MISSION_ID="quarto-piloto-supervisionado-20260717t-final"
+EVIDENCE_ATTEMPT_DIR="$EVIDENCE_ROOT/$MISSION_ID/attempt-001"
+if [ -e "$EVIDENCE_ATTEMPT_DIR" ] || [ -L "$EVIDENCE_ATTEMPT_DIR" ]; then
+  echo "PROVA_FINAL_BLOCKED_BEFORE_RESERVATION: FORENSIC_ATTEMPT_ALREADY_EXISTS" >&2
+  exit 1
+fi
+test "${PATH_STATE_DIR#/}" != "$PATH_STATE_DIR"
+test ! -e "$PATH_STATE_FILE"
+STATE_PARENT="$PATH_STATE_DIR"
+while [ ! -e "$STATE_PARENT" ]; do
+  NEXT="$(dirname "$STATE_PARENT")"
+  test "$NEXT" != "$STATE_PARENT"
+  STATE_PARENT="$NEXT"
+done
+check_no_symlink_chain "$STATE_PARENT"
+check_no_symlink_chain "$PATH_STATE_DIR"
+STATE_PARENT_REAL="$(realpath "$STATE_PARENT")"
+STATE_SUFFIX="${PATH_STATE_DIR#"$STATE_PARENT"}"
+STATE_DIR_REAL="$STATE_PARENT_REAL$STATE_SUFFIX"
+case "$STATE_DIR_REAL/" in
+  "$RUNNER_ROOT_REAL/"*|"$WORKTREE_REAL/"*) echo "PILOT_STATE_ROOT_INSIDE_FORBIDDEN_ROOT" >&2; exit 1 ;;
+esac
+test "$STATE_DIR_REAL" != "$RUNNER_ROOT_REAL"
+test "$STATE_DIR_REAL" != "$WORKTREE_REAL"
+TMP_ROOT_REAL="$(ruby -rtmpdir -e 'print File.realpath(Dir.tmpdir)')"
+PATH_OUTPUT="$TMP_ROOT_REAL/quarto-piloto-supervisionado-20260717t-final.run-report.json"
+test "${PATH_OUTPUT#/}" != "$PATH_OUTPUT"
+test ! -e "$PATH_OUTPUT"
+test ! -L "$PATH_OUTPUT"
+test "$(realpath "$(dirname "$PATH_OUTPUT")")" = "$TMP_ROOT_REAL"
+ruby -e '
+output = ARGV.fetch(0)
+runner = ARGV.fetch(1)
+worktrees = IO.popen(["git", "-C", runner, "worktree", "list", "--porcelain"], &:read).lines.filter_map { |line| line.delete_prefix("worktree ").chomp if line.start_with?("worktree ") }
+abort "OUTPUT_INSIDE_WORKTREE" if worktrees.any? { |wt| output == wt || output.start_with?(wt + File::SEPARATOR) }
+' "$PATH_OUTPUT" "$RUNNER_ROOT"
+ruby -e '
+runner_root = File.realpath(ARGV.fetch(0))
+output = ARGV.fetch(1)
+require File.join(runner_root, "scripts/run-agent-mission.rb")
+resolved = AgentMissionRunner.safe_path(output)
+abort "OUTPUT_PATH_PREVALIDATION_FAILED" unless resolved == output
+' "$RUNNER_ROOT" "$PATH_OUTPUT"
+AGENT_RUNTIME_EXECUTE=1 \
+AGENT_RUNTIME_PILOT=1 \
+AGENT_RUNTIME_EVIDENCE_ROOT="$EVIDENCE_ROOT" \
+ruby "$RUNNER_ROOT/scripts/run-agent-mission.rb" \
+  --card "$PATH_CARD" \
+  --plan "$PATH_PLAN" \
+  --worktree "$PATH_WORKTREE" \
+  --agent-runtime \
+  --runtime-ack RUN_SINGLE_AGENT \
+  --supervised-pilot \
+  --pilot-ack RUN_SUPERVISED_PILOT \
+  --evidence-root "$EVIDENCE_ROOT" \
+  --pilot-state-dir "$PATH_STATE_DIR" \
+  --output "$PATH_OUTPUT"
+```
+
+Esta chamada é permitida uma única vez. A validação da baseline, limpeza,
+templates, hashes, state, output e raiz externa é repetida integralmente
+imediatamente antes dela. `RUNNER_ROOT` e `PATH_WORKTREE` permanecem distintos.
+
+### 8.7 Inspeção do Run Report
+
+```bash
+ruby -I. -rjson -rdigest -rpathname -e '
+runner_root = File.realpath(ARGV.fetch(2))
+require File.join(runner_root, "scripts/plan-agent-mission.rb")
+require File.join(runner_root, "scripts/lib/agent_single_runtime.rb")
+report = JSON.parse(File.read(ARGV.fetch(0)))
+schema = JSON.parse(File.read(File.join(runner_root, ".agents/orquestracao/executor/contrato-relatorio.schema.json")))
+MissionPlanner.send(:validate_against_schema!, report, schema)
+report_hash = report.fetch("relatorio_sha256")
+computed_report_hash = AgentSingleRuntime.compute_report_hash(report)
+abort "REPORT_HASH_MISMATCH" unless report_hash == computed_report_hash
+mission = "quarto-piloto-supervisionado-20260717t-final"
+abort "REPORT_CONTRACT_FAILED" unless report.fetch("missao_id") == mission
+abort "REPORT_CONTRACT_FAILED" unless report.fetch("status") == "success"
+runtime = report.fetch("runtime")
+abort "REPORT_CONTRACT_FAILED" unless runtime.fetch("processo_codex_iniciado") == true
+abort "REPORT_CONTRACT_FAILED" unless runtime.fetch("agente_planejado") == 1
+abort "REPORT_CONTRACT_FAILED" unless runtime.fetch("agente_observado") == 1
+abort "REPORT_CONTRACT_FAILED" unless runtime.fetch("writers_planejados") == 1
+abort "REPORT_CONTRACT_FAILED" unless runtime.fetch("processos_iniciados") == 1
+abort "REPORT_CONTRACT_FAILED" unless runtime.fetch("exit_code") == 0
+abort "REPORT_CONTRACT_FAILED" unless runtime.fetch("timeout") == false
+abort "REPORT_CONTRACT_FAILED" unless runtime.fetch("sinal").nil?
+abort "REPORT_CONTRACT_FAILED" unless runtime.fetch("stdout_truncado") == false
+abort "REPORT_CONTRACT_FAILED" unless runtime.fetch("stderr_truncado") == false
+abort "REPORT_CONTRACT_FAILED" unless report.fetch("negacoes").empty?
+abort "REPORT_CONTRACT_FAILED" unless report.dig("comparacao", "status") == "conforme"
+abort "REPORT_CONTRACT_FAILED" unless report.dig("forensic_evidence", "limitations") == []
+dimensions = report.fetch("resultado_dimensoes")
+abort "REPORT_CONTRACT_FAILED" unless dimensions.fetch("execution") == "succeeded"
+abort "REPORT_CONTRACT_FAILED" unless dimensions.fetch("delivery") == "succeeded"
+abort "REPORT_CONTRACT_FAILED" unless dimensions.fetch("compliance") == "conforme"
+delivery = report.fetch("delivery_verification")
+abort "REPORT_CONTRACT_FAILED" unless delivery.fetch("status") == "succeeded"
+abort "REPORT_CONTRACT_FAILED" unless delivery.fetch("expected_sha256") == delivery.fetch("observed_sha256")
+abort "REPORT_CONTRACT_FAILED" unless delivery.fetch("expected_bytes") == delivery.fetch("observed_bytes")
+delivery_rel = ".agents/pilotos/sandbox/quarto-piloto-supervisionado-20260717t-final.txt"
+abort "REPORT_CONTRACT_FAILED" unless delivery.fetch("path") == delivery_rel
+abort "REPORT_CONTRACT_FAILED" unless runtime.fetch("arquivos_modificados") == [delivery_rel]
+abort "REPORT_CONTRACT_FAILED" unless runtime.fetch("violacoes_escopo").empty?
+abort "REPORT_CONTRACT_FAILED" unless runtime.fetch("arquivos_protegidos_alterados").empty?
+observed = report.fetch("observed_snapshot")
+abort "REPORT_CONTRACT_FAILED" unless observed.fetch("arquivos_modificados") == [delivery_rel]
+abort "REPORT_CONTRACT_FAILED" unless observed.fetch("arquivos_untracked") == [delivery_rel]
+abort "REPORT_CONTRACT_FAILED" unless observed.fetch("arquivos_fora_escopo").empty?
+abort "REPORT_CONTRACT_FAILED" unless observed.fetch("arquivos_protegidos_alterados").empty?
+abort "REPORT_CONTRACT_FAILED" unless observed.fetch("commit_criado") == false
+abort "REPORT_CONTRACT_FAILED" unless observed.fetch("refs_alteradas") == false
+abort "REPORT_CONTRACT_FAILED" unless observed.fetch("agentes_observados") == 1
+abort "REPORT_CONTRACT_FAILED" unless observed.fetch("writers_observados") == 1
+abort "REPORT_CONTRACT_FAILED" unless observed.fetch("processos_iniciados") == 1
+abort "REPORT_CONTRACT_FAILED" unless observed.fetch("status_final") == "success"
+abort "REPORT_CONTRACT_FAILED" unless report.dig("forensic_evidence", "evidence_status") == "complete"
+manifest_rel = report.dig("forensic_evidence", "manifest_relpath")
+abort "REPORT_CONTRACT_FAILED" unless manifest_rel && !Pathname.new(manifest_rel).absolute? && !manifest_rel.split(File::SEPARATOR).include?("..")
+evidence_root = File.realpath(ARGV.fetch(1))
+manifest_path = File.expand_path(manifest_rel, evidence_root)
+manifest_real = File.realpath(manifest_path)
+abort "REPORT_CONTRACT_FAILED" unless manifest_real == evidence_root || manifest_real.start_with?(evidence_root + File::SEPARATOR)
+abort "REPORT_CONTRACT_FAILED" unless File.basename(manifest_real) == "evidence-manifest.json"
+abort "REPORT_CONTRACT_FAILED" unless Digest::SHA256.file(manifest_path).hexdigest == report.dig("forensic_evidence", "manifest_sha256")
+ledger = report.fetch("task_ledger")
+abort "REPORT_CONTRACT_FAILED" unless ledger.length == 1
+abort "REPORT_CONTRACT_FAILED" unless ledger.first.fetch("status") == "succeeded"
+abort "REPORT_CONTRACT_FAILED" unless ledger.first.fetch("missao_id") == mission
+abort "REPORT_CONTRACT_FAILED" unless ledger.first.fetch("tentativa") == 1
+abort "REPORT_CONTRACT_FAILED" unless report.dig("handoff", "requer_aprovacao_humana") == true
+puts JSON.pretty_generate(report)
+' "$PATH_OUTPUT" "$EVIDENCE_ROOT" "$RUNNER_ROOT"
+```
+
+### 8.8 Manifesto e hashes
+
+```bash
+EVIDENCE_ROOT="${XDG_STATE_HOME:-$HOME/.local/state}/novo-app/agent-evidence"
+PATH_MANIFEST="$(ruby -rjson -rpathname -e '
+report = JSON.parse(File.read(ARGV.fetch(0)))
+root = File.realpath(ARGV.fetch(1))
+rel = report.dig("forensic_evidence", "manifest_relpath")
+abort "MANIFEST_PATH_INVALID" unless rel && !Pathname.new(rel).absolute? && !rel.split(File::SEPARATOR).include?("..")
+path = File.expand_path(rel, root)
+real = File.realpath(path)
+abort "MANIFEST_PATH_INVALID" unless real == root || real.start_with?(root + File::SEPARATOR)
+abort "MANIFEST_PATH_INVALID" unless File.basename(real) == "evidence-manifest.json"
+print real
+' "$PATH_OUTPUT" "$EVIDENCE_ROOT")"
+ruby -I. -rjson -rdigest -e '
+require "pathname"
+runner_root = File.realpath(ARGV.fetch(1))
+require File.join(runner_root, "scripts/plan-agent-mission.rb")
+manifest_path = File.expand_path(ARGV.fetch(0))
+manifest = JSON.parse(File.read(manifest_path))
+schema = JSON.parse(File.read(File.join(runner_root, ".agents/orquestracao/executor/contrato-evidencia-forense.schema.json")))
+MissionPlanner.send(:validate_against_schema!, manifest, schema)
+mission = "quarto-piloto-supervisionado-20260717t-final"
+abort "MANIFEST_CONTRACT_FAILED" unless manifest.fetch("mission_id") == mission
+abort "MANIFEST_CONTRACT_FAILED" unless manifest.fetch("attempt") == 1
+abort "MANIFEST_CONTRACT_FAILED" unless manifest.fetch("evidence_status") == "complete"
+abort "MANIFEST_CONTRACT_FAILED" unless manifest.fetch("schema_version") == 1
+sanitization = manifest.fetch("sanitization")
+abort "MANIFEST_CONTRACT_FAILED" unless sanitization.fetch("sanitized") == true
+abort "MANIFEST_CONTRACT_FAILED" unless sanitization.fetch("fail_closed") == true
+abort "MANIFEST_CONTRACT_FAILED" if sanitization["sanitization_failed"] == true
+expected = %w[execution-evidence.json execution-stream.sanitized.jsonl stderr.sanitized.log].sort
+abort "MANIFEST_CONTRACT_FAILED" unless manifest.fetch("artifacts").map { |a| a.fetch("name") }.sort == expected
+manifest_dir = File.realpath(File.dirname(manifest_path))
+manifest.fetch("artifacts").each do |artifact|
+  name = artifact.fetch("name")
+  abort "MANIFEST_PATH_INVALID" if Pathname.new(name).absolute? || name.split(File::SEPARATOR).include?("..")
+  artifact_path = File.expand_path(name, manifest_dir)
+  real = File.realpath(artifact_path)
+  abort "MANIFEST_PATH_INVALID" unless real == manifest_dir || real.start_with?(manifest_dir + File::SEPARATOR)
+  abort "MANIFEST_ARTIFACT_FAILED" unless File.file?(real)
+  abort "MANIFEST_ARTIFACT_FAILED" unless File.size(real) == artifact.fetch("bytes")
+  abort "MANIFEST_ARTIFACT_FAILED" unless Digest::SHA256.file(real).hexdigest == artifact.fetch("sha256")
+  abort "MANIFEST_ARTIFACT_FAILED" unless artifact.fetch("sanitized") == true
+  abort "MANIFEST_ARTIFACT_FAILED" unless artifact.fetch("truncated") == false
+end
+puts JSON.pretty_generate(manifest)
+' "$PATH_MANIFEST" "$RUNNER_ROOT"
+```
+
+### 8.9 State e Ledger
+
+```bash
+ruby -rjson -e '
+runner_root = File.realpath(ARGV.fetch(2))
+require File.join(runner_root, "scripts/lib/agent_single_runtime.rb")
+report_path = ARGV.fetch(0)
+state_path = ARGV.fetch(1)
+mission = "quarto-piloto-supervisionado-20260717t-final"
+abort "STATE_FILE_MISSING" unless File.file?(state_path)
+abort "STATE_FILE_SYMLINK" if File.symlink?(state_path)
+report = JSON.parse(File.read(report_path))
+state = JSON.parse(File.read(state_path))
+report_hash = report.fetch("relatorio_sha256")
+computed_hash = AgentSingleRuntime.compute_report_hash(report)
+abort "REPORT_HASH_MISMATCH" unless report_hash == computed_hash
+abort "STATE_CONTRACT_FAILED" unless state.fetch("missao_id") == mission
+abort "STATE_CONTRACT_FAILED" unless state.fetch("attempt") == 1
+abort "STATE_CONTRACT_FAILED" unless state.fetch("status") == "report_finalized"
+abort "STATE_REPORT_HASH_MISMATCH" unless state.fetch("report_hash") == report_hash
+abort "STATE_CONTRACT_FAILED" unless state.fetch("timestamp").is_a?(String)
+abort "STATE_CONTRACT_FAILED" if state.fetch("timestamp").empty?
+state_mode = File.stat(state_path).mode & 0o777
+state_dir_mode = File.stat(File.dirname(state_path)).mode & 0o777
+abort "STATE_MODE_INVALID" unless state_mode == 0o600
+abort "STATE_DIR_MODE_INVALID" unless state_dir_mode == 0o700
+puts JSON.pretty_generate(state)
+' "$PATH_OUTPUT" "$PATH_STATE_FILE" "$RUNNER_ROOT"
+ruby -rjson -e '
+r = JSON.parse(File.read(ARGV.fetch(0)))
+mission = "quarto-piloto-supervisionado-20260717t-final"
+ledger = r.fetch("task_ledger")
+abort "LEDGER_CONTRACT_FAILED" unless ledger.length == 1
+abort "LEDGER_CONTRACT_FAILED" unless ledger.first["missao_id"] == mission
+abort "LEDGER_CONTRACT_FAILED" unless ledger.first["tentativa"] == 1
+abort "LEDGER_CONTRACT_FAILED" unless ledger.first["status"] == "succeeded"
+puts JSON.pretty_generate(ledger)
+' "$PATH_OUTPUT"
+```
+
+### 8.10 Diff e arquivo entregue
+
+```bash
+DELIVERY_REL=".agents/pilotos/sandbox/quarto-piloto-supervisionado-20260717t-final.txt"
+DELIVERY_ABS="$PATH_WORKTREE/$DELIVERY_REL"
+test -f "$DELIVERY_ABS"
+git -C "$PATH_WORKTREE" status --porcelain=v1 --untracked-files=all -z |
+ruby -e '
+expected = ARGV.fetch(0)
+entries = STDIN.read.split("\0").reject(&:empty?)
+abort "OUT_OF_SCOPE_DIFF" unless entries.length == 1
+abort "OUT_OF_SCOPE_DIFF" unless entries.first.byteslice(0, 2) == "??"
+path = entries.first.byteslice(3..)
+abort "OUT_OF_SCOPE_DIFF" unless path == expected
+' "$DELIVERY_REL"
+```
+
+Todos os comandos desta seção estão proibidos nesta tarefa.
+
+## 9. Critério exato de sucesso
+
+O resultado só pode ser `PROVA_FINAL_SUCCESS` se todos forem verdadeiros:
+
+- baseline exata e worktree inicialmente limpa;
+- readiness conforme e preflight live `ready`;
+- reserva única concluída e spawn real registrado;
+- exatamente um writer, sem timeout ou sinal, com exit code `0`;
+- entrega criada com bytes e hash exatos;
+- comparação `conforme`;
+- evidência `complete` e sanitização sem falha;
+- manifesto válido e hashes dos artefatos válidos;
+- state, ledger, Run Report e handoff coerentes;
+- diff final contendo somente o arquivo sandbox esperado;
+- nenhuma alteração fora do escopo;
+- revisão humana final aprovada.
+
+Não existe sucesso parcial.
+
+## 10. Critério exato de falha
+
+Qualquer ocorrência abaixo produz falha e encerra a prova:
+
+- baseline divergente, worktree suja ou gate não conforme;
+- preflight diferente de `ready`;
+- state/tentativa já existente ou falha de reserva;
+- ausência de spawn, mais de um writer, timeout ou sinal;
+- exit code diferente de `0`;
+- entrega ausente ou divergente;
+- comparação não conforme;
+- evidência `partial` ou `unavailable`;
+- falha de sanitização, manifesto ausente/inválido ou hash divergente;
+- incoerência entre state, ledger, report, manifesto ou handoff;
+- alteração fora do arquivo sandbox;
+- tentativa de retry, uso de bypass ou ausência de autorização humana.
+
+State e evidências devem ser preservados. Não se corrige, repara output ou
+reexecuta a mesma missão.
+
+## 11. Artefatos esperados
+
+| Artefato | Finalidade | Localização esperada | Validação |
+|---|---|---|---|
+| Arquivo sandbox | Resultado obrigatório | `PATH_WORKTREE/.agents/pilotos/sandbox/quarto-piloto-supervisionado-20260717t-final.txt` | existência, bytes e hash |
+| Run Report | Resultado integrado | `PATH_OUTPUT` | schema, status e referências |
+| State do piloto | Reserva one-shot | `${XDG_STATE_HOME:-$HOME/.local/state}/novo-app/agent-state/quarto-piloto-supervisionado-20260717t-final.json` | missão, tentativa, status `report_finalized`, permissões e `report_hash` |
+| Ledger | Estado da tarefa | dentro do Run Report | exatamente uma tarefa |
+| `execution-stream.sanitized.jsonl` | Stream sanitizado | `${EVIDENCE_ROOT}/<mission_id>/attempt-001/` | JSONL, limites, sanitização |
+| `execution-evidence.json` | Checkpoints | `${EVIDENCE_ROOT}/<mission_id>/attempt-001/` | estado sanitizado |
+| `stderr.sanitized.log` | Stderr sanitizado | `${EVIDENCE_ROOT}/<mission_id>/attempt-001/` | sem segredo/path indevido |
+| `evidence-manifest.json` | Integridade | `${EVIDENCE_ROOT}/<mission_id>/attempt-001/` | schema, hashes, `complete` |
+| Handoff final | Revisão humana | dentro do Run Report | `requer_aprovacao_humana: true` |
+| Diff final | Controle de escopo | `PATH_WORKTREE` | somente sandbox esperado |
+
+## 12. Ordem operacional futura
+
+1. confirmação humana;
+2. validação da baseline;
+3. criação da worktree limpa;
+4. readiness;
+5. preflight live;
+6. validação da raiz de evidência;
+7. validação de inexistência de state;
+8. última autorização humana;
+9. única execução;
+10. validação do Run Report e de seu hash, state persistente e coerência state/report, manifesto, ledger, handoff e diff final;
+11. classificação;
+12. aprovação humana do resultado;
+13. encerramento da Etapa 4;
+14. somente após sucesso, avaliação da Etapa 5.
+
+Não pode haver correção, ajuste, segunda chamada ou reparo de output entre os
+passos 9 e 12.
+
+## 13. Classificações finais possíveis
+
+```text
+PROVA_FINAL_SUCCESS
+PROVA_FINAL_FAILURE_NO_RETRY
+PROVA_FINAL_NOT_EXECUTED
+PROVA_FINAL_BLOCKED_BEFORE_RESERVATION
+```
+
+- `PROVA_FINAL_SUCCESS`: a única execução ocorreu e satisfez integralmente o
+  sucesso.
+- `PROVA_FINAL_FAILURE_NO_RETRY`: houve reserva ou execução e ocorreu falha; a
+  tentativa permanece consumida.
+- `PROVA_FINAL_NOT_EXECUTED`: a prova ainda não foi autorizada nem iniciada.
+- `PROVA_FINAL_BLOCKED_BEFORE_RESERVATION`: gate ou autorização bloqueou antes
+  da reserva; nenhuma tentativa foi consumida.
+
+## 14. Liberação controlada
+
+A Etapa 5 só poderá começar com `PROVA_FINAL_SUCCESS`, revisão humana do Report
+e manifesto concluída, nenhum segredo ou violação encontrado, diff restrito ao
+arquivo sandbox, state/ledger/evidências arquivados e decisão humana explícita
+autorizando a liberação controlada.
+
+Isso não autoriza uso amplo, piloto adicional ou automação recorrente.
+
+## 15. Pendências não bloqueadoras
+
+Dívidas separadas que não alteram a prova única congelada:
+
+- inicialização explícita de `pilot_dry_run = false`;
+- validação direta do manifesto contra o schema no teste forense;
+- separação futura entre limite de registro JSONL e limite por campo;
+- correção futura dos gates gerais do app.
+
+## 16. Proibições
+
+Esta especificação não autoriza executar Codex real, runtime, piloto ou
+preflight live; criar state, reservar tentativa, criar diretório oficial de
+evidência ou arquivo sandbox; corrigir o app; alterar código, contratos ou
+schemas; abrir PR; fazer merge; criar retry; ou preparar uma sequência de
+pilotos.
