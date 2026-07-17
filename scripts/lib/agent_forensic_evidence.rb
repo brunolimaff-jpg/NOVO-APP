@@ -121,7 +121,8 @@ class AgentForensicEvidence
     text = sanitized.byteslice(0, remaining).to_s
     File.open(File.join(@dir, 'stderr.sanitized.log'), 'ab', 0o600) { |f| f.write(text) }
     @stderr_bytes += text.bytesize
-    @discarded_bytes += [sanitized.bytesize - remaining, 0].max
+    discarded = [sanitized.bytesize - remaining, 0].max
+    drop!(discarded) if discarded.positive?
   rescue SystemCallError => e
     raise Denial.new('FORENSIC_PERSISTENCE_FAILED', e.message)
   end

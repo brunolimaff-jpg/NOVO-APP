@@ -51,7 +51,9 @@ test('preserva métricas de tokens e redige credenciais') do
     'reasoning_tokens' => 0,
     'access_token' => 'access-secret',
     'api_token' => 'api-secret',
-    'api_key' => 'key-secret'
+    'api_key' => 'key-secret',
+    'client_secret' => 'client-secret',
+    'private_key' => 'private-secret'
   )
   assert result['token_count'] == 3
   assert result['prompt_tokens'] == 1
@@ -62,6 +64,11 @@ test('preserva métricas de tokens e redige credenciais') do
   assert result['access_token'] == '[REDACTED]'
   assert result['api_token'] == '[REDACTED]'
   assert result['api_key'] == '[REDACTED]'
+  assert result['client_secret'] == '[REDACTED]'
+  assert result['private_key'] == '[REDACTED]'
+  assignment = AgentEvidenceSanitizer.sanitize_string('client_secret=client-secret private_key=private-secret')
+  assert !assignment.include?('client-secret')
+  assert !assignment.include?('private-secret')
 end
 
 test('linha inválida vira registro explícito e limitado') do
@@ -198,6 +205,22 @@ test('stderr dividido em chunks não vaza credencial') do
     CodexSingleAgentRuntime.spawn!(argv: [ENV['AGENT_RUNTIME_TEST_CODEX_BIN'], 'exec', '-'], prompt: '', chdir: Dir.pwd, timeout_seconds: 5, evidence: evidence)
     stderr = File.read(File.join(root, 'stderr', 'attempt-001', 'stderr.sanitized.log'))
     assert !stderr.include?('sk-live-secret')
+  ensure
+    ENV.replace(old) if old
+  end
+end
+
+test('stderr acima do limite marca evidência parcial') do
+  Dir.mktmpdir('forensic-excess-stderr') do |dir|
+    root = File.join(File.realpath(dir), 'evidence')
+    evidence = AgentForensicEvidence.new(root: root, mission_id: 'excess-stderr')
+    evidence.reserve!
+    old = ENV.to_h
+    ENV['AGENT_RUNTIME_TEST_CODEX'] = '1'
+    ENV['AGENT_RUNTIME_TEST_CODEX_BIN'] = File.expand_path('../.agents/seguranca/fixtures/fake-codex', __dir__)
+    ENV['AGENT_RUNTIME_FAKE_SCENARIO'] = 'excess-stderr'
+    result = CodexSingleAgentRuntime.spawn!(argv: [ENV['AGENT_RUNTIME_TEST_CODEX_BIN'], 'exec', '-'], prompt: '', chdir: Dir.pwd, timeout_seconds: 5, evidence: evidence)
+    assert result['evidence_status'] == 'partial'
   ensure
     ENV.replace(old) if old
   end

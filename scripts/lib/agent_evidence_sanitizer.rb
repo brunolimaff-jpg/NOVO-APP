@@ -4,8 +4,8 @@ require 'digest'
 
 module AgentEvidenceSanitizer
   MAX_FIELD_BYTES = 16 * 1024
-  SECRET_KEY_RE = /\A(?:authorization|bearer|token|(?:access|refresh|api|auth|id)[_-]?token|api[_-]?key|secret(?:[_-].*)?|password(?:[_-].*)?|credential(?:[_-].*)?|cookie(?:[_-].*)?)\z/i
-  SECRET_ASSIGNMENT_RE = /(?:authorization|bearer|token|(?:access|refresh|api|auth|id)[_-]?token|api[_-]?key|secret(?:[_-]\w+)?|password(?:[_-]\w+)?|credential(?:[_-]\w+)?|cookie(?:[_-]\w+)?)[\s]*[=:]\s*/i
+  SECRET_KEY_RE = /\A(?:authorization|bearer|token|(?:access|refresh|api|auth|id)[_-]?token|api[_-]?key|client[_-]?secret|private[_-]?key|secret(?:[_-].*)?|password(?:[_-].*)?|credential(?:[_-].*)?|cookie(?:[_-].*)?)\z/i
+  SECRET_ASSIGNMENT_RE = /(?:authorization|bearer|token|(?:access|refresh|api|auth|id)[_-]?token|api[_-]?key|client[_-]?secret|private[_-]?key|secret(?:[_-]\w+)?|password(?:[_-]\w+)?|credential(?:[_-]\w+)?|cookie(?:[_-]\w+)?)[\s]*[=:]\s*/i
   PATH_RE = %r{/(?:Users|home)/[^/]+}
 
   module_function
