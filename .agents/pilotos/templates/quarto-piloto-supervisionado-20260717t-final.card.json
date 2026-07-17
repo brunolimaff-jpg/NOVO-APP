@@ -1,0 +1,29 @@
+{
+  "versao": 1,
+  "id": "quarto-piloto-supervisionado-20260717t-final",
+  "titulo": "Prova final supervisionada",
+  "objetivo": "Criar exatamente um arquivo de entrega determinístico para provar o contrato single-agent e a observabilidade forense.",
+  "contexto": "Etapa 4 após o hardening forense mergeado; uma única tentativa, sem retry.",
+  "resultado_esperado": "Arquivo sandbox único criado; nenhuma outra alteração.",
+  "autorizacao": {"nivel": "A3", "acoes_permitidas": ["ler", "escrever", "testar"], "acoes_solicitadas": [], "acoes_proibidas": ["commit", "push", "pr", "merge", "deploy"]},
+  "escopo": {"leitura": [".agents/pilotos/", ".agents/planos/"], "escrita": [".agents/pilotos/sandbox/quarto-piloto-supervisionado-20260717t-final.txt"]},
+  "restricoes": ["sem rede", "sem shell direto", "sem subdelegacao", "sem multi-agent", "sem retry", "sem commit", "sem push", "sem pr", "sem merge", "sem deploy"],
+  "verificacao": ["arquivo sandbox existe", "conteúdo byte a byte conforme", "nenhuma outra mudança"],
+  "evidencias_requeridas": ["run-report", "state", "ledger", "handoff", "manifesto-forense", "diff-worktree"],
+  "condicoes_parada": ["arquivo criado", "ambiguidade", "violacao de escopo", "evidencia incompleta"],
+  "papel_preferido": "executor-escopo",
+  "ferramentas_permitidas": ["codex"],
+  "rede_permitida": false,
+  "shell_permitido": false,
+  "delegacao_permitida": false,
+  "instrucao_atual": "A prova é one-shot. Crie somente o arquivo autorizado, com as seis linhas obrigatórias exatamente nesta ordem e uma quebra de linha final. Não execute comandos, não use rede, não delegue e não altere qualquer outro caminho.",
+  "execucao_planejada": {
+    "estrategia": "agente-unico",
+    "perfil_execucao": "minimal-change",
+    "gate_qualidade": "evidence-first",
+    "agentes": [{"id": "principal", "papel": "executor-escopo", "permissao": "workspace-write", "depende_de": []}],
+    "tarefas": [{"id": "task-01", "agente": "principal", "objetivo": "Criar o arquivo sandbox final com conteúdo determinístico.", "entrega_esperada": "Arquivo único com as seis linhas obrigatórias e quebra de linha final.", "nao_fazer": ["alterar qualquer outro arquivo", "usar rede", "executar shell", "delegar", "retry", "commit", "push", "pr", "merge", "deploy"], "arquivos": {"leitura": [".agents/pilotos/", ".agents/planos/"], "escrita": [".agents/pilotos/sandbox/quarto-piloto-supervisionado-20260717t-final.txt"]}, "depende_de": []}],
+    "limites": {"max_agentes": 1, "max_paralelo": 1, "max_tempo_segundos": 180, "max_retentativas": 0, "max_rodadas_revisao": 0, "permite_subdelegacao": false}
+  },
+  "executor": {"comandos": ["git-diff-check"]}
+}
