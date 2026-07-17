@@ -199,6 +199,11 @@ somente o caminho relativo e o hash do manifesto, nunca a raiz absoluta.
 
 ## Pacote da prova final supervisionada
 
+O encerramento formal da prova final está em
+`.agents/pilotos/encerramento-prova-final-supervisionada-20260717.md`.
+A prova está suspensa, a tentativa não foi reservada, o runtime não foi
+executado e o uso cotidiano não depende dela.
+
 A missão final possui três modelos versionados e coerentes:
 
 - `.agents/pilotos/templates/quarto-piloto-supervisionado-20260717t-final.json`;

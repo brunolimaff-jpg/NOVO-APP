@@ -1,14 +1,14 @@
 # Active Context
 
-Last updated: 2026-07-14 — Fase 3B.3C.1 live readiness macOS
+Last updated: 2026-07-17 — encerramento da prova final supervisionada
 
-## Estado
+## Estado atual
 
-- **main:** `636c3d4e` (PR #430 MERGED — 3B.3C)
-- **Branch:** `fix/fase-3b3c1-live-readiness-macos`
-- **Foco:** asset≠binary DCG checksum; hook live + atestação humana; check-pilot-readiness
-- **Não fazer:** instalar DCG, editar ~/.codex/hooks.json, Codex/piloto real, MERGE
+- prioridade principal: Scout 360
+- fase agentes: infraestrutura preservada, prova final suspensa
+- ação atual: recuperar e reorganizar PRs antigas
+- primeira triagem: #409–#418 e #435
 
-## Contagens
-
-- observation 45 · runtime-safety 42 · dcg-live-readiness 24
+A prova final supervisionada não é requisito para uso cotidiano. Não existe
+próxima ação obrigatória de executar a prova; qualquer retomada exige nova
+autorização humana explícita.
