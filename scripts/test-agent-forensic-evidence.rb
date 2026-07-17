@@ -7,6 +7,7 @@ require 'fileutils'
 require_relative './lib/agent_evidence_sanitizer'
 require_relative './lib/agent_forensic_evidence'
 require_relative './lib/codex_single_agent_runtime'
+require_relative './lib/agent_supervised_pilot'
 
 TESTS = []
 def test(name, &block)
@@ -125,17 +126,45 @@ test('symlink de missão é rejeitado sem escrever fora da raiz') do
   end
 end
 
-test('reserva exclusiva marca tentativa antes de qualquer processo') do
+test('reserva do piloto é exclusiva, rejeita legado e não reserva em dry-run') do
   Dir.mktmpdir('state-test') do |dir|
-    path = File.join(dir, 'mission.json')
-    File.open(path, File::WRONLY | File::CREAT | File::EXCL, 0o600) { |f| f.write('{"status":"reserved"}') }
-    assert JSON.parse(File.read(path))['status'] == 'reserved'
+    path = AgentSupervisedPilot.reserve_mission!(state_dir: dir, missao_id: 'mission', report_hash: 'a' * 64)
+    state = JSON.parse(File.read(path))
+    assert state['status'] == 'reserved'
+    assert state['attempt'] == 1
     begin
-      File.open(path, File::WRONLY | File::CREAT | File::EXCL, 0o600) { |_f| }
+      AgentSupervisedPilot.reserve_mission!(state_dir: dir, missao_id: 'mission', report_hash: 'b' * 64)
       raise 'second reservation unexpectedly succeeded'
-    rescue Errno::EEXIST
-      true
+    rescue AgentSupervisedPilot::Denial => e
+      assert e.code == 'SUPERVISED_PILOT_ALREADY_EXECUTED'
     end
+
+    legacy_dir = File.join(dir, 'legacy')
+    AgentSupervisedPilot.claim_mission!(state_dir: legacy_dir, missao_id: 'legacy', report_hash: 'c' * 64)
+    begin
+      AgentSupervisedPilot.reserve_mission!(state_dir: legacy_dir, missao_id: 'legacy')
+      raise 'legacy state unexpectedly replaced'
+    rescue AgentSupervisedPilot::Denial => e
+      assert e.code == 'SUPERVISED_PILOT_ALREADY_EXECUTED'
+    end
+
+    dry_dir = File.join(dir, 'dry-run')
+    assert AgentSupervisedPilot.reserve_mission!(state_dir: dry_dir, missao_id: 'dry', dry_run: true).nil?
+    assert !AgentSupervisedPilot.already_executed?(state_dir: dry_dir, missao_id: 'dry')
+    assert !File.exist?(dry_dir)
+  end
+end
+
+test('schema exige evidência forense no relatório') do
+  schema = JSON.parse(File.read(File.expand_path('../.agents/orquestracao/executor/contrato-relatorio.schema.json', __dir__)))
+  assert schema['required'].include?('forensic_evidence')
+end
+
+test('reserva dry-run não cria estado mesmo com diretório existente') do
+  Dir.mktmpdir('state-dry-run') do |dir|
+    FileUtils.mkdir_p(dir)
+    assert AgentSupervisedPilot.reserve_mission!(state_dir: dir, missao_id: 'dry-existing', dry_run: true).nil?
+    assert !AgentSupervisedPilot.already_executed?(state_dir: dir, missao_id: 'dry-existing')
   end
 end
 

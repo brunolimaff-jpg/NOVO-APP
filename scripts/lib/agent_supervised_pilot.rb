@@ -397,7 +397,9 @@ module AgentSupervisedPilot
     path
   end
 
-  def reserve_mission!(state_dir:, missao_id:, report_hash: nil)
+  def reserve_mission!(state_dir:, missao_id:, report_hash: nil, dry_run: false)
+    return nil if dry_run
+
     FileUtils.mkdir_p(state_dir, mode: 0o700)
     File.chmod(0o700, state_dir)
     path = state_path(state_dir, missao_id)

@@ -749,7 +749,14 @@ test('UTF-8 truncado no meio de multibyte permanece JSON válido') do
     'comandos' => [report],
     'negacoes' => [],
     'avisos' => [],
-    'evidencias' => []
+    'evidencias' => [],
+    'forensic_evidence' => {
+      'evidence_status' => 'unavailable',
+      'manifest_relpath' => 'unavailable/evidence-manifest.json',
+      'manifest_sha256' => Digest::SHA256.hexdigest(''),
+      'schema_version' => 1,
+      'limitations' => ['fixture sem execução forense']
+    }
   }
   json = JSON.pretty_generate(envelope)
   raise unless JSON.parse(json)

@@ -442,8 +442,14 @@ module AgentMissionRunner
         mark_spawn_started = nil
         mark_process_finished = nil
         if pilot_mode
+          pilot_dry_run = ENV['AGENT_RUNTIME_PILOT_DRY'] == '1'
           reserve_attempt = lambda do |planned_hash|
-            reservation_path = AgentSupervisedPilot.reserve_mission!(state_dir: pilot_state_dir, missao_id: card['id'], report_hash: planned_hash)
+            reservation_path = AgentSupervisedPilot.reserve_mission!(
+              state_dir: pilot_state_dir,
+              missao_id: card['id'],
+              report_hash: planned_hash,
+              dry_run: pilot_dry_run
+            )
             reservation_path
           end
           mark_spawn_started = lambda { |path| AgentSupervisedPilot.update_state!(path, status: 'spawn_started') }
@@ -554,6 +560,13 @@ module AgentMissionRunner
         'comandos' => commands,
         'duracao_ms' => duracao_ms,
         'evidencias' => ['catalogo fixo', 'argv sem shell', 'ambiente sanitizado', 'sem git mutante'],
+        'forensic_evidence' => {
+          'evidence_status' => 'unavailable',
+          'manifest_relpath' => 'unavailable/evidence-manifest.json',
+          'manifest_sha256' => Digest::SHA256.hexdigest(''),
+          'schema_version' => 1,
+          'limitations' => ['evidência forense disponível apenas no modo agent-runtime']
+        },
         'fim' => fim,
         'inicio' => inicio,
         'missao_id' => missao_id,

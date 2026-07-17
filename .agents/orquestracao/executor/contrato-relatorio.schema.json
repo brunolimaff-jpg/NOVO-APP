@@ -14,7 +14,8 @@
     "comandos",
     "negacoes",
     "avisos",
-    "evidencias"
+    "evidencias",
+    "forensic_evidence"
   ],
   "additionalProperties": false,
   "properties": {
