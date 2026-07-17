@@ -176,18 +176,24 @@ module FinalSupervisedProofControl
     runner = require_absolute_dir!(opts[:runner_root], 'RUNNER_ROOT_INVALID')
     target = require_absolute_dir!(opts[:target_worktree], 'TARGET_WORKTREE_INVALID')
     report_path = require_absolute_path!(opts[:output], 'REPORT_REQUIRED')
+    report_root = ensure_external_root!(opts[:report_root], runner, target, 'REPORT_ROOT_INVALID', reject_tmp: true)
+    state_dir = ensure_external_root!(opts[:state_dir], runner, target, 'STATE_ROOT_INVALID')
+    evidence_root = ensure_external_root!(opts[:evidence_root], runner, target, 'EVIDENCE_ROOT_INVALID')
     persistent = require_absolute_path!(opts[:persistent_report], 'PERSISTENT_REPORT_REQUIRED')
-    state_dir = require_absolute_dir_path!(opts[:state_dir], 'STATE_ROOT_INVALID')
-    evidence_root = require_absolute_dir_path!(opts[:evidence_root], 'EVIDENCE_ROOT_INVALID')
+    persistent_canonical = canonical_path(persistent, 'PERSISTENT_REPORT_INVALID')
+    report_root_canonical = canonical_path(report_root, 'REPORT_ROOT_INVALID')
+    block!('PERSISTENT_REPORT_OUTSIDE_ROOT') unless within?(persistent_canonical, report_root_canonical)
     require_file!(report_path, 'REPORT_MISSING')
     block!('PERSISTENT_REPORT_EXISTS') if pending?(persistent)
     block!('PERSISTENT_REPORT_IN_TMP') if within?(persistent, File.realpath(Dir.tmpdir))
     atomic_copy(report_path, persistent)
 
     failures = []
-    report = parse_json(report_path, failures, 'REPORT_JSON_INVALID')
+    report = parse_json_post_run(report_path, failures, 'REPORT_JSON_INVALID')
+    canonical_report_hash = nil
     if report.is_a?(Hash)
-      failures << 'REPORT_HASH_MISMATCH' unless report.fetch('relatorio_sha256', '') == AgentSingleRuntime.compute_report_hash(report)
+      canonical_report_hash = AgentSingleRuntime.compute_report_hash(report)
+      failures << 'REPORT_HASH_MISMATCH' unless report.fetch('relatorio_sha256', '') == canonical_report_hash
       begin
         schema = JSON.parse(File.read(File.join(runner, '.agents/orquestracao/executor/contrato-relatorio.schema.json')))
         MissionPlanner.send(:validate_against_schema!, report, schema)
@@ -206,9 +212,10 @@ module FinalSupervisedProofControl
     end
 
     state_file = File.join(state_dir, "#{MISSION_ID}.json")
-    failures.concat(validate_state(state_file, persistent))
+    failures.concat(validate_state(state_file, canonical_report_hash))
     manifest = File.join(evidence_root, MISSION_ID, 'attempt-001', 'evidence-manifest.json')
-    failures.concat(validate_manifest(manifest, runner))
+    expected_manifest_hash = report&.dig('forensic_evidence', 'manifest_sha256')
+    failures.concat(validate_manifest(manifest, runner, expected_manifest_hash))
     failures.concat(validate_diff(target))
 
     classification = failures.empty? ? 'PROVA_FINAL_SUCCESS' : 'PROVA_FINAL_FAILURE_NO_RETRY'
@@ -278,27 +285,27 @@ module FinalSupervisedProofControl
     {'readiness' => report}
   end
 
-  def validate_state(path, report_path)
+  def validate_state(path, report_hash)
     failures = []
     failures << 'STATE_MISSING' unless File.file?(path)
     return failures unless File.file?(path)
     failures << 'STATE_SYMLINK' if File.symlink?(path)
     failures << 'STATE_MODE_INVALID' unless (File.stat(path).mode & 0o777) == 0o600
-    state = parse_json(path, failures, 'STATE_JSON_INVALID')
+    state = parse_json_post_run(path, failures, 'STATE_JSON_INVALID')
     if state.is_a?(Hash)
       failures << 'STATE_MISSION_MISMATCH' unless state['missao_id'] == MISSION_ID
       failures << 'STATE_ATTEMPT_INVALID' unless state['attempt'] == 1
       failures << 'STATE_STATUS_INVALID' unless state['status'] == 'report_finalized'
-      failures << 'STATE_REPORT_HASH_MISMATCH' unless state['report_hash'] == Digest::SHA256.file(report_path).hexdigest
+      failures << 'STATE_REPORT_HASH_MISMATCH' unless report_hash && state['report_hash'] == report_hash
     end
     failures
   end
 
-  def validate_manifest(path, runner)
+  def validate_manifest(path, runner, expected_manifest_hash = nil)
     failures = []
     failures << 'MANIFEST_MISSING' unless File.file?(path)
     return failures unless File.file?(path)
-    manifest = parse_json(path, failures, 'MANIFEST_JSON_INVALID')
+    manifest = parse_json_post_run(path, failures, 'MANIFEST_JSON_INVALID')
     return failures unless manifest.is_a?(Hash)
     schema = JSON.parse(File.read(File.join(runner, '.agents/orquestracao/executor/contrato-evidencia-forense.schema.json')))
     begin
@@ -308,6 +315,7 @@ module FinalSupervisedProofControl
     end
     failures << 'MANIFEST_ID_INVALID' unless manifest['mission_id'] == MISSION_ID && manifest['attempt'] == 1
     failures << 'MANIFEST_STATUS_INVALID' unless manifest['evidence_status'] == 'complete' && manifest['schema_version'] == 1
+    failures << 'MANIFEST_HASH_MISMATCH' unless expected_manifest_hash && Digest::SHA256.file(path).hexdigest == expected_manifest_hash
     failures << 'MANIFEST_SANITIZATION_INVALID' unless manifest.dig('sanitization', 'sanitized') == true && manifest.dig('sanitization', 'fail_closed') == true && manifest.dig('sanitization', 'sanitization_failed') != true
     entries = Array(manifest['artifacts'])
     failures << 'MANIFEST_ARTIFACT_SET_INVALID' unless entries.map { |e| e['name'] }.sort == MANIFEST_ARTIFACTS.sort
@@ -320,8 +328,10 @@ module FinalSupervisedProofControl
       end
       artifact = File.expand_path(name, dir)
       failures << 'MANIFEST_ARTIFACT_ESCAPE' unless within?(artifact, dir)
-      next unless File.file?(artifact)
-      failures << 'MANIFEST_ARTIFACT_MISSING' unless File.file?(artifact)
+      unless File.file?(artifact)
+        failures << 'MANIFEST_ARTIFACT_MISSING'
+        next
+      end
       failures << 'MANIFEST_ARTIFACT_BYTES_INVALID' unless entry['bytes'] == File.size(artifact)
       failures << 'MANIFEST_ARTIFACT_HASH_INVALID' unless entry['sha256'] == sha256(artifact)
       failures << 'MANIFEST_ARTIFACT_UNSANITIZED' unless entry['sanitized'] == true
@@ -431,6 +441,13 @@ module FinalSupervisedProofControl
   def parse_json(path, failures, code)
     parse_json_text(File.read(path), code)
   rescue SystemCallError, JSON::ParserError => e
+    failures << code
+    nil
+  end
+
+  def parse_json_post_run(path, failures, code)
+    JSON.parse(File.read(path))
+  rescue SystemCallError, JSON::ParserError
     failures << code
     nil
   end
