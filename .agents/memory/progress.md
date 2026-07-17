@@ -11,3 +11,12 @@
 ## 2026-07-14 — PR #430 MERGED (Fase 3B.3C)
 
 - Squash `636c3d4e6fe2b369f7e7644242e79b7edb8781d1`
+
+## 2026-07-17 — Encerramento da prova final supervisionada
+
+- PRs #442, #443 e #444 concluídas e preservadas.
+- Preparação bloqueada antes da reserva por `RUNNER_HEAD_NOT_FROZEN`.
+- Encerramento formal documentado; nenhum runtime, piloto, state, evidência,
+  entrega ou Run Report foi criado.
+- Prioridade devolvida ao backlog do Scout 360; próxima triagem: #409–#418 e
+  #435.
