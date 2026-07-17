@@ -82,6 +82,14 @@ RUNNER_ROOT: /Users/brunolima/Documents/NOVO-APP-final-supervised-proof-runner
 `PATH_WORKTREE`, não recebe a entrega e não pode ser usado como worktree alvo.
 Essa worktree também não é criada nesta tarefa.
 
+`RUNNER_HEAD_EXPECTED` não pode ser igualado antecipadamente à baseline
+`95c415d`. Ele será o SHA exato do commit futuro que conterá esta especificação
+mergeada, o template monolítico, o Card e o Plan. Esse SHA será congelado após a
+PR futura dos templates ser revisada e mergeada. Sua ausência produz
+`PROVA_FINAL_BLOCKED_BEFORE_RESERVATION`; o `RUNNER_ROOT` deve estar limpo e
+exatamente nesse SHA. Em contraste, `PATH_WORKTREE` permanece exatamente em
+`TARGET_HEAD_EXPECTED` (`95c415da2311cfceaf1e00c616e9eefe7638714f`).
+
 ## 5. Falhas conhecidas fora do escopo
 
 As falhas gerais conhecidas são:
@@ -157,8 +165,8 @@ exigida antes da criação desta worktree.
 
 ```bash
 RUNNER_ROOT="/Users/brunolima/Documents/NOVO-APP-final-supervised-proof-runner"
-RUNNER_HEAD_EXPECTED="95c415da2311cfceaf1e00c616e9eefe7638714f"
 TARGET_HEAD_EXPECTED="95c415da2311cfceaf1e00c616e9eefe7638714f"
+: "${RUNNER_HEAD_EXPECTED:?RUNNER_HEAD_EXPECTED_NOT_FROZEN}"
 git fetch origin
 PATH_WORKTREE="/Users/brunolima/Documents/NOVO-APP-final-supervised-proof-run"
 test "$(git -C "$RUNNER_ROOT" rev-parse HEAD)" = "$RUNNER_HEAD_EXPECTED"
@@ -171,8 +179,8 @@ test -z "$(git -C "$PATH_WORKTREE" status --porcelain)"
 
 ```bash
 RUNNER_ROOT="/Users/brunolima/Documents/NOVO-APP-final-supervised-proof-runner"
-RUNNER_HEAD_EXPECTED="95c415da2311cfceaf1e00c616e9eefe7638714f"
 TARGET_HEAD_EXPECTED="95c415da2311cfceaf1e00c616e9eefe7638714f"
+: "${RUNNER_HEAD_EXPECTED:?RUNNER_HEAD_EXPECTED_NOT_FROZEN}"
 PATH_WORKTREE="/Users/brunolima/Documents/NOVO-APP-final-supervised-proof-run"
 test "$(git -C "$RUNNER_ROOT" rev-parse HEAD)" = "$RUNNER_HEAD_EXPECTED"
 test "$(git -C "$PATH_WORKTREE" rev-parse HEAD)" = "$TARGET_HEAD_EXPECTED"
@@ -183,14 +191,20 @@ test -z "$(git -C "$PATH_WORKTREE" status --porcelain)"
 ### 8.3 Readiness
 
 ```bash
-ruby scripts/check-pilot-readiness.rb --stdout
+RUNNER_ROOT="/Users/brunolima/Documents/NOVO-APP-final-supervised-proof-runner"
+PATH_WORKTREE="/Users/brunolima/Documents/NOVO-APP-final-supervised-proof-run"
+ruby "$RUNNER_ROOT/scripts/check-pilot-readiness.rb" --stdout
 ```
 
 ### 8.4 Preflight live
 
 ```bash
+RUNNER_ROOT="/Users/brunolima/Documents/NOVO-APP-final-supervised-proof-runner"
 PATH_WORKTREE="/Users/brunolima/Documents/NOVO-APP-final-supervised-proof-run"
-ruby scripts/runtime-safety-preflight.rb --mode live --worktree "$PATH_WORKTREE" --stdout
+ruby "$RUNNER_ROOT/scripts/runtime-safety-preflight.rb" \
+  --mode live \
+  --worktree "$PATH_WORKTREE" \
+  --stdout
 ```
 
 O resultado exigido é `ready`.
@@ -199,14 +213,50 @@ O resultado exigido é `ready`.
 
 ```bash
 PATH_WORKTREE="/Users/brunolima/Documents/NOVO-APP-final-supervised-proof-run"
-PATH_STATE_DIR="$PATH_WORKTREE/.agents/pilotos/state"
+RUNNER_ROOT="/Users/brunolima/Documents/NOVO-APP-final-supervised-proof-runner"
+PATH_STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/novo-app/agent-state"
 PATH_STATE_FILE="$PATH_STATE_DIR/quarto-piloto-supervisionado-20260717t-final.json"
+test "${PATH_STATE_DIR#/}" != "$PATH_STATE_DIR"
 test ! -e "$PATH_STATE_FILE"
+STATE_PARENT="$PATH_STATE_DIR"
+while [ ! -e "$STATE_PARENT" ]; do
+  NEXT="$(dirname "$STATE_PARENT")"
+  test "$NEXT" != "$STATE_PARENT"
+  STATE_PARENT="$NEXT"
+done
+check_no_symlink_chain() {
+  local candidate="$1"
+  while [ "$candidate" != "/" ]; do
+    test ! -L "$candidate" || return 1
+    candidate="$(dirname "$candidate")"
+  done
+}
+check_no_symlink_chain "$STATE_PARENT"
+check_no_symlink_chain "$PATH_STATE_DIR"
+STATE_PARENT_REAL="$(realpath "$STATE_PARENT")"
+STATE_SUFFIX="${PATH_STATE_DIR#"$STATE_PARENT"}"
+STATE_DIR_REAL="$STATE_PARENT_REAL$STATE_SUFFIX"
+RUNNER_ROOT_REAL="$(realpath "$RUNNER_ROOT")"
+WORKTREE_REAL="$(realpath "$PATH_WORKTREE")"
+case "$STATE_DIR_REAL/" in
+  "$RUNNER_ROOT_REAL/"*|"$WORKTREE_REAL/"*)
+    echo "PILOT_STATE_ROOT_INSIDE_FORBIDDEN_ROOT" >&2
+    exit 1
+    ;;
+esac
+test "$STATE_DIR_REAL" != "$RUNNER_ROOT_REAL"
+test "$STATE_DIR_REAL" != "$WORKTREE_REAL"
 ```
 
-O valor corresponde ao default atual de `AgentSupervisedPilot::DEFAULT_STATE_REL`.
-Somente uma autorização futura explícita com `--pilot-state-dir` poderá alterá-lo.
-Esta verificação não cria state.
+O valor corresponde à raiz persistente externa
+`${XDG_STATE_HOME:-$HOME/.local/state}/novo-app/agent-state`. O state é externo,
+persistente e não pertence à worktree-alvo nem ao runner; remover worktrees não
+remove o registro one-shot. A mesma `mission_id` continua bloqueada depois do
+encerramento. O state deve ser preservado junto ao Run Report e às evidências;
+ausência do state após uma execução reservada é falha de integridade. O runtime
+poderá criar o diretório somente quando a execução autorizada começar, e a
+chamada deve manter `--pilot-state-dir "$PATH_STATE_DIR"`. Esta verificação não
+cria state.
 
 ### 8.5.1 Templates e hashes congelados
 
@@ -282,14 +332,14 @@ descendente da worktree.
 ```bash
 # NAO_EXECUTAR_SEM_AUTORIZACAO_HUMANA_EXPLICITA
 RUNNER_ROOT="/Users/brunolima/Documents/NOVO-APP-final-supervised-proof-runner"
-RUNNER_HEAD_EXPECTED="95c415da2311cfceaf1e00c616e9eefe7638714f"
 TARGET_HEAD_EXPECTED="95c415da2311cfceaf1e00c616e9eefe7638714f"
+: "${RUNNER_HEAD_EXPECTED:?RUNNER_HEAD_EXPECTED_NOT_FROZEN}"
 PATH_WORKTREE="/Users/brunolima/Documents/NOVO-APP-final-supervised-proof-run"
 PATH_TEMPLATE_ROOT="$RUNNER_ROOT/.agents/pilotos/templates"
 PATH_TEMPLATE_MONOLITHIC="$PATH_TEMPLATE_ROOT/quarto-piloto-supervisionado-20260717t-final.json"
 PATH_CARD="$PATH_TEMPLATE_ROOT/quarto-piloto-supervisionado-20260717t-final.card.json"
 PATH_PLAN="$PATH_TEMPLATE_ROOT/quarto-piloto-supervisionado-20260717t-final.plan.json"
-PATH_STATE_DIR="$PATH_WORKTREE/.agents/pilotos/state"
+PATH_STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/novo-app/agent-state"
 PATH_STATE_FILE="$PATH_STATE_DIR/quarto-piloto-supervisionado-20260717t-final.json"
 test "$(git -C "$RUNNER_ROOT" rev-parse HEAD)" = "$RUNNER_HEAD_EXPECTED"
 test "$(git -C "$PATH_WORKTREE" rev-parse HEAD)" = "$TARGET_HEAD_EXPECTED"
@@ -329,6 +379,24 @@ case "$EVIDENCE_ROOT_REAL/" in
 esac
 test "$EVIDENCE_ROOT_REAL" != "$RUNNER_ROOT_REAL"
 test "$EVIDENCE_ROOT_REAL" != "$WORKTREE_REAL"
+test "${PATH_STATE_DIR#/}" != "$PATH_STATE_DIR"
+test ! -e "$PATH_STATE_FILE"
+STATE_PARENT="$PATH_STATE_DIR"
+while [ ! -e "$STATE_PARENT" ]; do
+  NEXT="$(dirname "$STATE_PARENT")"
+  test "$NEXT" != "$STATE_PARENT"
+  STATE_PARENT="$NEXT"
+done
+check_no_symlink_chain "$STATE_PARENT"
+check_no_symlink_chain "$PATH_STATE_DIR"
+STATE_PARENT_REAL="$(realpath "$STATE_PARENT")"
+STATE_SUFFIX="${PATH_STATE_DIR#"$STATE_PARENT"}"
+STATE_DIR_REAL="$STATE_PARENT_REAL$STATE_SUFFIX"
+case "$STATE_DIR_REAL/" in
+  "$RUNNER_ROOT_REAL/"*|"$WORKTREE_REAL/"*) echo "PILOT_STATE_ROOT_INSIDE_FORBIDDEN_ROOT" >&2; exit 1 ;;
+esac
+test "$STATE_DIR_REAL" != "$RUNNER_ROOT_REAL"
+test "$STATE_DIR_REAL" != "$WORKTREE_REAL"
 TMP_ROOT_REAL="$(ruby -rtmpdir -e 'print File.realpath(Dir.tmpdir)')"
 PATH_OUTPUT="$TMP_ROOT_REAL/quarto-piloto-supervisionado-20260717t-final.run-report.json"
 test "${PATH_OUTPUT#/}" != "$PATH_OUTPUT"
@@ -364,9 +432,10 @@ imediatamente antes dela. `RUNNER_ROOT` e `PATH_WORKTREE` permanecem distintos.
 
 ```bash
 ruby -I. -rjson -rdigest -rpathname -e '
-require_relative "scripts/plan-agent-mission"
+runner_root = File.realpath(ARGV.fetch(2))
+require File.join(runner_root, "scripts/plan-agent-mission.rb")
 report = JSON.parse(File.read(ARGV.fetch(0)))
-schema = JSON.parse(File.read(".agents/orquestracao/executor/contrato-relatorio.schema.json"))
+schema = JSON.parse(File.read(File.join(runner_root, ".agents/orquestracao/executor/contrato-relatorio.schema.json")))
 MissionPlanner.send(:validate_against_schema!, report, schema)
 mission = "quarto-piloto-supervisionado-20260717t-final"
 abort "REPORT_CONTRACT_FAILED" unless report.fetch("missao_id") == mission
@@ -380,6 +449,9 @@ abort "REPORT_CONTRACT_FAILED" unless runtime.fetch("processos_iniciados") == 1
 abort "REPORT_CONTRACT_FAILED" unless runtime.fetch("exit_code") == 0
 abort "REPORT_CONTRACT_FAILED" unless runtime.fetch("timeout") == false
 abort "REPORT_CONTRACT_FAILED" unless runtime.fetch("sinal").nil?
+abort "REPORT_CONTRACT_FAILED" unless runtime.fetch("stdout_truncado") == false
+abort "REPORT_CONTRACT_FAILED" unless runtime.fetch("stderr_truncado") == false
+abort "REPORT_CONTRACT_FAILED" unless report.fetch("negacoes").empty?
 abort "REPORT_CONTRACT_FAILED" unless report.dig("comparacao", "status") == "conforme"
 dimensions = report.fetch("resultado_dimensoes")
 abort "REPORT_CONTRACT_FAILED" unless dimensions.fetch("execution") == "succeeded"
@@ -392,11 +464,15 @@ abort "REPORT_CONTRACT_FAILED" unless delivery.fetch("expected_bytes") == delive
 delivery_rel = ".agents/pilotos/sandbox/quarto-piloto-supervisionado-20260717t-final.txt"
 abort "REPORT_CONTRACT_FAILED" unless delivery.fetch("path") == delivery_rel
 abort "REPORT_CONTRACT_FAILED" unless runtime.fetch("arquivos_modificados") == [delivery_rel]
-abort "REPORT_CONTRACT_FAILED" unless runtime.fetch("arquivos_untracked") == [delivery_rel]
-abort "REPORT_CONTRACT_FAILED" unless runtime.fetch("arquivos_fora_escopo").empty?
+abort "REPORT_CONTRACT_FAILED" unless runtime.fetch("violacoes_escopo").empty?
 abort "REPORT_CONTRACT_FAILED" unless runtime.fetch("arquivos_protegidos_alterados").empty?
-abort "REPORT_CONTRACT_FAILED" unless runtime.fetch("commit_criado") == false
-abort "REPORT_CONTRACT_FAILED" unless runtime.fetch("refs_alteradas") == false
+observed = report.fetch("observed_snapshot")
+abort "REPORT_CONTRACT_FAILED" unless observed.fetch("arquivos_modificados") == [delivery_rel]
+abort "REPORT_CONTRACT_FAILED" unless observed.fetch("arquivos_untracked") == [delivery_rel]
+abort "REPORT_CONTRACT_FAILED" unless observed.fetch("arquivos_fora_escopo").empty?
+abort "REPORT_CONTRACT_FAILED" unless observed.fetch("arquivos_protegidos_alterados").empty?
+abort "REPORT_CONTRACT_FAILED" unless observed.fetch("commit_criado") == false
+abort "REPORT_CONTRACT_FAILED" unless observed.fetch("refs_alteradas") == false
 abort "REPORT_CONTRACT_FAILED" unless report.dig("forensic_evidence", "evidence_status") == "complete"
 manifest_rel = report.dig("forensic_evidence", "manifest_relpath")
 abort "REPORT_CONTRACT_FAILED" unless manifest_rel && !Pathname.new(manifest_rel).absolute? && !manifest_rel.split(File::SEPARATOR).include?("..")
@@ -413,7 +489,7 @@ abort "REPORT_CONTRACT_FAILED" unless ledger.first.fetch("missao_id") == mission
 abort "REPORT_CONTRACT_FAILED" unless ledger.first.fetch("tentativa") == 1
 abort "REPORT_CONTRACT_FAILED" unless report.dig("handoff", "requer_aprovacao_humana") == true
 puts JSON.pretty_generate(report)
-' PATH_OUTPUT EVIDENCE_ROOT
+' "$PATH_OUTPUT" "$EVIDENCE_ROOT" "$RUNNER_ROOT"
 ```
 
 ### 8.8 Manifesto e hashes
@@ -430,13 +506,14 @@ real = File.realpath(path)
 abort "MANIFEST_PATH_INVALID" unless real == root || real.start_with?(root + File::SEPARATOR)
 abort "MANIFEST_PATH_INVALID" unless File.basename(real) == "evidence-manifest.json"
 print real
-' PATH_OUTPUT "$EVIDENCE_ROOT")"
+' "$PATH_OUTPUT" "$EVIDENCE_ROOT")"
 ruby -I. -rjson -rdigest -e '
 require "pathname"
-require_relative "scripts/plan-agent-mission"
+runner_root = File.realpath(ARGV.fetch(1))
+require File.join(runner_root, "scripts/plan-agent-mission.rb")
 manifest_path = File.expand_path(ARGV.fetch(0))
 manifest = JSON.parse(File.read(manifest_path))
-schema = JSON.parse(File.read(".agents/orquestracao/executor/contrato-evidencia-forense.schema.json"))
+schema = JSON.parse(File.read(File.join(runner_root, ".agents/orquestracao/executor/contrato-evidencia-forense.schema.json")))
 MissionPlanner.send(:validate_against_schema!, manifest, schema)
 mission = "quarto-piloto-supervisionado-20260717t-final"
 abort "MANIFEST_CONTRACT_FAILED" unless manifest.fetch("mission_id") == mission
@@ -463,13 +540,13 @@ manifest.fetch("artifacts").each do |artifact|
   abort "MANIFEST_ARTIFACT_FAILED" unless artifact.fetch("truncated") == false
 end
 puts JSON.pretty_generate(manifest)
-' "$PATH_MANIFEST"
+' "$PATH_MANIFEST" "$RUNNER_ROOT"
 ```
 
 ### 8.9 Ledger
 
 ```bash
-ruby -rjson -e 'r=JSON.parse(File.read(ARGV.fetch(0))); l=r.fetch("task_ledger"); abort unless l.length==1; puts JSON.pretty_generate(l)' PATH_OUTPUT
+ruby -rjson -e 'r=JSON.parse(File.read(ARGV.fetch(0))); l=r.fetch("task_ledger"); abort unless l.length==1; puts JSON.pretty_generate(l)' "$PATH_OUTPUT"
 ```
 
 ### 8.10 Diff e arquivo entregue
@@ -536,7 +613,7 @@ reexecuta a mesma missão.
 |---|---|---|---|
 | Arquivo sandbox | Resultado obrigatório | `PATH_WORKTREE/.agents/pilotos/sandbox/quarto-piloto-supervisionado-20260717t-final.txt` | existência, bytes e hash |
 | Run Report | Resultado integrado | `PATH_OUTPUT` | schema, status e referências |
-| State do piloto | Reserva one-shot | `PATH_STATE_DIR` | missão, tentativa e coerência |
+| State do piloto | Reserva one-shot | `${XDG_STATE_HOME:-$HOME/.local/state}/novo-app/agent-state/quarto-piloto-supervisionado-20260717t-final.json` | missão, tentativa e coerência |
 | Ledger | Estado da tarefa | dentro do Run Report | exatamente uma tarefa |
 | `execution-stream.sanitized.jsonl` | Stream sanitizado | `${EVIDENCE_ROOT}/<mission_id>/attempt-001/` | JSONL, limites, sanitização |
 | `execution-evidence.json` | Checkpoints | `${EVIDENCE_ROOT}/<mission_id>/attempt-001/` | estado sanitizado |
