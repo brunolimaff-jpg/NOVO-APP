@@ -458,7 +458,12 @@ module FinalSupervisedProofControl
   end
 
   def parse_json_post_run(path, failures, code)
-    JSON.parse(File.read(path))
+    result = JSON.parse(File.read(path))
+    unless result.is_a?(Hash)
+      failures << code
+      return nil
+    end
+    result
   rescue SystemCallError, JSON::ParserError
     failures << code
     nil

@@ -193,6 +193,21 @@ module FinalSupervisedProofControlTest
 
       manifest_path, manifest_hash = build_manifest(f)
       assert(FinalSupervisedProofControl.validate_manifest(manifest_path, f[:runner], manifest_hash).empty?, 'manifesto válido')
+      non_object_report = File.join(f[:root], 'non-object-report.json')
+      non_object_state = File.join(f[:state_root], 'non-object-state.json')
+      non_object_manifest = File.join(f[:root], 'non-object-manifest.json')
+      File.write(non_object_report, '[]')
+      File.write(non_object_state, '[]')
+      File.write(non_object_manifest, '[]')
+      report_failures = []
+      state_failures = []
+      manifest_failures = []
+      FinalSupervisedProofControl.parse_json_post_run(non_object_report, report_failures, 'REPORT_JSON_INVALID')
+      FinalSupervisedProofControl.parse_json_post_run(non_object_state, state_failures, 'STATE_JSON_INVALID')
+      FinalSupervisedProofControl.parse_json_post_run(non_object_manifest, manifest_failures, 'MANIFEST_JSON_INVALID')
+      assert(report_failures == ['REPORT_JSON_INVALID'], 'Run Report não-objeto rejeitado')
+      assert(state_failures == ['STATE_JSON_INVALID'], 'state não-objeto rejeitado')
+      assert(manifest_failures == ['MANIFEST_JSON_INVALID'], 'manifesto não-objeto rejeitado')
       File.delete(File.join(File.dirname(manifest_path), 'stderr.sanitized.log'))
       assert(FinalSupervisedProofControl.validate_manifest(manifest_path, f[:runner], manifest_hash).include?('MANIFEST_ARTIFACT_MISSING'), 'artefato ausente rejeitado')
       File.write(File.join(File.dirname(manifest_path), 'stderr.sanitized.log'), '')
