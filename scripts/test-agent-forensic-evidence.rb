@@ -116,6 +116,19 @@ test('checkpoint sanitiza argv e limita permissões') do
   end
 end
 
+test('stderr aplica o contexto completo de paths') do
+  Dir.mktmpdir('forensic-stderr-paths') do |dir|
+    root = File.join(File.realpath(dir), 'evidence')
+    known = '/opt/forensic/repository'
+    evidence = AgentForensicEvidence.new(root: root, mission_id: 'stderr-paths', paths: { 'repository' => known })
+    evidence.reserve!
+    evidence.append_stderr("falha em #{known}/scripts/run.rb\n")
+    stderr = File.read(File.join(root, 'stderr-paths', 'attempt-001', 'stderr.sanitized.log'))
+    assert stderr.include?('<REPOSITORY>/scripts/run.rb')
+    assert !stderr.include?(known)
+  end
+end
+
 test('symlink de missão é rejeitado sem escrever fora da raiz') do
   Dir.mktmpdir('forensic-symlink') do |dir|
     root = File.join(File.realpath(dir), 'evidence')

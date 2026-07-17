@@ -938,6 +938,99 @@ test('run! válido atinge próxima barreira sem spawn') do
   end
 end
 
+test('falha após reserva preserva evidência parcial') do
+  with_worktree do |wt, _|
+    root = File.join(File.realpath(Dir.tmpdir), "runtime-partial-evidence-#{Process.pid}")
+    FileUtils.rm_rf(root)
+    old_methods = {}
+    AgentSingleRuntime.singleton_class.class_eval do
+      %i[assert_live_preflight! verify_after!].each do |name|
+        old_methods[name] = instance_method(name)
+      end
+      define_method(:assert_live_preflight!) { |worktree:| { 'relatorio_sha256' => 'safety' } }
+      define_method(:verify_after!) { |**| raise 'failure after forensic reservation' }
+    end
+    ENV['AGENT_RUNTIME_TEST_PREFLIGHT'] = '1'
+    ENV['AGENT_RUNTIME_TEST_DCG_BIN'] = FAKE_DCG
+    ENV['AGENT_RUNTIME_TEST_CODEX'] = '1'
+    ENV['AGENT_RUNTIME_TEST_CODEX_BIN'] = FAKE_CODEX
+    begin
+      begin
+        AgentSingleRuntime.run!(
+          card: build_card,
+          plan: build_plan,
+          catalog: catalog,
+          worktree: wt,
+          repo_root: ROOT,
+          evidence_root: root
+        )
+        raise 'expected post-reservation failure'
+      rescue StandardError => error
+        info = error.respond_to?(:forensic_evidence) ? error.forensic_evidence : nil
+        raise 'partial metadata missing' unless info && info['evidence_status'] == 'partial'
+        manifest_path = File.join(root, info['manifest_relpath'])
+        raise 'manifest missing' unless File.file?(manifest_path)
+        manifest = JSON.parse(File.read(manifest_path))
+        raise 'manifest status' unless manifest['evidence_status'] == 'partial'
+        manifest['artifacts'].each do |artifact|
+          path = File.join(File.dirname(manifest_path), artifact['name'])
+          raise 'artifact missing' unless File.file?(path)
+          raise 'artifact hash mismatch' unless artifact['sha256'] == Digest::SHA256.file(path).hexdigest
+        end
+      end
+    ensure
+      ENV.delete('AGENT_RUNTIME_TEST_PREFLIGHT')
+      ENV.delete('AGENT_RUNTIME_TEST_DCG_BIN')
+      ENV.delete('AGENT_RUNTIME_TEST_CODEX')
+      ENV.delete('AGENT_RUNTIME_TEST_CODEX_BIN')
+      AgentSingleRuntime.singleton_class.class_eval do
+        old_methods.each { |name, method| define_method(name, method) }
+      end
+    end
+  end
+end
+
+test('dry-run forense não reserva tentativa e real preserva one-shot') do
+  with_worktree do |wt, _|
+    root = File.join(File.realpath(Dir.tmpdir), "runtime-dry-evidence-#{Process.pid}")
+    FileUtils.rm_rf(root)
+    reserve_calls = 0
+    old_reserve = AgentForensicEvidence.instance_method(:reserve!)
+    old_spawn = CodexSingleAgentRuntime.singleton_class.instance_method(:spawn!)
+    old_live = AgentSingleRuntime.singleton_class.instance_method(:assert_live_preflight!)
+    AgentForensicEvidence.define_method(:reserve!) do
+      reserve_calls += 1
+      old_reserve.bind(self).call
+    end
+    CodexSingleAgentRuntime.singleton_class.define_method(:spawn!) { |**| raise 'dry-run fixture stop' }
+    AgentSingleRuntime.singleton_class.define_method(:assert_live_preflight!) { |worktree:| { 'relatorio_sha256' => 'safety' } }
+    begin
+      2.times do
+        begin
+          AgentSingleRuntime.run!(card: build_card, plan: build_plan, catalog: catalog, worktree: wt,
+                                  repo_root: ROOT, evidence_root: root, forensic_dry_run: true)
+        rescue StandardError => error
+          raise 'dry-run consumed reservation' if error.message.include?('FORENSIC_ATTEMPT_ALREADY_RESERVED')
+        end
+      end
+      raise 'dry-run created evidence root' if File.exist?(root)
+      begin
+        AgentSingleRuntime.run!(card: build_card, plan: build_plan, catalog: catalog, worktree: wt,
+                                repo_root: ROOT, evidence_root: root, forensic_dry_run: false)
+      rescue StandardError
+        nil
+      end
+      raise 'real execution did not reserve attempt-001' unless reserve_calls == 1 &&
+        File.file?(File.join(root, 'missao-runtime-1', 'attempt-001', 'evidence-manifest.json'))
+    ensure
+      AgentForensicEvidence.define_method(:reserve!, old_reserve)
+      CodexSingleAgentRuntime.singleton_class.define_method(:spawn!, old_spawn)
+      AgentSingleRuntime.singleton_class.define_method(:assert_live_preflight!, old_live)
+      FileUtils.rm_rf(root)
+    end
+  end
+end
+
 # --- Harness Codex ---
 test('harness codex aceito') do
   AgentSingleRuntime.validate_codex_harness!(build_plan)

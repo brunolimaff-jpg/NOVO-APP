@@ -409,6 +409,7 @@ module AgentMissionRunner
     execute = false
     start = nil
     runtime_report = nil
+    forensic_failure = nil
     mode_label = 'dry-run'
     reservation_path = nil
     pilot_state_dir = nil
@@ -465,6 +466,7 @@ module AgentMissionRunner
           repo_root: ROOT,
           delivery_contract: delivery_contract,
           evidence_root: evidence_root,
+          forensic_dry_run: pilot_dry_run,
           reserve_attempt: reserve_attempt,
           mark_spawn_started: mark_spawn_started,
           mark_process_finished: mark_process_finished
@@ -501,27 +503,30 @@ module AgentMissionRunner
         end
       end
     rescue DeniedError, MissionPlanner::SchemaError, AgentMissionContract::Denial, AgentSingleRuntime::Denial, CodexSingleAgentRuntime::Denial, AgentSupervisedPilot::Denial => error
+      forensic_failure = error.forensic_evidence if error.respond_to?(:forensic_evidence)
       if reservation_path && File.file?(reservation_path)
         AgentSupervisedPilot.update_state!(reservation_path, status: 'failed') rescue nil
         status = 'failure'
       else
-        status = 'denied'
+        status = forensic_failure ? 'failure' : 'denied'
       end
       code = error.respond_to?(:code) ? error.code : nil
       negacoes << (code ? "#{code}: #{error.message}" : denial_entry(error))
     rescue AgentForensicEvidence::Denial => error
+      forensic_failure = error.forensic_evidence if error.respond_to?(:forensic_evidence)
       if reservation_path && File.file?(reservation_path)
         AgentSupervisedPilot.update_state!(reservation_path, status: 'failed') rescue nil
         status = 'failure'
       else
-        status = 'denied'
+        status = forensic_failure ? 'failure' : 'denied'
       end
       negacoes << "#{error.code}: #{error.message}"
     rescue StandardError => error
+      forensic_failure = error.forensic_evidence if error.respond_to?(:forensic_evidence)
       if reservation_path && File.file?(reservation_path)
         AgentSupervisedPilot.update_state!(reservation_path, status: 'failed') rescue nil
       end
-      status = 'internal-error'
+      status = forensic_failure ? 'failure' : 'internal-error'
       negacoes << denial_entry(error)
     end
 
@@ -560,7 +565,7 @@ module AgentMissionRunner
         'comandos' => commands,
         'duracao_ms' => duracao_ms,
         'evidencias' => ['catalogo fixo', 'argv sem shell', 'ambiente sanitizado', 'sem git mutante'],
-        'forensic_evidence' => {
+        'forensic_evidence' => forensic_failure || {
           'evidence_status' => 'unavailable',
           'manifest_relpath' => 'unavailable/evidence-manifest.json',
           'manifest_sha256' => Digest::SHA256.hexdigest(''),

@@ -117,7 +117,7 @@ class AgentForensicEvidence
     raw = chunk.to_s.b
     return drop!(raw.bytesize) if @stderr_bytes >= MAX_STREAM_BYTES
     remaining = MAX_STREAM_BYTES - @stderr_bytes
-    sanitized = AgentEvidenceSanitizer.sanitize_string(raw, max_bytes: raw.bytesize)
+    sanitized = AgentEvidenceSanitizer.sanitize_string(raw, nil, @paths, max_bytes: raw.bytesize)
     text = sanitized.byteslice(0, remaining).to_s
     File.open(File.join(@dir, 'stderr.sanitized.log'), 'ab', 0o600) { |f| f.write(text) }
     @stderr_bytes += text.bytesize
