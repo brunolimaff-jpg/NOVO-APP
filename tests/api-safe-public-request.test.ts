@@ -1,6 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
+
 import {
   createPinnedLookup,
+  createPinnedRequestOptions,
+  completeResponseOnHeaders,
   isPublicIpAddress,
   requestPublicUrl,
   type SafePublicAddress,
@@ -27,10 +30,14 @@ describe('api/_safe-public-request', () => {
     '192.168.1.1',
     '192.0.2.1',
     '100.64.0.1',
+    '240.0.0.1',
+    '255.255.255.255',
     '::1',
     '::127.0.0.1',
     '::ffff:127.0.0.1',
     '64:ff9b::10.0.0.1',
+    '2001:2::1',
+    '3fff::1',
     'fc00::1',
     'fe80::1',
     'ff02::1',
@@ -40,6 +47,10 @@ describe('api/_safe-public-request', () => {
 
   it('aceita IPv4 público roteável', () => {
     expect(isPublicIpAddress(PUBLIC_IPV4.address)).toBe(true);
+  });
+
+  it('aceita IPv6 global público roteável', () => {
+    expect(isPublicIpAddress('2606:4700:4700::1111')).toBe(true);
   });
 
   it('aceita destino público e fixa a conexão no IP validado', async () => {
@@ -78,6 +89,49 @@ describe('api/_safe-public-request', () => {
     expect(transport).not.toHaveBeenCalled();
   });
 
+  it('tenta o próximo IP público já validado após uma falha de transporte', async () => {
+    const secondAddress: SafePublicAddress = { address: '1.1.1.1', family: 4 };
+    const transport = vi
+      .fn<SafePublicRequestTransport>()
+      .mockRejectedValueOnce(new Error('connect ECONNREFUSED'))
+      .mockResolvedValueOnce({ statusCode: 204 });
+
+    await expect(
+      requestPublicUrl('https://multi.test', 'HEAD', dependencies({ resolve: async () => [PUBLIC_IPV4, secondAddress], transport })),
+    ).resolves.toEqual({ statusCode: 204 });
+    expect(transport.mock.calls.map(([target]) => target.address)).toEqual([PUBLIC_IPV4.address, secondAddress.address]);
+  });
+
+  it('retorna erro controlado quando todos os IPs públicos falham', async () => {
+    const transport = vi.fn<SafePublicRequestTransport>().mockRejectedValue(new Error('connect ECONNREFUSED'));
+
+    await expect(
+      requestPublicUrl(
+        'https://offline.test',
+        'HEAD',
+        dependencies({ resolve: async () => [PUBLIC_IPV4, { address: '1.1.1.1', family: 4 }], transport }),
+      ),
+    ).rejects.toMatchObject({ code: 'transport_failed' });
+    expect(transport).toHaveBeenCalledTimes(2);
+  });
+
+  it('não tenta o próximo IP quando o deadline comum já expirou', async () => {
+    let now = 0;
+    const transport = vi.fn<SafePublicRequestTransport>().mockImplementation(async () => {
+      now = 5_000;
+      throw new Error('connect ECONNREFUSED');
+    });
+
+    await expect(
+      requestPublicUrl(
+        'https://deadline.test',
+        'HEAD',
+        dependencies({ resolve: async () => [PUBLIC_IPV4, { address: '1.1.1.1', family: 4 }], transport, now: () => now, deadline: 5_000 }),
+      ),
+    ).rejects.toMatchObject({ code: 'timeout' });
+    expect(transport).toHaveBeenCalledTimes(1);
+  });
+
   it('revalida redirects e bloqueia destino privado ou metadata', async () => {
     const resolve = vi.fn(async (hostname: string) => {
       if (hostname === 'public.test') return [PUBLIC_IPV4];
@@ -112,6 +166,23 @@ describe('api/_safe-public-request', () => {
     await expect(requestPublicUrl('https://public.test', 'HEAD', dependencies({ transport: loopTransport }))).rejects.toMatchObject({
       code: 'too_many_redirects',
     });
+  });
+
+  it('resolve e valida uma lista própria para cada destino de redirect', async () => {
+    const resolve = vi.fn(async (hostname: string) => {
+      if (hostname === 'origin.test') return [PUBLIC_IPV4];
+      return [{ address: '1.1.1.1', family: 4 }, { address: '8.8.8.8', family: 4 }];
+    });
+    const transport = vi
+      .fn<SafePublicRequestTransport>()
+      .mockResolvedValueOnce({ statusCode: 302, location: 'https://redirect.test/next' })
+      .mockRejectedValueOnce(new Error('connect ECONNREFUSED'))
+      .mockResolvedValueOnce({ statusCode: 200 });
+
+    await expect(requestPublicUrl('https://origin.test', 'HEAD', dependencies({ resolve, transport }))).resolves.toEqual({ statusCode: 200 });
+    expect(resolve).toHaveBeenCalledWith('origin.test');
+    expect(resolve).toHaveBeenCalledWith('redirect.test');
+    expect(transport.mock.calls.map(([target]) => target.address)).toEqual([PUBLIC_IPV4.address, '1.1.1.1', '8.8.8.8']);
   });
 
   it('falha fechado quando o DNS falha', async () => {
@@ -149,5 +220,36 @@ describe('api/_safe-public-request', () => {
         }
       });
     });
+  });
+
+  it('respeita o contrato de lookup escalar e all do Node', async () => {
+    const lookup = createPinnedLookup(PUBLIC_IPV4.address, PUBLIC_IPV4.family);
+    await new Promise<void>((resolve, reject) => {
+      lookup('rebinding.test', { all: true }, (error, addresses) => {
+        try {
+          expect(error).toBeNull();
+          expect(addresses).toEqual([PUBLIC_IPV4]);
+          resolve();
+        } catch (assertionError) {
+          reject(assertionError);
+        }
+      });
+    });
+  });
+
+  it('fixa family e desabilita autoSelectFamily, concluindo com headers sem aguardar body', async () => {
+    const response = {
+      headers: {},
+      statusCode: 200,
+      destroy: vi.fn(),
+      once: vi.fn(),
+    };
+    const finish = vi.fn();
+
+    completeResponseOnHeaders(response, finish);
+    const options = createPinnedRequestOptions({ ...PUBLIC_IPV4, url: new URL('http://streaming.test') }, 'GET');
+    expect(options).toMatchObject({ family: 4, autoSelectFamily: false, agent: false });
+    expect(response.destroy).toHaveBeenCalledOnce();
+    expect(finish).toHaveBeenCalledWith(undefined, { statusCode: 200 });
   });
 });

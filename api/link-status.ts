@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { requestPublicUrl, SAFE_PUBLIC_REQUEST_TIMEOUT_MS } from './_safe-public-request.js';
+import { SafePublicRequestError, requestPublicUrl, SAFE_PUBLIC_REQUEST_TIMEOUT_MS } from './_safe-public-request.js';
 
 type ValidationState = 'valid' | 'broken' | 'unknown';
 
@@ -37,7 +37,13 @@ async function checkUrl(url: string): Promise<ValidationResult> {
       httpStatus: res.statusCode,
       note: `Link indisponível (HTTP ${res.statusCode}).`,
     };
-  } catch {
+  } catch (error) {
+    if (
+      error instanceof SafePublicRequestError &&
+      ['invalid_url', 'restricted_hostname', 'restricted_address'].includes(error.code)
+    ) {
+      return { status: 'unknown', note: 'URL inválida ou restrita para validação.' };
+    }
     return { status: 'unknown', note: 'Não foi possível validar agora; revisar manualmente.' };
   }
 }

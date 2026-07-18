@@ -69,7 +69,8 @@ const IPV4_RESTRICTED_RANGES: ReadonlyArray<readonly [number, number]> = [
   [0xc6120000, 15], // benchmarking
   [0xc6336400, 24], // documentation
   [0xcb007100, 24], // documentation
-  [0xe0000000, 4], // multicast and reserved
+  [0xe0000000, 4], // multicast
+  [0xf0000000, 4], // reserved/future use and limited broadcast
 ];
 
 const IPV6_RESTRICTED_RANGES: ReadonlyArray<readonly [string, number]> = [
@@ -78,8 +79,10 @@ const IPV6_RESTRICTED_RANGES: ReadonlyArray<readonly [string, number]> = [
   ['64:ff9b:1::', 48], // locally assigned NAT64
   ['100::', 64], // discard-only
   ['2001::', 32], // Teredo
+  ['2001:2::', 48], // benchmarking
   ['2001:db8::', 32], // documentation
   ['2002::', 16], // 6to4, carries an embedded IPv4 address
+  ['3fff::', 20], // documentation
   ['fc00::', 7], // unique local addresses
   ['fe80::', 10], // link-local
   ['ff00::', 8], // multicast
@@ -233,7 +236,7 @@ async function resolveValidatedTarget(
   resolve: NonNullable<SafePublicRequestDependencies['resolve']>,
   deadline: number,
   now: () => number,
-): Promise<SafePublicRequestTarget> {
+): Promise<{ url: URL; addresses: SafePublicAddress[] }> {
   const hostname = normalizeHost(url.hostname);
   let addresses: SafePublicAddress[];
   const literalFamily = isIP(hostname);
@@ -251,11 +254,41 @@ async function resolveValidatedTarget(
   if (addresses.length === 0 || addresses.some(({ address }) => !isPublicIpAddress(address))) {
     throw new SafePublicRequestError('restricted_address', 'URL resolve para endereço restrito.');
   }
-  return { url, ...addresses[0] };
+  return { url, addresses };
 }
 
 export function createPinnedLookup(address: string, family: 4 | 6): LookupFunction {
-  return (_hostname, _options, callback) => callback(null, address, family);
+  return (_hostname, options, callback) => {
+    if (options.all) {
+      callback(null, [{ address, family }]);
+      return;
+    }
+    callback(null, address, family);
+  };
+}
+
+export function createPinnedRequestOptions(target: SafePublicRequestTarget, method: SafePublicRequestMethod) {
+  return {
+    method,
+    lookup: createPinnedLookup(target.address, target.family),
+    family: target.family,
+    autoSelectFamily: false,
+    headers: { 'User-Agent': 'ScoutAgro Link Validator/1.0' },
+    agent: false,
+  };
+}
+
+export function completeResponseOnHeaders(
+  response: Pick<IncomingMessage, 'headers' | 'statusCode' | 'once' | 'destroy'>,
+  finish: (error?: Error, response?: SafePublicResponse) => void,
+): void {
+  const rawLocation = response.headers.location;
+  const location = Array.isArray(rawLocation) ? rawLocation[0] : rawLocation;
+  const result = { statusCode: response.statusCode ?? 0, ...(location ? { location } : {}) };
+  response.once('aborted', () => finish(new SafePublicRequestError('transport_failed', 'Resposta abortada.')));
+  response.once('error', error => finish(new SafePublicRequestError('transport_failed', error.message)));
+  finish(undefined, result);
+  response.destroy();
 }
 
 const requestPinnedTarget: SafePublicRequestTransport = (target, method, timeoutMs) =>
@@ -269,21 +302,8 @@ const requestPinnedTarget: SafePublicRequestTransport = (target, method, timeout
       if (error) reject(error);
       else resolve(response as SafePublicResponse);
     };
-    const onResponse = (response: IncomingMessage) => {
-      const rawLocation = response.headers.location;
-      const location = Array.isArray(rawLocation) ? rawLocation[0] : rawLocation;
-      const result = { statusCode: response.statusCode ?? 0, ...(location ? { location } : {}) };
-      response.once('aborted', () => finish(new SafePublicRequestError('transport_failed', 'Resposta abortada.')));
-      response.once('error', error => finish(new SafePublicRequestError('transport_failed', error.message)));
-      response.once('end', () => finish(undefined, result));
-      response.resume();
-    };
-    const options = {
-      method,
-      lookup: createPinnedLookup(target.address, target.family),
-      headers: { 'User-Agent': 'ScoutAgro Link Validator/1.0' },
-      agent: false,
-    };
+    const onResponse = (response: IncomingMessage) => completeResponseOnHeaders(response, finish);
+    const options = createPinnedRequestOptions(target, method);
     const request = target.url.protocol === 'https:' ? httpsRequest(target.url, options, onResponse) : httpRequest(target.url, options, onResponse);
     timeoutId = setTimeout(() => request.destroy(new SafePublicRequestError('timeout', 'Tempo limite excedido.')), timeoutMs);
     request.once('error', error => finish(error instanceof SafePublicRequestError ? error : new SafePublicRequestError('transport_failed', error.message)));
@@ -302,8 +322,24 @@ export async function requestPublicUrl(
   let url = parseSafePublicUrl(value);
 
   for (let redirectCount = 0; redirectCount <= MAX_REDIRECTS; redirectCount += 1) {
-    const target = await resolveValidatedTarget(url, resolve, deadline, now);
-    const response = await withinDeadline(transport(target, method, remainingTimeout(deadline, now)), deadline, now);
+    const resolvedTarget = await resolveValidatedTarget(url, resolve, deadline, now);
+    let response: SafePublicResponse | undefined;
+    let lastTransportError: SafePublicRequestError | undefined;
+
+    for (const address of resolvedTarget.addresses) {
+      const target: SafePublicRequestTarget = { url: resolvedTarget.url, ...address };
+      try {
+        response = await withinDeadline(transport(target, method, remainingTimeout(deadline, now)), deadline, now);
+        break;
+      } catch (error) {
+        if (error instanceof SafePublicRequestError && error.code === 'timeout') throw error;
+        lastTransportError = error instanceof SafePublicRequestError ? error : new SafePublicRequestError('transport_failed', 'Não foi possível conectar ao host.');
+      }
+    }
+
+    if (!response) {
+      throw lastTransportError ?? new SafePublicRequestError('transport_failed', 'Não foi possível conectar ao host.');
+    }
 
     if (!REDIRECT_STATUS_CODES.has(response.statusCode) || !response.location) return response;
     if (redirectCount === MAX_REDIRECTS) {
