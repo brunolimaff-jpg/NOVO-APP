@@ -133,7 +133,7 @@ describe('api/_safe-public-request', () => {
   });
 
   it('revalida redirects e bloqueia destino privado ou metadata', async () => {
-    const resolve = vi.fn(async (hostname: string) => {
+    const resolve = vi.fn(async (hostname: string): Promise<SafePublicAddress[]> => {
       if (hostname === 'public.test') return [PUBLIC_IPV4];
       return [{ address: hostname === 'metadata.test' ? '169.254.169.254' : '127.0.0.1', family: 4 as const }];
     });
