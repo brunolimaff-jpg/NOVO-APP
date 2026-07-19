@@ -19,7 +19,8 @@ function executableBlocks(source: string) {
     const indent = match[1].length;
     const block: string[] = [];
     for (let cursor = index + 1; cursor < lines.length; cursor += 1) {
-      if (lines[cursor].trim() && lines[cursor].match(/^\s*/)?.[0].length <= indent) break;
+      const indentation = lines[cursor].match(/^\s*/)?.[0].length ?? 0;
+      if (lines[cursor].trim() && indentation <= indent) break;
       block.push(lines[cursor]);
     }
     blocks.push(block.join('\n'));
@@ -113,6 +114,7 @@ describe('preview-smoke workflow contract', () => {
   it('mantém o secret fora da resolução e somente no passo de smoke', () => {
     expect(stepBody('Resolver preview URL')).not.toContain('VERCEL_AUTOMATION_BYPASS_SECRET');
     expect(stepBody('Executar smoke')).toContain('VERCEL_AUTOMATION_BYPASS_SECRET');
+    expect(stepBody('Checkout')).toContain('persist-credentials: false');
   });
 
   it('aceita somente o preview HTTPS permitido e normaliza a origem', () => {
