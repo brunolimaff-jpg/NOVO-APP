@@ -3,6 +3,7 @@ import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
+import { isVercelPreview } from '../../api/_allowed-origins';
 
 const WORKFLOW_PATH = resolve(import.meta.dirname, '../../.github/workflows/preview-smoke.yml');
 const workflow = readFileSync(WORKFLOW_PATH, 'utf8');
@@ -31,7 +32,9 @@ function stepBody(name: string) {
   const marker = `      - name: ${name}`;
   const start = workflow.indexOf(marker);
   expect(start).toBeGreaterThanOrEqual(0);
-  const end = workflow.indexOf('\n      - name:', start + marker.length);
+  const rest = workflow.slice(start + marker.length);
+  const boundary = rest.search(/\n(?: {6}- | {0,4}\S)/);
+  const end = boundary === -1 ? -1 : start + marker.length + boundary;
   return workflow.slice(start, end === -1 ? undefined : end);
 }
 
@@ -44,13 +47,16 @@ function resolverScript() {
 function resolvePreview(env: Record<string, string>) {
   const directory = mkdtempSync(resolve(tmpdir(), 'preview-smoke-contract-'));
   const output = resolve(directory, 'github-output');
-  const result = spawnSync(process.execPath, ['-e', resolverScript()], {
-    encoding: 'utf8',
-    env: { ...process.env, ...env, GITHUB_OUTPUT: output },
-  });
-  const value = result.status === 0 ? readFileSync(output, 'utf8') : '';
-  rmSync(directory, { recursive: true, force: true });
-  return { result, value };
+  try {
+    const result = spawnSync(process.execPath, ['-e', resolverScript()], {
+      encoding: 'utf8',
+      env: { ...process.env, ...env, GITHUB_OUTPUT: output },
+    });
+    const value = result.status === 0 ? readFileSync(output, 'utf8') : '';
+    return { result, value };
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
 }
 
 async function validateManualPrNumber(rawPrNumber: string) {
@@ -119,6 +125,38 @@ describe('preview-smoke workflow contract', () => {
     });
     expect(result.status).toBe(0);
     expect(value).toBe('preview_url=https://scoutagro-mpc5evjf7-brunolimaff-3629s-projects.vercel.app\n');
+  });
+
+  it('aceita deployment_status pela environment_url real da Vercel antes do target_url', () => {
+    const environmentUrl = 'https://scoutagro-hj4hnq40l-brunolimaff-3629s-projects.vercel.app';
+    const { result, value } = resolvePreview({
+      EVENT_NAME: 'deployment_status',
+      INPUT_PREVIEW_URL: '',
+      DEPLOYMENT_ENVIRONMENT_URL: environmentUrl,
+      DEPLOYMENT_TARGET_URL: 'https://evil.example',
+      COMMENT_BODY: '',
+    });
+    expect(result.status).toBe(0);
+    expect(value).toBe(`preview_url=${environmentUrl}\n`);
+  });
+
+  it('mantém a allowlist do workflow compatível com a validação de origem do app', () => {
+    const origins = [
+      'https://scoutagro-brunolimaff-3629s-projects.vercel.app',
+      'https://scoutagro-git-fix-preview-smo-dde328-brunolimaff-3629s-projects.vercel.app',
+    ];
+
+    for (const origin of origins) {
+      expect(isVercelPreview(origin)).toBe(true);
+      const { result } = resolvePreview({
+        EVENT_NAME: 'workflow_dispatch',
+        INPUT_PREVIEW_URL: origin,
+        DEPLOYMENT_ENVIRONMENT_URL: '',
+        DEPLOYMENT_TARGET_URL: '',
+        COMMENT_BODY: '',
+      });
+      expect(result.status).toBe(0);
+    }
   });
 
   it.each([
