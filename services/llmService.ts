@@ -9,6 +9,5 @@ export type { ParsedPortaFeeds } from './llm/porta';
 
 export { cleanPortaFeedMarkers, parseMarkers, parsePortaFeeds } from './llm/porta';
 export { generateContinuityQuestion } from './llm/auxiliary';
-export { generateLoadingCuriosities } from './llm/loading-curiosities';
 export { generateDossierModule, getIsolatedBenchmark, sendMessageToGemini } from './llm/investigation-orchestration';
 export { isMegaPromptRequest } from './llm/runtime';

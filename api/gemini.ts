@@ -15,7 +15,6 @@ const HistoryItemSchema = z.object({
 const ThinkingLevelSchema = z.enum(['low', 'medium', 'high']);
 
 const GeminiRequestSchema = z.discriminatedUnion('action', [
-  z.object({ action: z.literal('health') }),
   z.object({
     action: z.literal('generateContent'),
     model: z.string().min(1).max(200).optional(),
@@ -221,17 +220,6 @@ function toSdkThinkingLevel(thinkingLevel: ThinkingLevelInput): GeminiSdkThinkin
 
 async function executeGeminiAction(ai: GoogleGenAI, body: ParsedBody, res: VercelResponse): Promise<VercelResponse> {
   switch (body.action) {
-    case 'health': {
-      const response = await ai.models.generateContent({
-        model: DEFAULT_GEMINI_MODEL,
-        contents: 'Responda apenas: OK',
-        config: { temperature: 0, maxOutputTokens: 10 },
-      });
-
-      const text = extractGeminiText(response);
-      return res.status(200).json({ ok: /ok/i.test(text), text });
-    }
-
     case 'generateContent': {
       const modelFromClient = typeof body.model === 'string' ? body.model : undefined;
       const contents = body.contents;

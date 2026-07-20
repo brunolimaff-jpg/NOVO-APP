@@ -1,6 +1,6 @@
 import { scoutDiag } from '../utils/diagnosticLog';
 
-type GeminiApiAction = 'generateContent' | 'chatSendMessage' | 'health' | 'createCachedContent' | 'deleteCachedContent';
+type GeminiApiAction = 'generateContent' | 'chatSendMessage' | 'createCachedContent' | 'deleteCachedContent';
 
 interface GeminiApiBaseRequest {
   action: GeminiApiAction;
@@ -41,10 +41,6 @@ interface GeminiChatRequest extends GeminiApiBaseRequest {
   companyCnpj?: string;
   companyName?: string;
   module?: string;
-}
-
-interface GeminiHealthRequest extends GeminiApiBaseRequest {
-  action: 'health';
 }
 
 interface GeminiGenerateResponse {
@@ -89,11 +85,6 @@ export interface GeminiChatResponse {
    */
   groundingUsed?: boolean;
   webVerificationStatus?: 'verified' | 'fallback_verified' | 'unverified' | 'not_applicable';
-}
-
-interface GeminiHealthResponse {
-  ok: boolean;
-  text?: string;
 }
 
 const CUSTOM_LLM_PROXY_BASE_URL = (import.meta.env.VITE_GEMINI_PROXY_URL || '')
@@ -153,7 +144,6 @@ async function callGeminiApi<TResponse>(
   payload:
     | GeminiGenerateRequest
     | GeminiChatRequest
-    | GeminiHealthRequest
     | GeminiCreateCachedContentRequest
     | GeminiDeleteCachedContentRequest
     | Record<string, unknown>,

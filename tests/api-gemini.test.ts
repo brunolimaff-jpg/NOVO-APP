@@ -40,6 +40,23 @@ describe('api/gemini handler', () => {
     process.env.GEMINI_API_KEY = 'test-key';
   });
 
+  it('rejeita health antes de qualquer chamada ao provedor', async () => {
+    const { default: handler } = await import('../api/gemini');
+    const req = { method: 'POST', body: { action: 'health' } } as VercelRequest;
+    const res = {
+      setHeader: vi.fn(),
+      status: vi.fn().mockReturnThis(),
+      json: vi.fn().mockReturnThis(),
+    } as unknown as VercelResponse;
+
+    await handler(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ error: 'Invalid request' }));
+    expect(generateContentMock).not.toHaveBeenCalled();
+    expect(createChatMock).not.toHaveBeenCalled();
+  });
+
   it('transforma erro HTTP do open-web-search em functionResponse de erro', async () => {
     const fetchMock = vi.spyOn(globalThis, 'fetch');
     fetchMock.mockResolvedValueOnce({

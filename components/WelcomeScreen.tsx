@@ -60,7 +60,6 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onSendMessage, onPreFill,
       desc: 'Ganhar da concorrência',
       prompt: 'Estou concorrendo contra a TOTVS na empresa ',
     },
-    { icon: '📡', label: 'Radar', desc: 'Panorama do setor', prompt: 'Me dá o radar do setor de ' },
     { icon: '🔔', label: 'Alertas', desc: 'O que mudou', prompt: 'Verificar alertas e novidades da ' },
   ];
 

@@ -39,15 +39,6 @@ interface PersistedSessionState {
 async function stubGeminiApi(route: Route) {
   const payload = route.request().postDataJSON() as GeminiRequestBody;
 
-  if (payload.action === 'health') {
-    await route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({ ok: true }),
-    });
-    return;
-  }
-
   if (payload.action === 'chatSendMessage') {
     await new Promise(resolve => setTimeout(resolve, 150));
     await route.fulfill({
