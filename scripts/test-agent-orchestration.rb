@@ -14,6 +14,7 @@ require 'fileutils'
 require 'digest'
 require 'yaml'
 require_relative './plan-agent-mission'
+require_relative './validate-agent-orchestration'
 
 module OrchestrationTests
   REPO_ROOT  = File.expand_path('..', __dir__)
@@ -28,6 +29,16 @@ module OrchestrationTests
 
   class << self
     def run
+      test('toolchain do produto fica fora do escopo de orquestração') do
+        changed = %w[package.json vercel.json .nvmrc vite.config.ts]
+        assert_true(!OrchestrationValidator.send(:agent_scope_changed?, changed))
+      end
+
+      test('runtime de agentes mantém o escopo de orquestração') do
+        changed = ['scripts/lib/agent_single_runtime.rb']
+        assert_true(OrchestrationValidator.send(:agent_scope_changed?, changed))
+      end
+
       # === POSITIVOS ===
       test_positive("exploração read-only", "exploracao-readonly.json") do |plano|
         assert_eq(plano['status'], 'planejado')
@@ -484,7 +495,7 @@ module OrchestrationTests
       end
 
       test("symlink de input escapando do repo é rejeitado") do
-        Dir.mktmpdir('orch-path', REPO_ROOT) do |dir|
+        Dir.mktmpdir('orch-path', Dir.tmpdir) do |dir|
           link = File.join(dir, 'escape.json')
           File.symlink('/etc/passwd', link)
           _out, err, status = run_cli('--input', link, '--stdout')
@@ -494,7 +505,7 @@ module OrchestrationTests
       end
 
       test("symlink no diretório pai do output é rejeitado") do
-        Dir.mktmpdir('orch-path', REPO_ROOT) do |dir|
+        Dir.mktmpdir('orch-path', Dir.tmpdir) do |dir|
           link_dir = File.join(dir, 'escape-dir')
           File.symlink('/etc', link_dir)
           input = File.join(EXEMPLOS, 'exploracao-readonly.json')
@@ -720,7 +731,7 @@ module OrchestrationTests
         require 'open3'
         card = build_executor_card
         cmds = card.dig('executor', 'comandos')
-        Dir.mktmpdir('e2e-3b2a', REPO_ROOT) do |dir|
+        Dir.mktmpdir('e2e-3b2a', Dir.tmpdir) do |dir|
           card_path = File.join(dir, 'card.json')
           plan_path = File.join(dir, 'plan.json')
           File.write(card_path, JSON.pretty_generate(card))
@@ -1925,10 +1936,9 @@ module OrchestrationTests
     end
 
     def with_temp_skill_registry
-      Dir.mktmpdir('orch-skill', REPO_ROOT) do |dir|
+      Dir.mktmpdir('orch-skill', Dir.tmpdir) do |dir|
         skill_path = File.join(dir, 'SKILL.md')
         File.write(skill_path, "name: fixture-skill\n")
-        rel_path = skill_path.delete_prefix(REPO_ROOT + File::SEPARATOR)
         good_hash = Digest::SHA256.file(skill_path).hexdigest
         registry = {
           'skills' => [
@@ -1939,7 +1949,7 @@ module OrchestrationTests
               'status' => 'aprovada',
               'papeis_permitidos' => ['executor-escopo'],
               'ferramentas_compativeis' => ['codex'],
-              'caminho' => rel_path,
+              'caminho' => 'SKILL.md',
               'hash' => good_hash,
               'acesso_rede' => false,
               'pode_escrever' => false,
@@ -1951,7 +1961,13 @@ module OrchestrationTests
         card = build_executor_card
         card['skills_solicitadas'] = ['fixture-skill']
         classes = { 'executor-escopo' => { 'classe' => 'executor', 'pode_executar_shell' => true } }
+        original_root = MissionPlanner::REPO_ROOT
+        MissionPlanner.send(:remove_const, :REPO_ROOT)
+        MissionPlanner.const_set(:REPO_ROOT, dir)
         yield registry, card, classes, skill_path, good_hash
+      ensure
+        MissionPlanner.send(:remove_const, :REPO_ROOT)
+        MissionPlanner.const_set(:REPO_ROOT, original_root) if original_root
       end
     end
   end

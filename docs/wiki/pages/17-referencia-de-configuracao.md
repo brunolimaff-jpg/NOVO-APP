@@ -97,7 +97,8 @@ Toda variável com prefixo `VITE_` pode ser inlineada no JavaScript final. Chave
 | `PINECONE_DOCS_NAMESPACE`         | Serverless         | Namespace default de `/api/docs-rag`; fallback `senior-erp-docs`.                                                        |
 | `SUPABASE_URL`                    | Serverless         | URL preferida para diagnostics e cache server-side; fallback aceita `VITE_SUPABASE_URL`.                                 |
 | `SUPABASE_SERVICE_ROLE_KEY`       | Serverless         | Necessária para `scout_diagnostics` e cache persistente de busca societária.                                             |
-| `SENTRY_AUTH_TOKEN`               | Build Vite         | Habilita upload de sourcemaps pelo `@sentry/vite-plugin`.                                                                |
+| `SENTRY_UPLOAD_SOURCEMAPS`        | Build Vite         | Opt-in server-side: deve ser `true` para permitir upload de sourcemaps.                                                  |
+| `SENTRY_AUTH_TOKEN`               | Build Vite         | Necessário junto de `SENTRY_UPLOAD_SOURCEMAPS=true`; sozinho não habilita upload.                                       |
 | `SENTRY_ORG`                      | Build Vite/scripts | Default `s-3j` no plugin e script MCP.                                                                                   |
 | `SENTRY_PROJECT`                  | Build Vite/scripts | Default `scout-360`.                                                                                                     |
 | `LOCAL_DEV_API_PROXY_TARGET`      | Vite dev           | Override do alvo remoto do proxy local.                                                                                  |
@@ -187,7 +188,7 @@ Sentry frontend inicializa em `index.tsx` somente quando `VITE_SENTRY_DSN` exist
 | `replaysOnErrorSampleRate` | `1.0`                                                                                      |
 | Replay text masking        | `maskAllText: false`                                                                       |
 | Chunk errors               | `ChunkLoadError`, `Loading chunk` e dynamic import failure são descartados em `beforeSend` |
-| Sourcemaps                 | Enviados no build apenas com `SENTRY_AUTH_TOKEN`                                           |
+| Sourcemaps                 | Desabilitados por padrão; enviados apenas com `SENTRY_UPLOAD_SOURCEMAPS=true` e token     |
 
 Sentry é observabilidade de erro, não prova final de saúde visual. Incidentes de overlay, timeline ou painel branco também dependem de `scout_diagnostics`, eventos de operador, DOM visível e validação de preview.
 
@@ -231,7 +232,7 @@ VERCEL_AUTOMATION_BYPASS_SECRET=...
 | CNPJ local retorna HTML ou `Invalid JSON`                        | Rode com proxy válido, use `vercel dev` ou configure `VITE_CNPJ_PROXY_URL`.                                             |
 | Diagnóstico retorna `Supabase not configured`                    | Configure `SUPABASE_SERVICE_ROLE_KEY` e uma URL Supabase no runtime serverless.                                         |
 | Busca societária não persiste cache em produção                  | Confirme `SUPABASE_SERVICE_ROLE_KEY` e tabela `extract_cache`.                                                          |
-| Sourcemaps não aparecem no Sentry                                | Confirme `SENTRY_AUTH_TOKEN`, `SENTRY_ORG` e `SENTRY_PROJECT` no ambiente de build.                                     |
+| Sourcemaps não aparecem no Sentry                                | Confirme a autorização para upload e `SENTRY_UPLOAD_SOURCEMAPS=true`, além de token, organização e projeto no build.    |
 | Comportamento local não bate com o checkout                      | Verifique `LOCAL_DEV_API_PROXY_TARGET`; o Vite pode estar usando backend remoto.                                        |
 
 ## Verificação

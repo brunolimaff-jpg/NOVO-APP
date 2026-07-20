@@ -15,6 +15,17 @@ module SkillsGovernanceValidator
   WRITER_ROLES = Set.new(%w[executor-escopo]).freeze
   BOOLEAN_FIELDS = %w[selecionavel_por_missao possui_scripts acesso_rede pode_escrever pode_executar_shell pode_delegar].freeze
   ALLOWED_DIRECTORIES = ['.agents/skills/', '.agents/orquestracao/', '.agents/seguranca/', '.agents/pilotos/'].freeze
+  SKILLS_GOVERNANCE_SURFACES = [
+    '.agents/skills/',
+    '.agents/papeis/',
+    '.agents/adaptadores/',
+    'skills-lock.json',
+    'docs/SKILLS-GOVERNANCE.md',
+    'AGENTS.md',
+    'scripts/validate-skills-governance.rb',
+    'scripts/test-validate-skills-governance.rb',
+    '.github/workflows/ci.yml'
+  ].freeze
   ALLOWED_EXACT_FILES = [
     'docs/SKILLS-GOVERNANCE.md',
     'AGENTS.md',
@@ -118,6 +129,10 @@ module SkillsGovernanceValidator
     ALLOWED_DIRECTORIES.any? { |prefix| path.start_with?(prefix) }
   end
 
+  def skills_governance_surface?(path)
+    SKILLS_GOVERNANCE_SURFACES.any? { |surface| surface.end_with?('/') ? path.start_with?(surface) : path == surface }
+  end
+
   def validate_ruby_baseline!(root)
     ruby_version_path = File.join(root, '.ruby-version')
     fail!('missing .ruby-version') unless File.exist?(ruby_version_path)
@@ -214,7 +229,8 @@ module SkillsGovernanceValidator
 
     used_base, changed_output = resolve_diff_base(root, base_ref)
     changed_files = changed_output.split("\n").reject(&:empty?)
-    forbidden = changed_files.reject { |f| file_allowed?(f) }
+    governance_files = changed_files.select { |file| skills_governance_surface?(file) }
+    forbidden = governance_files.reject { |file| file_allowed?(file) }
     fail!("forbidden changed files: #{forbidden.join(', ')}") unless forbidden.empty?
 
     lock_skills = lockfile['skills'] || {}
@@ -224,7 +240,8 @@ module SkillsGovernanceValidator
       used_base: used_base,
       ruby_version: ruby_version,
       skills_count: skills.length,
-      changed_files: changed_files
+      changed_files: changed_files,
+      applicability: governance_files.empty? ? 'NOT_APPLICABLE_SUCCESS' : 'APPLICABLE_SUCCESS'
     }
   end
 end
@@ -236,5 +253,5 @@ if $PROGRAM_NAME == __FILE__
   puts 'OK compatibilidade.yaml'
   puts 'OK skills-lock.json'
   puts "OK Ruby baseline #{result[:ruby_version]}"
-  puts "OK changed-file policy (base=#{result[:used_base]})"
+  puts "#{result[:applicability]} changed-file policy (base=#{result[:used_base]})"
 end

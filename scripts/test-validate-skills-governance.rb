@@ -108,6 +108,26 @@ with_repo do |dir|
   tests << 'positive-pass'
 end
 
+with_repo do |dir|
+  sh!('git checkout -b feature/product-toolchain', chdir: dir)
+  write(File.join(dir, 'vercel.json'), "{\"installCommand\":\"npm ci\"}\n")
+  sh!('git add vercel.json', chdir: dir)
+  sh!('git commit -m toolchain', chdir: dir)
+  result = SkillsGovernanceValidator.validate!(root: dir, base_ref: 'main')
+  raise "expected NOT_APPLICABLE_SUCCESS, got #{result[:applicability].inspect}" unless result[:applicability] == 'NOT_APPLICABLE_SUCCESS'
+  pass!('product toolchain change is not applicable to skills governance')
+  tests << 'product-toolchain-not-applicable'
+end
+
+with_repo do |dir|
+  sh!('git checkout -b feature/skills-governance-violation', chdir: dir)
+  write(File.join(dir, '.agents/papeis/forbidden.md'), 'forbidden')
+  sh!('git add .agents/papeis/forbidden.md', chdir: dir)
+  sh!('git commit -m forbidden-governance-file', chdir: dir)
+  expect_validation_error('forbidden-governance-file', /forbidden changed files/) { SkillsGovernanceValidator.validate!(root: dir, base_ref: 'main') }
+  tests << 'forbidden-governance-file'
+end
+
 begin
   expect_validation_error('helper-self-test', /expected validation error/) do
     # no-op on purpose
@@ -214,22 +234,26 @@ with_repo do |dir|
   write(File.join(dir, 'forbidden.txt'), 'oops')
   sh!('git add forbidden.txt', chdir: dir)
   sh!('git commit -m forbidden', chdir: dir)
-  expect_validation_error('forbidden-file', /forbidden changed files/) { SkillsGovernanceValidator.validate!(root: dir, base_ref: 'main') }
-  tests << 'forbidden-file'
+  result = SkillsGovernanceValidator.validate!(root: dir, base_ref: 'main')
+  raise "expected NOT_APPLICABLE_SUCCESS, got #{result[:applicability].inspect}" unless result[:applicability] == 'NOT_APPLICABLE_SUCCESS'
+  pass!('non-governance file is not applicable')
+  tests << 'non-governance-file-not-applicable'
 end
 
 {
-  'generic-scripts-blocked' => 'scripts/evil.rb',
-  'generic-docs-blocked' => 'docs/evil.md',
-  'generic-github-blocked' => '.github/evil.yml',
-  'generic-agents-blocked' => '.agents/evil.md'
+  'generic-scripts-not-applicable' => 'scripts/evil.rb',
+  'generic-docs-not-applicable' => 'docs/evil.md',
+  'generic-github-not-applicable' => '.github/evil.yml',
+  'generic-agents-not-applicable' => '.agents/evil.md'
 }.each do |label, path|
   with_repo do |dir|
     sh!("git checkout -b feature/#{label}", chdir: dir)
     write(File.join(dir, path), 'oops')
     sh!("git add #{path}", chdir: dir)
     sh!("git commit -m #{label}", chdir: dir)
-    expect_validation_error(label, /forbidden changed files/) { SkillsGovernanceValidator.validate!(root: dir, base_ref: 'main') }
+    result = SkillsGovernanceValidator.validate!(root: dir, base_ref: 'main')
+    raise "#{label}: expected NOT_APPLICABLE_SUCCESS, got #{result[:applicability].inspect}" unless result[:applicability] == 'NOT_APPLICABLE_SUCCESS'
+    pass!(label)
     tests << label
   end
 end

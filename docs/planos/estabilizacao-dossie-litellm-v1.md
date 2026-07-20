@@ -1,8 +1,8 @@
 # Estabilização do dossiê e migração LiteLLM — v1
 
-> **Status:** plano aprovado; PR 1 em execução.
+> **Status:** PR 1 em correção única; Build Output remoto comprovado.
 > **Baseline:** `a55113e525d31c5a0de82f5b01208ac82ae1eb29`.
-> **Prioridade:** estabilizar exclusivamente o fluxo de geração, persistência, exibição e follow-up do dossiê.
+> **Prioridade:** estabilizar exclusivamente o fluxo de geração, persistência, exibição e acompanhamento contextual do dossiê.
 
 ## Decisões congeladas
 
@@ -30,7 +30,7 @@ Usuário autenticado
 → benchmark interno quando aplicável
 → consolidação, validação e Score PORTA
 → persistência e lifecycle final
-→ renderização e follow-up vinculado ao dossierId
+→ renderização e acompanhamento contextual vinculado ao dossierId
 ```
 
 Qualquer falha de identidade, persistência ou validação estrutural bloqueia a entrega. Falha de uma fonte opcional ou do RAG deve aparecer como limitação e permitir apenas resultado degradado, nunca fato inventado.
@@ -94,11 +94,21 @@ Ficam fora: LiteLLM, Gemini, prompts, APIs, Supabase, Vercel remoto, Sentry, Pin
 ## Validação registrada em 2026-07-20
 
 - `npm ci` passou com Node `24.14.1` e npm `11.11.0`, sem alterar o lockfile.
-- `npm run build` passou. O build revelou que uma credencial Sentry já presente no ambiente publicou sourcemaps; nenhuma alteração de Sentry faz parte desta PR e novos builds devem manter `SENTRY_AUTH_TOKEN` vazio até a revisão específica da observabilidade.
+- O Preview automático `dpl_B5P2ob3VcmgmrB8aaojUdUFyocmw` ficou READY em Preview, executou `npm ci`, concluiu `/vercel/output` e gerou 13 Functions Node. Production e deploy manual não foram executados.
+- `npm run build` passou, mas uma credencial Sentry já presente no ambiente publicou sourcemaps. O upload passa a exigir `SENTRY_UPLOAD_SOURCEMAPS=true` e token; fica desabilitado por padrão e a ativação futura exige autorização explícita.
 - `npm run docs:obsidian:check` passou.
-- Typecheck e a suíte geral falharam em arquivos e contratos fora deste diff, incluindo módulos de dossiê, LiteLLM, auth, socio-search e fixtures Golden. Essas falhas são baseline preexistente e não serão corrigidas nesta PR.
-- `vercel build` foi interrompido antes do build com `project_settings_required`: a CLI exigiu `vercel pull` ou `--yes` para obter configuração remota. Essa sincronização pode materializar configuração de ambiente e está fora do escopo; o Build Output fica como gate pendente para a revisão autorizada da PR.
+- Typecheck e a suíte geral falharam em arquivos e contratos fora deste diff, incluindo módulos de dossiê, LiteLLM, auth, socio-search e fixtures Golden. Com Node `24.14.1` e npm `11.11.0`, Typecheck e Golden reproduzem as causas funcionais da baseline; essas falhas não serão corrigidas nesta PR.
+- O build Vercel local permanece `LOCAL_VERCEL_BUILD_UNLINKED`: a CLI exige vínculo local, mas o Build Output remoto já foi comprovado. Não usar `vercel pull`, `VERCEL_ORG_ID` ou `VERCEL_PROJECT_ID` apenas para repetir essa evidência.
 
 ## Próxima sessão
 
-Validar e revisar a PR 1. Antes da PR 2, obter autorização específica para recuperar apenas as configurações necessárias e fechar o Build Output da Vercel sem expor segredos.
+Validar e revisar a PR 1. Antes da PR 2, concluir o call graph de Radar, War Room e RAG. O Build Output remoto já não é pendência.
+
+## Comparação de falhas preexistentes
+
+| Job | Baseline | Head com Node 24/npm 11.11.0 | Mesma causa? | Classificação |
+| --- | --- | --- | :---: | --- |
+| Typecheck | exports e módulos ausentes | mesmos exports e módulos ausentes | sim | `PREEXISTENTE_CONFIRMADO` |
+| Tests | timeouts de lookup oficial | mesmos timeouts no CI | sim | `PREEXISTENTE_CONFIRMADO` |
+| Dossier Golden | bloqueio de autenticação antes do botão do dossiê | mesmo bloqueio local | sim | `PREEXISTENTE_CONFIRMADO` |
+| E2E Critical Browser | `app-shell` ausente após 15 s | mesmo timeout no CI | sim | `PREEXISTENTE_CONFIRMADO` |

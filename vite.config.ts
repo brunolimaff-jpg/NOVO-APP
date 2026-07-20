@@ -33,6 +33,7 @@ function generateVersionPlugin(): Plugin {
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
+  const shouldUploadSourcemaps = env.SENTRY_UPLOAD_SOURCEMAPS === 'true' && Boolean(env.SENTRY_AUTH_TOKEN);
   const localApiProxyTarget = env.LOCAL_DEV_API_PROXY_TARGET || LOCAL_DEV_API_PROXY_TARGET;
   const localApiProxyHeaders = env.VERCEL_AUTOMATION_BYPASS_SECRET
     ? { 'x-vercel-protection-bypass': env.VERCEL_AUTOMATION_BYPASS_SECRET }
@@ -76,11 +77,12 @@ export default defineConfig(({ mode }) => {
       // PWA/Service Worker removido (PR #334).
       // Production estava servindo bundles antigos via SW cache,
       // causando overlay hero preso após deploys.
-      Boolean(env.SENTRY_AUTH_TOKEN) &&
+      shouldUploadSourcemaps &&
         sentryVitePlugin({
           org: env.SENTRY_ORG || 's-3j',
           project: env.SENTRY_PROJECT || 'scout-360',
           authToken: env.SENTRY_AUTH_TOKEN,
+          telemetry: false,
           sourcemaps: {
             assets: ['./dist/**'],
             ignore: ['node_modules'],

@@ -53,7 +53,7 @@ Vercel serverless
 | ----------------------- | ----------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
 | Sentry client           | `VITE_SENTRY_DSN`                                                       | Ativa `Sentry.init`; sem DSN, o client fica desabilitado.                    |
 | Sentry release          | `VITE_SENTRY_RELEASE`, `VITE_APP_VERSION`, `VITE_VERCEL_GIT_COMMIT_SHA` | Resolvem `release` e `dist` do evento Sentry.                                |
-| Sentry sourcemaps       | `SENTRY_AUTH_TOKEN`, `SENTRY_ORG`, `SENTRY_PROJECT`, `APP_VERSION`      | Ativam `sentryVitePlugin` no build e upload de sourcemaps.                   |
+| Sentry sourcemaps       | `SENTRY_UPLOAD_SOURCEMAPS`, `SENTRY_AUTH_TOKEN`, `SENTRY_ORG`, `SENTRY_PROJECT`, `APP_VERSION` | O plugin só envia sourcemaps com opt-in explícito (`SENTRY_UPLOAD_SOURCEMAPS=true`) e token. |
 | Console detalhado       | `VITE_VERBOSE_LOGS`, `VITE_DEBUG_CONSOLE`                               | Ativam logs `info`/`debug` do `scoutDiag` fora de DEV.                       |
 | Diagnóstico persistente | `VITE_SCOUT_DIAGNOSTICS_ENABLED`                                        | `true` ativa flush persistente; `false` desativa mesmo se houver flag local. |
 | Diagnóstico local       | `localStorage.SCOUT_DIAG_ENABLED = "1"`                                 | Ativa persistência em preview/local quando a env não foi definida.           |
@@ -389,7 +389,7 @@ npm run build
 | Falha                                    | Comportamento                                                                          |
 | ---------------------------------------- | -------------------------------------------------------------------------------------- |
 | `VITE_SENTRY_DSN` ausente                | Sentry fica desabilitado.                                                              |
-| `SENTRY_AUTH_TOKEN` ausente              | Build não ativa upload de sourcemaps pelo plugin.                                      |
+| `SENTRY_UPLOAD_SOURCEMAPS` diferente de `true` ou `SENTRY_AUTH_TOKEN` ausente | Build não ativa upload de sourcemaps pelo plugin. |
 | `VITE_SCOUT_DIAGNOSTICS_ENABLED=false`   | Diagnóstico persistente fica desligado mesmo com flag local.                           |
 | `/api/gemini` retorna erro no flush      | Eventos voltam para fallback em `localStorage`.                                        |
 | Supabase server-side sem service role    | `recordDiagnostics` responde `200` com `degraded: true`.                               |

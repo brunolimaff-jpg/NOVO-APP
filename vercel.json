@@ -1,5 +1,5 @@
 {
-  "installCommand": "npm ci",
+  "installCommand": "npm install --global npm@11.11.0 && npm --version && npm ci",
   "functions": {
     "api/gemini.ts": {
       "maxDuration": 300

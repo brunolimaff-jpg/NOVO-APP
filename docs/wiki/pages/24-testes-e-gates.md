@@ -174,7 +174,7 @@ O workflow `Preview Smoke` roda em `deployment_status`, `/smoke <url>` em coment
 
 ## Drift conhecido
 
-**Node.js:** O `package.json` declara Node.js 24.x, enquanto os workflows atuais do GitHub Actions utilizam Node.js 20. Essa divergência deve ser resolvida em uma PR técnica separada. A PR #350 é exclusivamente documental e não altera o ambiente de CI.
+Não há baseline operacional Node 20. O repositório usa Node `24.14.1` via `.nvmrc` e npm `11.11.0`; CI e Vercel devem registrar essas versões antes do `npm ci`.
 
 ## Critérios por tipo de mudança
 

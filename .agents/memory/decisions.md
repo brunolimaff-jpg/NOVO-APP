@@ -2,7 +2,7 @@
 
 ## DI-2026-07-20-01: Primeiro ciclo restrito ao dossiê
 
-- **Decisão:** O ciclo inicial mantém somente o fluxo de pesquisa, geração, persistência, renderização e follow-up do dossiê. Radar, War Room, benchmark independente e ferramentas laterais ficam explicitamente indisponíveis, sem execução oculta.
+- **Decisão:** O ciclo inicial mantém somente o fluxo de pesquisa, geração, persistência, renderização e acompanhamento contextual do dossiê. Radar, War Room, benchmark independente e ferramentas laterais ficam explicitamente indisponíveis, sem execução oculta.
 - **Referência:** `docs/planos/estabilizacao-dossie-litellm-v1.md`.
 
 ## DI-2026-07-20-02: Endpoint de negócio único e cancelamento cooperativo

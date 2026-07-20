@@ -8,7 +8,7 @@
 
 - O ciclo experimental de agentes está encerrado e não é requisito do produto.
 - O plano canônico está em `docs/planos/estabilizacao-dossie-litellm-v1.md`.
-- O primeiro ciclo estabiliza exclusivamente o dossiê: pesquisa, geração, persistência, renderização e follow-up.
+- O primeiro ciclo estabiliza exclusivamente o dossiê: pesquisa, geração, persistência, renderização e acompanhamento contextual.
 - Radar, War Room, benchmark independente e RAG documental ficam fora do ciclo inicial.
 
 ## PR 1
@@ -17,8 +17,10 @@
 - Escopo: Node 24, npm 11.11.0, `npm ci`, CI, Vercel Build Output e documentação operacional.
 - Não executar: LLM, runtime de agentes, piloto, migration, deploy ou mudança funcional.
 - `npm ci` passou com Node 24.14.1/npm 11.11.0; build e validação documental passaram.
-- Typecheck e testes gerais falham fora do diff; registrar como baseline preexistente.
-- `vercel build` bloqueou em `project_settings_required`. Não executar `vercel pull` sem autorização específica, pois pode materializar configuração de ambiente.
+- Typecheck, testes gerais, Golden e E2E seguem falhando por causas comparadas com a baseline. Com Node 24.14.1/npm 11.11.0, Typecheck e Golden reproduzem as mesmas falhas funcionais da baseline.
+- O Preview automático `dpl_B5P2ob3VcmgmrB8aaojUdUFyocmw` ficou READY, executou `npm ci`, concluiu Build Output e gerou 13 Functions Node. Production e deploy manual não foram executados.
+- O `vercel build` local permanece não vinculado (`LOCAL_VERCEL_BUILD_UNLINKED`); não executar `vercel pull` sem autorização específica, pois pode materializar configuração de ambiente.
+- Skills Governance e Agent Orchestration passam a classificar PRs fora de suas superfícies como `NOT_APPLICABLE_SUCCESS`, preservando validação fail-closed quando seus próprios arquivos mudam.
 
 ## Próximo passo seguro
 

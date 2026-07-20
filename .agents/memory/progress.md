@@ -20,6 +20,7 @@
   entrega ou Run Report foi criado.
 - Prioridade devolvida ao backlog do Scout 360; próxima triagem: #409–#418 e
   #435.
+
 # 2026-07-20 — PR 1: baseline, CI e Vercel
 
 - Baseline remota confirmada em `a55113e525d31c5a0de82f5b01208ac82ae1eb29`.
