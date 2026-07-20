@@ -4,14 +4,8 @@
     "api/gemini.ts": {
       "maxDuration": 300
     },
-    "api/gerar-dossie.ts": {
-      "maxDuration": 300
-    },
     "api/open-web-search.ts": {
       "maxDuration": 60
-    },
-    "api/radar-scan.ts": {
-      "maxDuration": 120
     },
     "api/extract-content.ts": {
       "maxDuration": 60

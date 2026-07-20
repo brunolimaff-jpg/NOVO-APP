@@ -32,7 +32,7 @@ const baseSession: ChatSession = {
 };
 
 describe('MVP feature gating UI', () => {
-  it('hides integrity actions when restricted', () => {
+  it('mostra aviso estático no lugar do teste de integridade', () => {
     render(
       <SettingsDrawer
         isOpen={true}
@@ -42,12 +42,11 @@ describe('MVP feature gating UI', () => {
         isDarkMode={true}
         onToggleTheme={vi.fn()}
         onClearOperator={vi.fn()}
-        canAccessIntegrityCheck={false}
       />,
     );
 
-    expect(screen.queryByText('Teste de Integridade')).not.toBeInTheDocument();
-    expect(screen.queryByText(/modo de investigação/i)).not.toBeInTheDocument();
+    expect(screen.getByText('Disponível em breve.')).toBeInTheDocument();
+    expect(screen.getByText('Estamos priorizando a estabilização e a qualidade dos dossiês.')).toBeInTheDocument();
   });
 
   it('does not render removed mini CRM entries in sessions sidebar', () => {

@@ -173,23 +173,6 @@ vi.mock('../hooks/useUpdateNotification', () => ({
   }),
 }));
 
-vi.mock('../features/radar', () => ({
-  useRadar: () => ({
-    alerts: [],
-    config: { isConfigured: false },
-    unreadCount: 0,
-    isScanning: false,
-    lastScanAt: null,
-    lastError: null,
-    lastWarning: null,
-    updateConfig: vi.fn(),
-    markAsRead: vi.fn(),
-    markAllAsRead: vi.fn(),
-    dismissAlert: vi.fn(),
-    forceScan: vi.fn(),
-  }),
-}));
-
 vi.mock('../hooks/useAppInitialization', () => ({
   useAppInitialization: vi.fn(),
 }));
@@ -231,10 +214,8 @@ function renderApp() {
 vi.mock('../utils/featureAccess', () => ({
   getFeatureAccess: () => ({
     dashboard: false,
-    integrityCheck: false,
     clientLookup: false,
     deepDive: deepDiveAccessRef.current,
-    warRoom: false,
   }),
 }));
 

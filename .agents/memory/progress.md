@@ -1,5 +1,12 @@
 # Progress
 
+## 2026-07-20 — PR 2: contenção de Radar e War Room
+
+- Baseline `e0e3d8b2468fdf4e1afe3159c2a5b8320e395845`; branch `codex/dossie-pr2-contencao`.
+- Radar, auto-scan, War Room, benchmark independente, docs-RAG, health generativo e ping LiteLLM foram removidos da aplicação ativa.
+- `api/gemini`, `api/rag`, Pinecone, dados históricos e o benchmark interno do waterfall foram preservados.
+- Preview deverá comprovar nove Functions Node; não houve LLM real, migration, deploy manual ou merge.
+
 ## 2026-07-14 — Fase 3B.3C.1 (live readiness macOS)
 
 - Branch `fix/fase-3b3c1-live-readiness-macos` @ `636c3d4e`

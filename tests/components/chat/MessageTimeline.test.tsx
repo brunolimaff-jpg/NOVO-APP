@@ -163,8 +163,6 @@ function buildProps(
     shouldSuspendVirtualizedList: false,
     onConfirmOperatorName: vi.fn(),
     onStartInvestigation: vi.fn(async () => undefined),
-    radar: undefined,
-    onOpenRadarPanel: vi.fn(),
     onLoadMore: vi.fn(),
     onRetry: vi.fn(),
     onDeleteMessage: vi.fn(),

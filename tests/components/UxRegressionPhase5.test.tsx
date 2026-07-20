@@ -1,8 +1,7 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import SessionsSidebar from '../../components/SessionsSidebar';
-import RadarPanel from '../../components/RadarPanel';
-import type { ChatSession, RadarAlert } from '../../types';
+import type { ChatSession } from '../../types';
 
 const baseSession: ChatSession = {
   id: 'session-1',
@@ -17,18 +16,6 @@ const baseSession: ChatSession = {
   messages: [],
 };
 
-const baseAlert: RadarAlert = {
-  id: 'radar-1',
-  title: 'Movimento relevante no setor',
-  summary: 'Resumo de teste para o alerta.',
-  sourceUrl: 'https://example.com/noticia',
-  sourceName: 'Fonte Teste',
-  category: 'mercado',
-  relevance: 'alta',
-  publishedAt: '2026-03-20',
-  scannedAt: new Date().toISOString(),
-  read: false,
-};
 
 describe('UX regression - Phase 5', () => {
   const originalInnerWidth = window.innerWidth;
@@ -79,37 +66,4 @@ describe('UX regression - Phase 5', () => {
     expect(onCloseMobile).toHaveBeenCalledTimes(2);
   });
 
-  it('shows radar warning/error feedback and allows retry action', () => {
-    const onForceScan = vi.fn();
-
-    render(
-      <RadarPanel
-        alerts={[baseAlert]}
-        metaInsight={null}
-        isScanning={false}
-        lastScanAt={Date.now()}
-        scanWarning="Varredura parcial: alguns temas falharam (mercado)."
-        scanError={{
-          code: 'RADAR_SERVER',
-          message: 'O serviço do Radar está instável no momento. Tente novamente em instantes.',
-          retryable: true,
-        }}
-        unreadCount={1}
-        isConfigured={true}
-        onMarkAsRead={vi.fn()}
-        onMarkAllAsRead={vi.fn()}
-        onDismiss={vi.fn()}
-        onForceScan={onForceScan}
-        onOpenSettings={vi.fn()}
-        onClose={vi.fn()}
-        isDarkMode={false}
-      />,
-    );
-
-    expect(screen.getByText(/Varredura parcial/i)).toBeInTheDocument();
-    expect(screen.getByText(/Falha na varredura \(RADAR_SERVER\)/i)).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole('button', { name: /Tentar novamente/i }));
-    expect(onForceScan).toHaveBeenCalledTimes(1);
-  });
 });

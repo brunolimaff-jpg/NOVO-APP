@@ -17,6 +17,8 @@ source_files:
   - 'api/socio-search.ts'
 ---
 
+> **Ciclo atual:** `/api/gerar-dossie`, `/api/radar-scan` e `/api/docs-rag` foram removidas da aplicação ativa. Esta página preserva referência histórica até a próxima revisão completa do inventário.
+
 As rotas serverless do app ficam em `api/*.ts`, rodam com `runtime: "nodejs"` quando declarado e expõem contratos HTTP JSON consumidos pelo frontend Vite, por testes Vitest e pelo preview Vercel. A maioria das rotas aplica `setSecurityHeaders(res)` no início do handler; validação de body usa Zod nas rotas novas e validação manual nas rotas legadas de CNPJ, Comex e status de link.
 
 <Note>

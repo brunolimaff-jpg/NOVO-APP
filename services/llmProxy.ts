@@ -354,18 +354,3 @@ export async function executeOpenWebSearchTool(query: string, url?: string): Pro
   }
   return response.json();
 }
-
-export async function proxyGeminiHealth(signal?: AbortSignal): Promise<GeminiHealthResponse> {
-  // endpoint resolvido lazy — sem const de módulo
-  return callGeminiApi<GeminiHealthResponse>(resolveGeminiApiEndpoint(), { action: 'health' }, signal);
-}
-
-/** Endpoint dedicado para geração de dossiês completos via Gemini generateContent. */
-export async function proxyGerarDossie(
-  params: Omit<GeminiGenerateRequest, 'action'>,
-  signal?: AbortSignal,
-): Promise<GeminiGenerateResponse> {
-  // FIX: endpoint resolvido lazy dentro da função, não como const de módulo.
-  // Previne TDZ "Cannot access '$i' before initialization" em produção.
-  return callGeminiApi<GeminiGenerateResponse>(resolveEndpoint('/api/gerar-dossie'), params, signal);
-}

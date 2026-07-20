@@ -1,8 +1,8 @@
 # Handoff — Estabilização do dossiê
 
 > **Atualizado:** 2026-07-20
-> **Baseline:** `a55113e525d31c5a0de82f5b01208ac82ae1eb29`
-> **Foco:** PR 1 — baseline, CI e Vercel.
+> **Baseline:** `e0e3d8b2468fdf4e1afe3159c2a5b8320e395845`
+> **Foco:** PR 2 — contenção de Radar, War Room e execuções secundárias.
 
 ## Estado
 
@@ -11,7 +11,7 @@
 - O primeiro ciclo estabiliza exclusivamente o dossiê: pesquisa, geração, persistência, renderização e acompanhamento contextual.
 - Radar, War Room, benchmark independente e RAG documental ficam fora do ciclo inicial.
 
-## PR 1
+## PR 1 — mergeada
 
 - Branch: `codex/dossie-baseline-ci-vercel`.
 - Escopo: Node 24, npm 11.11.0, `npm ci`, CI, Vercel, Sentry sourcemaps opt-in e documentação operacional.
@@ -21,6 +21,13 @@
 - Skills Governance e Agent Orchestration validam somente seus domínios; não existe gate global de escopo misto nesta PR.
 - Typecheck, Tests, Golden e E2E permanecem falhas preexistentes comparadas à baseline.
 
+## PR 2
+
+- Branch: `codex/dossie-pr2-contencao`.
+- Radar, auto-scan, War Room, benchmark independente, docs-RAG, Teste de Integridade generativo e ping LiteLLM foram removidos da aplicação ativa.
+- `api/gemini`, `api/rag`, Pinecone, dados históricos e `runDossierBenchmarkStage` permanecem preservados.
+- Preview esperado: nove Functions Node; nenhum LLM real, migration, deploy manual ou merge nesta PR.
+
 ## Próximo passo seguro
 
-Revisar a PR 1. A PR 2 só começa após novo call graph de Radar, War Room e RAG.
+Validar Preview, Functions e CI da PR 2 antes de qualquer recuperação seguinte.

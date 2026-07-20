@@ -5,11 +5,11 @@ import { storage } from '../services/storage';
 import { trackOperatorEvent } from '../services/operatorTracking';
 import { logDossierAccess } from '../services/dossierAccessService';
 import { scoutDiag } from '../utils/diagnosticLog';
-import { resolvePromptMode, shouldIncludeBudgetPrompt, buildRadarContextBlock } from '../utils/promptResolvers';
+import { resolvePromptMode, shouldIncludeBudgetPrompt } from '../utils/promptResolvers';
 import { findExistingDossier, type ExistingDossier } from '../lib/supabase/dossierDuplicate';
 import { supabase } from '../lib/supabaseClient';
 import type { ChatSession } from '../types';
-import type { RadarProps, StartInvestigationPayload } from '../components/chat/contracts';
+import type { StartInvestigationPayload } from '../components/chat/contracts';
 
 /** Telemetria best-effort — nunca bloqueia reopen/override. */
 async function safeLogDossierAccess(dossierId: string, operatorId: string, cnpj?: string | null): Promise<void> {
@@ -22,18 +22,14 @@ async function safeLogDossierAccess(dossierId: string, operatorId: string, cnpj?
 
 interface UseInvestigationParams {
   mode: unknown;
-  canWarRoom: boolean;
   onDeepDive: (prompt: string, hiddenPrompt: string, companyName: string, cnpj?: string) => Promise<void>;
-  radar?: RadarProps;
   operatorId: string;
   onSelectSession: (sessionId: string) => void;
 }
 
 export function useInvestigation({
   mode,
-  canWarRoom,
   onDeepDive,
-  radar,
   operatorId,
   onSelectSession,
 }: UseInvestigationParams) {
@@ -44,7 +40,7 @@ export function useInvestigation({
   const executeInvestigation = useCallback(
     async (payload: StartInvestigationPayload) => {
       const prompt = `🔍 Investigando ${payload.companyName}...`;
-      const promptMode = resolvePromptMode(mode, canWarRoom);
+      const promptMode = resolvePromptMode(mode);
 
       let segmentHint: string | undefined;
       if (payload.cnpj) {
@@ -68,7 +64,7 @@ export function useInvestigation({
           segmentHint,
         },
         {
-          includeBudget: shouldIncludeBudgetPrompt(payload, promptMode, radar),
+          includeBudget: shouldIncludeBudgetPrompt(payload, promptMode),
           mode: promptMode,
           strictAudit: true,
           enableDiscrepancyHunter: true,
@@ -76,10 +72,9 @@ export function useInvestigation({
           promptVersion: PROMPT_VERSION,
         },
       );
-      const hiddenPrompt = [hiddenPromptBase, buildRadarContextBlock(radar)].filter(Boolean).join('\n\n');
-      await onDeepDive(prompt, hiddenPrompt, payload.companyName, payload.cnpj ?? undefined);
+      await onDeepDive(prompt, hiddenPromptBase, payload.companyName, payload.cnpj ?? undefined);
     },
-    [mode, canWarRoom, onDeepDive, radar],
+    [mode, onDeepDive],
   );
 
   const handleStartInvestigation = useCallback(
