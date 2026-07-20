@@ -5,7 +5,7 @@ Senior Scout 360 is a React 19 + TypeScript + Vite web app for commercial intell
 ## Quick start
 
 ```bash
-npm install
+npm ci
 cp .env.example .env
 npm run dev
 ```

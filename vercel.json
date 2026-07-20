@@ -1,5 +1,5 @@
 {
-  "installCommand": "npm install",
+  "installCommand": "npm ci",
   "functions": {
     "api/gemini.ts": {
       "maxDuration": 300

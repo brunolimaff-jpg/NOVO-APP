@@ -4,7 +4,7 @@ Marque os itens antes de publicar:
 
 ## Ambiente
 
-- [ ] `npm install` executado sem erros
+- [ ] `npm ci` executado sem erros
 - [ ] `npm run build` gerando build com sucesso
 - [ ] Variáveis configuradas no ambiente de deploy
 

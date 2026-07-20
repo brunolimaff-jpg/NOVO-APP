@@ -1,27 +1,25 @@
-# Handoff — Fase 3B.3C.1 (Pilot readiness alcançável no macOS)
+# Handoff — Estabilização do dossiê
 
-> **Atualizado:** 2026-07-14
-> **Branch:** `fix/fase-3b3c1-live-readiness-macos`
-> **Baseline main:** `636c3d4e` (squash PR #430 — Fase 3B.3C)
-> **Próxima etapa:** instalar DCG + hook + atestação → `check-pilot-readiness` → só então piloto real
+> **Atualizado:** 2026-07-20
+> **Baseline:** `a55113e525d31c5a0de82f5b01208ac82ae1eb29`
+> **Foco:** PR 1 — baseline, CI e Vercel.
 
 ## Estado
 
-| Fase    | Status                         | Entrega                                              |
-| ------- | ------------------------------ | ---------------------------------------------------- |
-| 3B.3C   | **MERGED** `#430` → `636c3d4e` | planejado×observado + piloto preparado               |
-| 3B.3C.1 | **em andamento**               | asset≠binary checksum + hook live + atestação humana |
+- O ciclo experimental de agentes está encerrado e não é requisito do produto.
+- O plano canônico está em `docs/planos/estabilizacao-dossie-litellm-v1.md`.
+- O primeiro ciclo estabiliza exclusivamente o dossiê: pesquisa, geração, persistência, renderização e follow-up.
+- Radar, War Room, benchmark independente e RAG documental ficam fora do ciclo inicial.
 
-## Correções desta fatia
+## PR 1
 
-1. Preflight compara SHA do **binário** (`binary_checksums_esperados`), nunca do tar.xz.
-2. Hash do binário arm64 com proveniência oficial documentada.
-3. Hook live verificado por `dcg_codex_hook_verifier` (DCG direto; guardian pode coexistir).
-4. Trust via atestação humana fora do repo (`TRUST_DCG_HOOK`, ≤30 dias).
-5. `check-pilot-readiness.rb` — somente leitura.
+- Branch: `codex/dossie-baseline-ci-vercel`.
+- Escopo: Node 24, npm 11.11.0, `npm ci`, CI, Vercel Build Output e documentação operacional.
+- Não executar: LLM, runtime de agentes, piloto, migration, deploy ou mudança funcional.
+- `npm ci` passou com Node 24.14.1/npm 11.11.0; build e validação documental passaram.
+- Typecheck e testes gerais falham fora do diff; registrar como baseline preexistente.
+- `vercel build` bloqueou em `project_settings_required`. Não executar `vercel pull` sem autorização específica, pois pode materializar configuração de ambiente.
 
-## Não fazer
+## Próximo passo seguro
 
-- Instalar DCG / editar `~/.codex/hooks.json` nesta PR
-- Codex real / piloto real / `AGENT_RUNTIME_*=1`
-- Fase 3C / merge sem **MERGE**
+Revisar a PR 1 e decidir, com autorização explícita, como obter Build Output sem expor configuração de ambiente. A PR 2 só começa após novo call graph de Radar, War Room e RAG.

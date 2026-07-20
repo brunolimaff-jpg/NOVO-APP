@@ -19,9 +19,9 @@ source_files:
 
 A validação do Senior Scout 360 é composta por scripts npm, Vitest em `jsdom`, Playwright em Chromium, contratos de UI/tracking/migrations e dois workflows GitHub Actions: `CI` para pull requests e `push` em `main`, e `Preview Smoke` para deploy previews ou execução manual.
 
-<Warning>
-O `package.json` declara `engines.node: 24.x`, mas os workflows atuais usam `setup-node` com Node 20. Ao reproduzir falhas de CI, use o ambiente do workflow; ao validar localmente, siga o engine declarado pelo pacote ou registre a divergência no handoff.
-</Warning>
+<Info>
+O repositório, os workflows de CI e a Vercel usam Node 24. A instalação reprodutível é `npm ci`, com npm `11.11.0` fixado em `package.json`.
+</Info>
 
 ## Comandos principais
 

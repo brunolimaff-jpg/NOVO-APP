@@ -22,8 +22,8 @@ A instalação local do Senior Scout 360 roda o frontend React 19 pelo Vite em `
 
 | Item      | Versão ou contrato atual | Observação                                                                 |
 | --------- | ------------------------ | -------------------------------------------------------------------------- |
-| Node.js   | `24.x`                   | Declarado em `package.json` via `engines.node`.                            |
-| npm       | Compatível com Node 24   | `npm install` é o comando padrão do repo e do deploy Vercel.               |
+| Node.js   | `24.x`                   | Declarado em `package.json` e fixado localmente por `.nvmrc`.               |
+| npm       | `11.11.0`                | Fixado por `packageManager`; o fluxo local e da Vercel usa `npm ci`.       |
 | Navegador | Chrome ou Chromium       | Necessário para validação Playwright e para depurar DevTools.              |
 | Shell     | Bash ou zsh              | Os scripts `.command` são voltados a macOS, mas o fluxo principal é `npm`. |
 
@@ -37,10 +37,10 @@ Alguns guias auxiliares e scripts locais ainda citam `5173`. A configuração ex
 <Step title="Instale as dependências">
 
 ```bash
-npm install
+npm ci
 ```
 
-O repositório usa `package-lock.json` com lockfile v3. Em scripts automatizados que removem `node_modules`, `npm ci` também funciona, mas o caminho documentado no repo e em `vercel.json` é `npm install`.
+O repositório usa `package-lock.json` com lockfile v3. `npm ci` instala exatamente o lockfile e é o caminho obrigatório para ambientes limpos, CI e Vercel.
 
 </Step>
 
