@@ -14,14 +14,13 @@
 ## PR 1
 
 - Branch: `codex/dossie-baseline-ci-vercel`.
-- Escopo: Node 24, npm 11.11.0, `npm ci`, CI, Vercel Build Output e documentação operacional.
-- Não executar: LLM, runtime de agentes, piloto, migration, deploy ou mudança funcional.
-- `npm ci` passou com Node 24.14.1/npm 11.11.0; build e validação documental passaram.
-- Typecheck, testes gerais, Golden e E2E seguem falhando por causas comparadas com a baseline. Com Node 24.14.1/npm 11.11.0, Typecheck e Golden reproduzem as mesmas falhas funcionais da baseline.
-- O Preview automático `dpl_B5P2ob3VcmgmrB8aaojUdUFyocmw` ficou READY, executou `npm ci`, concluiu Build Output e gerou 13 Functions Node. Production e deploy manual não foram executados.
-- O `vercel build` local permanece não vinculado (`LOCAL_VERCEL_BUILD_UNLINKED`); não executar `vercel pull` sem autorização específica, pois pode materializar configuração de ambiente.
-- Skills Governance e Agent Orchestration passam a classificar PRs fora de suas superfícies como `NOT_APPLICABLE_SUCCESS`, preservando validação fail-closed quando seus próprios arquivos mudam.
+- Escopo: Node 24, npm 11.11.0, `npm ci`, CI, Vercel, Sentry sourcemaps opt-in e documentação operacional.
+- O Preview final `dpl_AMQkRove9o47UHrVwt1pB8okXE9d` ficou READY: npm 11.11.0, Build Output e 13 Functions Node; não houve deploy manual nem produção.
+- Sentry runtime não mudou. O plugin de build só envia sourcemaps com `SENTRY_UPLOAD_SOURCEMAPS=true` e token.
+- O build local Vercel continua `LOCAL_VERCEL_BUILD_UNLINKED`; não usar `vercel pull` para repetir a evidência remota.
+- Skills Governance e Agent Orchestration validam somente seus domínios; não existe gate global de escopo misto nesta PR.
+- Typecheck, Tests, Golden e E2E permanecem falhas preexistentes comparadas à baseline.
 
 ## Próximo passo seguro
 
-Revisar a PR 1 e decidir, com autorização explícita, como obter Build Output sem expor configuração de ambiente. A PR 2 só começa após novo call graph de Radar, War Room e RAG.
+Revisar a PR 1. A PR 2 só começa após novo call graph de Radar, War Room e RAG.

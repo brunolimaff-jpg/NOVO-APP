@@ -8,7 +8,8 @@ Last updated: 2026-07-20 — Estabilização do dossiê
 - **Branch ativa:** `codex/dossie-baseline-ci-vercel`
 - **Foco:** PR 1 — Node 24, npm determinístico, CI, Vercel e Build Output.
 - **Plano:** `docs/planos/estabilizacao-dossie-litellm-v1.md`.
-- **Não fazer nesta PR:** LiteLLM, Gemini, prompts, Supabase, Sentry, Pinecone, Radar, War Room, LLM real, runtime de agentes, piloto, migration ou deploy.
+- **Não fazer nesta PR:** LiteLLM, Gemini, prompts, Supabase, Sentry runtime, Pinecone, Radar, War Room, LLM real, runtime de agentes, piloto, migration ou deploy.
+- **Preview final:** `dpl_AMQkRove9o47UHrVwt1pB8okXE9d` READY, 13 Functions Node e Build Output comprovado.
 
 ## Decisões vivas
 

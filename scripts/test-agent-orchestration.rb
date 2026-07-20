@@ -39,6 +39,23 @@ module OrchestrationTests
         assert_true(OrchestrationValidator.send(:agent_scope_changed?, changed))
       end
 
+      test('orquestração falha sem base Git') do
+        Dir.mktmpdir('orch-no-base', Dir.tmpdir) do |dir|
+          original_root = OrchestrationValidator::REPO_ROOT
+          OrchestrationValidator.send(:remove_const, :REPO_ROOT)
+          OrchestrationValidator.const_set(:REPO_ROOT, dir)
+          begin
+            OrchestrationValidator.send(:git_changed_files)
+            raise 'esperava falha ao resolver a base Git'
+          rescue RuntimeError => error
+            raise unless error.message.include?('cannot resolve agent scope')
+          ensure
+            OrchestrationValidator.send(:remove_const, :REPO_ROOT)
+            OrchestrationValidator.const_set(:REPO_ROOT, original_root)
+          end
+        end
+      end
+
       # === POSITIVOS ===
       test_positive("exploração read-only", "exploracao-readonly.json") do |plano|
         assert_eq(plano['status'], 'planejado')

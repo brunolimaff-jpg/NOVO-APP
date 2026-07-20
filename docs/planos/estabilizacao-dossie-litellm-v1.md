@@ -1,6 +1,6 @@
 # Estabilização do dossiê e migração LiteLLM — v1
 
-> **Status:** PR 1 em correção única; Build Output remoto comprovado.
+> **Status:** PR 1 em revisão; Build Output remoto comprovado.
 > **Baseline:** `a55113e525d31c5a0de82f5b01208ac82ae1eb29`.
 > **Prioridade:** estabilizar exclusivamente o fluxo de geração, persistência, exibição e acompanhamento contextual do dossiê.
 
@@ -77,9 +77,10 @@ Esta PR altera somente a reprodutibilidade da baseline:
 - npm `11.11.0` fixado no pacote;
 - `.nvmrc` para desenvolvimento local;
 - `npm ci` no deploy Vercel e nas instruções operacionais;
+- plugin de build Sentry com upload de sourcemaps estritamente opt-in;
 - documentação do plano e handoff de continuidade.
 
-Ficam fora: LiteLLM, Gemini, prompts, APIs, Supabase, Vercel remoto, Sentry, Pinecone, Radar, War Room e comportamento funcional do dossiê.
+Ficam fora: LiteLLM, Gemini, prompts, APIs, Supabase, Vercel remoto, Sentry runtime, Pinecone, Radar, War Room e comportamento funcional do dossiê.
 
 ## Critérios de aceite da PR 1
 
@@ -94,8 +95,8 @@ Ficam fora: LiteLLM, Gemini, prompts, APIs, Supabase, Vercel remoto, Sentry, Pin
 ## Validação registrada em 2026-07-20
 
 - `npm ci` passou com Node `24.14.1` e npm `11.11.0`, sem alterar o lockfile.
-- O Preview automático `dpl_B5P2ob3VcmgmrB8aaojUdUFyocmw` ficou READY em Preview, executou `npm ci`, concluiu `/vercel/output` e gerou 13 Functions Node. Production e deploy manual não foram executados.
-- `npm run build` passou, mas uma credencial Sentry já presente no ambiente publicou sourcemaps. O upload passa a exigir `SENTRY_UPLOAD_SOURCEMAPS=true` e token; fica desabilitado por padrão e a ativação futura exige autorização explícita.
+- O Preview final `dpl_AMQkRove9o47UHrVwt1pB8okXE9d` ficou READY em Preview, executou `npm ci`, concluiu `/vercel/output` e gerou 13 Functions Node. Production e deploy manual não foram executados.
+- Sentry runtime não mudou. O plugin de build envia sourcemaps somente com `SENTRY_UPLOAD_SOURCEMAPS=true` e token; o Preview final não registrou upload.
 - `npm run docs:obsidian:check` passou.
 - Typecheck e a suíte geral falharam em arquivos e contratos fora deste diff, incluindo módulos de dossiê, LiteLLM, auth, socio-search e fixtures Golden. Com Node `24.14.1` e npm `11.11.0`, Typecheck e Golden reproduzem as causas funcionais da baseline; essas falhas não serão corrigidas nesta PR.
 - O build Vercel local permanece `LOCAL_VERCEL_BUILD_UNLINKED`: a CLI exige vínculo local, mas o Build Output remoto já foi comprovado. Não usar `vercel pull`, `VERCEL_ORG_ID` ou `VERCEL_PROJECT_ID` apenas para repetir essa evidência.

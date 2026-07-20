@@ -14,72 +14,21 @@ module SkillsGovernanceValidator
   ALLOWED_ROLES = Set.new(%w[explorador investigador-incidentes planejador-solucao executor-escopo revisor-contratos validador-entrega revisor-evidencias-dossie]).freeze
   WRITER_ROLES = Set.new(%w[executor-escopo]).freeze
   BOOLEAN_FIELDS = %w[selecionavel_por_missao possui_scripts acesso_rede pode_escrever pode_executar_shell pode_delegar].freeze
-  ALLOWED_DIRECTORIES = ['.agents/skills/', '.agents/orquestracao/', '.agents/seguranca/', '.agents/pilotos/'].freeze
-  SKILLS_GOVERNANCE_SURFACES = [
-    '.agents/skills/',
-    '.agents/papeis/',
-    '.agents/adaptadores/',
+  SKILLS_GOVERNANCE_SCOPE_DIRECTORIES = ['.agents/skills/', '.agents/papeis/', '.agents/adaptadores/'].freeze
+  SKILLS_GOVERNANCE_DIRECTORIES = ['.agents/skills/'].freeze
+  SKILLS_GOVERNANCE_FILES = [
     'skills-lock.json',
     'docs/SKILLS-GOVERNANCE.md',
-    'AGENTS.md',
     'scripts/validate-skills-governance.rb',
-    'scripts/test-validate-skills-governance.rb',
-    '.github/workflows/ci.yml'
+    'scripts/test-validate-skills-governance.rb'
   ].freeze
   ALLOWED_EXACT_FILES = [
     'docs/SKILLS-GOVERNANCE.md',
-    'AGENTS.md',
-    'HANDOFF_AI.md',
-    '.agents/memory/activeContext.md',
-    '.agents/memory/progress.md',
-    '.agents/papeis/README.md',
     'scripts/validate-skills-governance.rb',
     'scripts/test-validate-skills-governance.rb',
-    'scripts/plan-agent-mission.rb',
-    'scripts/validate-agent-orchestration.rb',
-    'scripts/test-agent-orchestration.rb',
-    'scripts/run-agent-mission.rb',
-    'scripts/validate-agent-execution.rb',
-    'scripts/test-agent-execution.rb',
-    'scripts/validate-codex-harness-policy.rb',
-    'scripts/test-codex-harness-policy.rb',
-    'scripts/runtime-safety-preflight.rb',
-    'scripts/validate-runtime-safety.rb',
-    'scripts/test-runtime-safety.rb',
-    'scripts/lib/agent_path_guard.rb',
-    'scripts/lib/agent_command_guard.rb',
-    'scripts/lib/codex_single_agent_runtime.rb',
-    'scripts/lib/agent_single_runtime.rb',
-    'scripts/lib/agent_mission_contract.rb',
-    'scripts/lib/agent_run_comparator.rb',
-    'scripts/lib/agent_task_ledger.rb',
-    'scripts/lib/agent_supervised_pilot.rb',
-    'scripts/lib/dcg_codex_hook_verifier.rb',
-    'scripts/lib/dcg_hook_attestation.rb',
-    'scripts/attest-dcg-hook.rb',
-    'scripts/check-pilot-readiness.rb',
-    'scripts/test-dcg-live-readiness.rb',
-    'scripts/test-agent-runtime.rb',
-    '.agents/planos/executar-prova-final-supervisionada.md',
-    'scripts/final-supervised-proof-control.rb',
-    'scripts/test-final-supervised-proof-control.rb',
-    'scripts/validate-agent-observation.rb',
-    'scripts/test-agent-observation.rb',
-    'scripts/hook-sensitive-file-alert.sh',
-    '.claude/settings.json',
-    '.cursor/hooks.json',
-    '.cursor/hooks/branch-health-json.sh',
-    '.codex/config.toml',
+    '.agents/papeis/README.md',
     '.agents/adaptadores/README.md',
-    '.agents/adaptadores/mapa-adaptadores.yaml',
-    '.agents/memory/decisions.md',
-    'docs/benchmarks/codex-harness-5.6.md',
-    '.gitignore',
-    '.github/workflows/ci.yml',
-    '.ruby-version',
-    'scripts/lib/codex_jsonl_diagnostics.rb',
-    'scripts/test-codex-jsonl-diagnostics.rb',
-    '.agents/orquestracao/executor/contrato-relatorio.schema.json'
+    '.agents/adaptadores/mapa-adaptadores.yaml'
   ].freeze
 
   def fail!(msg)
@@ -126,11 +75,12 @@ module SkillsGovernanceValidator
 
   def file_allowed?(path)
     return true if ALLOWED_EXACT_FILES.include?(path)
-    ALLOWED_DIRECTORIES.any? { |prefix| path.start_with?(prefix) }
+    SKILLS_GOVERNANCE_DIRECTORIES.any? { |prefix| path.start_with?(prefix) }
   end
 
   def skills_governance_surface?(path)
-    SKILLS_GOVERNANCE_SURFACES.any? { |surface| surface.end_with?('/') ? path.start_with?(surface) : path == surface }
+    SKILLS_GOVERNANCE_FILES.include?(path) ||
+      SKILLS_GOVERNANCE_SCOPE_DIRECTORIES.any? { |prefix| path.start_with?(prefix) }
   end
 
   def validate_ruby_baseline!(root)

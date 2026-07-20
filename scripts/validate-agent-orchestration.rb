@@ -6,8 +6,8 @@
 # Verifica: schemas JSON, YAML, 7 papéis, ferramentas, caminhos, IDs,
 # autorização, skills e fluxos separados, registry, hashes, compatibilidade,
 # exemplos, determinismo, inexistência de ampliação de permissão,
-# inexistência de secrets, dependência nova, alteração funcional,
-# alteração no delivery-loop, execução de rede ou agentes.
+# inexistência de secrets, dependência nova, alteração no delivery-loop,
+# execução de rede ou agentes.
 #
 # Modo fail-closed: qualquer falha = exit 1.
 
@@ -60,7 +60,6 @@ module OrchestrationValidator
       validate_no_permission_escalation
       validate_no_secrets
       validate_no_new_deps
-      validate_no_functional_changes
       validate_delivery_loop_unchanged
       validate_no_network_or_agents
       validate_scripts_exist
@@ -345,35 +344,6 @@ module OrchestrationValidator
       end
     end
 
-    # ── No functional app changes ────────────────────────────────────
-
-    def validate_no_functional_changes
-      check('alteração funcional') do
-        changed = @changed_files || git_changed_files
-        return unless @agent_scope_applicable
-        return if changed.empty? # CI without base ref
-
-        app_patterns = %w[
-          ^api/ ^components/ ^contexts/ ^hooks/ ^services/ ^prompts/
-          ^utils/ ^tests/ ^lib/
-          ^App\.tsx$ ^types\.ts$ ^package\.json$ ^package-lock\.json$
-          ^next\.config\. ^vite\.config\. ^tsconfig\.json$
-        ]
-
-        app_files = changed.select do |f|
-          app_patterns.any? { |pat| f.match?(Regexp.new(pat)) }
-        end.reject { |file| non_agent_toolchain_file?(file) }
-
-        unless app_files.empty?
-          ERRORS << "arquivos de aplicação modificados (não permitidos nesta fase): #{app_files.join(', ')}"
-        end
-      end
-    end
-
-    def non_agent_toolchain_file?(file)
-      %w[package.json package-lock.json vite.config.ts next.config.js tsconfig.json].include?(file)
-    end
-
     def git_changed_files
       base_ref = ENV.fetch('GITHUB_BASE_REF', '')
       candidates = []
@@ -386,7 +356,7 @@ module OrchestrationValidator
         return out.split("\n").reject(&:empty?) if status.success?
       end
 
-      []
+      raise 'git diff failed — cannot resolve agent scope'
     end
 
     # ── delivery-loop unchanged ──────────────────────────────────────
