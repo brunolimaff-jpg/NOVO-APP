@@ -19,9 +19,9 @@ source_files:
 
 A validação do Senior Scout 360 é composta por scripts npm, Vitest em `jsdom`, Playwright em Chromium, contratos de UI/tracking/migrations e dois workflows GitHub Actions: `CI` para pull requests e `push` em `main`, e `Preview Smoke` para deploy previews ou execução manual.
 
-<Warning>
-O `package.json` declara `engines.node: 24.x`, mas os workflows atuais usam `setup-node` com Node 20. Ao reproduzir falhas de CI, use o ambiente do workflow; ao validar localmente, siga o engine declarado pelo pacote ou registre a divergência no handoff.
-</Warning>
+<Info>
+O repositório, os workflows de CI e a Vercel usam Node 24. A instalação reprodutível é `npm ci`, com npm `11.11.0` fixado em `package.json`.
+</Info>
 
 ## Comandos principais
 
@@ -174,7 +174,7 @@ O workflow `Preview Smoke` roda em `deployment_status`, `/smoke <url>` em coment
 
 ## Drift conhecido
 
-**Node.js:** O `package.json` declara Node.js 24.x, enquanto os workflows atuais do GitHub Actions utilizam Node.js 20. Essa divergência deve ser resolvida em uma PR técnica separada. A PR #350 é exclusivamente documental e não altera o ambiente de CI.
+Não há baseline operacional Node 20. O repositório usa Node `24.14.1` via `.nvmrc` e npm `11.11.0`; CI e Vercel devem registrar essas versões antes do `npm ci`.
 
 ## Critérios por tipo de mudança
 

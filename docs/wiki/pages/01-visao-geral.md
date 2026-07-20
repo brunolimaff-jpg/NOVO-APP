@@ -122,7 +122,7 @@ No desenvolvimento local, `vite.config.ts` cria proxy para as principais rotas `
 Use npm no checkout limpo.
 
 ```bash
-npm install
+npm ci
 ```
 
 </Step>

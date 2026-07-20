@@ -4,13 +4,13 @@ Este é o caminho mais curto para rodar o projeto e entender como ele está orga
 
 ## 1) Requisitos
 
-- Node.js 20+
-- npm 10+
+- Node.js 24.x
+- npm 11.11.0
 
 ## 2) Rodar localmente
 
 ```bash
-npm install
+npm ci
 cp .env.example .env
 npm run dev
 ```
@@ -52,7 +52,7 @@ npm run test:e2e:smoke
 
 ### `tsc not found`
 
-Rode `npm install`.
+Rode `npm ci`.
 
 ### `Missing GEMINI_API_KEY`
 

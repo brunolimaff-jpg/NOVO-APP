@@ -6,8 +6,8 @@
 # Verifica: schemas JSON, YAML, 7 papéis, ferramentas, caminhos, IDs,
 # autorização, skills e fluxos separados, registry, hashes, compatibilidade,
 # exemplos, determinismo, inexistência de ampliação de permissão,
-# inexistência de secrets, dependência nova, alteração funcional,
-# alteração no delivery-loop, execução de rede ou agentes.
+# inexistência de secrets, dependência nova, alteração no delivery-loop,
+# execução de rede ou agentes.
 #
 # Modo fail-closed: qualquer falha = exit 1.
 
@@ -23,12 +23,31 @@ module OrchestrationValidator
   SCRIPTS_DIR = File.join(REPO_ROOT, 'scripts')
 
   STDLIB_ALLOWLIST = %w[json yaml digest optparse fileutils open3 tempfile tmpdir timeout time].freeze
+  AGENT_SCOPE_PREFIXES = ['.agents/orquestracao/', '.agents/seguranca/', '.agents/pilotos/'].freeze
+  AGENT_SCOPE_EXACT_FILES = %w[
+    scripts/plan-agent-mission.rb
+    scripts/validate-agent-orchestration.rb
+    scripts/test-agent-orchestration.rb
+    scripts/run-agent-mission.rb
+    scripts/validate-agent-execution.rb
+    scripts/test-agent-execution.rb
+    scripts/validate-agent-observation.rb
+    scripts/test-agent-observation.rb
+    scripts/validate-codex-harness-policy.rb
+    scripts/test-codex-harness-policy.rb
+    scripts/check-pilot-readiness.rb
+    scripts/runtime-safety-preflight.rb
+    scripts/validate-runtime-safety.rb
+    scripts/test-runtime-safety.rb
+  ].freeze
 
   ERRORS   = []
   WARNINGS = []
 
   class << self
     def run
+      @changed_files = git_changed_files
+      @agent_scope_applicable = agent_scope_changed?(@changed_files)
       validate_schemas
       validate_yaml_files
       validate_seven_roles
@@ -41,7 +60,6 @@ module OrchestrationValidator
       validate_no_permission_escalation
       validate_no_secrets
       validate_no_new_deps
-      validate_no_functional_changes
       validate_delivery_loop_unchanged
       validate_no_network_or_agents
       validate_scripts_exist
@@ -51,6 +69,14 @@ module OrchestrationValidator
     end
 
     private
+
+    def agent_scope_changed?(changed_files)
+      changed_files.any? do |file|
+        AGENT_SCOPE_EXACT_FILES.include?(file) ||
+          AGENT_SCOPE_PREFIXES.any? { |prefix| file.start_with?(prefix) } ||
+          file.match?(%r{\Ascripts/lib/(?:agent|codex|dcg)_.*\.rb\z})
+      end
+    end
 
     def check(label)
       yield
@@ -318,30 +344,6 @@ module OrchestrationValidator
       end
     end
 
-    # ── No functional app changes ────────────────────────────────────
-
-    def validate_no_functional_changes
-      check('alteração funcional') do
-        changed = git_changed_files
-        return if changed.empty? # CI without base ref
-
-        app_patterns = %w[
-          ^api/ ^components/ ^contexts/ ^hooks/ ^services/ ^prompts/
-          ^utils/ ^tests/ ^lib/
-          ^App\.tsx$ ^types\.ts$ ^package\.json$ ^package-lock\.json$
-          ^next\.config\. ^vite\.config\. ^tsconfig\.json$
-        ]
-
-        app_files = changed.select do |f|
-          app_patterns.any? { |pat| f.match?(Regexp.new(pat)) }
-        end
-
-        unless app_files.empty?
-          ERRORS << "arquivos de aplicação modificados (não permitidos nesta fase): #{app_files.join(', ')}"
-        end
-      end
-    end
-
     def git_changed_files
       base_ref = ENV.fetch('GITHUB_BASE_REF', '')
       candidates = []
@@ -354,7 +356,7 @@ module OrchestrationValidator
         return out.split("\n").reject(&:empty?) if status.success?
       end
 
-      []
+      raise 'git diff failed — cannot resolve agent scope'
     end
 
     # ── delivery-loop unchanged ──────────────────────────────────────
@@ -364,7 +366,7 @@ module OrchestrationValidator
         skill_path = File.join(REPO_ROOT, '.agents', 'skills', 'delivery-loop', 'SKILL.md')
         return unless File.file?(skill_path)
 
-        changed = git_changed_files
+        changed = @changed_files || git_changed_files
         return if changed.empty?
 
         if changed.include?('.agents/skills/delivery-loop/SKILL.md')
@@ -417,7 +419,11 @@ module OrchestrationValidator
     def print_report
       total = ERRORS.size + WARNINGS.size
       if total.zero?
-        puts 'OK — validação de orquestração passou sem erros'
+        if @agent_scope_applicable
+          puts 'OK — validação de orquestração passou sem erros'
+        else
+          puts 'NOT_APPLICABLE_SUCCESS — nenhuma superfície de orquestração foi alterada'
+        end
       else
         ERRORS.each   { |e| puts "  ERRO: #{e}" }   unless ERRORS.empty?
         WARNINGS.each { |w| puts "  WARN: #{w}" }   unless WARNINGS.empty?

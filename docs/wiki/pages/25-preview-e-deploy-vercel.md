@@ -74,7 +74,7 @@ O app também remove Service Workers e caches antigos no mount. Essa limpeza exi
 
 ## Runtime Vercel
 
-`vercel.json` define `npm install` como comando de instalação e configura durações máximas por função:
+`vercel.json` define `npm ci` como comando de instalação determinístico e configura durações máximas por função:
 
 | Função                   | `maxDuration` |
 | ------------------------ | ------------: |
@@ -273,7 +273,7 @@ Antes de publicar ou aceitar um deploy, mantenha estes blocos fechados:
 
 | Bloco           | Checks                                                                           |
 | --------------- | -------------------------------------------------------------------------------- |
-| Ambiente        | `npm install` sem erro, `npm run build` verde, variáveis configuradas no deploy  |
+| Ambiente        | `npm ci` sem erro, `npm run build` verde, variáveis configuradas no deploy       |
 | Segurança       | `.env` fora do Git, chaves sensíveis só no servidor/painel, quota da chave de IA |
 | Funcionalidade  | gate de operador, chat com sessão salva, exportações e fluxos principais         |
 | Qualidade       | `npm run test` sem falhas críticas, mensagens de erro amigáveis                  |

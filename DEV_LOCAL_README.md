@@ -94,8 +94,8 @@ brew install node
 ### Dependencies não instalam
 
 ```bash
-rm -rf node_modules package-lock.json
-npm install
+rm -rf node_modules
+npm ci
 ```
 
 ---

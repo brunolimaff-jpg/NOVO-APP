@@ -1,5 +1,20 @@
 # decisions.md — NOVO-APP
 
+## DI-2026-07-20-01: Primeiro ciclo restrito ao dossiê
+
+- **Decisão:** O ciclo inicial mantém somente o fluxo de pesquisa, geração, persistência, renderização e acompanhamento contextual do dossiê. Radar, War Room, benchmark independente e ferramentas laterais ficam explicitamente indisponíveis, sem execução oculta.
+- **Referência:** `docs/planos/estabilizacao-dossie-litellm-v1.md`.
+
+## DI-2026-07-20-02: Endpoint de negócio único e cancelamento cooperativo
+
+- **Decisão:** `api/dossier.ts` será o único endpoint de negócio consumido pela UI; auxiliares permanecem protegidos e sem operações livres. Cancelamento combina AbortSignal da conexão atual com sinal persistido por `runId`, lease e checkpoints do waterfall.
+- **Referência:** `docs/planos/estabilizacao-dossie-litellm-v1.md`.
+
+## DI-2026-07-20-03: RAG do dossiê é integração nova e degradável
+
+- **Decisão:** Pinecone, `gemini-embedding-001`, índices, namespaces e ingestão permanecem preservados. O RAG existente do War Room não prova consumo pelo dossiê; sua futura conexão ao EvidencePack será opcional, comparada contra baseline sem RAG e sem tornar o dossiê dependente dele.
+- **Referência:** `docs/planos/estabilizacao-dossie-litellm-v1.md`.
+
 ## Nova Decisão (Hardening de observabilidade forense)
 
 - Execução real exige raiz externa explícita para evidência forense; `Dir.tmpdir`

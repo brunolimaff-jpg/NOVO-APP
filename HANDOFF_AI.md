@@ -1,27 +1,26 @@
-# Handoff — Fase 3B.3C.1 (Pilot readiness alcançável no macOS)
+# Handoff — Estabilização do dossiê
 
-> **Atualizado:** 2026-07-14
-> **Branch:** `fix/fase-3b3c1-live-readiness-macos`
-> **Baseline main:** `636c3d4e` (squash PR #430 — Fase 3B.3C)
-> **Próxima etapa:** instalar DCG + hook + atestação → `check-pilot-readiness` → só então piloto real
+> **Atualizado:** 2026-07-20
+> **Baseline:** `a55113e525d31c5a0de82f5b01208ac82ae1eb29`
+> **Foco:** PR 1 — baseline, CI e Vercel.
 
 ## Estado
 
-| Fase    | Status                         | Entrega                                              |
-| ------- | ------------------------------ | ---------------------------------------------------- |
-| 3B.3C   | **MERGED** `#430` → `636c3d4e` | planejado×observado + piloto preparado               |
-| 3B.3C.1 | **em andamento**               | asset≠binary checksum + hook live + atestação humana |
+- O ciclo experimental de agentes está encerrado e não é requisito do produto.
+- O plano canônico está em `docs/planos/estabilizacao-dossie-litellm-v1.md`.
+- O primeiro ciclo estabiliza exclusivamente o dossiê: pesquisa, geração, persistência, renderização e acompanhamento contextual.
+- Radar, War Room, benchmark independente e RAG documental ficam fora do ciclo inicial.
 
-## Correções desta fatia
+## PR 1
 
-1. Preflight compara SHA do **binário** (`binary_checksums_esperados`), nunca do tar.xz.
-2. Hash do binário arm64 com proveniência oficial documentada.
-3. Hook live verificado por `dcg_codex_hook_verifier` (DCG direto; guardian pode coexistir).
-4. Trust via atestação humana fora do repo (`TRUST_DCG_HOOK`, ≤30 dias).
-5. `check-pilot-readiness.rb` — somente leitura.
+- Branch: `codex/dossie-baseline-ci-vercel`.
+- Escopo: Node 24, npm 11.11.0, `npm ci`, CI, Vercel, Sentry sourcemaps opt-in e documentação operacional.
+- O Preview final `dpl_AMQkRove9o47UHrVwt1pB8okXE9d` ficou READY: npm 11.11.0, Build Output e 13 Functions Node; não houve deploy manual nem produção.
+- Sentry runtime não mudou. O plugin de build só envia sourcemaps com `SENTRY_UPLOAD_SOURCEMAPS=true` e token.
+- O build local Vercel continua `LOCAL_VERCEL_BUILD_UNLINKED`; não usar `vercel pull` para repetir a evidência remota.
+- Skills Governance e Agent Orchestration validam somente seus domínios; não existe gate global de escopo misto nesta PR.
+- Typecheck, Tests, Golden e E2E permanecem falhas preexistentes comparadas à baseline.
 
-## Não fazer
+## Próximo passo seguro
 
-- Instalar DCG / editar `~/.codex/hooks.json` nesta PR
-- Codex real / piloto real / `AGENT_RUNTIME_*=1`
-- Fase 3C / merge sem **MERGE**
+Revisar a PR 1. A PR 2 só começa após novo call graph de Radar, War Room e RAG.

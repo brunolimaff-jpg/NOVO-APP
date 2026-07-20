@@ -20,3 +20,14 @@
   entrega ou Run Report foi criado.
 - Prioridade devolvida ao backlog do Scout 360; próxima triagem: #409–#418 e
   #435.
+
+# 2026-07-20 — PR 1: baseline, CI e Vercel
+
+- Baseline remota confirmada em `a55113e525d31c5a0de82f5b01208ac82ae1eb29`.
+- Worktree principal estava suja; PR 1 segue em worktree isolada.
+- Plano consolidado: `docs/planos/estabilizacao-dossie-litellm-v1.md`.
+- Escopo: Node 24, npm 11.11.0, `npm ci`, CI, Vercel, sourcemaps Sentry opt-in e documentação operacional.
+- Node `24.14.1`, npm `11.11.0`, `npm ci`, build e docs check passaram.
+- Preview final `dpl_AMQkRove9o47UHrVwt1pB8okXE9d` ficou READY, comprovou Build Output e 13 Functions Node; sem deploy manual ou produção.
+- Sentry runtime não mudou; o plugin de build só envia sourcemaps com opt-in explícito e token.
+- Typecheck, Tests, Golden e E2E continuam com falhas preexistentes comparadas à baseline.
