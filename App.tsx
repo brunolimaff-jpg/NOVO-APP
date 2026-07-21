@@ -2,7 +2,6 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useOffline } from './hooks/useOffline';
 import { useToast } from './hooks/useToast';
 import { useTheme } from './hooks/useTheme';
-import { useRadar } from './features/radar';
 import { useAppInitialization } from './hooks/useAppInitialization';
 import { useEmailModal } from './hooks/useEmailModal';
 import { useFollowUpModal } from './hooks/useFollowUpModal';
@@ -226,13 +225,10 @@ const App: React.FC = () => {
   const { updateAvailable, currentVersion, newVersion, dismissUpdate, updateNow } = useUpdateNotification();
 
   const { toasts, toast, dismiss: dismissToast } = useToast();
-  const radar = useRadar(toast);
 
   const featureAccess = getFeatureAccess();
-  const canAccessIntegrityCheck = featureAccess.integrityCheck;
   const canUseLookup = featureAccess.clientLookup;
   const canDeepDive = featureAccess.deepDive;
-  const canWarRoom = featureAccess.warRoom;
   const resolvedOperatorName = operatorName.trim() || 'Vendedor';
   const emailModal = useEmailModal({
     messages: allMessages,
@@ -584,27 +580,10 @@ const App: React.FC = () => {
                 onSaveRemote={handleSaveRemote}
                 isSavingRemote={isSavingRemote}
                 remoteSaveStatus={remoteSaveStatus}
-                canAccessIntegrityCheck={canAccessIntegrityCheck}
                 canDeepDive={canDeepDive}
-                canWarRoom={canWarRoom}
                 onClearOperator={clearName}
                 lastUserQuery={lastQuery}
                 onDeleteMessage={handleDeleteMessage}
-                radar={{
-                  alerts: radar.alerts,
-                  config: radar.config,
-                  unreadCount: radar.unreadCount,
-                  isScanning: radar.isScanning,
-                  lastScanAt: radar.lastScanAt,
-                  lastError: radar.lastError,
-                  lastWarning: radar.lastWarning,
-                  onUpdateConfig: radar.updateConfig,
-                  onMarkAsRead: radar.markAsRead,
-                  onMarkAllAsRead: radar.markAllAsRead,
-                  onDismiss: radar.dismissAlert,
-                  onForceScan: radar.forceScan,
-                  metaInsight: null,
-                }}
               />
             </ChatErrorBoundary>
           </main>

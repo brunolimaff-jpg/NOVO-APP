@@ -41,7 +41,7 @@ const ALLOWED_PATTERNS = [
   /\b(usar|uso|como uso|come[cç]o|come[cç]ar|funciona|serve|explica|entender)\b/i,
   /\b(fase|fases|etapa|etapas|jornada|fluxo)\b/i,
   /\b(feature|features|funcionalidade|funcionalidades|recurso|recursos)\b/i,
-  /\b(dossi[eê] 360|dossi[eê]|porta|score porta|radar|crm|deep dive|smart options|war room)\b/i,
+  /\b(dossi[eê] 360|dossi[eê]|porta|score porta|crm|deep dive|smart options)\b/i,
   /\b(exporta[cç][aã]o|exportar|pdf|word|markdown|email|e-mail|follow-up|follow up)\b/i,
   /\b(limite|limites|at[eé] onde|nao faz|n[aã]o faz|guardrail|trava|seguran[cç]a|validar|fontes?)\b/i,
   /\b(cnpj|cidade|uf|empresa correta|hom[oô]nimo)\b/i,

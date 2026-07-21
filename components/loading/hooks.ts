@@ -4,9 +4,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { getLoadingBackoffMessage, resolveActiveLoadingStageLabel } from '../../utils/loadingBackoff';
 import { getLoadingStageIdentity, LOADING_STAGE_ORDER_BY_KEY } from '../../utils/loadingSmartViewModel';
-import { stripInternalMarkers } from '../../utils/textCleaners';
-import { generateLoadingCuriosities } from '../../services/llmService';
 import { buildLoadingCuriositiesFallback } from '../../utils/loadingCuriosities';
+import { stripInternalMarkers } from '../../utils/textCleaners';
 
 const STEP_REVEAL_DELAY_MS = 1200;
 const STEP_REVEAL_MIN_MS = 800;
@@ -190,11 +189,10 @@ interface InsightCarouselOptions {
   companyFocus: string;
   loadingContext: string;
   loadingContextKey: string;
-  searchQueryForCuriosities: string;
 }
 
 export function useInsightCarousel(options: InsightCarouselOptions) {
-  const { isLoading, companyFocus, loadingContext, loadingContextKey, searchQueryForCuriosities } = options;
+  const { isLoading, companyFocus, loadingContext, loadingContextKey } = options;
 
   const [currentInsight, setCurrentInsight] = useState(
     'Empresas com disciplina operacional tendem a transformar dados em vantagem competitiva mais rápido.',
@@ -204,7 +202,6 @@ export function useInsightCarousel(options: InsightCarouselOptions) {
 
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const curiositiesRef = useRef<string[]>([]);
-  const insightRequestIdRef = useRef(0);
 
   const clearInsightTimer = useCallback(() => {
     if (timerRef.current) {
@@ -239,7 +236,6 @@ export function useInsightCarousel(options: InsightCarouselOptions) {
 
   // Reset on context change
   useEffect(() => {
-    insightRequestIdRef.current += 1;
     clearInsightTimer();
     setActiveInsightIndex(0);
     curiositiesRef.current = [];
@@ -258,45 +254,15 @@ export function useInsightCarousel(options: InsightCarouselOptions) {
     );
   }, [clearInsightTimer, companyFocus, isLoading, loadingContextKey]);
 
-  // Fetch curiosities
+  // Curiosities remain local and deterministic while the dossier is loading.
   useEffect(() => {
     if (!isLoading) return;
-    const requestId = insightRequestIdRef.current;
-
-    const applyCuriosities = (nextCuriosities: string[]) => {
-      if (requestId !== insightRequestIdRef.current) return;
-      curiositiesRef.current = nextCuriosities;
-      setCurrentInsight(
-        nextCuriosities[0] ||
-          buildFallbackCuriosities(loadingContext)[0] ||
-          'Empresas com disciplina operacional tendem a transformar dados em vantagem competitiva mais rápido.',
-      );
-    };
-
-    if (!loadingContext || loadingContext.length < 2) {
-      applyCuriosities(buildFallbackCuriosities(''));
-      return;
-    }
-
-    let cancelled = false;
-    generateLoadingCuriosities(loadingContext, searchQueryForCuriosities)
-      .then(facts => {
-        if (cancelled) return;
-        if (facts && facts.length > 0) {
-          applyCuriosities(facts.map(f => stripInternalMarkers(f)).filter(Boolean));
-        } else {
-          applyCuriosities(buildFallbackCuriosities(loadingContext));
-        }
-      })
-      .catch(() => {
-        if (cancelled) return;
-        applyCuriosities(buildFallbackCuriosities(loadingContext));
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [buildFallbackCuriosities, isLoading, loadingContext, searchQueryForCuriosities]);
+    const curiosities = buildFallbackCuriosities(loadingContext);
+    curiositiesRef.current = curiosities;
+    setCurrentInsight(
+      curiosities[0] || 'Empresas com disciplina operacional tendem a transformar dados em vantagem competitiva mais rápido.',
+    );
+  }, [buildFallbackCuriosities, isLoading, loadingContext]);
 
   // Visibility control
   useEffect(() => {

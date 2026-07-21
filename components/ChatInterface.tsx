@@ -16,7 +16,6 @@ import { useInvestigation } from '../hooks/useInvestigation';
 import { useChatActions } from '../hooks/useChatActions';
 import { useStaticTimelineFallback } from '../hooks/useStaticTimelineFallback';
 
-export type { RadarProps } from './chat/contracts';
 const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
   currentSession,
   sessions,
@@ -42,9 +41,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
   onToggleTheme,
   onToggleMessageSources,
   exportStatus,
-  canAccessIntegrityCheck = true,
   canDeepDive = false,
-  canWarRoom = false,
   onClearOperator,
   lastUserQuery,
   processing,
@@ -52,7 +49,6 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
   loadingPinnedLabel,
   onDeleteMessage,
   onDeepDive,
-  radar,
 }) => {
   const { mode } = useMode();
   const {
@@ -65,9 +61,6 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
   } = useOperator();
 
   const [showSettings, setShowSettings] = useState(false);
-  const [showWarRoom, setShowWarRoom] = useState(false);
-  const [showRadarPanel, setShowRadarPanel] = useState(false);
-  const [showRadarSettings, setShowRadarSettings] = useState(false);
 
   const {
     safeMessages,
@@ -108,9 +101,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
     pendingPayloadRef,
   } = useInvestigation({
     mode,
-    canWarRoom,
     onDeepDive,
-    radar,
     operatorId,
     onSelectSession,
   });
@@ -204,10 +195,6 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
         isDarkMode={isDarkMode}
         theme={theme}
         displayTitle={displayTitle}
-        radar={radar}
-        onOpenRadarPanel={() => setShowRadarPanel(true)}
-        canWarRoom={canWarRoom}
-        onOpenWarRoom={() => setShowWarRoom(true)}
         onToggleTheme={onToggleTheme}
         displayName={displayName}
         avatarUrl={null}
@@ -251,8 +238,6 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
                   }
                 }}
                 onStartInvestigation={handleStartInvestigation}
-                radar={radar}
-                onOpenRadarPanel={() => setShowRadarPanel(true)}
                 onLoadMore={onLoadMore}
                 onRetry={onRetry}
                 onDeleteMessage={onDeleteMessage}
@@ -295,20 +280,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
             isDarkMode={isDarkMode}
             onToggleTheme={onToggleTheme}
             onClearOperator={onClearOperator}
-            canAccessIntegrityCheck={canAccessIntegrityCheck}
             onCloseSettings={() => setShowSettings(false)}
-            showWarRoom={showWarRoom}
-            canWarRoom={canWarRoom}
-            onCloseWarRoom={() => setShowWarRoom(false)}
-            showRadarPanel={showRadarPanel}
-            radar={radar}
-            onOpenRadarSettings={() => {
-              setShowRadarPanel(false);
-              setShowRadarSettings(true);
-            }}
-            onCloseRadarPanel={() => setShowRadarPanel(false)}
-            showRadarSettings={showRadarSettings}
-            onCloseRadarSettings={() => setShowRadarSettings(false)}
           />
         }
       />

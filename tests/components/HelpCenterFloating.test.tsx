@@ -13,14 +13,15 @@ describe('HelpCenterFloating', () => {
     expect(screen.queryByRole('dialog', { name: /perguntas frequentes/i })).not.toBeInTheDocument();
   });
 
-  it('mostra somente as 10 dúvidas frequentes clicáveis', () => {
+  it('mostra somente as 9 dúvidas frequentes clicáveis do fluxo ativo', () => {
     render(<HelpCenterFloating isDarkMode={false} />);
 
     fireEvent.click(screen.getByRole('button', { name: /abrir ajuda do scout/i }));
     const dialog = screen.getByRole('dialog', { name: /perguntas frequentes/i });
     const faqButtons = within(dialog).getAllByRole('button', { expanded: false });
 
-    expect(faqButtons).toHaveLength(10);
+    expect(faqButtons).toHaveLength(9);
+    expect(within(dialog).queryByRole('button', { name: /o que o radar monitora/i })).not.toBeInTheDocument();
     expect(within(dialog).queryByLabelText(/pergunte sobre o scout/i)).not.toBeInTheDocument();
     expect(within(dialog).queryByRole('button', { name: /aprofundar no scout/i })).not.toBeInTheDocument();
     expect(within(dialog).queryByText(/guia rapido/i)).not.toBeInTheDocument();

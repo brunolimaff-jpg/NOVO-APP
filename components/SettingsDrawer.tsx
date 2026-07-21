@@ -4,8 +4,6 @@ import { usePWA } from '../hooks/usePWA';
 import { useToast } from '../hooks/useToast';
 import { version } from '../package.json';
 import { exportSessionsAsJSON, importSessionsFromJSON } from '../utils/sessionExport';
-const SystemHealthCheck = React.lazy(() => import('./SystemHealthCheck'));
-
 interface SettingsDrawerProps {
   isOpen: boolean;
   onClose: () => void;
@@ -14,7 +12,6 @@ interface SettingsDrawerProps {
   isDarkMode: boolean;
   onToggleTheme: () => void;
   onClearOperator?: () => void;
-  canAccessIntegrityCheck?: boolean;
 }
 
 const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
@@ -25,10 +22,8 @@ const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
   isDarkMode,
   onToggleTheme,
   onClearOperator,
-  canAccessIntegrityCheck = true,
 }) => {
   const { canInstall, isInstalled, installApp } = usePWA();
-  const [showHealthCheck, setShowHealthCheck] = useState(false);
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -392,24 +387,12 @@ const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
                 </div>
               )}
 
-              {canAccessIntegrityCheck && (
-                <button
-                  onClick={() => setShowHealthCheck(true)}
-                  className={`w-full flex items-center gap-3 p-3 rounded-xl border transition-all text-left group border-blue-500/40 ${
-                    isDarkMode ? 'bg-blue-900/20 hover:bg-blue-900/40' : 'bg-blue-50 hover:bg-blue-100'
-                  }`}
-                >
-                  <span className={`text-lg p-2 rounded-lg ${isDarkMode ? 'bg-blue-800/60' : 'bg-blue-200'}`}>🔧</span>
-                  <div>
-                    <p className={`text-sm font-medium ${isDarkMode ? 'text-blue-300' : 'text-blue-800'}`}>
-                      Teste de Integridade
-                    </p>
-                    <p className={`text-xs ${isDarkMode ? 'text-blue-500' : 'text-blue-600'}`}>
-                      Verificar sistema completo
-                    </p>
-                  </div>
-                </button>
-              )}
+              <div className={`w-full rounded-xl border p-3 ${isDarkMode ? 'border-blue-500/30 bg-blue-900/10' : 'border-blue-200 bg-blue-50'}`}>
+                <p className={`text-sm font-medium ${isDarkMode ? 'text-blue-300' : 'text-blue-800'}`}>Disponível em breve.</p>
+                <p className={`text-xs ${isDarkMode ? 'text-blue-500' : 'text-blue-600'}`}>
+                  Estamos priorizando a estabilização e a qualidade dos dossiês.
+                </p>
+              </div>
 
               <button
                 onClick={() => {
@@ -444,13 +427,6 @@ const SettingsDrawer: React.FC<SettingsDrawerProps> = ({
           </section>
         </div>
       </div>
-
-      {/* Modal de Teste de Integridade */}
-      {showHealthCheck && canAccessIntegrityCheck && (
-        <React.Suspense fallback={null}>
-          <SystemHealthCheck isDarkMode={isDarkMode} onClose={() => setShowHealthCheck(false)} />
-        </React.Suspense>
-      )}
 
       {/* Modal de Confirmação de Importação */}
       {showImportConfirm && (

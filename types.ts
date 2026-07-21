@@ -279,9 +279,7 @@ export interface ChatInterfaceProps {
   pdfReportContent: string | null;
   onOpenEmailModal: () => void;
   onOpenFollowUpModal: () => void;
-  canAccessIntegrityCheck?: boolean;
   canDeepDive?: boolean;
-  canWarRoom?: boolean;
   onClearOperator: () => void;
   lastUserQuery?: string;
   processing?: {

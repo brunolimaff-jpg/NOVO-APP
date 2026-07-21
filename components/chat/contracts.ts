@@ -1,24 +1,7 @@
-import type { ChatInterfaceProps, RadarAlert, RadarConfig } from '../../types';
-
-export interface RadarProps {
-  alerts: RadarAlert[];
-  metaInsight: string | null;
-  config: RadarConfig;
-  unreadCount: number;
-  isScanning: boolean;
-  lastScanAt: number | null;
-  lastError: { code: string; message: string; retryable: boolean } | null;
-  lastWarning: string | null;
-  onUpdateConfig: (partial: Partial<RadarConfig>) => void;
-  onMarkAsRead: (id: string) => void;
-  onMarkAllAsRead: () => void;
-  onDismiss: (id: string) => void;
-  onForceScan: () => void;
-}
+import type { ChatInterfaceProps } from '../../types';
 
 export type ExtendedChatInterfaceProps = ChatInterfaceProps & {
   onDeleteMessage?: (id: string) => void;
-  radar?: RadarProps;
 };
 
 export interface ChatTheme {

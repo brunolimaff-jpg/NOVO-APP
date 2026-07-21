@@ -5,7 +5,6 @@ export type HelpCenterIntent =
   | 'limits'
   | 'usage'
   | 'porta'
-  | 'radar'
   | 'crm'
   | 'exports'
   | 'deep_dive';
@@ -66,14 +65,6 @@ export const HELP_CENTER_FAQS: HelpCenterQuestion[] = [
       'O PORTA ajuda a priorizar contas por Porte, Operação, Retorno, Tecnologia e Adoção. Ele indica onde vale investir energia comercial primeiro.',
     tags: ['porta', 'score porta', 'priorização', 'qualificação'],
     allowedIntents: ['features', 'porta'],
-  },
-  {
-    id: 'radar-monitoring',
-    question: 'O que o Radar monitora?',
-    answer:
-      'O Radar acompanha sinais de mercado, expansão, regulação, concorrência, AgTech e temas trabalhistas. A ideia é avisar quando uma conta merece atenção novamente.',
-    tags: ['radar', 'monitoramento', 'alertas', 'mercado'],
-    allowedIntents: ['features', 'radar'],
   },
   {
     id: 'deep-dive',

@@ -9,7 +9,7 @@ import GreetingWelcomeScreen from '../GreetingWelcomeScreen';
 import HelpCenterFloating from '../HelpCenterFloating';
 import MessageRow, { type MessageRowData } from '../MessageRow';
 import { parseSmartOptions } from '../SmartOptions';
-import type { ChatTheme, RadarProps, StartInvestigationPayload } from './contracts';
+import type { ChatTheme, StartInvestigationPayload } from './contracts';
 
 interface MessageTimelineProps {
   currentSession: ChatSession | null;
@@ -24,8 +24,6 @@ interface MessageTimelineProps {
   forceStaticTimelineFallback?: boolean;
   onConfirmOperatorName: (name: string, email: string, existingOperatorId?: string) => void;
   onStartInvestigation: (payload: StartInvestigationPayload) => Promise<void>;
-  radar?: RadarProps;
-  onOpenRadarPanel: () => void;
   onLoadMore: () => void;
   onRetry: () => void;
   onDeleteMessage?: (id: string) => void;
@@ -70,8 +68,6 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
   forceStaticTimelineFallback = false,
   onConfirmOperatorName,
   onStartInvestigation,
-  radar,
-  onOpenRadarPanel,
   onLoadMore,
   onRetry,
   onDeleteMessage,
@@ -488,10 +484,6 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
             mode={mode}
             isDarkMode={isDarkMode}
             onStartInvestigation={onStartInvestigation}
-            radarAlerts={radar?.alerts}
-            radarIsScanning={radar?.isScanning}
-            onForceScan={radar?.onForceScan}
-            onOpenRadar={onOpenRadarPanel}
           />
           <HelpCenterFloating isDarkMode={isDarkMode} />
         </div>

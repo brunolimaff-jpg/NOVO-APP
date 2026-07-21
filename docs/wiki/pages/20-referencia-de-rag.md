@@ -16,6 +16,8 @@ source_files:
   - 'tests/services/ragService.test.ts'
 ---
 
+> **Ciclo atual:** `/api/rag` e o índice Pinecone permanecem preservados. `/api/docs-rag` era exclusivo do War Room e foi removida da aplicação ativa; o conteúdo abaixo dessa rota é histórico.
+
 A superfície de RAG do Senior Scout 360 passa por duas Vercel Functions (`/api/rag` e `/api/docs-rag`) e por um cliente browser-safe em `services/ragService.ts`; a UI não fala direto com Pinecone nem com o provedor de embeddings.
 
 ## Superfície implementada

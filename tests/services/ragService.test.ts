@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { buscarContextoPinecone, buscarContextoDocsPinecone } from '../../services/ragService';
+import { buscarContextoPinecone } from '../../services/ragService';
 
 describe('ragService', () => {
   beforeEach(() => {
@@ -44,15 +44,4 @@ describe('ragService', () => {
     expect(result.failed).toBe(true);
   });
 
-  it('buscarContextoDocsPinecone calls correct endpoint', async () => {
-    global.fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      json: () => Promise.resolve({ context: 'docs context' }),
-    });
-
-    const result = await buscarContextoDocsPinecone('test');
-    expect(result.context).toBe('docs context');
-    expect(result.failed).toBe(false);
-    expect(fetch).toHaveBeenCalledWith('/api/docs-rag', expect.anything());
-  });
 });

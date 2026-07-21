@@ -42,7 +42,6 @@ describe('useInvestigation — handleAccessExistingDossier', () => {
 
   const baseParams = {
     mode: 'default',
-    canWarRoom: false,
     onDeepDive,
     operatorId: 'op-1',
     onSelectSession,

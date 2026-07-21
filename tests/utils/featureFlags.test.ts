@@ -19,9 +19,4 @@ describe('featureFlags', () => {
     expect(getFlag('deepDive')).toBe(false);
   });
 
-  it('ignora override invalido e cai no default', () => {
-    vi.stubEnv('VITE_FF_RADAR_V2', 'maybe');
-
-    expect(getFlag('radarV2')).toBe(FEATURE_FLAGS.radarV2.default);
-  });
 });

@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import ReactDOM from 'react-dom';
 import { ChatMode } from '../constants';
-import { generateLoadingCuriosities } from '../services/llmService';
 import { buildLoadingCuriositiesFallback } from '../utils/loadingCuriosities';
 import {
   buildLoadingSmartViewModel,
@@ -184,7 +183,6 @@ const LoadingSmart: React.FC<LoadingSmartProps> = /*#__PURE__*/ React.memo(funct
   const queuedStageKeysRef = useRef<Set<string>>(new Set());
   const loggedStageStartsRef = useRef<Set<string>>(new Set());
   const loggedStageCompletionsRef = useRef<Set<string>>(new Set());
-  const insightRequestIdRef = useRef(0);
 
   const extractCompanyFromQuery = useCallback((query?: string): string => {
     if (!query) return '';
@@ -214,10 +212,6 @@ const LoadingSmart: React.FC<LoadingSmartProps> = /*#__PURE__*/ React.memo(funct
     [searchQuery, companyFocus],
   );
   const loadingContext = (safeContext || safeSearchQuery).trim();
-  const sanitizedQueryForCuriosities = useMemo(
-    () => sanitizeLoadingContextText(searchQuery || '', companyFocus),
-    [searchQuery, companyFocus],
-  );
   const loadingContextKey = useMemo(
     () => `${isLoading ? 'loading' : 'idle'}::${(empresaAlvo || '').trim()}::${(searchQuery || '').trim()}`,
     [empresaAlvo, isLoading, searchQuery],
@@ -431,7 +425,6 @@ const LoadingSmart: React.FC<LoadingSmartProps> = /*#__PURE__*/ React.memo(funct
   );
 
   useEffect(() => {
-    insightRequestIdRef.current += 1;
     clearInsightTimer();
     setActiveInsightIndex(0);
     curiositiesRef.current = [];
@@ -450,46 +443,15 @@ const LoadingSmart: React.FC<LoadingSmartProps> = /*#__PURE__*/ React.memo(funct
     );
   }, [clearInsightTimer, companyFocus, isLoading, loadingContextKey]);
 
-  // ── 2. Curiosidades ──
+  // ── 2. Curiosidades locais ──
   useEffect(() => {
     if (!isLoading) return;
-    const requestId = insightRequestIdRef.current;
-    const applyCuriosities = (nextCuriosities: string[]) => {
-      if (requestId !== insightRequestIdRef.current) return;
-
-      curiositiesRef.current = nextCuriosities;
-      setCurrentInsight(
-        nextCuriosities[0] ||
-          buildFallbackCuriosities(loadingContext)[0] ||
-          'Empresas com disciplina operacional tendem a transformar dados em vantagem competitiva mais rápido.',
-      );
-    };
-
-    if (!loadingContext || loadingContext.length < 2) {
-      applyCuriosities(buildFallbackCuriosities(''));
-      return;
-    }
-
-    let cancelled = false;
-
-    generateLoadingCuriosities(loadingContext, sanitizedQueryForCuriosities)
-      .then(facts => {
-        if (cancelled) return;
-        if (facts && facts.length > 0) {
-          applyCuriosities(facts.map(f => stripInternalMarkers(f)).filter(Boolean));
-        } else {
-          applyCuriosities(buildFallbackCuriosities(loadingContext));
-        }
-      })
-      .catch(() => {
-        if (cancelled) return;
-        applyCuriosities(buildFallbackCuriosities(loadingContext));
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [buildFallbackCuriosities, isLoading, loadingContext, sanitizedQueryForCuriosities]);
+    const curiosities = buildFallbackCuriosities(loadingContext);
+    curiositiesRef.current = curiosities;
+    setCurrentInsight(
+      curiosities[0] || 'Empresas com disciplina operacional tendem a transformar dados em vantagem competitiva mais rápido.',
+    );
+  }, [buildFallbackCuriosities, isLoading, loadingContext]);
 
   // ── 3. Auto-cycle curiosities ──
   const goToInsight = useCallback(

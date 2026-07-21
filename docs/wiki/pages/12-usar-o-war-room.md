@@ -16,6 +16,8 @@ source_files:
   - 'tests/services/warRoomService.test.ts'
 ---
 
+> **Indisponível no ciclo atual.** War Room e benchmark independente foram retirados da aplicação ativa para priorizar estabilidade e qualidade dos dossiês. Dados históricos permanecem preservados; este guia descreve a superfície anterior.
+
 O War Room é um painel React carregado sob demanda a partir do chat principal, exposto pela fachada `services/warRoomService.ts` e executado pela função `queryWarRoom`. A UI operacional roteia perguntas para dois modos: `tech` para dúvidas técnicas sobre Senior ERP e `benchmark` para comparativos contra concorrentes.
 
 ## Superfície operacional

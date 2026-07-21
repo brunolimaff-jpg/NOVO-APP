@@ -118,33 +118,12 @@ describe('EmptyStateHome onboarding gate', () => {
     });
   });
 
-  it('shows Configurar Radar and Varrer agora together when radar is configured', () => {
-    const onOpenRadar = vi.fn();
-    const onForceScan = vi.fn();
-
-    render(
-      <EmptyStateHome
-        mode="investigacao"
-        onStartInvestigation={vi.fn()}
-        isDarkMode={false}
-        radarAlerts={[]}
-        radarIsScanning={false}
-        onOpenRadar={onOpenRadar}
-        onForceScan={onForceScan}
-      />,
-    );
-
-    fireEvent.click(screen.getByRole('button', { name: /Configurar Radar/i }));
-    fireEvent.click(screen.getByRole('button', { name: /Varrer agora/i }));
-
-    expect(onOpenRadar).toHaveBeenCalledTimes(1);
-    expect(onForceScan).toHaveBeenCalledTimes(1);
-  });
-
-  it('keeps the large "Configurar Radar agora" CTA when radar is not configured', () => {
+  it('mostra aviso estático para recursos complementares sem ação de Radar', () => {
     render(<EmptyStateHome mode="investigacao" onStartInvestigation={vi.fn()} isDarkMode={true} />);
 
-    expect(screen.getByRole('button', { name: /Configurar Radar agora/i })).toBeInTheDocument();
+    expect(screen.getByText('Disponível em breve.')).toBeInTheDocument();
+    expect(screen.getByText('Estamos priorizando a estabilização e a qualidade dos dossiês.')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /radar|varrer/i })).not.toBeInTheDocument();
   });
 
   it('preenche nome, cidade e uf e trava o cnpj quando a consulta funciona', async () => {

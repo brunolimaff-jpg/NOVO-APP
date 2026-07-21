@@ -3,8 +3,6 @@ import { scoutDiag } from '../utils/diagnosticLog';
 const RAG_FETCH_TIMEOUT_MS = 15000;
 const RAG_QUERY_MAX_CHARS = 9500;
 
-/** Prefixo retornado por api/docs-rag.ts quando nao ha documentacao viavel no Pinecone. */
-const NO_DOCS_SIGNAL_PREFIX = '[SEM DOCUMENTAÇÃO ENCONTRADA';
 
 export interface RagResult {
   context: string;
@@ -43,7 +41,7 @@ async function fetchRagContext(endpoint: string, label: string, query: string, n
 
       const data = await response.json();
       const context = data.context || '';
-      if (context.startsWith(NO_DOCS_SIGNAL_PREFIX) || !context.trim()) {
+      if (!context.trim()) {
         return { context: '', failed: true };
       }
       return { context, failed: false };
@@ -85,9 +83,4 @@ async function fetchRagContext(endpoint: string, label: string, query: string, n
 export function buscarContextoPinecone(query: string, empresaAlvo?: string): Promise<RagResult> {
   const q = normalizeRagQuery(empresaAlvo ? `${empresaAlvo} ${query}` : query);
   return fetchRagContext('/api/rag', 'RAG', q);
-}
-
-export function buscarContextoDocsPinecone(query: string, namespace?: string): Promise<RagResult> {
-  const label = namespace ? `RAG DOCS:${namespace}` : 'RAG DOCS';
-  return fetchRagContext('/api/docs-rag', label, normalizeRagQuery(query), namespace);
 }

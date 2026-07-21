@@ -1,6 +1,6 @@
 import { scoutDiag } from '../utils/diagnosticLog';
 
-type GeminiApiAction = 'generateContent' | 'chatSendMessage' | 'health' | 'createCachedContent' | 'deleteCachedContent';
+type GeminiApiAction = 'generateContent' | 'chatSendMessage' | 'createCachedContent' | 'deleteCachedContent';
 
 interface GeminiApiBaseRequest {
   action: GeminiApiAction;
@@ -41,10 +41,6 @@ interface GeminiChatRequest extends GeminiApiBaseRequest {
   companyCnpj?: string;
   companyName?: string;
   module?: string;
-}
-
-interface GeminiHealthRequest extends GeminiApiBaseRequest {
-  action: 'health';
 }
 
 interface GeminiGenerateResponse {
@@ -89,11 +85,6 @@ export interface GeminiChatResponse {
    */
   groundingUsed?: boolean;
   webVerificationStatus?: 'verified' | 'fallback_verified' | 'unverified' | 'not_applicable';
-}
-
-interface GeminiHealthResponse {
-  ok: boolean;
-  text?: string;
 }
 
 const CUSTOM_LLM_PROXY_BASE_URL = (import.meta.env.VITE_GEMINI_PROXY_URL || '')
@@ -153,7 +144,6 @@ async function callGeminiApi<TResponse>(
   payload:
     | GeminiGenerateRequest
     | GeminiChatRequest
-    | GeminiHealthRequest
     | GeminiCreateCachedContentRequest
     | GeminiDeleteCachedContentRequest
     | Record<string, unknown>,
@@ -353,19 +343,4 @@ export async function executeOpenWebSearchTool(query: string, url?: string): Pro
     throw new Error(`OpenWebSearch failed: ${response.status}`);
   }
   return response.json();
-}
-
-export async function proxyGeminiHealth(signal?: AbortSignal): Promise<GeminiHealthResponse> {
-  // endpoint resolvido lazy — sem const de módulo
-  return callGeminiApi<GeminiHealthResponse>(resolveGeminiApiEndpoint(), { action: 'health' }, signal);
-}
-
-/** Endpoint dedicado para geração de dossiês completos via Gemini generateContent. */
-export async function proxyGerarDossie(
-  params: Omit<GeminiGenerateRequest, 'action'>,
-  signal?: AbortSignal,
-): Promise<GeminiGenerateResponse> {
-  // FIX: endpoint resolvido lazy dentro da função, não como const de módulo.
-  // Previne TDZ "Cannot access '$i' before initialization" em produção.
-  return callGeminiApi<GeminiGenerateResponse>(resolveEndpoint('/api/gerar-dossie'), params, signal);
 }

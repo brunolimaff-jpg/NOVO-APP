@@ -16,6 +16,8 @@ source_files:
   - 'tests/hooks/useRadar.test.ts'
 ---
 
+> **Indisponível no ciclo atual.** Radar e auto-scan foram retirados da aplicação ativa para priorizar estabilidade e qualidade dos dossiês. Dados históricos permanecem preservados; este guia descreve a superfície anterior.
+
 O Radar roda como boundary de feature em `features/radar`, com estado e orquestração no hook `useRadar`, cliente HTTP em `fetchRadarAlerts` e execução serverless em `/api/radar-scan`. A UI ainda vive em `components/RadarPanel.tsx`, `components/RadarSettings.tsx` e `components/RadarBell.tsx`, carregados sob demanda pelo shell de chat.
 
 ## Superfície principal

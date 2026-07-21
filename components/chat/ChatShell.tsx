@@ -1,15 +1,11 @@
 import React, { useCallback, useRef, useState, type ReactNode } from 'react';
-import { motion } from 'framer-motion';
-import { loadWithChunkRetry } from '../../utils/chunkRetry';
 import type { ChatSession, ExportFormat, ReportType } from '../../types';
 import ExportDropdown from '../ExportDropdown';
 import SessionsSidebar from '../SessionsSidebar';
 import { SyncIndicator } from '../SyncIndicator';
 import Tooltip from '../Tooltip';
 import UserMenu from '../UserMenu';
-import type { ChatTheme, RadarProps } from './contracts';
-
-const RadarBell = React.lazy(() => loadWithChunkRetry(() => import('../RadarBell')));
+import type { ChatTheme } from './contracts';
 
 interface ChatShellProps {
   sessions: ChatSession[];
@@ -22,10 +18,6 @@ interface ChatShellProps {
   isDarkMode: boolean;
   theme: ChatTheme;
   displayTitle: string;
-  radar?: RadarProps;
-  onOpenRadarPanel: () => void;
-  canWarRoom: boolean;
-  onOpenWarRoom: () => void;
   onToggleTheme: () => void;
   displayName: string;
   avatarUrl: string | null;
@@ -51,10 +43,6 @@ const ChatShell: React.FC<ChatShellProps> = ({
   isDarkMode,
   theme,
   displayTitle,
-  radar,
-  onOpenRadarPanel,
-  canWarRoom,
-  onOpenWarRoom,
   onToggleTheme,
   displayName,
   avatarUrl,
@@ -70,7 +58,6 @@ const ChatShell: React.FC<ChatShellProps> = ({
 }) => {
   const [sessionSearchTerm, setSessionSearchTerm] = useState('');
   const sidebarToggleRef = useRef<HTMLButtonElement>(null);
-  const radarUnread = radar?.unreadCount ?? 0;
 
   const closeSidebarOnMobile = useCallback(() => {
     if (window.innerWidth < 768 && isSidebarOpen) {
@@ -150,51 +137,6 @@ const ChatShell: React.FC<ChatShellProps> = ({
           </div>
 
           <div className="flex items-center gap-1 flex-none">
-            {radar && (
-              <React.Suspense fallback={null}>
-                <RadarBell
-                  unreadCount={radarUnread}
-                  isScanning={radar.isScanning}
-                  isDarkMode={isDarkMode}
-                  onClick={onOpenRadarPanel}
-                />
-              </React.Suspense>
-            )}
-
-            {canWarRoom && (
-              <Tooltip label="War Room — análise intensiva" position="bottom">
-                <motion.button
-                  data-testid="chat-war-room-button"
-                  whileHover={{ scale: 1.1, rotate: [-2, 2, -1, 0] }}
-                  whileTap={{ scale: 0.9 }}
-                  type="button"
-                  onClick={onOpenWarRoom}
-                  className={`group relative p-2.5 rounded-xl transition-all shadow-sm overflow-hidden ${
-                    isDarkMode
-                      ? 'bg-slate-900 border border-red-500/25 text-red-300'
-                      : 'bg-white border border-red-200 text-red-700'
-                  }`}
-                  title="War Room"
-                  aria-label="Abrir War Room"
-                >
-                  <div
-                    className={`absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity bg-gradient-to-br ${
-                      isDarkMode ? 'from-red-600/15 to-red-900/10' : 'from-red-50 to-red-100'
-                    }`}
-                  />
-                  <div className="relative flex items-center justify-center">
-                    <img
-                      data-testid="chat-war-room-icon"
-                      src="/war-room-icon-no-bg.png"
-                      alt=""
-                      aria-hidden="true"
-                      className="h-5 w-5 flex-none object-contain"
-                    />
-                  </div>
-                </motion.button>
-              </Tooltip>
-            )}
-
             <ExportDropdown
               isDarkMode={isDarkMode}
               onExportPDF={onExportPDF}

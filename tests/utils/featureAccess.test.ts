@@ -11,10 +11,8 @@ describe('featureAccess', () => {
 
     expect(getFeatureAccess()).toEqual({
       dashboard: true,
-      integrityCheck: true,
       clientLookup: true,
       deepDive: false,
-      warRoom: true,
     });
   });
 
@@ -23,10 +21,8 @@ describe('featureAccess', () => {
 
     expect(getFeatureAccess()).toEqual({
       dashboard: true,
-      integrityCheck: true,
       clientLookup: true,
       deepDive: true,
-      warRoom: true,
     });
   });
 });

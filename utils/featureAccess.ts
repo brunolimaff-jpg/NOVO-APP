@@ -1,9 +1,7 @@
 export interface UserFeatureAccess {
   dashboard: boolean;
-  integrityCheck: boolean;
   clientLookup: boolean;
   deepDive: boolean;
-  warRoom: boolean;
 }
 
 const MVP_LOCK_RESTRICTED_FEATURES = false;
@@ -11,10 +9,8 @@ const DEEP_DIVE_ENV_FLAG = 'VITE_ENABLE_DEEP_DIVE';
 
 const FULL_ACCESS: UserFeatureAccess = {
   dashboard: true,
-  integrityCheck: true,
   clientLookup: true,
   deepDive: true,
-  warRoom: true,
 };
 
 function parseEnvBoolean(rawValue: unknown, defaultValue = false): boolean {
@@ -55,9 +51,7 @@ export function getFeatureAccess(): UserFeatureAccess {
 
   return {
     dashboard: false,
-    integrityCheck: false,
     clientLookup: true,
     deepDive: deepDiveEnabled,
-    warRoom: false,
   };
 }

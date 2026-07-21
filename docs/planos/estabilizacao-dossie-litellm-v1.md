@@ -1,7 +1,7 @@
 # Estabilização do dossiê e migração LiteLLM — v1
 
-> **Status:** PR 1 em revisão; Build Output remoto comprovado.
-> **Baseline:** `a55113e525d31c5a0de82f5b01208ac82ae1eb29`.
+> **Status:** PR 1 mergeada; PR 2 em execução.
+> **Baseline:** `e0e3d8b2468fdf4e1afe3159c2a5b8320e395845`.
 > **Prioridade:** estabilizar exclusivamente o fluxo de geração, persistência, exibição e acompanhamento contextual do dossiê.
 
 ## Decisões congeladas
@@ -101,9 +101,16 @@ Ficam fora: LiteLLM, Gemini, prompts, APIs, Supabase, Vercel remoto, Sentry runt
 - Typecheck e a suíte geral falharam em arquivos e contratos fora deste diff, incluindo módulos de dossiê, LiteLLM, auth, socio-search e fixtures Golden. Com Node `24.14.1` e npm `11.11.0`, Typecheck e Golden reproduzem as causas funcionais da baseline; essas falhas não serão corrigidas nesta PR.
 - O build Vercel local permanece `LOCAL_VERCEL_BUILD_UNLINKED`: a CLI exige vínculo local, mas o Build Output remoto já foi comprovado. Não usar `vercel pull`, `VERCEL_ORG_ID` ou `VERCEL_PROJECT_ID` apenas para repetir essa evidência.
 
+## PR 2 — contenção em execução
+
+- Radar, auto-scan, War Room, benchmark independente, docs-RAG, health generativo e ping LiteLLM saem da aplicação ativa.
+- O aviso estático substitui as superfícies na Home e em Configurações, sem ação, timer ou request.
+- `api/gemini`, `api/rag`, Pinecone, dados históricos e `runDossierBenchmarkStage` permanecem.
+- Gate remoto: Preview READY, Build Output e exatamente nove Functions Node.
+
 ## Próxima sessão
 
-Validar e revisar a PR 1. Antes da PR 2, concluir o call graph de Radar, War Room e RAG. O Build Output remoto já não é pendência.
+Validar e revisar a PR 2. A próxima recuperação depende do Preview e da classificação do CI.
 
 ## Comparação de falhas preexistentes
 

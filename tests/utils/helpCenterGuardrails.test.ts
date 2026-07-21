@@ -8,7 +8,7 @@ describe('helpCenterGuardrails', () => {
       reason: 'help_scope',
     });
     expect(isHelpCenterAllowedQuestion('Como funciona o Score PORTA?').allowed).toBe(true);
-    expect(isHelpCenterAllowedQuestion('O que o Radar monitora?').allowed).toBe(true);
+    expect(isHelpCenterAllowedQuestion('O que o Radar monitora?').allowed).toBe(false);
     expect(isHelpCenterAllowedQuestion('Quais sao os limites do Scout?').allowed).toBe(true);
   });
 
