@@ -6,6 +6,7 @@ import type { LoadingVariant, RequestKind } from '../../../utils/loadingVariant'
 
 const uuidv4Mock = vi.hoisted(() => vi.fn());
 const sendMessageToGeminiMock = vi.hoisted(() => vi.fn());
+const lifecycleMocks = vi.hoisted(() => ({ create: vi.fn(), acquire: vi.fn(), start: vi.fn(() => vi.fn()), set: vi.fn(), clear: vi.fn() }));
 
 vi.mock('uuid', () => ({
   v4: uuidv4Mock,
@@ -14,6 +15,9 @@ vi.mock('uuid', () => ({
 vi.mock('../../../services/llmService', () => ({
   sendMessageToGemini: sendMessageToGeminiMock,
 }));
+vi.mock('../../../lib/supabase/dossierRuns', () => ({ createOrGetDossierRun: lifecycleMocks.create, acquireDossierRunLease: lifecycleMocks.acquire }));
+vi.mock('../../../features/dossier/dossier-run-heartbeat', () => ({ startDossierRunHeartbeat: lifecycleMocks.start }));
+vi.mock('../../../features/dossier/active-run-registry', () => ({ setActiveDossierRun: lifecycleMocks.set, clearActiveDossierRun: lifecycleMocks.clear }));
 
 // Outros testes mockam useToast e chatStore globalmente com vi.mock().
 // Como vitest nao restaura mocks de modulo entre arquivos, esses mocks
@@ -140,7 +144,7 @@ function makeHarness(
   const setInvestigationLogged = vi.fn((next: boolean | ((prev: boolean) => boolean)) => {
     state.investigationLogged = applyStateUpdate(state.investigationLogged, next);
   });
-  const runMegaPromptWaterfall = vi.fn(async () => {});
+  const runMegaPromptWaterfall = vi.fn(async (): Promise<import('../../../types').DossierWaterfallResult> => ({ status: 'COMPLETED' }));
 
   const buildOptions = (): Parameters<typeof useChatMessageOrchestrator>[0] => ({
     currentSessionId: state.currentSessionId,
@@ -207,6 +211,8 @@ describe('useChatMessageOrchestrator', () => {
     vi.clearAllMocks();
     uuidv4Mock.mockReset();
     sendMessageToGeminiMock.mockReset();
+    lifecycleMocks.create.mockResolvedValue({ run_id: 'run-1' });
+    lifecycleMocks.acquire.mockResolvedValue({ status: 'RUNNING', lease_expires_at: 'future' });
     global.fetch = vi.fn(async () => ({ ok: true }) as Response) as unknown as typeof fetch;
   });
 
@@ -412,7 +418,7 @@ describe('useChatMessageOrchestrator', () => {
     const harness = makeHarness();
     harness.runMegaPromptWaterfall.mockImplementationOnce(async () => {
       delete harness.activeGenerationRef.current['session-new'];
-      throw new Error('api gemini indisponivel');
+      return { status: 'FAILED', errorCode: 'api_unavailable', errorStage: 'waterfall', error: new Error('api gemini indisponivel') };
     });
 
     await act(async () => {
@@ -430,7 +436,7 @@ describe('useChatMessageOrchestrator', () => {
   });
 
   it('nao cria sessao orfa quando a primeira investigacao dispara duas vezes antes do re-render', async () => {
-    const deferred = createDeferred<void>();
+    const deferred = createDeferred<import('../../../types').DossierWaterfallResult>();
     uuidv4Mock
       .mockReturnValueOnce('session-first')
       .mockReturnValueOnce('message-user-first')
@@ -468,7 +474,7 @@ describe('useChatMessageOrchestrator', () => {
     expect(harness.runMegaPromptWaterfall).toHaveBeenCalledTimes(1);
 
     await act(async () => {
-      deferred.resolve();
+      deferred.resolve({ status: 'COMPLETED' });
       await firstSend;
     });
   });

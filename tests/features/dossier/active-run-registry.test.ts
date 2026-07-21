@@ -1,0 +1,4 @@
+import { beforeEach, describe, expect, it } from 'vitest';
+import { clearActiveDossierRun, clearAllActiveDossierRunsForTest, getActiveDossierRun, setActiveDossierRun } from '../../../features/dossier/active-run-registry';
+beforeEach(clearAllActiveDossierRunsForTest); const run=(sessionId:string,runId:string)=>({sessionId,runId,leaseOwner:'l',clientAttemptId:'a'});
+describe('active run registry',()=>{ it('set/get, substitui e isola',()=>{setActiveDossierRun(run('s','a'));setActiveDossierRun(run('x','z'));setActiveDossierRun(run('s','b'));expect(getActiveDossierRun('s')?.runId).toBe('b');expect(getActiveDossierRun('x')?.runId).toBe('z');}); it('cleanup antigo não apaga substituto',()=>{setActiveDossierRun(run('s','a'));setActiveDossierRun(run('s','b'));clearActiveDossierRun('s','a');expect(getActiveDossierRun('s')?.runId).toBe('b');clearActiveDossierRun('s','b');expect(getActiveDossierRun('s')).toBeNull();});});

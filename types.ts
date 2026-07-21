@@ -224,7 +224,14 @@ export interface RunMegaPromptWaterfallArgs {
   operatorId?: string;
   operatorEmail?: string;
   operatorSessionId?: string;
+  dossierRunId?: string;
+  dossierLeaseOwner?: string;
 }
+
+export type DossierWaterfallResult =
+  | { status: 'COMPLETED'; dossierRunId?: string }
+  | { status: 'CANCELLED'; dossierRunId?: string; terminalPersisted: boolean; reason: 'local_abort' | 'remote_cancel' }
+  | { status: 'FAILED'; dossierRunId?: string; errorCode: string; errorStage: string; error: Error };
 
 export interface ChatState {
   messages: Message[];

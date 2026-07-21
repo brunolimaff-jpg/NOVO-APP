@@ -3,6 +3,7 @@
 // NUNCA bloqueia a UX — falhas sao silenciosas.
 
 import { supabase, isSupabaseAvailable } from '../lib/supabaseClient';
+import { resolveRuntimeAppVersion, resolveRuntimeEnvironment } from '../lib/runtimeMetadata';
 
 // ===================================================================
 // TYPES
@@ -38,19 +39,11 @@ export interface OperatorEventPayload {
 // ===================================================================
 
 function resolveEnvironment(): string {
-  if (typeof window === 'undefined') return 'ssr';
-  const host = window.location.hostname;
-  if (host === 'localhost' || host === '127.0.0.1') return 'development';
-  if (host.includes('preview-') || host.endsWith('.vercel.app')) return 'preview';
-  return 'production';
+  return resolveRuntimeEnvironment();
 }
 
 function resolveAppVersion(): string {
-  try {
-    return (import.meta as any).env?.VITE_APP_VERSION || '1.0.0';
-  } catch {
-    return '1.0.0';
-  }
+  return resolveRuntimeAppVersion();
 }
 
 function resolveUserAgent(): string {

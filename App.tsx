@@ -58,6 +58,7 @@ import { cleanTitle } from './utils/textCleaners';
 import { extractCompanyName } from './utils/companyNameExtractor';
 import { getFeatureAccess } from './utils/featureAccess';
 import { scoutDiag } from './utils/diagnosticLog';
+import { requestCancellationForActiveDossierRun } from './features/dossier/cancel-active-dossier-run';
 import { downloadConversationExport, openDossierPrintReport } from './services/exportService';
 import FooterCredits from './components/FooterCredits';
 import { useChatStore } from './stores/chatStore';
@@ -343,6 +344,7 @@ const App: React.FC = () => {
     const sessionId = currentSessionId;
     const activeBotId = sessionId ? activeGenerationRef.current[sessionId] : undefined;
 
+    if (sessionId) void requestCancellationForActiveDossierRun(sessionId, 'user_stop').catch(error => scoutDiag.warn('DossierRunLifecycle', 'cancel-request-failed', { sessionId, error: String(error) }));
     if (abortControllerRef.current) {
       scoutDiag.info('Abort', 'user-stopped-generation', {
         sessionId,

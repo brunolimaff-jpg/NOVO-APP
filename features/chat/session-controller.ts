@@ -4,6 +4,7 @@ import { DEFAULT_MODE } from '../../constants';
 import { useMaybeOperator } from '../../contexts/OperatorContext';
 import { getRemoteSession, saveRemoteSession } from '../../services/sessionRemoteStore';
 import { storage } from '../../services/storage';
+import { requestCancellationForActiveDossierRun } from '../dossier/cancel-active-dossier-run';
 import { trackOperatorEvent } from '../../services/operatorTracking';
 import { useMaybeChatStore } from '../../stores/chatStore';
 import { useMaybeDossierStore, type RemoteSaveStatus } from '../../stores/dossierStore';
@@ -171,6 +172,7 @@ export function useSessionManager(options: Partial<UseSessionManagerOptions> = {
 
   const handleNewSession = useCallback(() => {
     if (isLoading) {
+      if (currentSessionId) void requestCancellationForActiveDossierRun(currentSessionId, 'new_session').catch(() => undefined);
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
         abortControllerRef.current = null;
@@ -220,6 +222,7 @@ export function useSessionManager(options: Partial<UseSessionManagerOptions> = {
   const handleSelectSession = useCallback(
     async (sessionId: string) => {
       if (isLoading) {
+        if (currentSessionId) void requestCancellationForActiveDossierRun(currentSessionId, 'session_switch').catch(() => undefined);
         if (abortControllerRef.current) {
           abortControllerRef.current.abort();
           abortControllerRef.current = null;
@@ -277,6 +280,7 @@ export function useSessionManager(options: Partial<UseSessionManagerOptions> = {
 
   const handleDeleteSession = useCallback(
     (sessionId: string) => {
+      void requestCancellationForActiveDossierRun(sessionId, 'session_delete').catch(() => undefined);
       if (sessionId === currentSessionId && isLoading && abortControllerRef.current) {
         abortControllerRef.current.abort();
         abortControllerRef.current = null;

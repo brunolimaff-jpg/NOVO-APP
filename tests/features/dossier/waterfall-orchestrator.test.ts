@@ -85,6 +85,7 @@ vi.mock('../../../stores/chatStore', () => ({
 vi.mock('../../../services/storage', () => ({
   storage: {
     saveDossier: saveDossierMock,
+    saveDossierStrict: saveDossierMock,
   },
 }));
 
@@ -458,11 +459,8 @@ describe('useDossierWaterfallOrchestrator', () => {
 
     const harness = makeHarness({ canUseLookup: false });
 
-    await expect(
-      act(async () => {
-        await harness.result.current.runMegaPromptWaterfall(makeRunArgs());
-      }),
-    ).rejects.toBe(abortError);
+    const result = await harness.result.current.runMegaPromptWaterfall(makeRunArgs());
+    expect(result).toMatchObject({ status: 'CANCELLED' });
 
     expect(deleteWaterfallFoundationCacheMock).not.toHaveBeenCalled();
     expect(runDossierBenchmarkStageMock).not.toHaveBeenCalled();
@@ -867,16 +865,13 @@ describe('useDossierWaterfallOrchestrator', () => {
 
     const harness = makeHarness({ canUseLookup: false });
 
-    await expect(
-      act(async () => {
-        await harness.result.current.runMegaPromptWaterfall(makeRunArgs());
-      }),
-    ).rejects.toBe(abortError);
+    const result = await harness.result.current.runMegaPromptWaterfall(makeRunArgs());
+    expect(result).toMatchObject({ status: 'CANCELLED' });
 
     expect(runDossierBenchmarkStageMock).not.toHaveBeenCalled();
     expect(reconcileWaterfallPortaMock).not.toHaveBeenCalled();
     expect(harness.updateSessionById).not.toHaveBeenCalled();
-    expect(harness.completeLoadingProgress).not.toHaveBeenCalled();
+    expect(harness.completeLoadingProgress).toHaveBeenCalled();
   });
 
   it('interrompe antes de consolidar quando o usuário aborta após os módulos', async () => {
@@ -890,17 +885,14 @@ describe('useDossierWaterfallOrchestrator', () => {
 
     const harness = makeHarness({ canUseLookup: false });
 
-    await expect(
-      act(async () => {
-        await harness.result.current.runMegaPromptWaterfall(makeRunArgs({ signal: controller.signal }));
-      }),
-    ).rejects.toMatchObject({ name: 'AbortError' });
+    const result = await harness.result.current.runMegaPromptWaterfall(makeRunArgs({ signal: controller.signal }));
+    expect(result).toMatchObject({ status: 'CANCELLED' });
 
     expect(runDossierBenchmarkStageMock).not.toHaveBeenCalled();
     expect(reconcileWaterfallPortaMock).not.toHaveBeenCalled();
     expect(harness.updateSessionById).not.toHaveBeenCalled();
     expect(saveDossierMock).not.toHaveBeenCalled();
-    expect(harness.completeLoadingProgress).not.toHaveBeenCalled();
+    expect(harness.completeLoadingProgress).toHaveBeenCalled();
   });
 
   it('faz fallback de sugestões e grava o payload final no updateSessionById', async () => {
@@ -963,7 +955,7 @@ describe('useDossierWaterfallOrchestrator', () => {
 
     const harness = makeHarness({ canUseLookup: false });
 
-    let runPromise!: Promise<void>;
+    let runPromise!: Promise<import('../../../types').DossierWaterfallResult>;
     act(() => {
       runPromise = harness.result.current.runMegaPromptWaterfall(makeRunArgs());
     });

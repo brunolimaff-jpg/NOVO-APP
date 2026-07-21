@@ -94,6 +94,26 @@ export const dossiers = {
     }
   },
 
+  async saveDossierStrict(session: ChatSession): Promise<void> {
+    const operatorId = getOperatorId();
+    if (!isSupabaseAvailable()) throw new Error('Supabase indisponível para persistência estrita');
+    if (!operatorId) throw new Error('operatorId obrigatório para persistência estrita');
+    const cleanSession = stripTransientState(session);
+    const { data, error } = await supabase!
+      .from('dossies')
+      .upsert({
+        id: cleanSession.id, operator_id: operatorId, operator_email: storageGet('operator_email') ?? null,
+        title: cleanSession.title, empresa_alvo: cleanSession.empresaAlvo, cnpj: cleanSession.cnpj,
+        modo_principal: cleanSession.modoPrincipal, score_oportunidade: cleanSession.scoreOportunidade,
+        resumo_dossie: cleanSession.resumoDossie, content: cleanSession as unknown as Record<string, unknown>,
+        updated_at: cleanSession.updatedAt || new Date().toISOString(),
+      })
+      .select('id');
+    if (error) throw new Error(error.message);
+    const persisted = Array.isArray(data) ? data[0] : data;
+    if (!persisted?.id || persisted.id !== cleanSession.id) throw new Error('Persistência estrita sem confirmação do dossiê');
+  },
+
   async saveAllDossiers(sessions: ChatSession[]): Promise<void> {
     const operatorId = getOperatorId();
     if (!isSupabaseAvailable() || !operatorId || sessions.length === 0) return;
