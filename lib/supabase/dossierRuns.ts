@@ -17,6 +17,11 @@ export class DossierRunRpcTimeoutError extends Error {
   }
 }
 export type RpcOptions = { signal?: AbortSignal; timeoutMs?: number };
+type RpcAbortContext = {
+  signal: AbortSignal;
+  didTimeout: () => boolean;
+  cleanup: () => void;
+};
 
 function requiredClient() {
   if (!isSupabaseAvailable() || !supabase) throw new Error('Supabase indisponível para lifecycle do dossiê');
@@ -47,11 +52,69 @@ export async function withAbortAndTimeout<T>(operation: PromiseLike<T>, options:
     if (signal && abortListener) signal.removeEventListener('abort', abortListener);
   }
 }
+
+function abortError(operationName: string): DOMException {
+  return new DOMException(`RPC abortada: ${operationName}`, 'AbortError');
+}
+
+function createRpcAbortContext(options: RpcOptions | undefined, operationName: string): RpcAbortContext {
+  const controller = new AbortController();
+  let timedOut = false;
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  const externalSignal = options?.signal;
+  const onExternalAbort = () => controller.abort();
+
+  if (externalSignal) externalSignal.addEventListener('abort', onExternalAbort, { once: true });
+  if (options?.timeoutMs !== undefined) {
+    timeoutId = setTimeout(() => {
+      timedOut = true;
+      controller.abort();
+    }, options.timeoutMs);
+  }
+
+  return {
+    signal: controller.signal,
+    didTimeout: () => timedOut,
+    cleanup: () => {
+      if (timeoutId !== undefined) clearTimeout(timeoutId);
+      externalSignal?.removeEventListener('abort', onExternalAbort);
+    },
+  };
+}
+
+async function awaitAbortableRpc<T>(
+  request: PromiseLike<T>,
+  context: RpcAbortContext,
+  operationName: string,
+): Promise<T> {
+  let onAbort: (() => void) | undefined;
+  const aborted = new Promise<never>((_, reject) => {
+    onAbort = () => reject(context.didTimeout() ? new DossierRunRpcTimeoutError(operationName) : abortError(operationName));
+    context.signal.addEventListener('abort', onAbort, { once: true });
+  });
+
+  try {
+    return await Promise.race([Promise.resolve(request), aborted]);
+  } catch (error) {
+    if (context.didTimeout()) throw new DossierRunRpcTimeoutError(operationName);
+    if (context.signal.aborted) throw abortError(operationName);
+    throw error;
+  } finally {
+    if (onAbort) context.signal.removeEventListener('abort', onAbort);
+  }
+}
+
 async function rpcNullable<T>(fn: string, args: Record<string, unknown>, options?: RpcOptions): Promise<T | null> {
-  const request = requiredClient().rpc(fn, args);
-  const { data, error } = await withAbortAndTimeout(request, options, fn);
-  if (error) throw new Error(`RPC ${fn} falhou: ${error.message}`, { cause: error });
-  return data === null ? null : data as T;
+  if (options?.signal?.aborted) throw abortError(fn);
+  const context = createRpcAbortContext(options, fn);
+  try {
+    const request = requiredClient().rpc(fn, args).abortSignal(context.signal);
+    const { data, error } = await awaitAbortableRpc(request, context, fn);
+    if (error) throw new Error(`RPC ${fn} falhou: ${error.message}`, { cause: error });
+    return data === null ? null : data as T;
+  } finally {
+    context.cleanup();
+  }
 }
 async function rpcRequired<T>(fn: string, args: Record<string, unknown>, options?: RpcOptions): Promise<T> {
   const data = await rpcNullable<T>(fn, args, options);
