@@ -44,6 +44,29 @@ describe('dossier run heartbeat', () => {
     expect(renew).toHaveBeenCalledTimes(3);
   });
 
+  it('renew null diagnostica a lease não renovada e encerra sem acessar campos nulos', async () => {
+    vi.useFakeTimers();
+    const renew = vi.fn().mockResolvedValue(null);
+    startDossierRunHeartbeat({ sessionId: 's', runId: 'r', leaseOwner: 'l', renew, intervalMs: 10 });
+    await vi.advanceTimersByTimeAsync(10);
+    expect(scoutDiagMock.warn).toHaveBeenCalledWith(
+      'DossierRunLifecycle',
+      'heartbeat-renew-not-acquired',
+      expect.objectContaining({ consecutiveFailures: 1 }),
+    );
+    await vi.advanceTimersByTimeAsync(30);
+    expect(renew).toHaveBeenCalledTimes(1);
+  });
+
+  it('CANCEL_REQUESTED com lease válida segue como renovação válida', async () => {
+    vi.useFakeTimers();
+    const renew = vi.fn().mockResolvedValue({ ...running, status: 'CANCEL_REQUESTED' as const });
+    startDossierRunHeartbeat({ sessionId: 's', runId: 'r', leaseOwner: 'l', renew, intervalMs: 10 });
+    await vi.advanceTimersByTimeAsync(20);
+    expect(renew).toHaveBeenCalledTimes(2);
+    expect(scoutDiagMock.warn).not.toHaveBeenCalled();
+  });
+
   it.each(['COMPLETED', 'FAILED', 'CANCELLED'] as const)('terminal %s encerra heartbeat sem warning de release', async status => {
     vi.useFakeTimers();
     const renew = vi.fn().mockResolvedValue({ ...running, status });

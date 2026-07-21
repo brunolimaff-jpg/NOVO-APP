@@ -1,4 +1,4 @@
-import { renewDossierRunLease, type DossierRun } from '../../lib/supabase/dossierRuns';
+import { renewDossierRunLease } from '../../lib/supabase/dossierRuns';
 import { scoutDiag } from '../../utils/diagnosticLog';
 
 export const DOSSIER_RUN_HEARTBEAT_MS = 15_000;
@@ -17,7 +17,16 @@ export function startDossierRunHeartbeat(input: Input): () => void {
     if (stopped || inFlight) return;
     inFlight = true;
     try {
-      const run: DossierRun = await renew(input.runId, input.leaseOwner);
+      const run = await renew(input.runId, input.leaseOwner);
+      if (!run) {
+        consecutiveFailures += 1;
+        scoutDiag.warn('DossierRunLifecycle', 'heartbeat-renew-not-acquired', {
+          runId: input.runId,
+          sessionId: input.sessionId,
+          consecutiveFailures,
+        });
+        return cleanup();
+      }
       consecutiveFailures = 0;
       if (
         run.status === 'COMPLETED' ||

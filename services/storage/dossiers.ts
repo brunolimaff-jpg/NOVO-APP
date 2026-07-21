@@ -2,6 +2,7 @@
 import { supabase, isSupabaseAvailable } from '../../lib/supabaseClient';
 import { getOperatorId } from './_shared';
 import { storageGet } from '../../utils/localStorage';
+import { scoutDiag } from '../../utils/diagnosticLog';
 import type { ChatSession } from './types';
 
 function stripTransientMessageState(message: ChatSession['messages'][number]): ChatSession['messages'][number] {
@@ -109,9 +110,21 @@ export const dossiers = {
         updated_at: cleanSession.updatedAt || new Date().toISOString(),
       })
       .select('id');
-    if (error) throw new Error(error.message);
+    if (error) {
+      scoutDiag.warn('Storage', 'save-dossier-strict-failed', {
+        sessionId: session.id,
+        error: error.message,
+      });
+      throw new Error(error.message, { cause: error });
+    }
     const persisted = Array.isArray(data) ? data[0] : data;
-    if (!persisted?.id || persisted.id !== cleanSession.id) throw new Error('Persistência estrita sem confirmação do dossiê');
+    if (!persisted?.id || persisted.id !== cleanSession.id) {
+      scoutDiag.warn('Storage', 'save-dossier-strict-unconfirmed', {
+        sessionId: session.id,
+        persistedId: persisted?.id ?? null,
+      });
+      throw new Error('Persistência estrita sem confirmação do dossiê');
+    }
   },
 
   async saveAllDossiers(sessions: ChatSession[]): Promise<void> {

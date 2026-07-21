@@ -31,7 +31,7 @@ import {
 import { useToast } from '../../hooks/useToast';
 import { trackOperatorEvent } from '../../services/operatorTracking';
 import { getWaterfallGuardState, isAnyWaterfallActive } from '../dossier/waterfall-guard';
-import { acquireDossierRunLease, createOrGetDossierRun } from '../../lib/supabase/dossierRuns';
+import { acquireDossierRunLease, createOrGetDossierRun, DOSSIER_RUN_RPC_TIMEOUT_MS } from '../../lib/supabase/dossierRuns';
 import { clearActiveDossierRun, setActiveDossierRun } from '../dossier/active-run-registry';
 import { startDossierRunHeartbeat } from '../dossier/dossier-run-heartbeat';
 
@@ -517,12 +517,31 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
           const createdRun = await createOrGetDossierRun({
             sessionId,
             idempotencyKey: `dossier:${sessionId}:${botMessageId}`,
-          });
+          }, { signal, timeoutMs: DOSSIER_RUN_RPC_TIMEOUT_MS });
           const leaseOwner = `${botMessageId}:lease`;
-          const leasedRun = await acquireDossierRunLease(createdRun.run_id, leaseOwner);
-          if (leasedRun.status !== 'RUNNING' || leasedRun.lease_expires_at === null) {
-            scoutDiag.warn('MessageOrchestrator', 'dossier-run-lease-not-acquired', { sessionId, runId: createdRun.run_id });
-            setSessions(prev => prev.map(session => session.id === sessionId ? { ...session, messages: session.messages.filter(message => message.id !== botMessageId) } : session));
+          const leasedRun = await acquireDossierRunLease(createdRun.run_id, leaseOwner, { signal, timeoutMs: DOSSIER_RUN_RPC_TIMEOUT_MS });
+          if (!leasedRun || leasedRun.status !== 'RUNNING' || leasedRun.lease_expires_at === null) {
+            scoutDiag.warn('MessageOrchestrator', 'dossier-run-lease-not-acquired', {
+              sessionId,
+              runId: createdRun.run_id,
+              status: leasedRun?.status ?? null,
+            });
+            const leaseError = normalizeAppError(new Error('Não foi possível iniciar o dossiê porque já existe uma execução em andamento para esta sessão. Aguarde a conclusão ou interrompa a execução ativa.'));
+            updateSessionById(sessionId, session => ({
+              ...session,
+              messages: session.messages.map(message =>
+                message.id === botMessageId
+                  ? {
+                      ...message,
+                      text: 'Não foi possível iniciar o dossiê porque já existe uma execução em andamento para esta sessão. Aguarde a conclusão ou interrompa a execução ativa.',
+                      isThinking: false,
+                      loadingVariant: undefined,
+                      isError: true,
+                      errorDetails: leaseError,
+                    }
+                  : message,
+              ),
+            }));
             return;
           }
           lifecycleRunId = createdRun.run_id;
@@ -552,6 +571,16 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
             dossierLeaseOwner: leaseOwner,
           });
           if (waterfallResult.status === 'CANCELLED') {
+            trackOperatorEvent('dossier_cancelled', {
+              operatorId,
+              email: operatorEmail || undefined,
+              sessionId,
+              entityType: 'session',
+              entityId: botMessageId,
+              companyCnpj: sessionCnpjDigits || undefined,
+              companyName: normalizedCompany || undefined,
+              metadata: { runId: lifecycleRunId },
+            });
             setSessions(prev => prev.map(session => session.id === sessionId ? { ...session, messages: session.messages.filter(message => message.id !== botMessageId || message.text.trim().length > 0) } : session));
             return;
           }

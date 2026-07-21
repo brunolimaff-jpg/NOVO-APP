@@ -9,27 +9,66 @@ export interface DossierRun {
 export interface DossierRunContext { sessionId: string; runId: string; leaseOwner: string; clientAttemptId: string; }
 export type DossierRunTerminalResult = { status: 'COMPLETED' | 'CANCELLED'; runId: string } | { status: 'FAILED'; runId: string; errorCode?: string; errorStage?: string };
 
+export const DOSSIER_RUN_RPC_TIMEOUT_MS = 15_000;
+export class DossierRunRpcTimeoutError extends Error {
+  constructor(operationName: string) {
+    super(`RPC do lifecycle do dossiê excedeu o timeout: ${operationName}`);
+    this.name = 'DossierRunRpcTimeoutError';
+  }
+}
+export type RpcOptions = { signal?: AbortSignal; timeoutMs?: number };
+
 function requiredClient() {
   if (!isSupabaseAvailable() || !supabase) throw new Error('Supabase indisponível para lifecycle do dossiê');
   return supabase;
 }
-async function rpc<T>(fn: string, args: Record<string, unknown>): Promise<T> {
-  const { data, error } = await requiredClient().rpc(fn, args);
-  if (error) throw new Error(`RPC ${fn} falhou: ${error.message}`);
-  if (!data) throw new Error(`RPC ${fn} retornou vazio`);
-  return data as T;
+export async function withAbortAndTimeout<T>(operation: PromiseLike<T>, options: RpcOptions | undefined, operationName: string): Promise<T> {
+  const signal = options?.signal;
+  if (signal?.aborted) throw new DOMException(`RPC abortada: ${operationName}`, 'AbortError');
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  let abortListener: (() => void) | undefined;
+  try {
+    const races: Array<Promise<T>> = [Promise.resolve(operation)];
+    if (signal) {
+      races.push(new Promise<T>((_, reject) => {
+        abortListener = () => reject(new DOMException(`RPC abortada: ${operationName}`, 'AbortError'));
+        signal.addEventListener('abort', abortListener, { once: true });
+      }));
+    }
+    const timeoutMs = options?.timeoutMs;
+    if (timeoutMs !== undefined) {
+      races.push(new Promise<T>((_, reject) => {
+        timeoutId = setTimeout(() => reject(new DossierRunRpcTimeoutError(operationName)), timeoutMs);
+      }));
+    }
+    return await Promise.race(races);
+  } finally {
+    if (timeoutId !== undefined) clearTimeout(timeoutId);
+    if (signal && abortListener) signal.removeEventListener('abort', abortListener);
+  }
+}
+async function rpcNullable<T>(fn: string, args: Record<string, unknown>, options?: RpcOptions): Promise<T | null> {
+  const request = requiredClient().rpc(fn, args);
+  const { data, error } = await withAbortAndTimeout(request, options, fn);
+  if (error) throw new Error(`RPC ${fn} falhou: ${error.message}`, { cause: error });
+  return data === null ? null : data as T;
+}
+async function rpcRequired<T>(fn: string, args: Record<string, unknown>, options?: RpcOptions): Promise<T> {
+  const data = await rpcNullable<T>(fn, args, options);
+  if (data === null) throw new Error(`RPC ${fn} retornou vazio`);
+  return data;
 }
 export function createDossierRunIdempotencyKey(input: { cnpj?: string | null; mode: string; contractVersion: string; clientAttemptId: string }): string {
   return [normalizeCnpj(input.cnpj ?? ''), input.mode.trim(), input.contractVersion.trim(), input.clientAttemptId.trim()].join(':');
 }
-export async function createOrGetDossierRun(input: { sessionId: string; idempotencyKey: string }): Promise<DossierRun> {
-  return rpc('create_or_get_dossier_run', { p_idempotency_key: input.idempotencyKey, p_session_id: input.sessionId, p_environment: resolveRuntimeEnvironment(), p_app_version: resolveRuntimeAppVersion() });
+export async function createOrGetDossierRun(input: { sessionId: string; idempotencyKey: string }, options?: RpcOptions): Promise<DossierRun> {
+  return rpcRequired('create_or_get_dossier_run', { p_idempotency_key: input.idempotencyKey, p_session_id: input.sessionId, p_environment: resolveRuntimeEnvironment(), p_app_version: resolveRuntimeAppVersion() }, options);
 }
-export const getDossierRun = (runId: string) => rpc<DossierRun>('get_own_dossier_run', { p_run_id: runId });
-export const acquireDossierRunLease = (runId: string, leaseOwner: string) => rpc<DossierRun>('acquire_dossier_run_lease', { p_run_id: runId, p_lease_owner: leaseOwner });
-export const renewDossierRunLease = (runId: string, leaseOwner: string) => rpc<DossierRun>('renew_dossier_run_lease', { p_run_id: runId, p_lease_owner: leaseOwner });
-export const releaseDossierRunLease = (runId: string, leaseOwner: string) => rpc<DossierRun>('release_dossier_run_lease', { p_run_id: runId, p_lease_owner: leaseOwner });
-export const requestDossierRunCancellation = (runId: string) => rpc<DossierRun>('request_dossier_run_cancel', { p_run_id: runId });
-export const markDossierRunCancelled = (runId: string, leaseOwner: string) => rpc<DossierRun>('mark_dossier_run_cancelled', { p_run_id: runId, p_lease_owner: leaseOwner });
-export const markDossierRunCompleted = (runId: string, leaseOwner: string, dossierId: string) => rpc<DossierRun>('complete_dossier_run', { p_run_id: runId, p_lease_owner: leaseOwner, p_dossier_id: dossierId });
-export const markDossierRunFailed = (runId: string, leaseOwner: string, errorCode: string, errorStage: string) => rpc<DossierRun>('fail_dossier_run', { p_run_id: runId, p_lease_owner: leaseOwner, p_error_code: errorCode, p_error_stage: errorStage });
+export const getDossierRun = (runId: string, options?: RpcOptions) => rpcRequired<DossierRun>('get_own_dossier_run', { p_run_id: runId }, options);
+export const acquireDossierRunLease = (runId: string, leaseOwner: string, options?: RpcOptions) => rpcNullable<DossierRun>('acquire_dossier_run_lease', { p_run_id: runId, p_lease_owner: leaseOwner }, options);
+export const renewDossierRunLease = (runId: string, leaseOwner: string, options?: RpcOptions) => rpcNullable<DossierRun>('renew_dossier_run_lease', { p_run_id: runId, p_lease_owner: leaseOwner }, options);
+export const releaseDossierRunLease = (runId: string, leaseOwner: string, options?: RpcOptions) => rpcNullable<DossierRun>('release_dossier_run_lease', { p_run_id: runId, p_lease_owner: leaseOwner }, options);
+export const requestDossierRunCancellation = (runId: string, options?: RpcOptions) => rpcRequired<DossierRun>('request_dossier_run_cancel', { p_run_id: runId }, options);
+export const markDossierRunCancelled = (runId: string, leaseOwner: string, options?: RpcOptions) => rpcRequired<DossierRun>('mark_dossier_run_cancelled', { p_run_id: runId, p_lease_owner: leaseOwner }, options);
+export const markDossierRunCompleted = (runId: string, leaseOwner: string, dossierId: string, options?: RpcOptions) => rpcRequired<DossierRun>('complete_dossier_run', { p_run_id: runId, p_lease_owner: leaseOwner, p_dossier_id: dossierId }, options);
+export const markDossierRunFailed = (runId: string, leaseOwner: string, errorCode: string, errorStage: string, options?: RpcOptions) => rpcRequired<DossierRun>('fail_dossier_run', { p_run_id: runId, p_lease_owner: leaseOwner, p_error_code: errorCode, p_error_stage: errorStage }, options);

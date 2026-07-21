@@ -95,7 +95,7 @@ RETURNS public.dossier_runs LANGUAGE plpgsql SECURITY DEFINER SET search_path = 
 DECLARE v_run public.dossier_runs;
 BEGIN
   UPDATE public.dossier_runs SET lease_expires_at = now() + make_interval(secs => p_lease_seconds), last_heartbeat_at = now()
-   WHERE run_id = p_run_id AND owner_id = auth.uid() AND status = 'RUNNING'
+   WHERE run_id = p_run_id AND owner_id = auth.uid() AND status IN ('RUNNING', 'CANCEL_REQUESTED')
      AND lease_owner = p_lease_owner AND lease_expires_at >= now()
   RETURNING * INTO v_run;
   IF v_run.run_id IS NOT NULL THEN RETURN v_run; END IF;
@@ -150,19 +150,31 @@ CREATE OR REPLACE FUNCTION public.complete_dossier_run(p_run_id UUID, p_lease_ow
 RETURNS public.dossier_runs LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
 DECLARE v_run public.dossier_runs;
 BEGIN
-  UPDATE public.dossier_runs SET status = 'COMPLETED', dossier_id = p_dossier_id, completed_at = now(), lease_owner = NULL, lease_expires_at = NULL
+  UPDATE public.dossier_runs SET status = 'COMPLETED', dossier_id = p_dossier_id, completed_at = coalesce(completed_at, now()), lease_owner = NULL, lease_expires_at = NULL
    WHERE run_id = p_run_id AND owner_id = auth.uid() AND lease_owner = p_lease_owner AND status = 'RUNNING'
-  RETURNING * INTO v_run; RETURN v_run;
+  RETURNING * INTO v_run;
+  IF v_run.run_id IS NOT NULL THEN RETURN v_run; END IF;
+  SELECT * INTO v_run
+    FROM public.dossier_runs
+   WHERE run_id = p_run_id AND owner_id = auth.uid()
+     AND status = 'COMPLETED' AND dossier_id = p_dossier_id AND lease_owner IS NULL;
+  RETURN v_run;
 END; $$;
 
 CREATE OR REPLACE FUNCTION public.fail_dossier_run(p_run_id UUID, p_lease_owner TEXT, p_error_code TEXT, p_error_stage TEXT)
 RETURNS public.dossier_runs LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
 DECLARE v_run public.dossier_runs;
 BEGIN
-  UPDATE public.dossier_runs SET status = 'FAILED', failed_at = now(), error_code = p_error_code, error_stage = p_error_stage,
+  UPDATE public.dossier_runs SET status = 'FAILED', failed_at = coalesce(failed_at, now()), error_code = p_error_code, error_stage = p_error_stage,
       lease_owner = NULL, lease_expires_at = NULL
    WHERE run_id = p_run_id AND owner_id = auth.uid() AND lease_owner = p_lease_owner AND status NOT IN ('CANCELLED', 'COMPLETED', 'FAILED')
-  RETURNING * INTO v_run; RETURN v_run;
+  RETURNING * INTO v_run;
+  IF v_run.run_id IS NOT NULL THEN RETURN v_run; END IF;
+  SELECT * INTO v_run
+    FROM public.dossier_runs
+   WHERE run_id = p_run_id AND owner_id = auth.uid()
+     AND status = 'FAILED' AND error_code = p_error_code AND error_stage = p_error_stage AND lease_owner IS NULL;
+  RETURN v_run;
 END; $$;
 
 REVOKE ALL ON FUNCTION public.create_or_get_dossier_run(TEXT, UUID, TEXT, TEXT) FROM PUBLIC, anon;

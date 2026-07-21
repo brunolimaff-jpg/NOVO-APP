@@ -15,6 +15,7 @@ export type OperatorEventName =
   | 'dossier_started'
   | 'dossier_completed'
   | 'dossier_failed'
+  | 'dossier_cancelled'
   | 'dossier_opened'
   | 'dossier_shared'
   | 'dossier_reopened'

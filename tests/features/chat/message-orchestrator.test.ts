@@ -16,7 +16,11 @@ vi.mock('uuid', () => ({
 vi.mock('../../../services/llmService', () => ({
   sendMessageToGemini: sendMessageToGeminiMock,
 }));
-vi.mock('../../../lib/supabase/dossierRuns', () => ({ createOrGetDossierRun: lifecycleMocks.create, acquireDossierRunLease: lifecycleMocks.acquire }));
+vi.mock('../../../lib/supabase/dossierRuns', () => ({
+  DOSSIER_RUN_RPC_TIMEOUT_MS: 15_000,
+  createOrGetDossierRun: lifecycleMocks.create,
+  acquireDossierRunLease: lifecycleMocks.acquire,
+}));
 vi.mock('../../../features/dossier/dossier-run-heartbeat', () => ({ startDossierRunHeartbeat: lifecycleMocks.start }));
 vi.mock('../../../features/dossier/active-run-registry', () => ({ setActiveDossierRun: lifecycleMocks.set, clearActiveDossierRun: lifecycleMocks.clear }));
 vi.mock('../../../services/operatorTracking', () => ({ trackOperatorEvent: trackOperatorEventMock }));
@@ -409,6 +413,82 @@ describe('useChatMessageOrchestrator', () => {
       }),
     );
     expect(sendMessageToGeminiMock).not.toHaveBeenCalled();
+  });
+
+  it('mantém placeholder como erro visível quando a lease não é adquirida', async () => {
+    uuidv4Mock
+      .mockReturnValueOnce('session-new')
+      .mockReturnValueOnce('message-user')
+      .mockReturnValueOnce('message-bot');
+    lifecycleMocks.acquire.mockResolvedValueOnce(null);
+    const harness = makeHarness();
+
+    await act(async () => {
+      await harness.result.current.handleSendMessage('DOSSIÊ COMPLETO de Acme Agro');
+    });
+
+    const placeholder = harness.state.sessions[0].messages.find(message => message.id === 'message-bot');
+    expect(placeholder).toMatchObject({
+      isThinking: false,
+      loadingVariant: undefined,
+      isError: true,
+      text: expect.stringContaining('já existe uma execução em andamento'),
+    });
+    expect(placeholder?.errorDetails).toBeDefined();
+    expect(lifecycleMocks.create).toHaveBeenCalledWith(
+      expect.any(Object),
+      expect.objectContaining({ signal: expect.any(AbortSignal), timeoutMs: 15_000 }),
+    );
+    expect(lifecycleMocks.acquire).toHaveBeenCalledWith(
+      'run-1',
+      expect.any(String),
+      expect.objectContaining({ signal: expect.any(AbortSignal), timeoutMs: 15_000 }),
+    );
+    expect(lifecycleMocks.start).not.toHaveBeenCalled();
+    expect(lifecycleMocks.set).not.toHaveBeenCalled();
+    expect(harness.runMegaPromptWaterfall).not.toHaveBeenCalled();
+    expect(trackOperatorEventMock).not.toHaveBeenCalledWith('dossier_started', expect.anything());
+    expect(trackOperatorEventMock).not.toHaveBeenCalledWith('dossier_failed', expect.anything());
+    expect(trackOperatorEventMock).not.toHaveBeenCalledWith('dossier_cancelled', expect.anything());
+  });
+
+  it('falha de RPC inicial mantém lifecycle fail-closed e não inicia waterfall', async () => {
+    uuidv4Mock
+      .mockReturnValueOnce('session-new')
+      .mockReturnValueOnce('message-user')
+      .mockReturnValueOnce('message-bot')
+      .mockReturnValueOnce('message-error');
+    lifecycleMocks.create.mockRejectedValueOnce(new Error('RPC indisponível'));
+    const harness = makeHarness();
+
+    await act(async () => {
+      await harness.result.current.handleSendMessage('DOSSIÊ COMPLETO de Acme Agro');
+    });
+
+    expect(harness.runMegaPromptWaterfall).not.toHaveBeenCalled();
+    expect(lifecycleMocks.start).not.toHaveBeenCalled();
+    expect(harness.state.sessions[0].messages.some(message => message.isError)).toBe(true);
+  });
+
+  it('CANCELLED rastreia dossier_cancelled uma vez sem terminal de falha ou sucesso', async () => {
+    uuidv4Mock
+      .mockReturnValueOnce('session-new')
+      .mockReturnValueOnce('message-user')
+      .mockReturnValueOnce('message-bot');
+    const harness = makeHarness();
+    harness.runMegaPromptWaterfall.mockResolvedValueOnce({
+      status: 'CANCELLED',
+      terminalPersisted: true,
+      reason: 'remote_cancel',
+    });
+
+    await act(async () => {
+      await harness.result.current.handleSendMessage('DOSSIÊ COMPLETO de Acme Agro');
+    });
+
+    expect(trackOperatorEventMock.mock.calls.filter(([event]) => event === 'dossier_cancelled')).toHaveLength(1);
+    expect(trackOperatorEventMock.mock.calls.filter(([event]) => event === 'dossier_failed')).toHaveLength(0);
+    expect(trackOperatorEventMock.mock.calls.filter(([event]) => event === 'dossier_completed')).toHaveLength(0);
   });
 
   it('anexa mensagem de erro quando waterfall falha apos limpar activeGeneration', async () => {
