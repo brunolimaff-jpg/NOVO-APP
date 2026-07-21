@@ -259,6 +259,7 @@ function makeHarness(
     sessionScore?: number | null;
     messages?: Message[];
     shouldSimulateFallback?: boolean;
+    activeGenerationRef?: { current: Record<string, string> };
   } = {},
 ) {
   const state = {
@@ -303,6 +304,7 @@ function makeHarness(
       replaceLoadingProgressStage,
       completeLoadingProgress,
       setFailureCount,
+      activeGenerationRef: overrides.activeGenerationRef,
     }),
   );
 
@@ -475,6 +477,121 @@ describe('useDossierWaterfallOrchestrator', () => {
     expect(runDossierBenchmarkStageMock).not.toHaveBeenCalled();
     expect(saveDossierMock).not.toHaveBeenCalled();
     expect(dispatchSpy).not.toHaveBeenCalledWith(expect.objectContaining({ type: 'dossier:completed' }));
+    dispatchSpy.mockRestore();
+  });
+
+  it('waterfall bloqueado persiste FAILED sem módulos, save, completed ou release duplicado', async () => {
+    const guard = await import('../../../features/dossier/waterfall-guard');
+    guard.registerWaterfallStart('other-session');
+    const dispatchSpy = vi.spyOn(window, 'dispatchEvent');
+    const harness = makeHarness();
+    const result = await harness.result.current.runMegaPromptWaterfall(
+      makeRunArgs({ dossierRunId: 'run-1', dossierLeaseOwner: 'lease-1' }),
+    );
+    expect(result).toMatchObject({ status: 'FAILED', errorCode: 'waterfall_blocked', errorStage: 'guard' });
+    expect(lifecycleRpcMocks.failed).toHaveBeenCalledWith('run-1', 'lease-1', 'waterfall_blocked', 'guard');
+    expect(lifecycleRpcMocks.release).not.toHaveBeenCalled();
+    expect(generateDossierModuleMock).not.toHaveBeenCalled();
+    expect(saveDossierMock).not.toHaveBeenCalled();
+    expect(lifecycleRpcMocks.complete).not.toHaveBeenCalled();
+    expect(dispatchSpy).not.toHaveBeenCalledWith(expect.objectContaining({ type: 'dossier:completed' }));
+    dispatchSpy.mockRestore();
+    guard.resetWaterfallGuard();
+  });
+
+  it('guard bloqueado com terminal FAILED indisponível tenta release e diagnostica', async () => {
+    const guard = await import('../../../features/dossier/waterfall-guard');
+    guard.registerWaterfallStart('other-session');
+    lifecycleRpcMocks.failed.mockRejectedValueOnce(new Error('terminal unavailable'));
+    const harness = makeHarness();
+    const result = await harness.result.current.runMegaPromptWaterfall(
+      makeRunArgs({ dossierRunId: 'run-1', dossierLeaseOwner: 'lease-1' }),
+    );
+    expect(result).toMatchObject({ status: 'FAILED', errorCode: 'waterfall_blocked' });
+    expect(lifecycleRpcMocks.release).toHaveBeenCalledTimes(1);
+    expect(scoutDiagMock.warn).toHaveBeenCalledWith('WaterfallLifecycle', 'terminal-failure-persist-failed', expect.any(Object));
+    guard.resetWaterfallGuard();
+  });
+
+  it('generation ref divergente persiste FAILED sem save, completed ou release', async () => {
+    const activeGenerationRef = { current: { 'session-1': 'other-bot' } };
+    const dispatchSpy = vi.spyOn(window, 'dispatchEvent');
+    const harness = makeHarness({ activeGenerationRef });
+    const result = await harness.result.current.runMegaPromptWaterfall(
+      makeRunArgs({ dossierRunId: 'run-1', dossierLeaseOwner: 'lease-1' }),
+    );
+    expect(result).toMatchObject({ status: 'FAILED', errorCode: 'generation_ref_cleared', errorStage: 'before_final_session_update' });
+    expect(lifecycleRpcMocks.failed).toHaveBeenCalledWith('run-1', 'lease-1', 'generation_ref_cleared', 'before_final_session_update');
+    expect(saveDossierMock).not.toHaveBeenCalled();
+    expect(lifecycleRpcMocks.complete).not.toHaveBeenCalled();
+    expect(lifecycleRpcMocks.release).not.toHaveBeenCalled();
+    expect(dispatchSpy).not.toHaveBeenCalledWith(expect.objectContaining({ type: 'dossier:completed' }));
+    dispatchSpy.mockRestore();
+  });
+
+  it('generation ref divergente tenta release quando terminal FAILED falha', async () => {
+    lifecycleRpcMocks.failed.mockRejectedValueOnce(new Error('terminal unavailable'));
+    const harness = makeHarness({ activeGenerationRef: { current: { 'session-1': 'other-bot' } } });
+    const result = await harness.result.current.runMegaPromptWaterfall(
+      makeRunArgs({ dossierRunId: 'run-1', dossierLeaseOwner: 'lease-1' }),
+    );
+    expect(result).toMatchObject({ status: 'FAILED', errorCode: 'generation_ref_cleared' });
+    expect(lifecycleRpcMocks.release).toHaveBeenCalledTimes(1);
+    expect(scoutDiagMock.warn).toHaveBeenCalledWith('WaterfallLifecycle', 'terminal-failure-persist-failed', expect.any(Object));
+  });
+
+  it('cancelamento após save impede completed e mantém texto final', async () => {
+    runControlMocks.assertCanContinue.mockImplementation(async (input: { stage: string }) => {
+      if (input.stage === 'after_save_dossier_before_complete') throw new DossierRunCancelledError('remote_cancel');
+    });
+    const dispatchSpy = vi.spyOn(window, 'dispatchEvent');
+    const harness = makeHarness();
+    const result = await harness.result.current.runMegaPromptWaterfall(
+      makeRunArgs({ dossierRunId: 'run-1', dossierLeaseOwner: 'lease-1' }),
+    );
+    expect(result).toMatchObject({ status: 'CANCELLED' });
+    expect(saveDossierMock).toHaveBeenCalledOnce();
+    expect(lifecycleRpcMocks.complete).not.toHaveBeenCalled();
+    expect(lifecycleRpcMocks.cancelled).toHaveBeenCalledOnce();
+    expect(getBotMessage(harness).text).toContain('Porte / Teia Societária consolidado');
+    expect(dispatchSpy).not.toHaveBeenCalledWith(expect.objectContaining({ type: 'dossier:completed' }));
+    dispatchSpy.mockRestore();
+  });
+
+  it('falha de leitura após save impede completed e persiste FAILED', async () => {
+    runControlMocks.assertCanContinue.mockImplementation(async (input: { stage: string }) => {
+      if (input.stage === 'after_save_dossier_before_complete') throw new DossierRunReadError('RPC indisponível após save');
+    });
+    const dispatchSpy = vi.spyOn(window, 'dispatchEvent');
+    const harness = makeHarness();
+    const result = await harness.result.current.runMegaPromptWaterfall(
+      makeRunArgs({ dossierRunId: 'run-1', dossierLeaseOwner: 'lease-1' }),
+    );
+    expect(result).toMatchObject({ status: 'FAILED', errorStage: 'after_save_dossier_before_complete' });
+    expect(saveDossierMock).toHaveBeenCalledOnce();
+    expect(lifecycleRpcMocks.complete).not.toHaveBeenCalled();
+    expect(lifecycleRpcMocks.failed).toHaveBeenCalledOnce();
+    expect(getBotMessage(harness).text).toContain('Porte / Teia Societária consolidado');
+    expect(dispatchSpy).not.toHaveBeenCalledWith(expect.objectContaining({ type: 'dossier:completed' }));
+    dispatchSpy.mockRestore();
+  });
+
+  it('fluxo feliz ordena save, checkpoint pós-save, completed e evento', async () => {
+    const dispatchSpy = vi.spyOn(window, 'dispatchEvent');
+    const harness = makeHarness();
+    const result = await harness.result.current.runMegaPromptWaterfall(
+      makeRunArgs({ dossierRunId: 'run-1', dossierLeaseOwner: 'lease-1' }),
+    );
+    const postSaveCall = runControlMocks.assertCanContinue.mock.calls.findIndex(
+      ([input]) => input.stage === 'after_save_dossier_before_complete',
+    );
+    expect(result).toMatchObject({ status: 'COMPLETED' });
+    expect(postSaveCall).toBeGreaterThanOrEqual(0);
+    expect(saveDossierMock.mock.invocationCallOrder[0]).toBeLessThan(runControlMocks.assertCanContinue.mock.invocationCallOrder[postSaveCall]);
+    expect(runControlMocks.assertCanContinue.mock.invocationCallOrder[postSaveCall]).toBeLessThan(lifecycleRpcMocks.complete.mock.invocationCallOrder[0]);
+    expect(lifecycleRpcMocks.complete.mock.invocationCallOrder[0]).toBeLessThan(dispatchSpy.mock.invocationCallOrder[0]);
+    expect(lifecycleRpcMocks.complete).toHaveBeenCalledOnce();
+    expect(dispatchSpy).toHaveBeenCalledTimes(1);
     dispatchSpy.mockRestore();
   });
 

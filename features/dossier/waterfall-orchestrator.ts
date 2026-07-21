@@ -565,6 +565,24 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
       dossierRunId,
       dossierLeaseOwner,
     }: RunMegaPromptWaterfallArgs): Promise<DossierWaterfallResult> => {
+      let terminalLeaseReleased = false;
+      const persistFailedTerminal = async (errorCode: string, errorStage: string): Promise<boolean> => {
+        if (!dossierRunId || !dossierLeaseOwner) return false;
+        try {
+          await markDossierRunFailed(dossierRunId, dossierLeaseOwner, errorCode, errorStage);
+          terminalLeaseReleased = true;
+          return true;
+        } catch (error) {
+          scoutDiag.warn('WaterfallLifecycle', 'terminal-failure-persist-failed', {
+            sessionId,
+            dossierRunId,
+            errorCode,
+            errorStage,
+            error: error instanceof Error ? error.message : String(error),
+          });
+          return false;
+        }
+      };
       const guardCheck = registerWaterfallStart(sessionId);
       if (!guardCheck.allowed) {
         scoutDiag.warn('WaterfallGuard', 'waterfall bloqueado por floodgate; abortando execução', {
@@ -576,6 +594,16 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
           ...session,
           messages: session.messages.filter(message => message.id !== botMessageId),
         }));
+        const terminalPersisted = await persistFailedTerminal('waterfall_blocked', 'guard');
+        if (!terminalPersisted && dossierRunId && dossierLeaseOwner) {
+          await releaseDossierRunLease(dossierRunId, dossierLeaseOwner).catch(error => {
+            scoutDiag.warn('WaterfallLifecycle', 'lease-release-failed', {
+              sessionId,
+              dossierRunId,
+              error: error instanceof Error ? error.message : String(error),
+            });
+          });
+        }
         return { status: 'FAILED', dossierRunId, errorCode: 'waterfall_blocked', errorStage: 'guard', error: new Error('Waterfall bloqueado') } satisfies DossierWaterfallResult;
       }
       const waterfallRunId = guardCheck.runId;
@@ -587,7 +615,6 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
       };
       let foundationCacheName: string | undefined;
       let sessionToPersist: ChatSession | null = null;
-      let terminalLeaseReleased = false;
 
       try {
         await assertRunCanContinue('waterfall_start');
@@ -1334,6 +1361,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
               activeBotId: activeGenerationRef?.current?.[sessionId] ?? 'undefined',
             },
           });
+          await persistFailedTerminal('generation_ref_cleared', 'before_final_session_update');
           return {
             status: 'FAILED',
             dossierRunId,
@@ -1552,6 +1580,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
             }
             return { status: 'FAILED', dossierRunId, errorCode: 'persist_failed', errorStage: 'save_dossier', error: error instanceof Error ? error : new Error(String(error)) } satisfies DossierWaterfallResult;
           }
+          await assertRunCanContinue('after_save_dossier_before_complete');
           if (dossierRunId && dossierLeaseOwner) {
             try {
               await markDossierRunCompleted(dossierRunId, dossierLeaseOwner, dossier.id);
