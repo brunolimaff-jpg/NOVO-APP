@@ -1,6 +1,7 @@
 import { act, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MODULAR_DOSSIER_CONSOLIDATION_STAGE, MODULAR_DOSSIER_STAGES } from '../../../constants/loadingStages';
+import { DossierRunCancelledError, DossierRunReadError } from '../../../features/dossier/dossier-run-control';
 import { useDossierWaterfallOrchestrator } from '../../../features/dossier/waterfall-orchestrator';
 import type { LookupResponse } from '../../../services/clientLookupService';
 import {
@@ -35,6 +36,10 @@ const scoutDiagMock = vi.hoisted(() => ({
   info: vi.fn(),
 }));
 const saveDossierMock = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
+const runControlMocks = vi.hoisted(() => ({ assertCanContinue: vi.fn() }));
+const lifecycleRpcMocks = vi.hoisted(() => ({ complete: vi.fn(), failed: vi.fn(), release: vi.fn(), cancelled: vi.fn() }));
+const evidencePipelineMock = vi.hoisted(() => vi.fn(() => false));
+const queryPlannerMocks = vi.hoisted(() => ({ plan: vi.fn(), collect: vi.fn() }));
 
 vi.mock('uuid', () => ({
   v4: uuidv4Mock,
@@ -43,6 +48,25 @@ vi.mock('uuid', () => ({
 vi.mock('../../../services/llmService', () => ({
   generateDossierModule: generateDossierModuleMock,
   generateContinuityQuestion: generateContinuityQuestionMock,
+}));
+
+vi.mock('../../../features/dossier/dossier-run-control', async importOriginal => {
+  const actual = await importOriginal<typeof import('../../../features/dossier/dossier-run-control')>();
+  return { ...actual, assertDossierRunCanContinue: runControlMocks.assertCanContinue };
+});
+
+vi.mock('../../../lib/supabase/dossierRuns', () => ({
+  markDossierRunCancelled: lifecycleRpcMocks.cancelled,
+  markDossierRunCompleted: lifecycleRpcMocks.complete,
+  markDossierRunFailed: lifecycleRpcMocks.failed,
+  releaseDossierRunLease: lifecycleRpcMocks.release,
+}));
+
+vi.mock('../../../utils/feature-flags', () => ({ isEvidencePipelineV2: evidencePipelineMock }));
+vi.mock('../../../services/llm/query-planner', () => ({
+  buildEntityResolutionFromContext: vi.fn(() => ({ razaoSocial: 'Acme Agro', cnpjRaiz: '12345678', segmentoInferido: 'PRD' })),
+  planQueries: queryPlannerMocks.plan,
+  executeQueryPlan: queryPlannerMocks.collect,
 }));
 
 vi.mock('../../../services/clientLookupService', () => ({
@@ -306,6 +330,14 @@ function getBotMessage(harness: ReturnType<typeof makeHarness>): Message {
   return botMessage;
 }
 
+function failLifecycleAt(stage: string): void {
+  runControlMocks.assertCanContinue.mockImplementation(async (input: { stage: string }) => {
+    if (input.stage === stage) {
+      throw new DossierRunReadError(`Falha ao consultar lifecycle do dossiê na etapa ${stage}`);
+    }
+  });
+}
+
 describe('useDossierWaterfallOrchestrator', () => {
   afterEach(() => {
     vi.unstubAllGlobals();
@@ -314,6 +346,16 @@ describe('useDossierWaterfallOrchestrator', () => {
 
   beforeEach(async () => {
     vi.clearAllMocks();
+    runControlMocks.assertCanContinue.mockImplementation(async (input: { signal: AbortSignal }) => {
+      if (input.signal.aborted) throw new DossierRunCancelledError('local_abort');
+    });
+    lifecycleRpcMocks.complete.mockResolvedValue({ run_id: 'run-1' });
+    lifecycleRpcMocks.failed.mockResolvedValue({ run_id: 'run-1' });
+    lifecycleRpcMocks.release.mockResolvedValue({ run_id: 'run-1' });
+    lifecycleRpcMocks.cancelled.mockResolvedValue({ run_id: 'run-1' });
+    evidencePipelineMock.mockReturnValue(false);
+    queryPlannerMocks.plan.mockResolvedValue({ queries: [] });
+    queryPlannerMocks.collect.mockResolvedValue({ items: [], confidenceProfile: { tierACount: 0, tierBCount: 0, modulesCovered: [] } });
 
     const { resetWaterfallGuard } = await import('../../../features/dossier/waterfall-guard');
     resetWaterfallGuard();
@@ -421,6 +463,146 @@ describe('useDossierWaterfallOrchestrator', () => {
     expect(finalBotMessage.text).not.toContain('## Brief de Reunião');
     expect(finalBotMessage.text).not.toContain('**Tese da conta:**');
     expect(finalBotMessage.text).not.toContain('[[PORTA');
+  });
+
+  it('falha fechada após lookup sem iniciar módulos, benchmark, save ou completed', async () => {
+    failLifecycleAt('after_lookup_cliente');
+    const dispatchSpy = vi.spyOn(window, 'dispatchEvent');
+    const harness = makeHarness();
+    const result = await harness.result.current.runMegaPromptWaterfall(makeRunArgs());
+    expect(result).toMatchObject({ status: 'FAILED', errorStage: 'after_lookup_cliente' });
+    expect(generateDossierModuleMock).not.toHaveBeenCalled();
+    expect(runDossierBenchmarkStageMock).not.toHaveBeenCalled();
+    expect(saveDossierMock).not.toHaveBeenCalled();
+    expect(dispatchSpy).not.toHaveBeenCalledWith(expect.objectContaining({ type: 'dossier:completed' }));
+    dispatchSpy.mockRestore();
+  });
+
+  it('falha fechada após foundation cache e limpa cache sem fallback', async () => {
+    isFoundationCacheEnabledMock.mockReturnValue(true);
+    failLifecycleAt('after_foundation_cache');
+    const harness = makeHarness();
+    const result = await harness.result.current.runMegaPromptWaterfall(makeRunArgs());
+    expect(result).toMatchObject({ status: 'FAILED', errorStage: 'after_foundation_cache' });
+    expect(createWaterfallFoundationCacheMock).toHaveBeenCalledOnce();
+    expect(deleteWaterfallFoundationCacheMock).toHaveBeenCalledWith('cachedContents/test-cache');
+    expect(generateDossierModuleMock).not.toHaveBeenCalled();
+    expect(runDossierBenchmarkStageMock).not.toHaveBeenCalled();
+    expect(saveDossierMock).not.toHaveBeenCalled();
+  });
+
+  it('falha fechada no módulo opcional e não inicia próximos módulos ou benchmark', async () => {
+    failLifecycleAt('after_module:Bordas de Controle');
+    const harness = makeHarness();
+    const result = await harness.result.current.runMegaPromptWaterfall(makeRunArgs());
+    expect(result).toMatchObject({ status: 'FAILED', errorStage: 'after_module:Bordas de Controle' });
+    expect(generateDossierModuleMock.mock.calls.map(call => call[0])).toContain('Bordas de Controle');
+    expect(generateDossierModuleMock.mock.calls.map(call => call[0])).not.toContain('Riscos & Compliance');
+    expect(generateDossierModuleMock.mock.calls.map(call => call[0])).not.toContain('Caminho de Venda');
+    expect(runDossierBenchmarkStageMock).not.toHaveBeenCalled();
+    expect(saveDossierMock).not.toHaveBeenCalled();
+  });
+
+  it('falha fechada após planner V2 sem collector, módulos ou fallback V1', async () => {
+    evidencePipelineMock.mockReturnValue(true);
+    failLifecycleAt('after_query_planner');
+    const harness = makeHarness();
+    const result = await harness.result.current.runMegaPromptWaterfall(makeRunArgs());
+    expect(result).toMatchObject({ status: 'FAILED', errorStage: 'after_query_planner' });
+    expect(queryPlannerMocks.plan).toHaveBeenCalledOnce();
+    expect(queryPlannerMocks.collect).not.toHaveBeenCalled();
+    expect(generateDossierModuleMock).not.toHaveBeenCalled();
+    expect(runDossierBenchmarkStageMock).not.toHaveBeenCalled();
+    expect(scoutDiagMock.warn).not.toHaveBeenCalledWith('PipelineV2', 'Fallback v1 (planner/collector falhou)', expect.anything());
+  });
+
+  it('falha fechada após collector V2 sem módulos ou fallback V1', async () => {
+    evidencePipelineMock.mockReturnValue(true);
+    failLifecycleAt('after_query_collector');
+    const harness = makeHarness();
+    const result = await harness.result.current.runMegaPromptWaterfall(makeRunArgs());
+    expect(result).toMatchObject({ status: 'FAILED', errorStage: 'after_query_collector' });
+    expect(queryPlannerMocks.plan).toHaveBeenCalledOnce();
+    expect(queryPlannerMocks.collect).toHaveBeenCalledOnce();
+    expect(generateDossierModuleMock).not.toHaveBeenCalled();
+    expect(runDossierBenchmarkStageMock).not.toHaveBeenCalled();
+    expect(scoutDiagMock.warn).not.toHaveBeenCalledWith('PipelineV2', 'Fallback v1 (planner/collector falhou)', expect.anything());
+  });
+
+  it('falha fechada antes do benchmark sem PORTA, save ou completed', async () => {
+    failLifecycleAt('before_benchmark');
+    const dispatchSpy = vi.spyOn(window, 'dispatchEvent');
+    const harness = makeHarness();
+    const result = await harness.result.current.runMegaPromptWaterfall(makeRunArgs());
+    expect(result).toMatchObject({ status: 'FAILED', errorStage: 'before_benchmark' });
+    expect(generateDossierModuleMock).toHaveBeenCalled();
+    expect(runDossierBenchmarkStageMock).not.toHaveBeenCalled();
+    expect(reconcileWaterfallPortaMock).not.toHaveBeenCalled();
+    expect(saveDossierMock).not.toHaveBeenCalled();
+    expect(dispatchSpy).not.toHaveBeenCalledWith(expect.objectContaining({ type: 'dossier:completed' }));
+    dispatchSpy.mockRestore();
+  });
+
+  it('preserva conteúdo quando markCompleted falha, marca FAILED e não libera lease duas vezes', async () => {
+    lifecycleRpcMocks.complete.mockRejectedValueOnce(new Error('completion RPC unavailable'));
+    const dispatchSpy = vi.spyOn(window, 'dispatchEvent');
+    const harness = makeHarness();
+    const result = await harness.result.current.runMegaPromptWaterfall(
+      makeRunArgs({ dossierRunId: 'run-1', dossierLeaseOwner: 'lease-1' }),
+    );
+    const bot = getBotMessage(harness);
+    expect(result).toMatchObject({ status: 'FAILED', errorCode: 'lifecycle_completion_failed', errorStage: 'mark_completed' });
+    expect(bot.text).toContain('Porte / Teia Societária consolidado');
+    expect(bot.isThinking).toBe(false);
+    expect(bot.suggestions).toEqual(DEFAULT_SUGGESTIONS);
+    expect(bot.scorePorta).toBeTruthy();
+    expect(dispatchSpy).not.toHaveBeenCalledWith(expect.objectContaining({ type: 'dossier:completed' }));
+    expect(lifecycleRpcMocks.failed).toHaveBeenCalledTimes(1);
+    expect(lifecycleRpcMocks.release).not.toHaveBeenCalled();
+    dispatchSpy.mockRestore();
+  });
+
+  it('COMPLETED persistido não chama release novamente', async () => {
+    const harness = makeHarness();
+    const result = await harness.result.current.runMegaPromptWaterfall(
+      makeRunArgs({ dossierRunId: 'run-1', dossierLeaseOwner: 'lease-1' }),
+    );
+    expect(result).toMatchObject({ status: 'COMPLETED' });
+    expect(lifecycleRpcMocks.complete).toHaveBeenCalledOnce();
+    expect(lifecycleRpcMocks.release).not.toHaveBeenCalled();
+  });
+
+  it('FAILED persistido não chama release novamente', async () => {
+    failLifecycleAt('after_lookup_cliente');
+    const harness = makeHarness();
+    const result = await harness.result.current.runMegaPromptWaterfall(
+      makeRunArgs({ dossierRunId: 'run-1', dossierLeaseOwner: 'lease-1' }),
+    );
+    expect(result).toMatchObject({ status: 'FAILED', errorStage: 'after_lookup_cliente' });
+    expect(lifecycleRpcMocks.failed).toHaveBeenCalledOnce();
+    expect(lifecycleRpcMocks.release).not.toHaveBeenCalled();
+  });
+
+  it('CANCELLED persistido não chama release novamente', async () => {
+    const controller = new AbortController();
+    controller.abort();
+    const harness = makeHarness();
+    const result = await harness.result.current.runMegaPromptWaterfall(
+      makeRunArgs({ dossierRunId: 'run-1', dossierLeaseOwner: 'lease-1', signal: controller.signal }),
+    );
+    expect(result).toMatchObject({ status: 'CANCELLED', terminalPersisted: true });
+    expect(lifecycleRpcMocks.cancelled).toHaveBeenCalledOnce();
+    expect(lifecycleRpcMocks.release).not.toHaveBeenCalled();
+  });
+
+  it('falha de transição terminal tenta release uma vez', async () => {
+    failLifecycleAt('after_lookup_cliente');
+    lifecycleRpcMocks.failed.mockRejectedValueOnce(new Error('mark failed unavailable'));
+    const harness = makeHarness();
+    await harness.result.current.runMegaPromptWaterfall(
+      makeRunArgs({ dossierRunId: 'run-1', dossierLeaseOwner: 'lease-1' }),
+    );
+    expect(lifecycleRpcMocks.release).toHaveBeenCalledTimes(1);
   });
 
   it('cria foundation cache uma vez, propaga cacheName aos módulos e remove no finally', async () => {

@@ -437,7 +437,10 @@ describe('useChatMessageOrchestrator', () => {
     });
   });
 
-  it('preserva texto do dossiê e marca a mesma mensagem quando waterfall retorna FAILED', async () => {
+  it.each([
+    ['persist_failed', 'save_dossier'],
+    ['lifecycle_completion_failed', 'mark_completed'],
+  ])('preserva texto e emite dossier_failed uma vez para %s', async (errorCode, errorStage) => {
     uuidv4Mock
       .mockReturnValueOnce('session-new')
       .mockReturnValueOnce('message-user')
@@ -450,7 +453,7 @@ describe('useChatMessageOrchestrator', () => {
           message.id === 'message-bot' ? { ...message, text: 'Dossiê consolidado' } : message,
         ),
       }));
-      return { status: 'FAILED', errorCode: 'persist_failed', errorStage: 'save_dossier', error: new Error('persistência indisponível') };
+      return { status: 'FAILED', errorCode, errorStage, error: new Error('persistência indisponível') };
     });
 
     await act(async () => {

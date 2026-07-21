@@ -27,8 +27,9 @@ describe('requestCancellationForActiveDossierRun', () => {
     expect(scoutDiagMock.warn).toHaveBeenCalledWith(
       'DossierRunLifecycle',
       'cancel-requested-failed',
-      expect.objectContaining({ sessionId: 'session-1', runId: 'run-1', error: 'RPC offline' }),
+      expect.objectContaining({ sessionId: 'session-1', runId: 'run-1', reason: 'user_stop', error: 'RPC offline' }),
     );
+    expect(scoutDiagMock.warn).toHaveBeenCalledTimes(1);
   });
 
   it('retorna false sem run ativo', async () => {

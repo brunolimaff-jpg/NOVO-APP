@@ -10,7 +10,6 @@ import { useMaybeChatStore } from '../../stores/chatStore';
 import { useMaybeDossierStore, type RemoteSaveStatus } from '../../stores/dossierStore';
 import { isSessionReusable } from './session-reuse';
 import type { ChatSession } from '../../types';
-import { scoutDiag } from '../../utils/diagnosticLog';
 
 const PAGE_SIZE = 20;
 const REMOTE_SAVE_SUCCESS_RESET_MS = 3000;
@@ -173,7 +172,7 @@ export function useSessionManager(options: Partial<UseSessionManagerOptions> = {
 
   const handleNewSession = useCallback(() => {
     if (isLoading) {
-      if (currentSessionId) void requestCancellationForActiveDossierRun(currentSessionId, 'new_session').catch(error => scoutDiag.warn('DossierRunLifecycle', 'cancel-request-failed', { sessionId: currentSessionId, error: String(error) }));
+      if (currentSessionId) void requestCancellationForActiveDossierRun(currentSessionId, 'new_session').catch(() => undefined);
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
         abortControllerRef.current = null;
@@ -223,7 +222,7 @@ export function useSessionManager(options: Partial<UseSessionManagerOptions> = {
   const handleSelectSession = useCallback(
     async (sessionId: string) => {
       if (isLoading) {
-        if (currentSessionId) void requestCancellationForActiveDossierRun(currentSessionId, 'session_switch').catch(error => scoutDiag.warn('DossierRunLifecycle', 'cancel-request-failed', { sessionId: currentSessionId, error: String(error) }));
+        if (currentSessionId) void requestCancellationForActiveDossierRun(currentSessionId, 'session_switch').catch(() => undefined);
         if (abortControllerRef.current) {
           abortControllerRef.current.abort();
           abortControllerRef.current = null;
@@ -281,7 +280,7 @@ export function useSessionManager(options: Partial<UseSessionManagerOptions> = {
 
   const handleDeleteSession = useCallback(
     (sessionId: string) => {
-      void requestCancellationForActiveDossierRun(sessionId, 'session_delete').catch(error => scoutDiag.warn('DossierRunLifecycle', 'cancel-request-failed', { sessionId, error: String(error) }));
+      void requestCancellationForActiveDossierRun(sessionId, 'session_delete').catch(() => undefined);
       if (sessionId === currentSessionId && isLoading && abortControllerRef.current) {
         abortControllerRef.current.abort();
         abortControllerRef.current = null;

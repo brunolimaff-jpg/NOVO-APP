@@ -9,10 +9,11 @@ export async function requestCancellationForActiveDossierRun(sessionId: string, 
     await requestDossierRunCancellation(active.runId);
     scoutDiag.info('DossierRunLifecycle', 'cancel-requested-success', { sessionId, runId: active.runId, reason });
   } catch (error) {
-    scoutDiag.warn('DossierRunLifecycle', 'cancel-requested-failed', {
-      sessionId,
-      runId: active.runId,
-      error: error instanceof Error ? error.message : String(error),
+      scoutDiag.warn('DossierRunLifecycle', 'cancel-requested-failed', {
+        sessionId,
+        runId: active.runId,
+        reason,
+        error: error instanceof Error ? error.message : String(error),
     });
     throw error;
   }
