@@ -51,7 +51,7 @@ import { finalizeDossierMarkdown } from '../../utils/dossierFinalize';
 import type { MutableRefObject } from 'react';
 import type { RunMegaPromptWaterfallArgs } from '../../types';
 import { isAbortLikeError } from '../../utils/abortHelpers';
-import { DossierRunCancelledError, assertDossierRunCanContinue } from './dossier-run-control';
+import { DossierRunCancelledError, assertDossierRunCanContinue, isDossierRunControlError } from './dossier-run-control';
 import { markDossierRunCancelled, markDossierRunCompleted, markDossierRunFailed, releaseDossierRunLease } from '../../lib/supabase/dossierRuns';
 import { isEvidencePipelineV2 } from '../../utils/feature-flags';
 import { ensureContinuitySuggestions, pickCompanyLabel } from '../../utils/messageHelpers';
@@ -656,11 +656,11 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
             await assertRunCanContinue('before_lookup_cliente');
             const clienteData = await withAbortSignal(lookupCliente(lookupTarget), signal);
             await assertRunCanContinue('after_lookup_cliente');
-            waterfallLookupContext = formatarParaPrompt(clienteData);
-            waterfallClienteSeniorData = extractClienteSeniorData(clienteData);
-          } catch (error) {
-            if (isAbortLikeError(error)) throw error;
-            scoutDiag.warn('ModularDossier', 'lookup cliente senior falhou antes da orquestração', {
+          waterfallLookupContext = formatarParaPrompt(clienteData);
+          waterfallClienteSeniorData = extractClienteSeniorData(clienteData);
+        } catch (error) {
+          if (isAbortLikeError(error) || isDossierRunControlError(error)) throw error;
+          scoutDiag.warn('ModularDossier', 'lookup cliente senior falhou antes da orquestração', {
               sessionId,
               company: lookupTarget,
               error: error instanceof Error ? error.message : String(error),
@@ -697,7 +697,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
             });
             await assertRunCanContinue('after_foundation_cache');
           } catch (error) {
-            if (isAbortLikeError(error)) throw error;
+            if (isAbortLikeError(error) || isDossierRunControlError(error)) throw error;
             scoutDiag.warn('ModularDossier', 'falha ao criar foundation cache; continuando sem cache', {
               sessionId,
               company: resolvedMegaCompany || null,
@@ -828,12 +828,12 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
               scoutDiag.warn('Waterfall', 'module:deadline', {
                 module: 'Teia Societaria — Identidade',
                 elapsedMs: identityElapsed,
-              });
-            }
-          } catch (identityError) {
-            if (isAbortLikeError(identityError)) throw identityError;
+            });
+          }
+        } catch (identityError) {
+          if (isAbortLikeError(identityError) || isDossierRunControlError(identityError)) throw identityError;
 
-            scoutDiag.warn('ModularDossier', 'modulo 1a (teia identity) falhou, usando fallback', {
+          scoutDiag.warn('ModularDossier', 'modulo 1a (teia identity) falhou, usando fallback', {
               sessionId,
               company: resolvedMegaCompany || null,
               error: identityError instanceof Error ? identityError.message : String(identityError),
@@ -917,7 +917,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
               combinedTeiaText += '\n\n---\n\n' + deepResult;
               advanceLoadingProgress(MODULAR_DOSSIER_STAGES[2], MODULAR_DOSSIER_TOTAL_STAGES);
             } catch (deepError) {
-              if (isAbortLikeError(deepError)) throw deepError;
+              if (isAbortLikeError(deepError) || isDossierRunControlError(deepError)) throw deepError;
               optionalStepFailures.add('Teia Societaria — Profundidade');
               setFailureCount(count => count + 1);
               scoutDiag.warn('ModularDossier', 'modulo 1b (teia deep) falhou', {
@@ -988,7 +988,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
               modules: pack.confidenceProfile.modulesCovered.length,
             });
           } catch (err) {
-            if (isAbortLikeError(err)) throw err;
+            if (isAbortLikeError(err) || isDossierRunControlError(err)) throw err;
             console.error('[PipelineV2:FATAL]', err);
             scoutDiag.warn('PipelineV2', 'Fallback v1 (planner/collector falhou)', {
               sessionId,
@@ -1037,7 +1037,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
             previousStageCompleted = true;
             setFailureCount(0);
           } catch (error) {
-            if (isAbortLikeError(error)) throw error;
+            if (isAbortLikeError(error) || isDossierRunControlError(error)) throw error;
             if (!module.optional) throw error;
 
             previousStageCompleted = false;
@@ -1118,7 +1118,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
           waterfallPortaResolution = result.resolution;
           portaIntegrityHold = result.portaIntegrityHold;
         } catch (error) {
-          if (signal?.aborted) throw error;
+          if (signal?.aborted || isDossierRunControlError(error)) throw error;
           scoutDiag.warn(
             'ModularDossier',
             'reconcileWaterfallPorta falhou ou timeout; continuando com texto acumulado',
@@ -1295,7 +1295,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
             signal.removeEventListener('abort', forwardContinuityAbort);
           }
         } catch (error) {
-          if (signal.aborted) throw error;
+          if (signal.aborted || isDossierRunControlError(error)) throw error;
           scoutDiag.warn('ModularDossier', 'falha ao gerar sugestões finais do waterfall', {
             sessionId,
             company: resolvedMegaCompany || null,

@@ -2,6 +2,12 @@ import { getDossierRun } from '../../lib/supabase/dossierRuns';
 
 export class DossierRunCancelledError extends Error { constructor(public readonly reason: 'local_abort' | 'remote_cancel') { super(reason); } }
 export class DossierRunLeaseLostError extends Error { constructor() { super('Lease do dossiê perdida'); } }
+export function isDossierRunControlError(error: unknown): boolean {
+  return (
+    error instanceof DossierRunCancelledError ||
+    error instanceof DossierRunLeaseLostError
+  );
+}
 export async function assertDossierRunCanContinue(input: { runId?: string; leaseOwner?: string; signal: AbortSignal; stage: string }): Promise<void> {
   if (input.signal.aborted) throw new DossierRunCancelledError('local_abort');
   if (!input.runId || !input.leaseOwner) return;

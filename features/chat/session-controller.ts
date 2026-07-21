@@ -172,7 +172,7 @@ export function useSessionManager(options: Partial<UseSessionManagerOptions> = {
 
   const handleNewSession = useCallback(() => {
     if (isLoading) {
-      if (currentSessionId) void requestCancellationForActiveDossierRun(currentSessionId, 'new_session').catch(() => undefined);
+      if (currentSessionId) requestCancellationForActiveDossierRun(currentSessionId, 'new_session');
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
         abortControllerRef.current = null;
@@ -222,7 +222,7 @@ export function useSessionManager(options: Partial<UseSessionManagerOptions> = {
   const handleSelectSession = useCallback(
     async (sessionId: string) => {
       if (isLoading) {
-        if (currentSessionId) void requestCancellationForActiveDossierRun(currentSessionId, 'session_switch').catch(() => undefined);
+        if (currentSessionId) requestCancellationForActiveDossierRun(currentSessionId, 'session_switch');
         if (abortControllerRef.current) {
           abortControllerRef.current.abort();
           abortControllerRef.current = null;
@@ -280,7 +280,7 @@ export function useSessionManager(options: Partial<UseSessionManagerOptions> = {
 
   const handleDeleteSession = useCallback(
     (sessionId: string) => {
-      void requestCancellationForActiveDossierRun(sessionId, 'session_delete').catch(() => undefined);
+      requestCancellationForActiveDossierRun(sessionId, 'session_delete');
       if (sessionId === currentSessionId && isLoading && abortControllerRef.current) {
         abortControllerRef.current.abort();
         abortControllerRef.current = null;
