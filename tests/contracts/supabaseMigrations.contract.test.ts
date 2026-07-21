@@ -215,3 +215,31 @@ describe('supabaseMigrations contract — auth remediation (Phase 2-4)', () => {
     expect(allContent).toContain('p.operator_id = radar_configs.operator_id');
   });
 });
+
+describe('supabaseMigrations contract — dossier run lifecycle', () => {
+  const lifecycleMigration = readFileSync(
+    resolve(MIGRATIONS_DIR, '20260721090000_dossier_runs_lifecycle.sql'),
+    'utf-8',
+  );
+
+  it('cancelamento aceita RUNNING e CANCEL_REQUESTED, limpa lease e registra timestamps', () => {
+    expect(lifecycleMigration).toContain("status IN ('RUNNING', 'CANCEL_REQUESTED')");
+    expect(lifecycleMigration).toContain('cancelled_at = coalesce(cancelled_at, now())');
+    expect(lifecycleMigration).toContain('cancel_requested_at = coalesce(cancel_requested_at, now())');
+    expect(lifecycleMigration).toContain('lease_owner = NULL');
+    expect(lifecycleMigration).toContain('lease_expires_at = NULL');
+  });
+
+  it('release terminal é idempotente e não libera lease de outro owner', () => {
+    expect(lifecycleMigration).toContain('lease_owner = p_lease_owner');
+    expect(lifecycleMigration).toContain("status IN ('COMPLETED', 'FAILED', 'CANCELLED')");
+    expect(lifecycleMigration).toContain('AND lease_owner IS NULL');
+  });
+
+  it('lifecycle permanece SECURITY DEFINER, auth.uid e sem acesso anon', () => {
+    expect(lifecycleMigration).toContain("SECURITY DEFINER SET search_path = ''");
+    expect(lifecycleMigration).toContain('owner_id = auth.uid()');
+    expect(lifecycleMigration).toContain('REVOKE ALL ON TABLE public.dossier_runs FROM PUBLIC, anon');
+    expect(lifecycleMigration).toContain('TO authenticated');
+  });
+});

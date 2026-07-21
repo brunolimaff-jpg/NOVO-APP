@@ -1109,12 +1109,14 @@ describe('useDossierWaterfallOrchestrator', () => {
 
     const harness = makeHarness({ shouldSimulateFallback: true });
 
+    let result!: Awaited<ReturnType<typeof harness.result.current.runMegaPromptWaterfall>>;
     await act(async () => {
-      await harness.result.current.runMegaPromptWaterfall(makeRunArgs());
+      result = await harness.result.current.runMegaPromptWaterfall(makeRunArgs());
     });
 
     expect(consoleErrorSpy).toHaveBeenCalledWith(expect.stringContaining('FALLBACK TAMBEM VAZIO'), expect.any(String));
-
+    expect(result).toMatchObject({ status: 'FAILED', errorCode: 'final_session_unavailable', errorStage: 'before_save' });
+    expect(saveDossierMock).not.toHaveBeenCalled();
     expect(harness.completeLoadingProgress).toHaveBeenCalled();
 
     consoleErrorSpy.mockRestore();

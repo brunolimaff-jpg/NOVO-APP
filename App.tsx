@@ -344,7 +344,7 @@ const App: React.FC = () => {
     const sessionId = currentSessionId;
     const activeBotId = sessionId ? activeGenerationRef.current[sessionId] : undefined;
 
-    if (sessionId) requestCancellationForActiveDossierRun(sessionId, 'user_stop');
+    if (sessionId) void requestCancellationForActiveDossierRun(sessionId, 'user_stop').catch(error => scoutDiag.warn('DossierRunLifecycle', 'cancel-request-failed', { sessionId, error: String(error) }));
     if (abortControllerRef.current) {
       scoutDiag.info('Abort', 'user-stopped-generation', {
         sessionId,

@@ -22,13 +22,13 @@ vi.mock('../../components/ErrorMessageCard', () => ({
   ),
 }));
 vi.mock('../../components/SectionalBotMessage', () => ({
-  default: (props: { text?: string; empresaAlvo?: string | null; cnpj?: string | null }) => {
+  default: (props: { message?: Message; empresaAlvo?: string | null; cnpj?: string | null }) => {
     if (sectionalBotShouldThrowRef.current) {
       throw new Error('sectional render failed');
     }
 
     sectionalBotPropsRef.current = props;
-    return <div data-testid="sectional-bot">{props.text}</div>;
+    return <div data-testid="sectional-bot">{props.message?.text}</div>;
   },
 }));
 vi.mock('../../components/LoadingSmart', () => ({
@@ -189,6 +189,31 @@ describe('MessageRow', () => {
     render(<MessageRow index={0} data={makeData([msg])} />);
     expect(screen.getByTestId('error-card')).toBeInTheDocument();
     expect(screen.getByText('Falha de conexão')).toBeInTheDocument();
+  });
+
+  it('preserva dossiê renderizado quando a persistência falha após gerar conteúdo', () => {
+    const errorDetails = {
+      code: 'UNKNOWN' as const,
+      message: 'Persistência indisponível',
+      friendlyMessage: 'Persistência indisponível',
+      httpStatus: 0,
+      retryable: true,
+      transient: true,
+      source: 'UNKNOWN' as const,
+    };
+    const msg = makeMessage({
+      sender: Sender.Bot,
+      text: '## Dossiê consolidado\n\nConteúdo preservado.',
+      isError: true,
+      errorDetails,
+      groundingSources: [{ title: 'Fonte validada', url: 'https://example.com' }],
+      suggestions: ['Próximo passo'],
+      scorePorta: { score: 72, p: 7, o: 7, r: 6, t: 8, a: 6, segmento: 'PRD', flags: [], scoreBruto: 72 },
+    });
+    render(<MessageRow index={0} data={makeData([msg])} />);
+    expect(screen.getByTestId('sectional-bot')).toHaveTextContent('Dossiê consolidado');
+    expect(screen.getByTestId('dossier-persistence-warning')).toBeInTheDocument();
+    expect(screen.queryByTestId('error-card')).not.toBeInTheDocument();
   });
 
   it('renderiza mensagem do bot com SectionalBotMessage', () => {

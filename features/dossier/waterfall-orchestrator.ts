@@ -587,6 +587,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
       };
       let foundationCacheName: string | undefined;
       let sessionToPersist: ChatSession | null = null;
+      let terminalLeaseReleased = false;
 
       try {
         await assertRunCanContinue('waterfall_start');
@@ -1518,18 +1519,51 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
           }
         }
 
-        if (sessionToPersist) {
-          const dossier = sessionToPersist as ChatSession;
+        if (!sessionToPersist) {
+          if (dossierRunId && dossierLeaseOwner) {
+            try {
+              await markDossierRunFailed(dossierRunId, dossierLeaseOwner, 'final_session_unavailable', 'before_save');
+              terminalLeaseReleased = true;
+            } catch {
+              // O retorno continua fail-closed; finally tenta liberar a lease ainda existente.
+            }
+          }
+          return {
+            status: 'FAILED',
+            dossierRunId,
+            errorCode: 'final_session_unavailable',
+            errorStage: 'before_save',
+            error: new Error('Sessão final indisponível antes da persistência'),
+          } satisfies DossierWaterfallResult;
+        }
+
+        {
+          const dossier = sessionToPersist;
           await assertRunCanContinue('save_dossier');
           try { await storage.saveDossierStrict(dossier); }
           catch (error) {
-            if (dossierRunId && dossierLeaseOwner) await markDossierRunFailed(dossierRunId, dossierLeaseOwner, 'persist_failed', 'save_dossier').catch(() => undefined);
+            if (dossierRunId && dossierLeaseOwner) {
+              try {
+                await markDossierRunFailed(dossierRunId, dossierLeaseOwner, 'persist_failed', 'save_dossier');
+                terminalLeaseReleased = true;
+              } catch (markError) {
+                scoutDiag.warn('WaterfallLifecycle', 'mark-failed-after-save-error', { sessionId, dossierRunId, error: markError instanceof Error ? markError.message : String(markError) });
+              }
+            }
             return { status: 'FAILED', dossierRunId, errorCode: 'persist_failed', errorStage: 'save_dossier', error: error instanceof Error ? error : new Error(String(error)) } satisfies DossierWaterfallResult;
           }
           if (dossierRunId && dossierLeaseOwner) {
-            try { await markDossierRunCompleted(dossierRunId, dossierLeaseOwner, dossier.id); }
+            try {
+              await markDossierRunCompleted(dossierRunId, dossierLeaseOwner, dossier.id);
+              terminalLeaseReleased = true;
+            }
             catch (error) {
-              await markDossierRunFailed(dossierRunId, dossierLeaseOwner, 'lifecycle_completion_failed', 'mark_completed').catch(() => undefined);
+              try {
+                await markDossierRunFailed(dossierRunId, dossierLeaseOwner, 'lifecycle_completion_failed', 'mark_completed');
+                terminalLeaseReleased = true;
+              } catch (markError) {
+                scoutDiag.warn('WaterfallLifecycle', 'mark-failed-after-completion-error', { sessionId, dossierRunId, error: markError instanceof Error ? markError.message : String(markError) });
+              }
               return { status: 'FAILED', dossierRunId, errorCode: 'lifecycle_completion_failed', errorStage: 'mark_completed', error: error instanceof Error ? error : new Error(String(error)) } satisfies DossierWaterfallResult;
             }
           }
@@ -1543,15 +1577,23 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
           waterfallEndStatus = 'aborted';
           if (dossierRunId && dossierLeaseOwner) {
             const terminalPersisted = await markDossierRunCancelled(dossierRunId, dossierLeaseOwner).then(() => true).catch(() => false);
+            terminalLeaseReleased = terminalPersisted;
             return { status: 'CANCELLED', dossierRunId, terminalPersisted, reason: error instanceof DossierRunCancelledError ? error.reason : 'local_abort' };
           }
           return { status: 'CANCELLED', dossierRunId, terminalPersisted: false, reason: 'local_abort' };
         }
         const normalized = error instanceof Error ? error : new Error(String(error));
-        if (dossierRunId && dossierLeaseOwner) await markDossierRunFailed(dossierRunId, dossierLeaseOwner, 'waterfall_failed', currentLifecycleStage).catch(() => undefined);
+        if (dossierRunId && dossierLeaseOwner) {
+          try {
+            await markDossierRunFailed(dossierRunId, dossierLeaseOwner, 'waterfall_failed', currentLifecycleStage);
+            terminalLeaseReleased = true;
+          } catch (markError) {
+            scoutDiag.warn('WaterfallLifecycle', 'mark-failed-after-waterfall-error', { sessionId, dossierRunId, error: markError instanceof Error ? markError.message : String(markError) });
+          }
+        }
         return { status: 'FAILED', dossierRunId, errorCode: 'waterfall_failed', errorStage: currentLifecycleStage, error: normalized };
       } finally {
-        if (dossierRunId && dossierLeaseOwner) await releaseDossierRunLease(dossierRunId, dossierLeaseOwner).catch(() => scoutDiag.warn('WaterfallLifecycle', 'lease-release-failed', { sessionId, dossierRunId }));
+        if (dossierRunId && dossierLeaseOwner && !terminalLeaseReleased) await releaseDossierRunLease(dossierRunId, dossierLeaseOwner).catch(() => scoutDiag.warn('WaterfallLifecycle', 'lease-release-failed', { sessionId, dossierRunId }));
         // Fire-and-forget: limpeza de cache não deve bloquear o retorno do waterfall.
         // Timeout de 15s com warning se a promise não resolver.
         if (foundationCacheName) {

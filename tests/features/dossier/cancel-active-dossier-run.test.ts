@@ -11,18 +11,29 @@ vi.mock('../../../utils/diagnosticLog', () => ({ scoutDiag: scoutDiagMock }));
 import { requestCancellationForActiveDossierRun } from '../../../features/dossier/cancel-active-dossier-run';
 
 describe('requestCancellationForActiveDossierRun', () => {
-  it('retorna sem aguardar RPC e diagnostica rejeição remota', async () => {
+  it('permite abort local sem aguardar RPC e propaga rejeição diagnosticada', async () => {
     getActiveDossierRunMock.mockReturnValue({ sessionId: 'session-1', runId: 'run-1', leaseOwner: 'lease-1', clientAttemptId: 'attempt-1' });
-    requestDossierRunCancellationMock.mockRejectedValue(new Error('RPC offline'));
+    let reject!: (error: Error) => void;
+    requestDossierRunCancellationMock.mockReturnValue(new Promise<void>((_, rejectRpc) => { reject = rejectRpc; }));
 
-    expect(requestCancellationForActiveDossierRun('session-1', 'user_stop')).toBe(true);
+    const cancellation = requestCancellationForActiveDossierRun('session-1', 'user_stop');
     expect(requestDossierRunCancellationMock).toHaveBeenCalledWith('run-1');
-    await Promise.resolve();
+    const controller = new AbortController();
+    controller.abort();
+    expect(controller.signal.aborted).toBe(true);
+    reject(new Error('RPC offline'));
+    await expect(cancellation).rejects.toThrow('RPC offline');
     await Promise.resolve();
     expect(scoutDiagMock.warn).toHaveBeenCalledWith(
       'DossierRunLifecycle',
       'cancel-requested-failed',
       expect.objectContaining({ sessionId: 'session-1', runId: 'run-1', error: 'RPC offline' }),
     );
+  });
+
+  it('retorna false sem run ativo', async () => {
+    getActiveDossierRunMock.mockReturnValue(null);
+    await expect(requestCancellationForActiveDossierRun('session-1', 'user_stop')).resolves.toBe(false);
+    expect(requestDossierRunCancellationMock).not.toHaveBeenCalled();
   });
 });

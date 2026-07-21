@@ -14,6 +14,7 @@ CREATE TABLE public.dossier_runs (
   lease_owner TEXT,
   lease_expires_at TIMESTAMPTZ,
   cancel_requested_at TIMESTAMPTZ,
+  cancelled_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   started_at TIMESTAMPTZ,
   completed_at TIMESTAMPTZ,
@@ -96,7 +97,14 @@ BEGIN
   UPDATE public.dossier_runs SET lease_expires_at = now() + make_interval(secs => p_lease_seconds), last_heartbeat_at = now()
    WHERE run_id = p_run_id AND owner_id = auth.uid() AND status = 'RUNNING'
      AND lease_owner = p_lease_owner AND lease_expires_at >= now()
-  RETURNING * INTO v_run; RETURN v_run;
+  RETURNING * INTO v_run;
+  IF v_run.run_id IS NOT NULL THEN RETURN v_run; END IF;
+  SELECT * INTO v_run
+    FROM public.dossier_runs
+   WHERE run_id = p_run_id AND owner_id = auth.uid()
+     AND status IN ('COMPLETED', 'FAILED', 'CANCELLED')
+     AND lease_owner IS NULL;
+  RETURN v_run;
 END; $$;
 
 CREATE OR REPLACE FUNCTION public.release_dossier_run_lease(p_run_id UUID, p_lease_owner TEXT)
@@ -121,9 +129,21 @@ CREATE OR REPLACE FUNCTION public.mark_dossier_run_cancelled(p_run_id UUID, p_le
 RETURNS public.dossier_runs LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
 DECLARE v_run public.dossier_runs;
 BEGIN
-  UPDATE public.dossier_runs SET status = 'CANCELLED', lease_owner = NULL, lease_expires_at = NULL
-   WHERE run_id = p_run_id AND owner_id = auth.uid() AND lease_owner = p_lease_owner AND status = 'CANCEL_REQUESTED'
-  RETURNING * INTO v_run; RETURN v_run;
+  UPDATE public.dossier_runs
+     SET status = 'CANCELLED',
+         cancel_requested_at = coalesce(cancel_requested_at, now()),
+         cancelled_at = coalesce(cancelled_at, now()),
+         lease_owner = NULL,
+         lease_expires_at = NULL
+   WHERE run_id = p_run_id AND owner_id = auth.uid() AND lease_owner = p_lease_owner
+     AND status IN ('RUNNING', 'CANCEL_REQUESTED')
+  RETURNING * INTO v_run;
+  IF v_run.run_id IS NOT NULL THEN RETURN v_run; END IF;
+  SELECT * INTO v_run
+    FROM public.dossier_runs
+   WHERE run_id = p_run_id AND owner_id = auth.uid()
+     AND status = 'CANCELLED' AND lease_owner IS NULL;
+  RETURN v_run;
 END; $$;
 
 CREATE OR REPLACE FUNCTION public.complete_dossier_run(p_run_id UUID, p_lease_owner TEXT, p_dossier_id UUID)
