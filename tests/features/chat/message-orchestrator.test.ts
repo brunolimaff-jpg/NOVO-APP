@@ -7,6 +7,7 @@ import type { LoadingVariant, RequestKind } from '../../../utils/loadingVariant'
 const uuidv4Mock = vi.hoisted(() => vi.fn());
 const sendMessageToGeminiMock = vi.hoisted(() => vi.fn());
 const lifecycleMocks = vi.hoisted(() => ({ create: vi.fn(), acquire: vi.fn(), start: vi.fn(() => vi.fn()), set: vi.fn(), clear: vi.fn() }));
+const trackOperatorEventMock = vi.hoisted(() => vi.fn());
 
 vi.mock('uuid', () => ({
   v4: uuidv4Mock,
@@ -18,6 +19,7 @@ vi.mock('../../../services/llmService', () => ({
 vi.mock('../../../lib/supabase/dossierRuns', () => ({ createOrGetDossierRun: lifecycleMocks.create, acquireDossierRunLease: lifecycleMocks.acquire }));
 vi.mock('../../../features/dossier/dossier-run-heartbeat', () => ({ startDossierRunHeartbeat: lifecycleMocks.start }));
 vi.mock('../../../features/dossier/active-run-registry', () => ({ setActiveDossierRun: lifecycleMocks.set, clearActiveDossierRun: lifecycleMocks.clear }));
+vi.mock('../../../services/operatorTracking', () => ({ trackOperatorEvent: trackOperatorEventMock }));
 
 // Outros testes mockam useToast e chatStore globalmente com vi.mock().
 // Como vitest nao restaura mocks de modulo entre arquivos, esses mocks
@@ -433,6 +435,33 @@ describe('useChatMessageOrchestrator', () => {
       isError: true,
       text: 'Erro no processamento',
     });
+  });
+
+  it('preserva texto do dossiê e marca a mesma mensagem quando waterfall retorna FAILED', async () => {
+    uuidv4Mock
+      .mockReturnValueOnce('session-new')
+      .mockReturnValueOnce('message-user')
+      .mockReturnValueOnce('message-bot');
+    const harness = makeHarness();
+    harness.runMegaPromptWaterfall.mockImplementationOnce(async () => {
+      harness.updateSessionById('session-new', session => ({
+        ...session,
+        messages: session.messages.map(message =>
+          message.id === 'message-bot' ? { ...message, text: 'Dossiê consolidado' } : message,
+        ),
+      }));
+      return { status: 'FAILED', errorCode: 'persist_failed', errorStage: 'save_dossier', error: new Error('persistência indisponível') };
+    });
+
+    await act(async () => {
+      await harness.result.current.handleSendMessage('DOSSIÊ COMPLETO de Acme Agro');
+    });
+
+    const botMessage = harness.state.sessions[0].messages.find(message => message.id === 'message-bot');
+    expect(botMessage).toMatchObject({ id: 'message-bot', text: 'Dossiê consolidado', isError: true });
+    expect(harness.state.sessions[0].messages.some(message => message.text === 'Erro no processamento')).toBe(false);
+    expect(trackOperatorEventMock).toHaveBeenCalledTimes(2);
+    expect(trackOperatorEventMock).toHaveBeenLastCalledWith('dossier_failed', expect.any(Object));
   });
 
   it('nao cria sessao orfa quando a primeira investigacao dispara duas vezes antes do re-render', async () => {

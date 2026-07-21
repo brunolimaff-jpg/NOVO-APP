@@ -556,6 +556,31 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
             return;
           }
           if (waterfallResult.status === 'FAILED') {
+            const generatedBotMessage = sessionsRef.current
+              .find(session => session.id === sessionId)
+              ?.messages.find(message => message.id === botMessageId);
+            if (generatedBotMessage?.text.trim()) {
+              const appError = normalizeAppError(waterfallResult.error);
+              trackOperatorEvent('dossier_failed', {
+                operatorId,
+                email: operatorEmail || undefined,
+                sessionId,
+                entityType: 'session',
+                entityId: botMessageId,
+                companyCnpj: sessionCnpjDigits || undefined,
+                companyName: normalizedCompany || undefined,
+                metadata: { errorMessage: waterfallResult.error.message },
+              });
+              updateSessionById(sessionId, session => ({
+                ...session,
+                messages: session.messages.map(message =>
+                  message.id === botMessageId
+                    ? { ...message, isError: true, errorDetails: appError }
+                    : message,
+                ),
+              }));
+              return;
+            }
             throw waterfallResult.error;
           }
           trackOperatorEvent('dossier_completed', { operatorId, email: operatorEmail || undefined, sessionId, entityType: 'session', entityId: botMessageId, companyCnpj: sessionCnpjDigits || undefined, companyName: normalizedCompany || undefined });

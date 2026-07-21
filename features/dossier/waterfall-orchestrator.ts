@@ -972,10 +972,12 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
               return result.text || '';
             };
 
-            assertNotAborted();
+            await assertRunCanContinue('before_query_planner');
             const plan = await withAbortSignal(planQueries(entity, callLLM), signal);
-            assertNotAborted();
+            await assertRunCanContinue('after_query_planner');
+            await assertRunCanContinue('before_query_collector');
             const pack = await withAbortSignal(executeQueryPlan(plan), signal);
+            await assertRunCanContinue('after_query_collector');
 
             scoutDiag.info('PipelineV2', 'planner+collector concluído', {
               sessionId,
