@@ -3,6 +3,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { z } from 'zod';
 
 import { runDossierGateway } from './_dossier-llm-gateway.js';
+import { LiteLLMRequestError, type LiteLLMErrorCode } from './_llm-client.js';
 
 const HistoryItemSchema = z.object({
   role: z.enum(['user', 'assistant']),
@@ -27,10 +28,66 @@ const ChatRequestSchema = z.object({
 });
 
 const DossierRequestSchema = z.discriminatedUnion('action', [GenerateRequestSchema, ChatRequestSchema]);
+type DossierRequest = z.infer<typeof DossierRequestSchema>;
+
 const REQUEST_ID_PATTERN = /^[a-zA-Z0-9._:-]{8,128}$/;
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const MAX_AGGREGATE_PAYLOAD_CHARS = 240_000;
+const LEASE_SECONDS = 60;
+const LEASE_HEARTBEAT_MS = 20_000;
 
 export const config = { runtime: 'nodejs' };
 export const maxDuration = 60;
+
+type DossierErrorCode =
+  | 'AUTH_REQUIRED'
+  | 'INVALID_REQUEST'
+  | 'PAYLOAD_TOO_LARGE'
+  | 'RUN_NOT_FOUND'
+  | 'RUN_NOT_OWNED'
+  | 'RUN_CANCEL_REQUESTED'
+  | 'RUN_TERMINAL'
+  | 'RUN_LEASE_UNAVAILABLE'
+  | 'REQUEST_ABORTED'
+  | LiteLLMErrorCode
+  | 'INTERNAL_ERROR';
+
+type DossierStage = 'validation' | 'auth' | 'ownership' | 'lease' | 'gateway' | 'request';
+
+class DossierApiError extends Error {
+  constructor(
+    readonly status: number,
+    readonly code: DossierErrorCode,
+    message: string,
+    readonly stage: DossierStage,
+    readonly retryable: boolean,
+  ) {
+    super(message);
+    this.name = 'DossierApiError';
+  }
+}
+
+interface AuthenticatedUser {
+  id: string;
+  token: string;
+  supabase: { url: string; anonKey: string };
+}
+
+interface DossierRunRecord {
+  run_id?: unknown;
+  dossier_id?: unknown;
+  status?: unknown;
+  lease_owner?: unknown;
+  lease_expires_at?: unknown;
+  cancel_requested_at?: unknown;
+}
+
+interface LogContext {
+  correlationId: string;
+  runId: string;
+  action: 'generate' | 'chat' | 'unknown';
+  startedAt: number;
+}
 
 function getHeader(req: VercelRequest, name: string): string | undefined {
   const value = req.headers[name.toLowerCase()];
@@ -42,59 +99,279 @@ function resolveCorrelationId(req: VercelRequest): string {
   return candidate && REQUEST_ID_PATTERN.test(candidate) ? candidate : randomUUID();
 }
 
+function resolveUntrustedRunId(body: unknown): string | undefined {
+  if (!body || typeof body !== 'object') return undefined;
+  const runId = (body as { runId?: unknown }).runId;
+  return typeof runId === 'string' && UUID_PATTERN.test(runId) ? runId : undefined;
+}
+
 function getSupabaseAuthConfig(): { url: string; anonKey: string } | null {
   const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
   const anonKey = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY;
   return url && anonKey ? { url: url.replace(/\/+$/, ''), anonKey } : null;
 }
 
-interface AuthenticatedUser {
-  id: string;
-  token: string;
-  supabase: { url: string; anonKey: string };
+function logEvent(
+  level: 'info' | 'warn' | 'error',
+  event: string,
+  context: LogContext,
+  stage: DossierStage,
+  errorCode: DossierErrorCode | null = null,
+): void {
+  // Never add request content, credentials or provider responses to this payload.
+  // eslint-disable-next-line no-console
+  console[level](`[DossierAPI] ${event}`, {
+    correlationId: context.correlationId,
+    runId: context.runId,
+    action: context.action,
+    stage,
+    durationMs: Date.now() - context.startedAt,
+    errorCode,
+  });
+}
+
+function sendError(
+  res: VercelResponse,
+  correlationId: string,
+  runId: string | undefined,
+  error: DossierApiError,
+) {
+  return res.status(error.status).json({
+    ok: false,
+    correlationId,
+    ...(runId ? { runId } : {}),
+    error: {
+      code: error.code,
+      message: error.message,
+      stage: error.stage,
+      retryable: error.retryable,
+    },
+  });
+}
+
+function aggregatePayloadSize(request: DossierRequest): number {
+  if (request.action === 'generate') return request.context.length;
+  return (
+    request.message.length +
+    request.dossierContext.length +
+    request.history.reduce((total, item) => total + item.content.length, 0)
+  );
 }
 
 async function authenticate(req: VercelRequest, signal: AbortSignal): Promise<AuthenticatedUser | null> {
   const authorization = getHeader(req, 'authorization');
   const token = authorization?.match(/^Bearer\s+(.+)$/i)?.[1]?.trim();
-  const config = getSupabaseAuthConfig();
-  if (!token || !config) return null;
+  const authConfig = getSupabaseAuthConfig();
+  if (!token || !authConfig) return null;
 
-  const response = await fetch(`${config.url}/auth/v1/user`, {
-    headers: { Authorization: `Bearer ${token}`, apikey: config.anonKey },
+  const response = await fetch(`${authConfig.url}/auth/v1/user`, {
+    headers: { Authorization: `Bearer ${token}`, apikey: authConfig.anonKey },
     signal,
   });
   if (!response.ok) return null;
 
   const body = (await response.json()) as { id?: unknown };
-  return typeof body.id === 'string' && body.id ? { id: body.id, token, supabase: config } : null;
+  return typeof body.id === 'string' && body.id ? { id: body.id, token, supabase: authConfig } : null;
 }
 
-async function ownsDossierRun(
+async function callRunRpc(
   user: AuthenticatedUser,
-  runId: string,
-  dossierId: string | undefined,
+  rpcName: string,
+  body: Record<string, unknown>,
   signal: AbortSignal,
-): Promise<boolean> {
-  const response = await fetch(`${user.supabase.url}/rest/v1/rpc/get_own_dossier_run`, {
+  stage: 'ownership' | 'lease',
+): Promise<DossierRunRecord | null> {
+  const response = await fetch(`${user.supabase.url}/rest/v1/rpc/${rpcName}`, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${user.token}`,
       apikey: user.supabase.anonKey,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ p_run_id: runId }),
+    body: JSON.stringify(body),
     signal,
   });
-  if (!response.ok) return false;
+  if (!response.ok) {
+    throw new DossierApiError(502, 'INTERNAL_ERROR', 'Dossier lifecycle service unavailable', stage, true);
+  }
 
-  const body = (await response.json()) as unknown;
-  const record = Array.isArray(body) ? body[0] : body;
-  if (!record || typeof record !== 'object') return false;
-  const run = record as { run_id?: unknown; dossier_id?: unknown; status?: unknown };
-  if (run.run_id !== runId) return false;
-  if (dossierId === undefined) return run.status === 'PENDING' || run.status === 'RUNNING';
-  return run.status === 'COMPLETED' && run.dossier_id === dossierId;
+  let payload: unknown;
+  try {
+    payload = await response.json();
+  } catch {
+    throw new DossierApiError(502, 'INTERNAL_ERROR', 'Invalid dossier lifecycle response', stage, true);
+  }
+  const record = Array.isArray(payload) ? payload[0] : payload;
+  return record && typeof record === 'object' ? (record as DossierRunRecord) : null;
+}
+
+function assertRunIdentity(run: DossierRunRecord | null, runId: string, stage: 'ownership' | 'lease'): DossierRunRecord {
+  if (!run) throw new DossierApiError(404, 'RUN_NOT_FOUND', 'Dossier run not found', stage, false);
+  if (run.run_id !== runId) {
+    throw new DossierApiError(502, 'INTERNAL_ERROR', 'Invalid dossier lifecycle response', stage, true);
+  }
+  return run;
+}
+
+function assertRunNotCancelled(run: DossierRunRecord, stage: 'ownership' | 'lease'): void {
+  if (run.status === 'CANCEL_REQUESTED' || run.status === 'CANCELLED' || run.cancel_requested_at) {
+    throw new DossierApiError(409, 'RUN_CANCEL_REQUESTED', 'Dossier run cancellation requested', stage, false);
+  }
+}
+
+async function assertChatOwnership(
+  user: AuthenticatedUser,
+  request: Extract<DossierRequest, { action: 'chat' }>,
+  signal: AbortSignal,
+): Promise<void> {
+  const run = assertRunIdentity(
+    await callRunRpc(user, 'get_own_dossier_run', { p_run_id: request.runId }, signal, 'ownership'),
+    request.runId,
+    'ownership',
+  );
+  assertRunNotCancelled(run, 'ownership');
+  if (run.status !== 'COMPLETED') {
+    throw new DossierApiError(409, 'RUN_TERMINAL', 'Dossier run is not completed', 'ownership', false);
+  }
+  if (run.dossier_id !== request.dossierId) {
+    throw new DossierApiError(404, 'RUN_NOT_OWNED', 'Dossier does not belong to the authenticated run', 'ownership', false);
+  }
+}
+
+function hasValidLease(run: DossierRunRecord, runId: string, leaseOwner: string): boolean {
+  const expiresAt = typeof run.lease_expires_at === 'string' ? Date.parse(run.lease_expires_at) : Number.NaN;
+  return (
+    run.run_id === runId &&
+    run.status === 'RUNNING' &&
+    run.lease_owner === leaseOwner &&
+    Number.isFinite(expiresAt) &&
+    expiresAt > Date.now()
+  );
+}
+
+async function acquireGenerateLease(
+  user: AuthenticatedUser,
+  runId: string,
+  leaseOwner: string,
+  signal: AbortSignal,
+): Promise<void> {
+  const current = assertRunIdentity(
+    await callRunRpc(user, 'get_own_dossier_run', { p_run_id: runId }, signal, 'lease'),
+    runId,
+    'lease',
+  );
+  assertRunNotCancelled(current, 'lease');
+  if (current.status !== 'PENDING' && current.status !== 'RUNNING') {
+    throw new DossierApiError(409, 'RUN_TERMINAL', 'Dossier run is terminal', 'lease', false);
+  }
+
+  const leased = await callRunRpc(
+    user,
+    'acquire_dossier_run_lease',
+    { p_run_id: runId, p_lease_owner: leaseOwner, p_lease_seconds: LEASE_SECONDS },
+    signal,
+    'lease',
+  );
+  if (!leased || !hasValidLease(leased, runId, leaseOwner)) {
+    throw new DossierApiError(409, 'RUN_LEASE_UNAVAILABLE', 'Dossier run lease unavailable', 'lease', true);
+  }
+  assertRunNotCancelled(leased, 'lease');
+}
+
+function combineSignals(first: AbortSignal, second: AbortSignal): { signal: AbortSignal; cleanup: () => void } {
+  const controller = new AbortController();
+  const abort = () => controller.abort();
+  if (first.aborted || second.aborted) controller.abort();
+  else {
+    first.addEventListener('abort', abort, { once: true });
+    second.addEventListener('abort', abort, { once: true });
+  }
+  return {
+    signal: controller.signal,
+    cleanup: () => {
+      first.removeEventListener('abort', abort);
+      second.removeEventListener('abort', abort);
+    },
+  };
+}
+
+function startLeaseHeartbeat(
+  user: AuthenticatedUser,
+  runId: string,
+  leaseOwner: string,
+  requestSignal: AbortSignal,
+): {
+  signal: AbortSignal;
+  getError: () => DossierApiError | undefined;
+  cleanup: () => void;
+} {
+  const heartbeatController = new AbortController();
+  const gatewayController = new AbortController();
+  const combined = combineSignals(requestSignal, gatewayController.signal);
+  let stopped = false;
+  let heartbeatInFlight = false;
+  let heartbeatError: DossierApiError | undefined;
+
+  const timer = setInterval(async () => {
+    if (stopped || heartbeatInFlight) return;
+    heartbeatInFlight = true;
+    try {
+      const renewed = await callRunRpc(
+        user,
+        'renew_dossier_run_lease',
+        { p_run_id: runId, p_lease_owner: leaseOwner, p_lease_seconds: LEASE_SECONDS },
+        heartbeatController.signal,
+        'lease',
+      );
+      if (!renewed) {
+        heartbeatError = new DossierApiError(409, 'RUN_LEASE_UNAVAILABLE', 'Dossier run lease lost', 'lease', true);
+      } else if (renewed.status === 'CANCEL_REQUESTED' || renewed.status === 'CANCELLED' || renewed.cancel_requested_at) {
+        heartbeatError = new DossierApiError(409, 'RUN_CANCEL_REQUESTED', 'Dossier run cancellation requested', 'lease', false);
+      } else if (!hasValidLease(renewed, runId, leaseOwner)) {
+        heartbeatError = new DossierApiError(409, 'RUN_LEASE_UNAVAILABLE', 'Dossier run lease lost', 'lease', true);
+      }
+    } catch (error) {
+      if (!stopped) {
+        heartbeatError =
+          error instanceof DossierApiError
+            ? error
+            : new DossierApiError(502, 'INTERNAL_ERROR', 'Lease heartbeat failed', 'lease', true);
+      }
+    } finally {
+      heartbeatInFlight = false;
+    }
+    if (heartbeatError) gatewayController.abort();
+  }, LEASE_HEARTBEAT_MS);
+
+  return {
+    signal: combined.signal,
+    getError: () => heartbeatError,
+    cleanup: () => {
+      stopped = true;
+      clearInterval(timer);
+      heartbeatController.abort();
+      combined.cleanup();
+    },
+  };
+}
+
+async function releaseLease(
+  user: AuthenticatedUser,
+  runId: string,
+  leaseOwner: string,
+  context: LogContext,
+): Promise<void> {
+  try {
+    await callRunRpc(
+      user,
+      'release_dossier_run_lease',
+      { p_run_id: runId, p_lease_owner: leaseOwner },
+      AbortSignal.timeout(2_000),
+      'lease',
+    );
+  } catch {
+    logEvent('error', 'lease:release_failed', context, 'lease', 'INTERNAL_ERROR');
+  }
 }
 
 function createRequestAbortController(req: VercelRequest, res: VercelResponse): {
@@ -114,43 +391,82 @@ function createRequestAbortController(req: VercelRequest, res: VercelResponse): 
   };
 }
 
+function mapGatewayError(error: LiteLLMRequestError, requestAborted: boolean): DossierApiError {
+  if (requestAborted) {
+    return new DossierApiError(499, 'REQUEST_ABORTED', 'Request cancelled', 'request', false);
+  }
+  if (error.code === 'GATEWAY_TIMEOUT') {
+    return new DossierApiError(504, error.code, 'Dossier gateway timed out', 'gateway', true);
+  }
+  if (error.code === 'GATEWAY_ABORTED') {
+    return new DossierApiError(499, error.code, 'Dossier gateway aborted', 'gateway', false);
+  }
+  if (error.code === 'GATEWAY_NOT_CONFIGURED') {
+    return new DossierApiError(503, error.code, 'Dossier gateway not configured', 'gateway', false);
+  }
+  return new DossierApiError(502, error.code, 'Dossier gateway unavailable', 'gateway', error.retryable);
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const correlationId = resolveCorrelationId(req);
+  const untrustedRunId = resolveUntrustedRunId(req.body);
   res.setHeader('x-request-id', correlationId);
 
   if (req.method !== 'POST') {
     res.setHeader('allow', 'POST');
-    return res.status(405).json({ error: 'Method not allowed', correlationId });
+    return sendError(
+      res,
+      correlationId,
+      untrustedRunId,
+      new DossierApiError(405, 'INVALID_REQUEST', 'Method not allowed', 'validation', false),
+    );
   }
 
   const parsed = DossierRequestSchema.safeParse(req.body);
   if (!parsed.success) {
-    return res.status(400).json({ error: 'Invalid request', correlationId });
+    return sendError(
+      res,
+      correlationId,
+      untrustedRunId,
+      new DossierApiError(400, 'INVALID_REQUEST', 'Invalid request', 'validation', false),
+    );
+  }
+  if (aggregatePayloadSize(parsed.data) > MAX_AGGREGATE_PAYLOAD_CHARS) {
+    return sendError(
+      res,
+      correlationId,
+      parsed.data.runId,
+      new DossierApiError(400, 'PAYLOAD_TOO_LARGE', 'Aggregate payload exceeds the allowed limit', 'validation', false),
+    );
   }
 
   const { controller, cleanup } = createRequestAbortController(req, res);
-  const startedAt = Date.now();
-  // eslint-disable-next-line no-console
-  console.info('[DossierAPI] request:start', { correlationId, action: parsed.data.action });
+  const context: LogContext = {
+    correlationId,
+    runId: parsed.data.runId,
+    action: parsed.data.action,
+    startedAt: Date.now(),
+  };
+  let leaseOwner: string | undefined;
+  let leaseAcquired = false;
+  let user: AuthenticatedUser | null = null;
+  let heartbeat: ReturnType<typeof startLeaseHeartbeat> | undefined;
+  logEvent('info', 'request:start', context, 'auth');
 
   try {
-    const user = await authenticate(req, controller.signal);
-    if (!user) {
-      console.warn('[DossierAPI] auth:denied', { correlationId });
-      return res.status(401).json({ error: 'Unauthorized', correlationId });
+    user = await authenticate(req, controller.signal);
+    if (!user) throw new DossierApiError(401, 'AUTH_REQUIRED', 'Authentication required', 'auth', false);
+
+    if (parsed.data.action === 'chat') {
+      await assertChatOwnership(user, parsed.data, controller.signal);
+    } else {
+      leaseOwner = randomUUID();
+      await acquireGenerateLease(user, parsed.data.runId, leaseOwner, controller.signal);
+      leaseAcquired = true;
+      heartbeat = startLeaseHeartbeat(user, parsed.data.runId, leaseOwner, controller.signal);
     }
 
-    const ownsRun = await ownsDossierRun(
-      user,
-      parsed.data.runId,
-      parsed.data.action === 'chat' ? parsed.data.dossierId : undefined,
-      controller.signal,
-    );
-    if (!ownsRun) {
-      console.warn('[DossierAPI] ownership:denied', { correlationId, action: parsed.data.action });
-      return res.status(404).json({ error: 'Dossier run not found', correlationId });
-    }
-
+    const gatewaySignal = heartbeat?.signal ?? controller.signal;
     const gatewayResult =
       parsed.data.action === 'chat'
         ? await runDossierGateway({
@@ -158,43 +474,43 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             userContent: parsed.data.message,
             dossierContext: parsed.data.dossierContext,
             history: parsed.data.history,
-            signal: controller.signal,
+            signal: gatewaySignal,
             correlationId,
+            runId: parsed.data.runId,
           })
         : await runDossierGateway({
             mode: 'generate',
             userContent: `Gere o dossiê de ${parsed.data.companyName}${parsed.data.cnpj ? `, CNPJ ${parsed.data.cnpj}` : ''}.`,
             dossierContext: parsed.data.context,
-            signal: controller.signal,
+            signal: gatewaySignal,
             correlationId,
+            runId: parsed.data.runId,
           });
 
-    // eslint-disable-next-line no-console
-    console.info('[DossierAPI] request:complete', {
-      correlationId,
-      action: parsed.data.action,
-      durationMs: Date.now() - startedAt,
-    });
+    logEvent('info', 'request:complete', context, 'gateway');
     return res.status(200).json({
+      ok: true,
       text: gatewayResult.text,
       usage: gatewayResult.usage,
       finishReason: gatewayResult.finishReason,
       correlationId,
+      runId: parsed.data.runId,
     });
   } catch (error) {
-    const aborted = controller.signal.aborted || (error instanceof Error && error.name === 'AbortError');
-    console.error('[DossierAPI] request:failed', {
-      correlationId,
-      action: parsed.data.action,
-      durationMs: Date.now() - startedAt,
-      errorName: error instanceof Error ? error.name : 'Error',
-      aborted,
-    });
-    if (aborted) {
-      return res.status(499).json({ error: 'Request cancelled', correlationId });
-    }
-    return res.status(502).json({ error: 'Dossier gateway unavailable', correlationId });
+    let normalized: DossierApiError;
+    const heartbeatError = heartbeat?.getError();
+    if (heartbeatError) normalized = heartbeatError;
+    else if (controller.signal.aborted) {
+      normalized = new DossierApiError(499, 'REQUEST_ABORTED', 'Request cancelled', 'request', false);
+    } else if (error instanceof DossierApiError) normalized = error;
+    else if (error instanceof LiteLLMRequestError) normalized = mapGatewayError(error, false);
+    else normalized = new DossierApiError(500, 'INTERNAL_ERROR', 'Internal dossier error', 'request', true);
+
+    logEvent('error', 'request:failed', context, normalized.stage, normalized.code);
+    return sendError(res, correlationId, parsed.data.runId, normalized);
   } finally {
+    heartbeat?.cleanup();
+    if (user && leaseOwner && leaseAcquired) await releaseLease(user, parsed.data.runId, leaseOwner, context);
     cleanup();
   }
 }

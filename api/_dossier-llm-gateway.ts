@@ -9,6 +9,7 @@ export interface DossierGatewayInput {
   history?: Array<{ role: 'user' | 'assistant'; content: string }>;
   signal: AbortSignal;
   correlationId: string;
+  runId: string;
 }
 
 const GENERATE_SYSTEM_INSTRUCTION = [
@@ -53,6 +54,8 @@ export async function runDossierGateway(input: DossierGatewayInput): Promise<Lit
     history: input.history,
     signal: input.signal,
     correlationId: input.correlationId,
+    runId: input.runId,
+    action: input.mode,
     temperature: input.mode === 'chat' ? 0.2 : 0.1,
     timeoutMs: resolveDossierGatewayTimeoutMs(),
   });

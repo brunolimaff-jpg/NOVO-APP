@@ -9,6 +9,7 @@ import {
   ensureMarkdownStart,
   isFallbackEnabled,
   isLiteLLMEnabled,
+  LiteLLMRequestError,
   normalizeModelOutput,
   normalizeUsage,
   resolveLiteLLMClientTimeoutMs,
@@ -304,5 +305,54 @@ describe('callLiteLLM', () => {
       ),
     ).rejects.toThrow('budget');
     expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('distingue timeout interno e remove o timer do transporte', async () => {
+    vi.useFakeTimers();
+    const clearTimeoutSpy = vi.spyOn(globalThis, 'clearTimeout');
+    fetchMock.mockImplementationOnce(
+      () => new Promise<Response>(() => undefined),
+    );
+
+    const pending = callLiteLLM(
+      { model: 'model', userContent: 'prompt', timeoutMs: 10 },
+      {
+        LITELLM_API_KEY: 'key',
+        LITELLM_BASE_URL: 'https://litellm.example',
+        LITELLM_MAX_RETRIES: '0',
+      },
+    );
+    const assertion = expect(pending).rejects.toMatchObject<Partial<LiteLLMRequestError>>({
+      code: 'GATEWAY_TIMEOUT',
+    });
+
+    await vi.advanceTimersByTimeAsync(11);
+    await assertion;
+    expect(clearTimeoutSpy).toHaveBeenCalled();
+    vi.useRealTimers();
+  });
+
+  it('distingue abort externo e remove o listener do signal', async () => {
+    const controller = new AbortController();
+    const removeListenerSpy = vi.spyOn(controller.signal, 'removeEventListener');
+    fetchMock.mockImplementationOnce(
+      () => new Promise<Response>(() => undefined),
+    );
+
+    const pending = callLiteLLM(
+      { model: 'model', userContent: 'prompt', signal: controller.signal, timeoutMs: 5_000 },
+      {
+        LITELLM_API_KEY: 'key',
+        LITELLM_BASE_URL: 'https://litellm.example',
+        LITELLM_MAX_RETRIES: '0',
+      },
+    );
+    const assertion = expect(pending).rejects.toMatchObject<Partial<LiteLLMRequestError>>({
+      code: 'GATEWAY_ABORTED',
+    });
+
+    controller.abort();
+    await assertion;
+    expect(removeListenerSpy).toHaveBeenCalled();
   });
 });

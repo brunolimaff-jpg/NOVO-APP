@@ -27,6 +27,8 @@ export interface LiteLLMLegacyInput {
   timeoutMs?: number;
   signal?: AbortSignal;
   correlationId?: string;
+  runId?: string;
+  action?: string;
 }
 
 export interface LiteLLMCallInput {
@@ -39,6 +41,8 @@ export interface LiteLLMCallInput {
   timeoutMs?: number;
   signal?: AbortSignal;
   correlationId?: string;
+  runId?: string;
+  action?: string;
 }
 
 export interface LiteLLMCallResult {
@@ -49,9 +53,28 @@ export interface LiteLLMCallResult {
   reasoningCharsRemoved: number;
 }
 
-class LiteLLMHttpError extends Error {
-  constructor(readonly status: number) {
-    super(`LiteLLM HTTP ${status}`);
+export type LiteLLMErrorCode =
+  | 'GATEWAY_NOT_CONFIGURED'
+  | 'GATEWAY_TIMEOUT'
+  | 'GATEWAY_ABORTED'
+  | 'GATEWAY_HTTP_ERROR'
+  | 'GATEWAY_INVALID_RESPONSE';
+
+export class LiteLLMRequestError extends Error {
+  constructor(
+    readonly code: LiteLLMErrorCode,
+    message: string,
+    readonly retryable: boolean,
+    readonly status?: number,
+  ) {
+    super(message);
+    this.name = 'LiteLLMRequestError';
+  }
+}
+
+class LiteLLMHttpError extends LiteLLMRequestError {
+  constructor(status: number) {
+    super('GATEWAY_HTTP_ERROR', `LiteLLM HTTP ${status}`, isRetryableStatus(status), status);
     this.name = 'LiteLLMHttpError';
   }
 }
@@ -60,56 +83,109 @@ function isRetryableStatus(status: number): boolean {
   return status === 408 || status === 429 || status >= 500;
 }
 
-function makeAbortError(message = 'The operation was aborted'): Error {
-  const error = new Error(message);
-  error.name = 'AbortError';
-  return error;
+function makeGatewayAbortError(): LiteLLMRequestError {
+  return new LiteLLMRequestError('GATEWAY_ABORTED', 'LiteLLM request aborted by external signal', false);
+}
+
+function makeGatewayTimeoutError(): LiteLLMRequestError {
+  return new LiteLLMRequestError('GATEWAY_TIMEOUT', 'LiteLLM request budget exceeded', true);
 }
 
 function remainingBudget(deadline: number): number {
   return Math.max(0, deadline - Date.now());
 }
 
-function combineSignals(signals: AbortSignal[]): AbortSignal {
-  if (typeof AbortSignal.any === 'function') return AbortSignal.any(signals);
-
+function createAttemptAbortContext(externalSignal: AbortSignal | undefined, timeoutMs: number): {
+  signal: AbortSignal;
+  reason: () => 'external' | 'timeout' | undefined;
+  cleanup: () => void;
+} {
   const controller = new AbortController();
-  const abort = () => controller.abort();
-  for (const signal of signals) {
-    if (signal.aborted) {
-      controller.abort();
-      break;
-    }
-    signal.addEventListener('abort', abort, { once: true });
+  let abortReason: 'external' | 'timeout' | undefined;
+  const abortExternal = () => {
+    abortReason ??= 'external';
+    controller.abort();
+  };
+  if (externalSignal?.aborted) {
+    abortExternal();
+  } else {
+    externalSignal?.addEventListener('abort', abortExternal, { once: true });
   }
-  return controller.signal;
+  const timeoutId = setTimeout(() => {
+    abortReason ??= 'timeout';
+    controller.abort();
+  }, timeoutMs);
+  return {
+    signal: controller.signal,
+    reason: () => abortReason,
+    cleanup: () => {
+      clearTimeout(timeoutId);
+      externalSignal?.removeEventListener('abort', abortExternal);
+    },
+  };
 }
 
 async function waitWithinBudget(delayMs: number, deadline: number, signal?: AbortSignal): Promise<void> {
-  if (signal?.aborted) throw makeAbortError();
-  if (remainingBudget(deadline) <= delayMs) throw new Error('LiteLLM total request budget exceeded');
+  if (signal?.aborted) throw makeGatewayAbortError();
+  if (remainingBudget(deadline) <= delayMs) throw makeGatewayTimeoutError();
 
   await new Promise<void>((resolve, reject) => {
-    const timeout = setTimeout(resolve, delayMs);
+    const cleanup = () => signal?.removeEventListener('abort', abort);
+    const timeout = setTimeout(() => {
+      cleanup();
+      resolve();
+    }, delayMs);
     const abort = () => {
       clearTimeout(timeout);
-      reject(makeAbortError());
+      cleanup();
+      reject(makeGatewayAbortError());
     };
     signal?.addEventListener('abort', abort, { once: true });
   });
 }
 
 async function withSignal<T>(operation: Promise<T>, signal: AbortSignal): Promise<T> {
-  if (signal.aborted) throw makeAbortError('LiteLLM request budget exceeded or aborted');
+  if (signal.aborted) throw makeGatewayAbortError();
+  return new Promise<T>((resolve, reject) => {
+    const cleanup = () => signal.removeEventListener('abort', abort);
+    const abort = () => {
+      cleanup();
+      reject(makeGatewayAbortError());
+    };
+    signal.addEventListener('abort', abort, { once: true });
+    operation.then(
+      value => {
+        cleanup();
+        resolve(value);
+      },
+      error => {
+        cleanup();
+        reject(error);
+      },
+    );
+  });
+}
 
-  return Promise.race([
-    operation,
-    new Promise<T>((_, reject) => {
-      signal.addEventListener('abort', () => reject(makeAbortError('LiteLLM request budget exceeded or aborted')), {
-        once: true,
-      });
-    }),
-  ]);
+function normalizeLiteLLMError(
+  error: unknown,
+  abortReason: 'external' | 'timeout' | undefined,
+): LiteLLMRequestError {
+  if (abortReason === 'timeout') return makeGatewayTimeoutError();
+  if (abortReason === 'external') return makeGatewayAbortError();
+  if (error instanceof LiteLLMRequestError) return error;
+  if (error instanceof SyntaxError || (error instanceof Error && /resposta vazia/i.test(error.message))) {
+    return new LiteLLMRequestError(
+      'GATEWAY_INVALID_RESPONSE',
+      error instanceof Error ? error.message : 'LiteLLM returned an invalid response',
+      false,
+    );
+  }
+  if (error instanceof Error && error.name === 'AbortError') return makeGatewayAbortError();
+  return new LiteLLMRequestError(
+    'GATEWAY_HTTP_ERROR',
+    error instanceof Error ? error.message : 'LiteLLM request failed',
+    true,
+  );
 }
 
 const REASONING_PREFIXES = [
@@ -253,10 +329,15 @@ export async function callLiteLLM(
   input: LiteLLMLegacyInput | LiteLLMCallInput,
   env: Environment = process.env,
 ): Promise<string | LiteLLMCallResult> {
+  const startedAt = Date.now();
   const baseUrl = env.LITELLM_BASE_URL?.replace(/\/+$/, '');
   const apiKey = env.LITELLM_API_KEY;
   if (!baseUrl || !apiKey) {
-    throw new Error('LiteLLM não configurado: LITELLM_BASE_URL e LITELLM_API_KEY são obrigatórios');
+    throw new LiteLLMRequestError(
+      'GATEWAY_NOT_CONFIGURED',
+      'LiteLLM não configurado: LITELLM_BASE_URL e LITELLM_API_KEY são obrigatórios',
+      false,
+    );
   }
 
   const legacy = isLegacyInput(input);
@@ -275,16 +356,14 @@ export async function callLiteLLM(
     ? configuredDelay
     : DEFAULT_RETRY_BASE_DELAY_MS;
   const messages = buildMessages(input);
-  let lastError: Error | undefined;
+  let lastError: LiteLLMRequestError | undefined;
 
   for (let attempt = 0; attempt <= maxRetries; attempt += 1) {
-    if (input.signal?.aborted) throw makeAbortError();
+    if (input.signal?.aborted) throw makeGatewayAbortError();
 
     const available = remainingBudget(deadline);
-    if (available <= 0) throw new Error('LiteLLM total request budget exceeded');
-    const timeoutController = new AbortController();
-    const timeoutId = setTimeout(() => timeoutController.abort(), available);
-    const signal = input.signal ? combineSignals([input.signal, timeoutController.signal]) : timeoutController.signal;
+    if (available <= 0) throw makeGatewayTimeoutError();
+    const abortContext = createAttemptAbortContext(input.signal, available);
 
     try {
       const response = await withSignal(
@@ -301,24 +380,35 @@ export async function callLiteLLM(
             temperature: input.temperature ?? (legacy ? 0.7 : 0.1),
             max_tokens: legacy ? input.maxTokens ?? 4096 : input.maxOutputTokens ?? 8192,
           }),
-          signal,
+          signal: abortContext.signal,
         }),
-        signal,
+        abortContext.signal,
       );
 
       if (!response.ok) {
-        await withSignal(response.text().catch(() => ''), signal);
+        await withSignal(response.text().catch(() => ''), abortContext.signal);
         throw new LiteLLMHttpError(response.status);
       }
 
-      const responseBody = await withSignal(response.text(), signal);
-      const completion = JSON.parse(responseBody) as {
+      const responseBody = await withSignal(response.text(), abortContext.signal);
+      let completion: {
         choices?: Array<{ message?: { content?: string }; finish_reason?: string }>;
         usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number };
       };
+      try {
+        completion = JSON.parse(responseBody) as typeof completion;
+      } catch (error) {
+        throw new LiteLLMRequestError(
+          'GATEWAY_INVALID_RESPONSE',
+          error instanceof Error ? error.message : 'LiteLLM returned invalid JSON',
+          false,
+        );
+      }
       const choice = completion.choices?.[0];
       const normalized = normalizeModelOutput(choice?.message?.content ?? '');
-      if (!normalized.text) throw new Error('LiteLLM retornou resposta vazia');
+      if (!normalized.text) {
+        throw new LiteLLMRequestError('GATEWAY_INVALID_RESPONSE', 'LiteLLM retornou resposta vazia', false);
+      }
 
       const result: LiteLLMCallResult = {
         text: normalized.text,
@@ -329,23 +419,22 @@ export async function callLiteLLM(
       };
       return legacy ? result.text : result;
     } catch (error) {
-      lastError = error instanceof Error ? error : new Error(String(error));
-      const permanentHttpError = error instanceof LiteLLMHttpError && !isRetryableStatus(error.status);
-      const retryable =
-        !permanentHttpError &&
-        !(error instanceof SyntaxError) &&
-        !/resposta vazia/i.test(lastError.message) &&
-        lastError.name !== 'AbortError';
-      if (attempt >= maxRetries || input.signal?.aborted || !retryable) break;
+      lastError = normalizeLiteLLMError(error, abortContext.reason());
+      if (attempt >= maxRetries || !lastError.retryable || lastError.code === 'GATEWAY_TIMEOUT') break;
       await waitWithinBudget(retryDelayMs * 2 ** attempt, deadline, input.signal);
     } finally {
-      clearTimeout(timeoutId);
+      abortContext.cleanup();
     }
   }
 
   console.error('[LiteLLM] request failed', {
     correlationId: input.correlationId ?? 'unassigned',
+    runId: input.runId ?? 'unassigned',
+    action: input.action ?? (isLegacyInput(input) ? 'legacy' : 'unknown'),
+    stage: 'gateway',
+    durationMs: Date.now() - startedAt,
+    errorCode: lastError?.code ?? 'INTERNAL_ERROR',
     errorName: lastError?.name ?? 'Error',
   });
-  throw lastError ?? new Error('LiteLLM request failed');
+  throw lastError ?? new LiteLLMRequestError('GATEWAY_HTTP_ERROR', 'LiteLLM request failed', true);
 }
