@@ -11,6 +11,7 @@ import {
   isLiteLLMEnabled,
   normalizeModelOutput,
   normalizeUsage,
+  resolveLiteLLMClientTimeoutMs,
   resolveLiteLLMRequestBudgetMs,
 } from '../../api/_llm-client.js';
 
@@ -191,6 +192,20 @@ describe('callLiteLLM', () => {
       max_tokens: 8192,
       temperature: 0.1,
     });
+  });
+
+  it('preserva timeout e defaults do caminho legado usado por api/gemini', async () => {
+    expect(resolveLiteLLMClientTimeoutMs()).toBe(120_000);
+    expect(resolveLiteLLMClientTimeoutMs('150000')).toBe(150_000);
+    expect(resolveLiteLLMClientTimeoutMs('999999')).toBe(180_000);
+
+    await callLiteLLM(
+      { model: 'legacy-model', messages: [{ role: 'user', content: 'prompt legado' }] },
+      { LITELLM_API_KEY: 'key', LITELLM_BASE_URL: 'https://litellm.example' },
+    );
+
+    const body = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body));
+    expect(body).toMatchObject({ temperature: 0.7, max_tokens: 4096 });
   });
 
   it('usa budget total inferior a 60s por padrão', async () => {
