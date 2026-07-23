@@ -1,5 +1,17 @@
 # Progress
 
+## 2026-07-23 — PR4 gateway LiteLLM local
+
+- Branch `codex/dossie-pr4-gateway` sobre a base exata `3b929f7b`; commit funcional `2f132aa1`.
+- Criado `api/dossier.ts` com auth Supabase, ownership por `runId`, generate/chat contextual e correlação.
+- Gateway interno encadeia `AbortSignal` até o LiteLLM e limita o budget a 50 s.
+- Compatibilidade do caminho legado `/api/gemini` preservada após revisão adversarial.
+- 32 testes focados, ESLint focado, diff check e build passaram.
+- Typecheck e suíte ampla permanecem bloqueados por falhas preexistentes; detalhes em `HANDOFF_AI.md`.
+- Uma consulta Vercel aos envs retornou 403; isolamento segue `NÃO_VERIFICADO`.
+- Sem push, deploy, PR, migration, alteração remota ou merge.
+- Vault: [[2026-07-23T13-54-30-novo-app-pr4-local-gateway]].
+
 ## 2026-07-20 — PR 2: contenção de Radar e War Room
 
 - Baseline `e0e3d8b2468fdf4e1afe3159c2a5b8320e395845`; branch `codex/dossie-pr2-contencao`.

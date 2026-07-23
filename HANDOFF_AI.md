@@ -1,33 +1,54 @@
-# Handoff — Estabilização do dossiê
+# Handoff — PR4 gateway LiteLLM local
 
-> **Atualizado:** 2026-07-20
-> **Baseline:** `e0e3d8b2468fdf4e1afe3159c2a5b8320e395845`
-> **Foco:** PR 2 — contenção de Radar, War Room e execuções secundárias.
+> Atualizado: 2026-07-23
+> Vault canônico: [[2026-07-23T13-54-30-novo-app-pr4-local-gateway]]
 
 ## Estado
 
-- O ciclo experimental de agentes está encerrado e não é requisito do produto.
-- O plano canônico está em `docs/planos/estabilizacao-dossie-litellm-v1.md`.
-- O primeiro ciclo estabiliza exclusivamente o dossiê: pesquisa, geração, persistência, renderização e acompanhamento contextual.
-- Radar, War Room, benchmark independente e RAG documental ficam fora do ciclo inicial.
+- PR3: `#450`, branch `codex/dossie-pr3-lifecycle`, head `3b929f7b4d2be01e9b9c1d33e753599b96f98355`.
+- PR3 code gate: **APROVADO**; release gate: **BLOQUEADO**.
+- PR3 worktree permanece limpa.
+- Consulta agregada Vercel aos envs efetivos: uma requisição, `HTTP 403`.
+- `PREVIEW_DATABASE_ISOLATION`: **NÃO_VERIFICADO**; project refs: **NÃO_VERIFICADO**.
+- O plugin Vercel autenticou em leitura neutra depois, mas os envs não foram consultados novamente.
+- PR4 branch: `codex/dossie-pr4-gateway`.
+- PR4 worktree: `/Users/brunolima/Documents/NOVO-APP-dossie-pr4-gateway`.
+- Base exata: `3b929f7b4d2be01e9b9c1d33e753599b96f98355`.
+- Commit funcional local: `2f132aa1` (`feat(dossier): add authenticated LiteLLM gateway`).
+- Sem push, deploy, abertura de PR, migration, alteração de env, Supabase remoto ou merge.
 
-## PR 1 — mergeada
+## Implementado na PR4
 
-- Branch: `codex/dossie-baseline-ci-vercel`.
-- Escopo: Node 24, npm 11.11.0, `npm ci`, CI, Vercel, Sentry sourcemaps opt-in e documentação operacional.
-- O Preview final `dpl_AMQkRove9o47UHrVwt1pB8okXE9d` ficou READY: npm 11.11.0, Build Output e 13 Functions Node; não houve deploy manual nem produção.
-- Sentry runtime não mudou. O plugin de build só envia sourcemaps com `SENTRY_UPLOAD_SOURCEMAPS=true` e token.
-- O build local Vercel continua `LOCAL_VERCEL_BUILD_UNLINKED`; não usar `vercel pull` para repetir a evidência remota.
-- Skills Governance e Agent Orchestration validam somente seus domínios; não existe gate global de escopo misto nesta PR.
-- Typecheck, Tests, Golden e E2E permanecem falhas preexistentes comparadas à baseline.
+- `api/dossier.ts`: endpoint de negócio `generate` e `chat`.
+- Auth real via bearer Supabase; `operatorId` local não autoriza.
+- Ownership via `get_own_dossier_run`; chat exige run `COMPLETED` vinculado ao `dossierId`.
+- Gateway LiteLLM interno com modelos fixados no servidor.
+- `AbortSignal` encadeado a auth, ownership e transporte LiteLLM.
+- Timeout do gateway limitado a 50 s para respeitar a Function de 60 s.
+- Logs correlacionados sem token, prompt, contexto, body upstream ou identidade.
+- Compatibilidade de `/api/gemini` preservada: timeout legado 120 s, temperatura 0,7 e 4096 tokens.
 
-## PR 2
+## Validação local
 
-- Branch: `codex/dossie-pr2-contencao`.
-- Radar, auto-scan, War Room, benchmark independente, docs-RAG, Teste de Integridade generativo e ping LiteLLM foram removidos da aplicação ativa.
-- `api/gemini`, `api/rag`, Pinecone, dados históricos e `runDossierBenchmarkStage` permanecem preservados.
-- Preview esperado: nove Functions Node; nenhum LLM real, migration, deploy manual ou merge nesta PR.
+- Focados: **32/32 passaram** (`llm-client` + `dossier`).
+- ESLint focado: **passou**.
+- `git diff --check`: **passou**.
+- Build Vite: **passou**.
+- Typecheck amplo: falha preexistente da baseline; zero erro nos arquivos PR4 ao filtrar o output.
+- Suíte ampla: 1.008 passaram; 21 falharam; 58 suítes falharam antes de executar por débitos preexistentes.
+- Revisão adversarial encontrou 1 P0 + 2 P1; os três foram corrigidos e os gates focados repetidos.
+
+## Functions
+
+- Handoff PR3 registra 9 Functions observadas.
+- PR4 adiciona uma Function (`api/dossier.ts`): **10 esperadas** no Build Output.
+- Contagem estática local mostra 8 handlers na PR3 e 9 na PR4; a décima depende do Build Output Vercel.
+- Prova remota não executada porque deploy/push/Preview estão proibidos nesta sessão.
+
+## Fora do escopo preservado
+
+- Sem Brave, EvidencePack, RAG, PR5, waterfall final, UI final, cutover, remoção Gemini ou PR6.
 
 ## Próximo passo seguro
 
-Validar Preview, Functions e CI da PR 2 antes de qualquer recuperação seguinte.
+Revisar o commit documental local e, somente com autorização futura, decidir push/abertura de PR e Preview G3. Antes do release, resolver isolamento Supabase e migration sem inferência.

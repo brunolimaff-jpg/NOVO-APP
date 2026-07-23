@@ -1,20 +1,24 @@
 # Active Context
 
-Last updated: 2026-07-20 — PR 2: contenção de superfícies secundárias
+Last updated: 2026-07-23 — PR4 gateway LiteLLM local
 
 ## Estado
 
-- **Baseline:** `e0e3d8b2468fdf4e1afe3159c2a5b8320e395845`
-- **Branch ativa:** `codex/dossie-pr2-contencao`
-- **Foco:** PR 2 — contenção de Radar, War Room e health generativo.
-- **Plano:** `docs/planos/estabilizacao-dossie-litellm-v1.md`.
-- **Não fazer nesta PR:** LiteLLM, `api/gemini`, `api/rag`, waterfall, benchmark interno, Supabase, Pinecone, LLM real, migration ou deploy manual.
-- **Alvo de Preview:** nove Functions Node, sem Radar, War Room, docs-RAG, health generativo ou ping LiteLLM.
+- **Base:** `3b929f7b4d2be01e9b9c1d33e753599b96f98355` (head exato da PR3).
+- **Branch ativa:** `codex/dossie-pr4-gateway`.
+- **Worktree:** `/Users/brunolima/Documents/NOVO-APP-dossie-pr4-gateway`.
+- **Commit funcional:** `2f132aa1`.
+- **Foco:** `api/dossier.ts`, gateway LiteLLM interno, auth, ownership, abort, chat contextual e logs correlacionados.
+- **Vault:** [[2026-07-23T13-54-30-novo-app-pr4-local-gateway]].
+- **Isolamento Preview/Produção:** `NÃO_VERIFICADO` após única requisição Vercel `HTTP 403`.
+- **Release:** bloqueado; sem push, deploy, PR, migration ou merge.
 
-## Decisões vivas
+## Validação
 
-- `api/dossier.ts` será o único endpoint de negócio chamado pela UI.
-- Cancelamento final terá abort da conexão e cancelamento persistido/cooperativo.
-- Benchmark interno do dossiê permanece; benchmark independente fica indisponível.
-- RAG do dossiê será integração nova, opcional e degradável.
-- Radar, War Room e benchmark independente estão indisponíveis; dados históricos, Pinecone e `runDossierBenchmarkStage` permanecem preservados.
+- 32 testes focados, ESLint focado, `git diff --check` e build passaram.
+- Typecheck/suíte ampla continuam bloqueados por falhas preexistentes documentadas no handoff.
+- Functions: 10 esperadas por delta (9 observadas na PR3 + `api/dossier.ts`); prova de Build Output pendente.
+
+## Não antecipar
+
+Brave, EvidencePack, RAG, PR5, waterfall final, UI final, cutover, remoção Gemini ou PR6.
