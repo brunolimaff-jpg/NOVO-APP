@@ -199,12 +199,19 @@ describe('callLiteLLM', () => {
     expect(resolveLiteLLMClientTimeoutMs()).toBe(120_000);
     expect(resolveLiteLLMClientTimeoutMs('150000')).toBe(150_000);
     expect(resolveLiteLLMClientTimeoutMs('999999')).toBe(180_000);
+    const legacyText = 'Vou analisar sem remover este prefixo.\n<reasoning>conteúdo legado literal</reasoning>';
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      text: async () => JSON.stringify({ choices: [{ message: { content: legacyText } }] }),
+    });
 
-    await callLiteLLM(
+    const result = await callLiteLLM(
       { model: 'legacy-model', messages: [{ role: 'user', content: 'prompt legado' }] },
       { LITELLM_API_KEY: 'key', LITELLM_BASE_URL: 'https://litellm.example' },
     );
 
+    expect(result).toBe(legacyText);
     const body = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body));
     expect(body).toMatchObject({ temperature: 0.7, max_tokens: 4096 });
   });
@@ -322,7 +329,7 @@ describe('callLiteLLM', () => {
         LITELLM_MAX_RETRIES: '0',
       },
     );
-    const assertion = expect(pending).rejects.toMatchObject<Partial<LiteLLMRequestError>>({
+    const assertion = expect(pending).rejects.toMatchObject({
       code: 'GATEWAY_TIMEOUT',
     });
 
@@ -347,7 +354,7 @@ describe('callLiteLLM', () => {
         LITELLM_MAX_RETRIES: '0',
       },
     );
-    const assertion = expect(pending).rejects.toMatchObject<Partial<LiteLLMRequestError>>({
+    const assertion = expect(pending).rejects.toMatchObject({
       code: 'GATEWAY_ABORTED',
     });
 

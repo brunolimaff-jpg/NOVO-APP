@@ -405,11 +405,16 @@ export async function callLiteLLM(
         );
       }
       const choice = completion.choices?.[0];
-      const normalized = normalizeModelOutput(choice?.message?.content ?? '');
-      if (!normalized.text) {
+      const rawText = choice?.message?.content ?? '';
+      if (!rawText.trim()) {
         throw new LiteLLMRequestError('GATEWAY_INVALID_RESPONSE', 'LiteLLM retornou resposta vazia', false);
       }
 
+      if (legacy) {
+        return rawText;
+      }
+
+      const normalized = normalizeModelOutput(rawText);
       const result: LiteLLMCallResult = {
         text: normalized.text,
         usage: normalizeUsage(completion.usage),
@@ -417,7 +422,7 @@ export async function callLiteLLM(
         reasoningRemoved: normalized.reasoningRemoved,
         reasoningCharsRemoved: normalized.reasoningCharsRemoved,
       };
-      return legacy ? result.text : result;
+      return result;
     } catch (error) {
       lastError = normalizeLiteLLMError(error, abortContext.reason());
       if (attempt >= maxRetries || !lastError.retryable || lastError.code === 'GATEWAY_TIMEOUT') break;

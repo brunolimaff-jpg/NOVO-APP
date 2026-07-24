@@ -69,6 +69,22 @@ function successfulOwnershipResponse() {
   };
 }
 
+function successfulDossierContentResponse(content = '# Dossiê\nConteúdo do dossiê persistido.') {
+  return {
+    ok: true,
+    status: 200,
+    json: async () => ({ id: DOSSIER_ID, content: { messages: [{ sender: 'bot', text: content }] } }),
+  };
+}
+
+function failedDossierContentResponse(content: unknown = null) {
+  return {
+    ok: true,
+    status: 200,
+    json: async () => ({ id: DOSSIER_ID, content }),
+  };
+}
+
 function generateBody(extra: Record<string, unknown> = {}) {
   return {
     action: 'generate',
@@ -103,6 +119,7 @@ describe('POST /api/dossier', () => {
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     vi.unstubAllGlobals();
     delete process.env.SUPABASE_URL;
     delete process.env.SUPABASE_ANON_KEY;
@@ -140,6 +157,7 @@ describe('POST /api/dossier', () => {
     fetchMock
       .mockResolvedValueOnce(successfulAuthResponse())
       .mockResolvedValueOnce(successfulOwnershipResponse())
+      .mockResolvedValueOnce(successfulDossierContentResponse())
       .mockResolvedValueOnce(successfulLiteLLMResponse());
     const req = new MockRequest();
     req.headers['x-request-id'] = 'req-dossier-1234';
@@ -155,7 +173,7 @@ describe('POST /api/dossier', () => {
     });
     expect(res.headers.get('x-request-id')).toBe('req-dossier-1234');
 
-    const liteLlmCall = fetchMock.mock.calls[2];
+    const liteLlmCall = fetchMock.mock.calls[3];
     expect(liteLlmCall?.[0]).toBe('https://litellm.internal/chat/completions');
     const requestBody = JSON.parse(String(liteLlmCall?.[1]?.body));
     expect(requestBody.model).not.toBe('modelo-proibido');
@@ -170,7 +188,7 @@ describe('POST /api/dossier', () => {
   });
 
   it('encadeia AbortSignal até o transporte LiteLLM', async () => {
-    fetchMock.mockResolvedValueOnce(successfulAuthResponse()).mockResolvedValueOnce(successfulOwnershipResponse()).mockImplementationOnce(
+    fetchMock.mockResolvedValueOnce(successfulAuthResponse()).mockResolvedValueOnce(successfulOwnershipResponse()).mockResolvedValueOnce(successfulDossierContentResponse()).mockImplementationOnce(
       (_url: string, init: NonNullable<Parameters<typeof fetch>[1]>) =>
         new Promise((_resolve, reject) => {
           const signal = init.signal as AbortSignal;
@@ -189,11 +207,11 @@ describe('POST /api/dossier', () => {
     const res = new MockResponse();
 
     const pending = handler(req as never, res as never);
-    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(4));
     req.emit('aborted');
     await pending;
 
-    const liteLlmSignal = fetchMock.mock.calls[2]?.[1]?.signal as AbortSignal;
+    const liteLlmSignal = fetchMock.mock.calls[3]?.[1]?.signal as AbortSignal;
     expect(liteLlmSignal.aborted).toBe(true);
     expect(res.statusCode).toBe(499);
     expect(res.body).toMatchObject({ error: { code: 'REQUEST_ABORTED', stage: 'request' } });
@@ -203,6 +221,7 @@ describe('POST /api/dossier', () => {
     fetchMock
       .mockResolvedValueOnce(successfulAuthResponse())
       .mockResolvedValueOnce(successfulOwnershipResponse())
+      .mockResolvedValueOnce(successfulDossierContentResponse())
       .mockResolvedValueOnce({ ok: false, status: 500, text: async () => 'segredo upstream' });
     const req = new MockRequest();
     const res = new MockResponse();
@@ -248,6 +267,13 @@ describe('POST /api/dossier', () => {
         const body = JSON.parse(String(init?.body));
         if (leaseHeld) return { ok: true, status: 200, json: async () => null };
         leaseHeld = true;
+        return successfulRunResponse('RUNNING', {
+          lease_owner: body.p_lease_owner,
+          lease_expires_at: new Date(Date.now() + 60_000).toISOString(),
+        });
+      }
+      if (rpc === 'renew_dossier_run_lease') {
+        const body = JSON.parse(String(init?.body));
         return successfulRunResponse('RUNNING', {
           lease_owner: body.p_lease_owner,
           lease_expires_at: new Date(Date.now() + 60_000).toISOString(),
@@ -314,6 +340,12 @@ describe('POST /api/dossier', () => {
           lease_expires_at: new Date(Date.now() + 60_000).toISOString(),
         });
       }
+      if (rpc === 'renew_dossier_run_lease') {
+        return successfulRunResponse('RUNNING', {
+          lease_owner: acquiredOwner,
+          lease_expires_at: new Date(Date.now() + 60_000).toISOString(),
+        });
+      }
       if (rpc === 'release_dossier_run_lease') {
         expect(JSON.parse(String(init?.body)).p_lease_owner).toBe(acquiredOwner);
         return successfulRunResponse('RUNNING');
@@ -331,15 +363,189 @@ describe('POST /api/dossier', () => {
     expect(acquiredOwner).not.toBe('client-controlled');
   });
 
+  it('heartbeat com cancelamento aborta o gateway, marca CANCELLED e não libera novamente', async () => {
+    vi.useFakeTimers();
+    let leaseOwner = '';
+    let gatewayAborted = false;
+    const rpcOrder: string[] = [];
+    fetchMock.mockImplementation(async (url: string, init?: Parameters<typeof fetch>[1]) => {
+      if (url.endsWith('/auth/v1/user')) return successfulAuthResponse();
+      const rpc = rpcName(url);
+      if (rpc === 'get_own_dossier_run') return successfulRunResponse('PENDING');
+      if (rpc === 'acquire_dossier_run_lease') {
+        leaseOwner = JSON.parse(String(init?.body)).p_lease_owner;
+        return successfulRunResponse('RUNNING', {
+          lease_owner: leaseOwner,
+          lease_expires_at: new Date(Date.now() + 60_000).toISOString(),
+        });
+      }
+      if (rpc === 'renew_dossier_run_lease') {
+        rpcOrder.push(rpc);
+        return successfulRunResponse('CANCEL_REQUESTED', {
+          lease_owner: leaseOwner,
+          lease_expires_at: new Date(Date.now() + 60_000).toISOString(),
+          cancel_requested_at: new Date().toISOString(),
+        });
+      }
+      if (rpc === 'mark_dossier_run_cancelled') {
+        rpcOrder.push(rpc);
+        return successfulRunResponse('CANCELLED', { lease_owner: null, lease_expires_at: null });
+      }
+      if (rpc === 'release_dossier_run_lease') {
+        rpcOrder.push(rpc);
+        return successfulRunResponse('CANCELLED');
+      }
+      if (url === 'https://litellm.internal/chat/completions') {
+        return new Promise<Response>((_resolve, reject) => {
+          const signal = init?.signal as AbortSignal;
+          signal.addEventListener('abort', () => {
+            gatewayAborted = true;
+            const error = new Error('aborted');
+            error.name = 'AbortError';
+            reject(error);
+          }, { once: true });
+        });
+      }
+      throw new Error(`Unexpected fetch: ${url}`);
+    });
+    const req = new MockRequest();
+    req.body = generateBody();
+    const res = new MockResponse();
+
+    const pending = handler(req as never, res as never);
+    await vi.advanceTimersByTimeAsync(20_000);
+    await pending;
+
+    expect(gatewayAborted).toBe(true);
+    expect(res.statusCode).toBe(409);
+    expect(res.body).toMatchObject({ error: { code: 'RUN_CANCEL_REQUESTED' } });
+    expect(rpcOrder).toEqual(['renew_dossier_run_lease', 'mark_dossier_run_cancelled']);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it('cancelamento tardio descarta resposta, marca antes de qualquer liberação e não libera após sucesso', async () => {
+    let leaseOwner = '';
+    const rpcOrder: string[] = [];
+    fetchMock.mockImplementation(async (url: string, init?: Parameters<typeof fetch>[1]) => {
+      if (url.endsWith('/auth/v1/user')) return successfulAuthResponse();
+      const rpc = rpcName(url);
+      if (rpc === 'get_own_dossier_run') return successfulRunResponse('PENDING');
+      if (rpc === 'acquire_dossier_run_lease') {
+        leaseOwner = JSON.parse(String(init?.body)).p_lease_owner;
+        return successfulRunResponse('RUNNING', {
+          lease_owner: leaseOwner,
+          lease_expires_at: new Date(Date.now() + 60_000).toISOString(),
+        });
+      }
+      if (rpc === 'renew_dossier_run_lease') {
+        rpcOrder.push(rpc);
+        return successfulRunResponse('CANCEL_REQUESTED', {
+          lease_owner: leaseOwner,
+          lease_expires_at: new Date(Date.now() + 60_000).toISOString(),
+          cancel_requested_at: new Date().toISOString(),
+        });
+      }
+      if (rpc === 'mark_dossier_run_cancelled') {
+        rpcOrder.push(rpc);
+        return successfulRunResponse('CANCELLED', { lease_owner: null, lease_expires_at: null });
+      }
+      if (rpc === 'release_dossier_run_lease') {
+        rpcOrder.push(rpc);
+        return successfulRunResponse('CANCELLED');
+      }
+      if (url === 'https://litellm.internal/chat/completions') return successfulLiteLLMResponse('conteúdo descartado');
+      throw new Error(`Unexpected fetch: ${url}`);
+    });
+    const req = new MockRequest();
+    req.body = generateBody();
+    const res = new MockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(res.statusCode).toBe(409);
+    expect(JSON.stringify(res.body)).not.toContain('conteúdo descartado');
+    expect(rpcOrder).toEqual(['renew_dossier_run_lease', 'mark_dossier_run_cancelled']);
+  });
+
+  it('perda tardia da lease descarta resposta do modelo', async () => {
+    let leaseOwner = '';
+    fetchMock.mockImplementation(async (url: string, init?: Parameters<typeof fetch>[1]) => {
+      if (url.endsWith('/auth/v1/user')) return successfulAuthResponse();
+      const rpc = rpcName(url);
+      if (rpc === 'get_own_dossier_run') return successfulRunResponse('PENDING');
+      if (rpc === 'acquire_dossier_run_lease') {
+        leaseOwner = JSON.parse(String(init?.body)).p_lease_owner;
+        return successfulRunResponse('RUNNING', {
+          lease_owner: leaseOwner,
+          lease_expires_at: new Date(Date.now() + 60_000).toISOString(),
+        });
+      }
+      if (rpc === 'renew_dossier_run_lease') return { ok: true, status: 200, json: async () => null };
+      if (url === 'https://litellm.internal/chat/completions') return successfulLiteLLMResponse('conteúdo sem lease');
+      throw new Error(`Unexpected fetch: ${url}`);
+    });
+    const req = new MockRequest();
+    req.body = generateBody();
+    const res = new MockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(res.statusCode).toBe(409);
+    expect(res.body).toMatchObject({ error: { code: 'RUN_LEASE_UNAVAILABLE' } });
+    expect(JSON.stringify(res.body)).not.toContain('conteúdo sem lease');
+  });
+
+  it('se marcar cancelamento falhar, tenta marcar antes de liberar a lease', async () => {
+    let leaseOwner = '';
+    const rpcOrder: string[] = [];
+    fetchMock.mockImplementation(async (url: string, init?: Parameters<typeof fetch>[1]) => {
+      if (url.endsWith('/auth/v1/user')) return successfulAuthResponse();
+      const rpc = rpcName(url);
+      if (rpc === 'get_own_dossier_run') return successfulRunResponse('PENDING');
+      if (rpc === 'acquire_dossier_run_lease') {
+        leaseOwner = JSON.parse(String(init?.body)).p_lease_owner;
+        return successfulRunResponse('RUNNING', {
+          lease_owner: leaseOwner,
+          lease_expires_at: new Date(Date.now() + 60_000).toISOString(),
+        });
+      }
+      if (rpc === 'renew_dossier_run_lease') {
+        return successfulRunResponse('CANCEL_REQUESTED', {
+          lease_owner: leaseOwner,
+          lease_expires_at: new Date(Date.now() + 60_000).toISOString(),
+          cancel_requested_at: new Date().toISOString(),
+        });
+      }
+      if (rpc === 'mark_dossier_run_cancelled') {
+        rpcOrder.push(rpc);
+        return { ok: true, status: 200, json: async () => null };
+      }
+      if (rpc === 'release_dossier_run_lease') {
+        rpcOrder.push(rpc);
+        return successfulRunResponse('CANCEL_REQUESTED');
+      }
+      if (url === 'https://litellm.internal/chat/completions') return successfulLiteLLMResponse('conteúdo descartado');
+      throw new Error(`Unexpected fetch: ${url}`);
+    });
+    const req = new MockRequest();
+    req.body = generateBody();
+    const res = new MockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(res.statusCode).toBe(409);
+    expect(rpcOrder).toEqual(['mark_dossier_run_cancelled', 'release_dossier_run_lease']);
+  });
+
   it('retorna contrato estável para abort externo da requisição', async () => {
-    fetchMock.mockResolvedValueOnce(successfulAuthResponse()).mockResolvedValueOnce(successfulOwnershipResponse()).mockImplementationOnce(
+    fetchMock.mockResolvedValueOnce(successfulAuthResponse()).mockResolvedValueOnce(successfulOwnershipResponse()).mockResolvedValueOnce(successfulDossierContentResponse()).mockImplementationOnce(
       () => new Promise<Response>(() => undefined),
     );
     const req = new MockRequest();
     const res = new MockResponse();
 
     const pending = handler(req as never, res as never);
-    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(4));
     req.emit('aborted');
     await pending;
 
@@ -357,6 +563,7 @@ describe('POST /api/dossier', () => {
     fetchMock
       .mockResolvedValueOnce(successfulAuthResponse())
       .mockResolvedValueOnce(successfulOwnershipResponse())
+      .mockResolvedValueOnce(successfulDossierContentResponse())
       .mockImplementationOnce(() => new Promise<Response>(() => undefined));
     const req = new MockRequest();
     const res = new MockResponse();
@@ -374,6 +581,7 @@ describe('POST /api/dossier', () => {
     fetchMock
       .mockResolvedValueOnce(successfulAuthResponse())
       .mockResolvedValueOnce(successfulOwnershipResponse())
+      .mockResolvedValueOnce(successfulDossierContentResponse())
       .mockResolvedValueOnce(successfulLiteLLMResponse());
     const req = new MockRequest();
     req.headers.authorization = 'Bearer token-super-secreto';
@@ -396,8 +604,7 @@ describe('POST /api/dossier', () => {
     const req = new MockRequest();
     req.body = {
       ...(req.body as object),
-      dossierContext: 'c'.repeat(200_000),
-      history: Array.from({ length: 3 }, () => ({ role: 'user', content: 'h'.repeat(20_000) })),
+      history: Array.from({ length: 12 }, () => ({ role: 'user', content: 'h'.repeat(20_000) })),
     };
     const res = new MockResponse();
 
@@ -443,6 +650,7 @@ describe('POST /api/dossier', () => {
     fetchMock
       .mockResolvedValueOnce(successfulAuthResponse())
       .mockResolvedValueOnce(successfulOwnershipResponse())
+      .mockResolvedValueOnce(successfulDossierContentResponse())
       .mockResolvedValueOnce(successfulLiteLLMResponse());
     const req = new MockRequest();
     const res = new MockResponse();
@@ -471,5 +679,61 @@ describe('POST /api/dossier', () => {
         retryable: false,
       },
     });
+  });
+
+  // New tests for server-side dossier context
+  it('chat ignora dossierContext enviado pelo cliente e carrega server-side', async () => {
+    fetchMock
+      .mockResolvedValueOnce(successfulAuthResponse())
+      .mockResolvedValueOnce(successfulOwnershipResponse())
+      .mockResolvedValueOnce(successfulDossierContentResponse('Conteúdo server-side'))
+      .mockResolvedValueOnce(successfulLiteLLMResponse());
+    const req = new MockRequest();
+    req.body = { ...(req.body as object), dossierContext: 'contexto-do-cliente-ignorar' };
+    const res = new MockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(res.statusCode).toBe(200);
+    const liteLlmCall = fetchMock.mock.calls[3];
+    const requestBody = JSON.parse(String(liteLlmCall?.[1]?.body));
+    // Should contain server-side content, not client-provided
+    expect(requestBody.messages).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ role: 'user', content: expect.stringContaining('Conteúdo server-side') }),
+      ]),
+    );
+    // Should NOT contain client-provided context
+    expect(JSON.stringify(requestBody)).not.toContain('contexto-do-cliente-ignorar');
+  });
+
+  it('retorna DOSSIER_CONTENT_UNAVAILABLE quando conteúdo persistido ausente', async () => {
+    fetchMock
+      .mockResolvedValueOnce(successfulAuthResponse())
+      .mockResolvedValueOnce(successfulOwnershipResponse())
+      .mockResolvedValueOnce(failedDossierContentResponse());
+    const req = new MockRequest();
+    const res = new MockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(res.statusCode).toBe(404);
+    expect(res.body).toMatchObject({ error: { code: 'DOSSIER_CONTENT_UNAVAILABLE', stage: 'ownership', retryable: false } });
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
+
+  it('retorna DOSSIER_CONTENT_UNAVAILABLE quando conteúdo persistido é inválido', async () => {
+    fetchMock
+      .mockResolvedValueOnce(successfulAuthResponse())
+      .mockResolvedValueOnce(successfulOwnershipResponse())
+      .mockResolvedValueOnce(failedDossierContentResponse({ messages: [{ sender: 'bot' }] }));
+    const req = new MockRequest();
+    const res = new MockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(res.statusCode).toBe(404);
+    expect(res.body).toMatchObject({ error: { code: 'DOSSIER_CONTENT_UNAVAILABLE' } });
+    expect(fetchMock).toHaveBeenCalledTimes(3);
   });
 });
