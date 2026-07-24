@@ -49,6 +49,12 @@
 
 - Sem Brave, EvidencePack, RAG, PR5, waterfall final, UI final, cutover, remoção Gemini ou PR6.
 
+PR6_INTEGRATION_BLOCKER:
+O endpoint generate adquire e libera uma lease server-side.
+O waterfall atual mantém lease client-side e completa após persistir.
+A PR6 deverá definir um único proprietário da lease durante geração,
+persistência e complete_dossier_run antes de conectar a UI ao endpoint.
+
 ## Próximo passo seguro
 
 Revisar o commit documental local e, somente com autorização futura, decidir push/abertura de PR e Preview G3. Antes do release, resolver isolamento Supabase e migration sem inferência.

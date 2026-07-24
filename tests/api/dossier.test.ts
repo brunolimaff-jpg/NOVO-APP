@@ -4,6 +4,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 const fetchMock = vi.hoisted(() => vi.fn());
 const RUN_ID = '11111111-1111-4111-8111-111111111111';
 const DOSSIER_ID = '22222222-2222-4222-8222-222222222222';
+const OPERATOR_ID = 'operator-123';
+const OTHER_OPERATOR_ID = 'operator-other';
 
 import handler from '../../api/dossier.js';
 
@@ -64,6 +66,7 @@ function successfulOwnershipResponse() {
     json: async () => ({
       run_id: RUN_ID,
       dossier_id: DOSSIER_ID,
+      operator_id: OPERATOR_ID,
       status: 'COMPLETED',
     }),
   };
@@ -73,7 +76,11 @@ function successfulDossierContentResponse(content = '# Dossiê\nConteúdo do dos
   return {
     ok: true,
     status: 200,
-    json: async () => ({ id: DOSSIER_ID, content: { messages: [{ sender: 'bot', text: content }] } }),
+    json: async () => ({
+      id: DOSSIER_ID,
+      operator_id: OPERATOR_ID,
+      content: { messages: [{ sender: 'bot', text: content }] },
+    }),
   };
 }
 
@@ -81,7 +88,7 @@ function failedDossierContentResponse(content: unknown = null) {
   return {
     ok: true,
     status: 200,
-    json: async () => ({ id: DOSSIER_ID, content }),
+    json: async () => ({ id: DOSSIER_ID, operator_id: OPERATOR_ID, content }),
   };
 }
 
@@ -174,6 +181,9 @@ describe('POST /api/dossier', () => {
     expect(res.headers.get('x-request-id')).toBe('req-dossier-1234');
 
     const liteLlmCall = fetchMock.mock.calls[3];
+    expect(fetchMock.mock.calls[2]?.[0]).toContain(`id=eq.${DOSSIER_ID}`);
+    expect(fetchMock.mock.calls[2]?.[0]).toContain(`operator_id=eq.${OPERATOR_ID}`);
+    expect(fetchMock.mock.calls[2]?.[0]).toContain('select=id,operator_id,content');
     expect(liteLlmCall?.[0]).toBe('https://litellm.internal/chat/completions');
     const requestBody = JSON.parse(String(liteLlmCall?.[1]?.body));
     expect(requestBody.model).not.toBe('modelo-proibido');
@@ -495,9 +505,10 @@ describe('POST /api/dossier', () => {
     expect(JSON.stringify(res.body)).not.toContain('conteúdo sem lease');
   });
 
-  it('se marcar cancelamento falhar, tenta marcar antes de liberar a lease', async () => {
+  it('se as duas finalizações de cancelamento falharem, preserva a lease para recuperação', async () => {
     let leaseOwner = '';
     const rpcOrder: string[] = [];
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
     fetchMock.mockImplementation(async (url: string, init?: Parameters<typeof fetch>[1]) => {
       if (url.endsWith('/auth/v1/user')) return successfulAuthResponse();
       const rpc = rpcName(url);
@@ -533,8 +544,14 @@ describe('POST /api/dossier', () => {
 
     await handler(req as never, res as never);
 
-    expect(res.statusCode).toBe(409);
-    expect(rpcOrder).toEqual(['mark_dossier_run_cancelled', 'release_dossier_run_lease']);
+    expect(res.statusCode).toBe(502);
+    expect(res.body).toMatchObject({
+      error: { code: 'RUN_CANCELLATION_FINALIZATION_FAILED', stage: 'lease', retryable: true },
+    });
+    expect(rpcOrder).toEqual(['mark_dossier_run_cancelled', 'mark_dossier_run_cancelled']);
+    expect(rpcOrder).not.toContain('release_dossier_run_lease');
+    expect(JSON.stringify(res.body)).not.toContain(leaseOwner);
+    expect(JSON.stringify(errorSpy.mock.calls)).not.toContain(leaseOwner);
   });
 
   it('retorna contrato estável para abort externo da requisição', async () => {
@@ -646,6 +663,46 @@ describe('POST /api/dossier', () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
+  it('retoma finalização CANCEL_REQUESTED com owner lido do run e ignora owner do cliente', async () => {
+    const serverOwner = 'server-recovery-owner';
+    const rpcOrder: string[] = [];
+    let finalizedOwner = '';
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    fetchMock.mockImplementation(async (url: string, init?: Parameters<typeof fetch>[1]) => {
+      if (url.endsWith('/auth/v1/user')) return successfulAuthResponse();
+      const rpc = rpcName(url);
+      if (rpc === 'get_own_dossier_run') {
+        rpcOrder.push(rpc);
+        return successfulRunResponse('CANCEL_REQUESTED', {
+          lease_owner: serverOwner,
+          cancel_requested_at: new Date().toISOString(),
+        });
+      }
+      if (rpc === 'mark_dossier_run_cancelled') {
+        rpcOrder.push(rpc);
+        finalizedOwner = JSON.parse(String(init?.body)).p_lease_owner;
+        return successfulRunResponse('CANCELLED', { lease_owner: null, lease_expires_at: null });
+      }
+      if (rpc === 'acquire_dossier_run_lease' || rpc === 'release_dossier_run_lease') {
+        rpcOrder.push(rpc);
+        throw new Error(`Unexpected lifecycle mutation: ${rpc}`);
+      }
+      throw new Error(`Unexpected fetch: ${url}`);
+    });
+    const req = new MockRequest();
+    req.body = generateBody({ leaseOwner: 'client-controlled-owner' });
+    const res = new MockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(res.statusCode).toBe(409);
+    expect(res.body).toMatchObject({ error: { code: 'RUN_CANCEL_REQUESTED', stage: 'lease' } });
+    expect(finalizedOwner).toBe(serverOwner);
+    expect(rpcOrder).toEqual(['get_own_dossier_run', 'mark_dossier_run_cancelled']);
+    expect(JSON.stringify(res.body)).not.toContain(serverOwner);
+    expect(JSON.stringify(errorSpy.mock.calls)).not.toContain(serverOwner);
+  });
+
   it('remove listeners da requisição e da resposta ao encerrar', async () => {
     fetchMock
       .mockResolvedValueOnce(successfulAuthResponse())
@@ -734,6 +791,87 @@ describe('POST /api/dossier', () => {
 
     expect(res.statusCode).toBe(404);
     expect(res.body).toMatchObject({ error: { code: 'DOSSIER_CONTENT_UNAVAILABLE' } });
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
+
+  it('rejeita chat quando o run não fornece operator_id server-side', async () => {
+    fetchMock
+      .mockResolvedValueOnce(successfulAuthResponse())
+      .mockResolvedValueOnce(successfulRunResponse('COMPLETED', { dossier_id: DOSSIER_ID }));
+    const req = new MockRequest();
+    const res = new MockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(res.statusCode).toBe(502);
+    expect(res.body).toMatchObject({
+      error: { code: 'INTERNAL_ERROR', stage: 'ownership', retryable: true },
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('rejeita conteúdo de dossiê pertencente a outro operador antes do LiteLLM', async () => {
+    fetchMock
+      .mockResolvedValueOnce(successfulAuthResponse())
+      .mockResolvedValueOnce(successfulOwnershipResponse())
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          id: DOSSIER_ID,
+          operator_id: OTHER_OPERATOR_ID,
+          content: { messages: [{ sender: 'bot', text: 'conteúdo cruzado' }] },
+        }),
+      });
+    const req = new MockRequest();
+    const res = new MockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(res.statusCode).toBe(404);
+    expect(res.body).toMatchObject({ error: { code: 'DOSSIER_CONTENT_UNAVAILABLE', stage: 'ownership' } });
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
+
+  it('rejeita contexto persistido acima de 200 mil caracteres antes do LiteLLM', async () => {
+    fetchMock
+      .mockResolvedValueOnce(successfulAuthResponse())
+      .mockResolvedValueOnce(successfulOwnershipResponse())
+      .mockResolvedValueOnce(successfulDossierContentResponse('d'.repeat(200_000)));
+    const req = new MockRequest();
+    const res = new MockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(res.statusCode).toBe(400);
+    expect(res.body).toMatchObject({
+      error: { code: 'PAYLOAD_TOO_LARGE', stage: 'validation', retryable: false },
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
+
+  it('rejeita agregado server-side acima de 240 mil caracteres antes do LiteLLM', async () => {
+    fetchMock
+      .mockResolvedValueOnce(successfulAuthResponse())
+      .mockResolvedValueOnce(successfulOwnershipResponse())
+      .mockResolvedValueOnce(successfulDossierContentResponse('d'.repeat(199_980)));
+    const req = new MockRequest();
+    req.body = {
+      ...(req.body as object),
+      message: 'm'.repeat(20_000),
+      history: [
+        { role: 'user', content: 'h'.repeat(11_000) },
+        { role: 'assistant', content: 'h'.repeat(11_000) },
+      ],
+    };
+    const res = new MockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(res.statusCode).toBe(400);
+    expect(res.body).toMatchObject({
+      error: { code: 'PAYLOAD_TOO_LARGE', stage: 'validation', retryable: false },
+    });
     expect(fetchMock).toHaveBeenCalledTimes(3);
   });
 });

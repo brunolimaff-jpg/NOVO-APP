@@ -31,9 +31,12 @@ type DossierRequest = z.infer<typeof DossierRequestSchema>;
 
 const REQUEST_ID_PATTERN = /^[a-zA-Z0-9._:-]{8,128}$/;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const MAX_SERVER_DOSSIER_CONTEXT_CHARS = 200_000;
 const MAX_AGGREGATE_PAYLOAD_CHARS = 240_000;
 const LEASE_SECONDS = 60;
 const LEASE_HEARTBEAT_MS = 20_000;
+const CANCELLATION_FINALIZATION_ATTEMPTS = 2;
+const CANCELLATION_FINALIZATION_TIMEOUT_MS = 1_500;
 
 export const config = { runtime: 'nodejs' };
 export const maxDuration = 60;
@@ -45,6 +48,7 @@ type DossierErrorCode =
   | 'RUN_NOT_FOUND'
   | 'RUN_NOT_OWNED'
   | 'RUN_CANCEL_REQUESTED'
+  | 'RUN_CANCELLATION_FINALIZATION_FAILED'
   | 'RUN_TERMINAL'
   | 'RUN_LEASE_UNAVAILABLE'
   | 'REQUEST_ABORTED'
@@ -76,6 +80,7 @@ interface AuthenticatedUser {
 interface DossierRunRecord {
   run_id?: unknown;
   dossier_id?: unknown;
+  operator_id?: unknown;
   status?: unknown;
   lease_owner?: unknown;
   lease_expires_at?: unknown;
@@ -84,6 +89,7 @@ interface DossierRunRecord {
 
 interface DossierRecord {
   id?: unknown;
+  operator_id?: unknown;
   content?: unknown;
 }
 
@@ -212,10 +218,12 @@ async function callRunRpc(
 async function loadDossierContent(
   user: AuthenticatedUser,
   dossierId: string,
+  operatorId: string,
   signal: AbortSignal,
 ): Promise<string | null> {
   const response = await fetch(
-    `${user.supabase.url}/rest/v1/dossies?id=eq.${encodeURIComponent(dossierId)}&select=id,content&limit=1`,
+    `${user.supabase.url}/rest/v1/dossies?id=eq.${encodeURIComponent(dossierId)}` +
+      `&operator_id=eq.${encodeURIComponent(operatorId)}&select=id,operator_id,content&limit=1`,
     {
       headers: {
         Authorization: `Bearer ${user.token}`,
@@ -237,21 +245,42 @@ async function loadDossierContent(
   const record = Array.isArray(payload) ? payload[0] : payload;
   if (!record || typeof record !== 'object') return null;
   const dossier = record as DossierRecord;
-  if (dossier.id !== dossierId || !dossier.content || typeof dossier.content !== 'object') return null;
+  if (
+    dossier.id !== dossierId ||
+    dossier.operator_id !== operatorId ||
+    !dossier.content ||
+    typeof dossier.content !== 'object'
+  ) return null;
   const messages = (dossier.content as { messages?: unknown }).messages;
   if (!Array.isArray(messages) || messages.length === 0) return null;
 
   const contextLines: string[] = [];
+  let contextChars = 0;
   for (const message of messages) {
     if (!message || typeof message !== 'object') return null;
     const { sender, text } = message as { sender?: unknown; text?: unknown };
     if ((sender !== 'user' && sender !== 'bot') || typeof text !== 'string' || !text.trim()) return null;
-    contextLines.push(`${sender === 'bot' ? 'assistant' : 'user'}: ${text.trim()}`);
+    const line = `${sender === 'bot' ? 'assistant' : 'user'}: ${text.trim()}`;
+    contextChars += (contextLines.length > 0 ? 2 : 0) + line.length;
+    if (contextChars > MAX_SERVER_DOSSIER_CONTEXT_CHARS) {
+      throw new DossierApiError(
+        400,
+        'PAYLOAD_TOO_LARGE',
+        'Persisted dossier context exceeds the allowed limit',
+        'validation',
+        false,
+      );
+    }
+    contextLines.push(line);
   }
   return contextLines.join('\n\n');
 }
 
-function assertRunIdentity(run: DossierRunRecord | null, runId: string, stage: 'ownership' | 'lease'): DossierRunRecord {
+function assertRunIdentity(
+  run: DossierRunRecord | null,
+  runId: string,
+  stage: 'ownership' | 'lease',
+): DossierRunRecord {
   if (!run) throw new DossierApiError(404, 'RUN_NOT_FOUND', 'Dossier run not found', stage, false);
   if (run.run_id !== runId) {
     throw new DossierApiError(502, 'INTERNAL_ERROR', 'Invalid dossier lifecycle response', stage, true);
@@ -269,7 +298,7 @@ async function assertChatOwnership(
   user: AuthenticatedUser,
   request: Extract<DossierRequest, { action: 'chat' }>,
   signal: AbortSignal,
-): Promise<void> {
+): Promise<DossierRunRecord> {
   const run = assertRunIdentity(
     await callRunRpc(user, 'get_own_dossier_run', { p_run_id: request.runId }, signal, 'ownership'),
     request.runId,
@@ -282,6 +311,10 @@ async function assertChatOwnership(
   if (run.dossier_id !== request.dossierId) {
     throw new DossierApiError(404, 'RUN_NOT_OWNED', 'Dossier does not belong to the authenticated run', 'ownership', false);
   }
+  if (typeof run.operator_id !== 'string' || !run.operator_id.trim()) {
+    throw new DossierApiError(502, 'INTERNAL_ERROR', 'Invalid dossier lifecycle response', 'ownership', true);
+  }
+  return run;
 }
 
 function hasValidLease(run: DossierRunRecord, runId: string, leaseOwner: string): boolean {
@@ -295,17 +328,62 @@ function hasValidLease(run: DossierRunRecord, runId: string, leaseOwner: string)
   );
 }
 
+function cancellationFinalizationError(): DossierApiError {
+  return new DossierApiError(
+    502,
+    'RUN_CANCELLATION_FINALIZATION_FAILED',
+    'Dossier run cancellation could not be finalized',
+    'lease',
+    true,
+  );
+}
+
+async function finalizeRunCancellation(
+  user: AuthenticatedUser,
+  runId: string,
+  leaseOwner: string,
+  context: LogContext,
+): Promise<boolean> {
+  for (let attempt = 1; attempt <= CANCELLATION_FINALIZATION_ATTEMPTS; attempt += 1) {
+    try {
+      const cancelled = await callRunRpc(
+        user,
+        'mark_dossier_run_cancelled',
+        { p_run_id: runId, p_lease_owner: leaseOwner },
+        AbortSignal.timeout(CANCELLATION_FINALIZATION_TIMEOUT_MS),
+        'lease',
+      );
+      if (cancelled?.status === 'CANCELLED') return true;
+    } catch {
+      // The bounded retry below preserves the server-side owner for recovery.
+    }
+  }
+  logEvent('error', 'lease:cancel_finalization_failed', context, 'lease', 'RUN_CANCELLATION_FINALIZATION_FAILED');
+  return false;
+}
+
 async function acquireGenerateLease(
   user: AuthenticatedUser,
   runId: string,
   leaseOwner: string,
   signal: AbortSignal,
+  context: LogContext,
 ): Promise<void> {
   const current = assertRunIdentity(
     await callRunRpc(user, 'get_own_dossier_run', { p_run_id: runId }, signal, 'lease'),
     runId,
     'lease',
   );
+  if (current.status === 'CANCEL_REQUESTED' || current.cancel_requested_at) {
+    const recoverableOwner = typeof current.lease_owner === 'string' && current.lease_owner.trim()
+      ? current.lease_owner
+      : null;
+    if (recoverableOwner) {
+      const finalized = await finalizeRunCancellation(user, runId, recoverableOwner, context);
+      if (!finalized) throw cancellationFinalizationError();
+    }
+    throw new DossierApiError(409, 'RUN_CANCEL_REQUESTED', 'Dossier run cancellation requested', 'lease', false);
+  }
   assertRunNotCancelled(current, 'lease');
   if (current.status !== 'PENDING' && current.status !== 'RUNNING') {
     throw new DossierApiError(409, 'RUN_TERMINAL', 'Dossier run is terminal', 'lease', false);
@@ -340,28 +418,6 @@ async function validateFinalLease(
   if (!run) return { valid: false, run: null };
   assertRunIdentity(run, runId, 'lease');
   return { valid: hasValidLease(run, runId, leaseOwner), run };
-}
-
-async function markRunCancelled(
-  user: AuthenticatedUser,
-  runId: string,
-  leaseOwner: string,
-  signal: AbortSignal,
-  context: LogContext,
-): Promise<boolean> {
-  try {
-    const cancelled = await callRunRpc(
-      user,
-      'mark_dossier_run_cancelled',
-      { p_run_id: runId, p_lease_owner: leaseOwner },
-      signal,
-      'lease',
-    );
-    if (cancelled?.status === 'CANCELLED') return true;
-  } catch {
-    logEvent('error', 'lease:cancel_failed', context, 'lease', 'INTERNAL_ERROR');
-  }
-  return false;
 }
 
 function combineSignals(first: AbortSignal, second: AbortSignal): { signal: AbortSignal; cleanup: () => void } {
@@ -418,10 +474,9 @@ function startLeaseHeartbeat(
       }
     } catch (error) {
       if (!stopped) {
-        heartbeatError =
-          error instanceof DossierApiError
-            ? error
-            : new DossierApiError(502, 'INTERNAL_ERROR', 'Lease heartbeat failed', 'lease', true);
+        heartbeatError = error instanceof DossierApiError
+          ? error
+          : new DossierApiError(502, 'INTERNAL_ERROR', 'Lease heartbeat failed', 'lease', true);
       }
     } finally {
       heartbeatInFlight = false;
@@ -547,14 +602,28 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (!user) throw new DossierApiError(401, 'AUTH_REQUIRED', 'Authentication required', 'auth', false);
 
     if (parsed.data.action === 'chat') {
-      await assertChatOwnership(user, parsed.data, controller.signal);
-      dossierContent = await loadDossierContent(user, parsed.data.dossierId, controller.signal) ?? undefined;
+      const run = await assertChatOwnership(user, parsed.data, controller.signal);
+      dossierContent = await loadDossierContent(
+        user,
+        parsed.data.dossierId,
+        run.operator_id as string,
+        controller.signal,
+      ) ?? undefined;
       if (!dossierContent) {
         throw new DossierApiError(404, 'DOSSIER_CONTENT_UNAVAILABLE', 'Dossier content not available', 'ownership', false);
       }
+      if (dossierContent.length + aggregatePayloadSize(parsed.data) > MAX_AGGREGATE_PAYLOAD_CHARS) {
+        throw new DossierApiError(
+          400,
+          'PAYLOAD_TOO_LARGE',
+          'Aggregate payload exceeds the allowed limit',
+          'validation',
+          false,
+        );
+      }
     } else {
       leaseOwner = randomUUID();
-      await acquireGenerateLease(user, parsed.data.runId, leaseOwner, controller.signal);
+      await acquireGenerateLease(user, parsed.data.runId, leaseOwner, controller.signal, context);
       leaseAcquired = true;
       heartbeat = startLeaseHeartbeat(user, parsed.data.runId, leaseOwner, controller.signal);
     }
@@ -580,23 +649,29 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             runId: parsed.data.runId,
           });
 
-    // Final lease validation before delivering response
     if (parsed.data.action === 'generate' && leaseOwner) {
       const { valid, run } = await validateFinalLease(user, parsed.data.runId, leaseOwner, controller.signal);
       if (run && (run.status === 'CANCEL_REQUESTED' || run.status === 'CANCELLED' || run.cancel_requested_at)) {
         cancellationDetected = true;
-        leaseFinalized = await markRunCancelled(
-          user,
-          parsed.data.runId,
-          leaseOwner,
-          controller.signal,
-          context,
+        leaseFinalized = await finalizeRunCancellation(user, parsed.data.runId, leaseOwner, context);
+        if (!leaseFinalized) throw cancellationFinalizationError();
+        throw new DossierApiError(
+          409,
+          'RUN_CANCEL_REQUESTED',
+          'Dossier run cancellation requested before response delivery',
+          'gateway',
+          false,
         );
-        throw new DossierApiError(409, 'RUN_CANCEL_REQUESTED', 'Dossier run cancellation requested before response delivery', 'gateway', false);
       }
       if (!valid) {
         leaseFinalized = true;
-        throw new DossierApiError(409, 'RUN_LEASE_UNAVAILABLE', 'Dossier run lease lost before response delivery', 'gateway', true);
+        throw new DossierApiError(
+          409,
+          'RUN_LEASE_UNAVAILABLE',
+          'Dossier run lease lost before response delivery',
+          'gateway',
+          true,
+        );
       }
     }
 
@@ -620,15 +695,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       !cancellationDetected
     ) {
       cancellationDetected = true;
-      leaseFinalized = await markRunCancelled(
-        user,
-        parsed.data.runId,
-        leaseOwner,
-        controller.signal,
-        context,
-      );
+      leaseFinalized = await finalizeRunCancellation(user, parsed.data.runId, leaseOwner, context);
     }
-    if (heartbeatError) normalized = heartbeatError;
+    if (heartbeatError?.code === 'RUN_CANCEL_REQUESTED' && !leaseFinalized) {
+      normalized = cancellationFinalizationError();
+    } else if (heartbeatError) normalized = heartbeatError;
     else if (controller.signal.aborted) {
       normalized = new DossierApiError(499, 'REQUEST_ABORTED', 'Request cancelled', 'request', false);
     } else if (error instanceof DossierApiError) normalized = error;
@@ -639,7 +710,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return sendError(res, correlationId, parsed.data.runId, normalized);
   } finally {
     heartbeat?.cleanup();
-    if (user && leaseOwner && leaseAcquired && !leaseFinalized) {
+    if (user && leaseOwner && leaseAcquired && !leaseFinalized && !cancellationDetected) {
       await releaseLease(user, parsed.data.runId, leaseOwner, context);
     }
     cleanup();
