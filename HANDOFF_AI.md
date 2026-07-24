@@ -1,72 +1,81 @@
-# Handoff — PR4 gateway LiteLLM local
+# Handoff — estabilização do dossiê e migração LiteLLM
 
-> Atualizado: 2026-07-23
-> Vault canônico: [[2026-07-23T13-54-30-novo-app-pr4-local-gateway]]
+> Atualizado: 2026-07-24
+> Checkpoint canônico: `docs/checkpoints/2026-07-24-pr4-code-gate-e-preview-isolado.md`
+> Head funcional da PR4 antes deste commit documental: `5807e630a3134b321847b900293b6b59f4622868`
 
-## Estado
+## Estado das PRs
 
-- PR3: `#450`, branch `codex/dossie-pr3-lifecycle`, head `3b929f7b4d2be01e9b9c1d33e753599b96f98355`.
-- PR3 code gate: **APROVADO**; release gate: **BLOQUEADO**.
-- PR3 worktree permanece limpa.
-- Consulta agregada Vercel aos envs efetivos: uma requisição, `HTTP 403`.
-- `PREVIEW_DATABASE_ISOLATION`: **NÃO_VERIFICADO**; project refs: **NÃO_VERIFICADO**.
-- O plugin Vercel autenticou em leitura neutra depois, mas os envs não foram consultados novamente.
-- PR4 branch: `codex/dossie-pr4-gateway`.
-- PR4 worktree: `/Users/brunolima/Documents/NOVO-APP-dossie-pr4-gateway`.
-- Base exata: `3b929f7b4d2be01e9b9c1d33e753599b96f98355`.
-- Commit funcional local: `2f132aa1` (`feat(dossier): add authenticated LiteLLM gateway`).
-- Sem push, deploy, abertura de PR, migration, alteração de env, Supabase remoto ou merge.
+- PR1 `#448`: mergeada.
+- PR2 `#449`: concluída.
+- PR3 `#450`: branch `codex/dossie-pr3-lifecycle`, head `3b929f7b4d2be01e9b9c1d33e753599b96f98355`.
+- PR3: code gate **APROVADO**; release gate **BLOQUEADO**.
+- PR4 `#451`: branch `codex/dossie-pr4-gateway`, base `codex/dossie-pr3-lifecycle`.
+- PR4: **DRAFT**, mergeável, code gate **APROVADO**.
 
-## Implementado na PR4
+## Preview e isolamento
 
-- `api/dossier.ts`: endpoint de negócio `generate` e `chat`.
-- Auth real via bearer Supabase; `operatorId` local não autoriza.
-- Ownership via `get_own_dossier_run`; chat exige run `COMPLETED` vinculado ao `dossierId`.
-- Gateway LiteLLM interno com modelos fixados no servidor.
-- `AbortSignal` encadeado a auth, ownership e transporte LiteLLM.
-- Timeout do gateway limitado a 50 s para respeitar a Function de 60 s.
-- Logs correlacionados sem token, prompt, contexto, body upstream ou identidade.
-- Compatibilidade de `/api/gemini` preservada: timeout legado 120 s, temperatura 0,7 e 4096 tokens.
+- Preview da PR4: **READY**, commit `5807e630a3134b321847b900293b6b59f4622868`, match confirmado.
+- Build Output remoto: **10 Functions**; deployment originado por Git, sem deploy manual.
+- Produção Supabase: `vmqf…npig`, sem alteração.
+- Preview Supabase: `scoutagro-preview`, ref `xlvs…owec`, organização `brunolimaff-jpg's Org`, região `sa-east-1`.
+- Projeto Preview: custo registrado de `0 por mês`, status `ACTIVE_HEALTHY`.
+- `PREVIEW_DATABASE_ISOLATION`: **CONFIRMADO**.
+- Envs Preview configurados: `SUPABASE_URL`, `VITE_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_URL`, `SUPABASE_ANON_KEY`, `VITE_SUPABASE_ANON_KEY`.
+- LiteLLM Preview: base URL, API key e alias geral presentes; alias de chat ausente e opcional.
+- Os envs ainda exigem um novo deployment Preview para entrarem em vigor.
 
-## Validação local
+## Code gate da PR4
 
-- Focados: **32/32 passaram** (`llm-client` + `dossier`).
-- ESLint focado: **passou**.
-- `git diff --check`: **passou**.
-- Build Vite: **passou**.
-- Typecheck amplo: falha preexistente da baseline; zero erro nos arquivos PR4 ao filtrar o output.
-- Suíte ampla: 1.008 passaram; 21 falharam; 58 suítes falharam antes de executar por débitos preexistentes.
-- Revisão adversarial encontrou 1 P0 + 2 P1; os três foram corrigidos e os gates focados repetidos.
+- Auth Supabase obrigatória e ownership server-side; cliente não escolhe proprietário, provider, modelo, base URL ou chave.
+- Generate/chat vinculados a `runId`, `dossierId` e `operator_id`; contexto carregado server-side e acesso entre operadores bloqueado.
+- Limites de contexto/payload, lease server-side, heartbeat fail-closed e cancelamento cooperativo.
+- Finalização/recuperação de cancelamento e descarte de resposta após cancelamento tardio ou perda de lease.
+- `AbortSignal` chega ao fetch; timeout aborta a chamada física.
+- Erros estáveis e logs correlacionados sem conteúdo sensível.
+- Alias lógico LiteLLM obrigatório; nenhum modelo físico hardcoded.
+- Gateway do dossiê com zero retry; retry legado preservado; nenhuma tool/function calling.
+- Baseline registrada: **65 testes focados**, build passando e zero erro novo de typecheck nos arquivos da PR4.
 
-## Functions
+## Decisões
 
-- Handoff PR3 registra 9 Functions observadas.
-- PR4 adiciona uma Function (`api/dossier.ts`): **10 esperadas** no Build Output.
-- Contagem estática local mostra 8 handlers na PR3 e 9 na PR4; a décima depende do Build Output Vercel.
-- Prova remota não executada porque deploy/push/Preview estão proibidos nesta sessão.
+```text
+LITELLM_DOSSIER_MODEL_SOURCE: alias lógico obrigatório configurado por env
+LITELLM_DOSSIER_APP_RETRIES: 0
+LITELLM_PROXY_RETRIES_AND_FALLBACKS: desativados no primeiro cutover ou controlados exclusivamente no proxy
+TOOLS_FUNCTION_CALLING: reservado para PR5
+BRAVE_AND_EVIDENCEPACK: PR5
+WATERFALL_PERSISTENCE_UI_CUTOVER: PR6
+```
 
-## Fora do escopo preservado
+```text
+HEARTBEAT_TRANSIENT_TOLERANCE: REJEITADA NA PR4
+MOTIVO: a execução permanece fail-closed quando a posse válida da lease não pode ser comprovada.
+FOLLOW_UP: pode ser reavaliada posteriormente com evidência operacional, sem bloquear a PR4.
+```
 
-- Sem Brave, EvidencePack, RAG, PR5, waterfall final, UI final, cutover, remoção Gemini ou PR6.
+## Bloqueios e pendências
+
+- Migration da PR3 no Preview: **NÃO APLICADA**.
+- SQL, RPC/RLS, usuário/run controlados e smoke autenticado: **NÃO EXECUTADOS**.
+- Usuário e run autorizados para teste: **NÃO_VERIFICADOS**.
+- Categorias amplas preexistentes: Tests, Typecheck, Dossier Golden e E2E Critical Browser.
+- Elas não são novos bloqueadores da PR4: já existiam na baseline; build e testes focados da PR4 passaram.
 
 PR6_INTEGRATION_BLOCKER:
+
 O endpoint generate adquire e libera uma lease server-side.
 O waterfall atual mantém lease client-side e completa após persistir.
-A PR6 deverá definir um único proprietário da lease durante geração,
-persistência e complete_dossier_run antes de conectar a UI ao endpoint.
 
-LITELLM_DOSSIER_MODEL_SOURCE:
-alias lógico obrigatório configurado por env
+A PR6 deverá definir um único proprietário da lease durante:
+- geração;
+- persistência;
+- complete_dossier_run;
+- tratamento de falha;
+- cancelamento.
 
-LITELLM_DOSSIER_APP_RETRIES:
-0
+Isso deve ser resolvido antes de conectar a UI ao novo endpoint.
 
-LITELLM_PROXY_RETRIES_AND_FALLBACKS:
-desativados no primeiro cutover ou controlados exclusivamente no proxy
+## Próxima ação
 
-TOOLS_FUNCTION_CALLING:
-reservado para PR5
-
-## Próximo passo seguro
-
-Revisar o commit documental local e, somente com autorização futura, decidir push/abertura de PR e Preview G3. Antes do release, resolver isolamento Supabase e migration sem inferência.
+Gerar novo deployment Preview mediante autorização; confirmar Preview em `xlvs…owec` e Produção em `vmqf…npig`. Só depois autorizar migration da PR3 no Preview, validar RPC/RLS e executar smoke autenticado controlado. Não iniciar PR5/PR6, não marcar ready e não fazer merge antes dos gates correspondentes.
