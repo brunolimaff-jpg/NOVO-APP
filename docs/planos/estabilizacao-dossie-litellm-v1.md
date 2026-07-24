@@ -1,6 +1,6 @@
 # Estabilização do dossiê e migração LiteLLM — v1
 
-> **Status:** PR 1 mergeada; PR 2 em execução.
+> **Status:** PR 1 mergeada; PR 2 concluída; PR 3 com code gate aprovado e release gate bloqueado; PR 4 draft com code gate aprovado.
 > **Baseline:** `e0e3d8b2468fdf4e1afe3159c2a5b8320e395845`.
 > **Prioridade:** estabilizar exclusivamente o fluxo de geração, persistência, exibição e acompanhamento contextual do dossiê.
 
@@ -54,6 +54,67 @@ Elas não podem manter botão funcional, timer, request em background, endpoint 
 | 4 | `api/dossier.ts`, gateway LiteLLM e chat contextual | 10 | Preview G3, auth, abort e logs correlacionados |
 | 5 | Busca, RAG opcional e EvidencePack consumido | 9 | proveniência correta; RAG comparado e degradável |
 | 6 | Waterfall, persistência, UI e remoção Gemini generativo | 8 alvo | dossiê completo, sem EmptyState e sem Gemini generativo |
+
+## Checkpoint canônico — 2026-07-24
+
+- PR3 `#450`: branch `codex/dossie-pr3-lifecycle`, head `3b929f7b4d2be01e9b9c1d33e753599b96f98355`, code gate aprovado e release gate bloqueado.
+- PR4 `#451`: branch `codex/dossie-pr4-gateway`, base intencional na PR3, draft, mergeável e code gate aprovado.
+- Head funcional da PR4 antes do commit documental: `5807e630a3134b321847b900293b6b59f4622868`.
+- Preview Vercel READY no head esperado, originado por Git e com 10 Functions; nenhum deploy manual.
+- Supabase Preview `scoutagro-preview` (`xlvs…owec`) está `ACTIVE_HEALTHY` e isolado da Produção (`vmqf…npig`).
+- Cinco envs Supabase foram configurados somente no Preview; é necessário um novo deployment para aplicá-los.
+- LiteLLM Preview tem base URL, API key e alias geral; alias de chat é opcional e está ausente.
+- Migration PR3, SQL, validação RPC/RLS, usuário/run controlados e smoke autenticado ainda não foram executados.
+- Evidência detalhada: `docs/checkpoints/2026-07-24-pr4-code-gate-e-preview-isolado.md`.
+
+### Contratos congelados da PR4
+
+- autenticação Supabase obrigatória e ownership derivado server-side;
+- chat/run/contexto vinculados server-side e bloqueio entre operadores;
+- limites de contexto/payload, lease server-side e heartbeat fail-closed;
+- cancelamento cooperativo, finalização/recuperação e descarte de resposta tardia;
+- `AbortSignal`, timeout físico, erros estáveis e logs correlacionados sem conteúdo sensível;
+- alias lógico LiteLLM obrigatório, sem modelo físico hardcoded;
+- zero retry da aplicação no gateway do dossiê e retry legado preservado;
+- nenhuma tool ou function calling adicionada.
+
+```text
+LITELLM_DOSSIER_MODEL_SOURCE: alias lógico obrigatório configurado por env
+LITELLM_DOSSIER_APP_RETRIES: 0
+LITELLM_PROXY_RETRIES_AND_FALLBACKS: desativados no primeiro cutover ou controlados exclusivamente no proxy
+TOOLS_FUNCTION_CALLING: reservado para PR5
+BRAVE_AND_EVIDENCEPACK: PR5
+WATERFALL_PERSISTENCE_UI_CUTOVER: PR6
+```
+
+### Bloqueador de integração da PR6
+
+PR6_INTEGRATION_BLOCKER:
+
+O endpoint generate adquire e libera uma lease server-side.
+O waterfall atual mantém lease client-side e completa após persistir.
+
+A PR6 deverá definir um único proprietário da lease durante:
+- geração;
+- persistência;
+- complete_dossier_run;
+- tratamento de falha;
+- cancelamento.
+
+Isso deve ser resolvido antes de conectar a UI ao novo endpoint.
+
+### Decisão de heartbeat
+
+```text
+HEARTBEAT_TRANSIENT_TOLERANCE:
+REJEITADA NA PR4
+
+MOTIVO:
+A execução permanece fail-closed quando a posse válida da lease não pode ser comprovada.
+
+FOLLOW_UP:
+Pode ser reavaliada posteriormente com evidência operacional, sem bloquear a PR4.
+```
 
 Cada checkpoint segue o mesmo loop:
 
@@ -110,7 +171,7 @@ Ficam fora: LiteLLM, Gemini, prompts, APIs, Supabase, Vercel remoto, Sentry runt
 
 ## Próxima sessão
 
-Validar e revisar a PR 2. A próxima recuperação depende do Preview e da classificação do CI.
+Seguir a sequência do checkpoint de 2026-07-24: gerar novo deployment Preview mediante autorização, confirmar as refs efetivas e somente então decidir migration PR3, validações RPC/RLS e smoke autenticado. PR5 começa apenas depois do fechamento dos gates anteriores.
 
 ## Comparação de falhas preexistentes
 

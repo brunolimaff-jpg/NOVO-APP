@@ -1,5 +1,32 @@
 # Progress
 
+## 2026-07-24 — PR4 code gate e Preview Supabase isolado
+
+- PR3 `#450` permanece com code gate aprovado e release gate bloqueado; head `3b929f7b`.
+- PR4 `#451` permanece draft, base `codex/dossie-pr3-lifecycle`, mergeável e com code gate aprovado; head funcional `5807e630`.
+- Preview Git ficou READY no head esperado e comprovou 10 Functions.
+- Criado o Supabase `scoutagro-preview` em `sa-east-1`, ref mascarada `xlvs…owec`, status `ACTIVE_HEALTHY` e custo registrado de 0 por mês.
+- Preview e Produção agora têm refs distintos; isolamento documentado como confirmado. Produção `vmqf…npig` não foi alterada.
+- Cinco envs Supabase foram configurados somente no Preview; LiteLLM base URL, API key e alias geral estão presentes; alias de chat é opcional e está ausente.
+- Envs exigem novo deployment Preview. Migration, SQL, RPC/RLS, usuário/run controlados e smoke ainda não foram executados.
+- Code gate PR4 registra 65 testes focados, build passando e zero erro novo de typecheck nos arquivos da PR4.
+- Decisões preservadas: alias lógico obrigatório, retry da aplicação igual a zero, tools/Brave/EvidencePack na PR5 e cutover na PR6.
+- Bloqueador PR6: definir proprietário único da lease entre geração, persistência, conclusão, falha e cancelamento.
+- Checkpoint: `docs/checkpoints/2026-07-24-pr4-code-gate-e-preview-isolado.md`.
+- Nesta atualização documental não foram executados testes, build, deploy, migration, SQL ou smoke.
+
+## 2026-07-23 — PR4 gateway LiteLLM local
+
+- Branch `codex/dossie-pr4-gateway` sobre a base exata `3b929f7b`; commit funcional `2f132aa1`.
+- Criado `api/dossier.ts` com auth Supabase, ownership por `runId`, generate/chat contextual e correlação.
+- Gateway interno encadeia `AbortSignal` até o LiteLLM e limita o budget a 50 s.
+- Compatibilidade do caminho legado `/api/gemini` preservada após revisão adversarial.
+- 32 testes focados, ESLint focado, diff check e build passaram.
+- Typecheck e suíte ampla permanecem bloqueados por falhas preexistentes; detalhes em `HANDOFF_AI.md`.
+- Uma consulta Vercel aos envs retornou 403; isolamento segue `NÃO_VERIFICADO`.
+- Sem push, deploy, PR, migration, alteração remota ou merge.
+- Vault: [[2026-07-23T13-54-30-novo-app-pr4-local-gateway]].
+
 ## 2026-07-20 — PR 2: contenção de Radar e War Room
 
 - Baseline `e0e3d8b2468fdf4e1afe3159c2a5b8320e395845`; branch `codex/dossie-pr2-contencao`.

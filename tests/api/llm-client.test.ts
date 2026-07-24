@@ -9,10 +9,13 @@ import {
   ensureMarkdownStart,
   isFallbackEnabled,
   isLiteLLMEnabled,
+  LiteLLMRequestError,
   normalizeModelOutput,
   normalizeUsage,
+  resolveLiteLLMClientTimeoutMs,
   resolveLiteLLMRequestBudgetMs,
 } from '../../api/_llm-client.js';
+import { runDossierGateway, type DossierGatewayMode } from '../../api/_dossier-llm-gateway.js';
 
 describe('normalizeModelOutput', () => {
   it('remove <think> fechado', () => {
@@ -193,6 +196,27 @@ describe('callLiteLLM', () => {
     });
   });
 
+  it('preserva timeout e defaults do caminho legado usado por api/gemini', async () => {
+    expect(resolveLiteLLMClientTimeoutMs()).toBe(120_000);
+    expect(resolveLiteLLMClientTimeoutMs('150000')).toBe(150_000);
+    expect(resolveLiteLLMClientTimeoutMs('999999')).toBe(180_000);
+    const legacyText = 'Vou analisar sem remover este prefixo.\n<reasoning>conteúdo legado literal</reasoning>';
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      text: async () => JSON.stringify({ choices: [{ message: { content: legacyText } }] }),
+    });
+
+    const result = await callLiteLLM(
+      { model: 'legacy-model', messages: [{ role: 'user', content: 'prompt legado' }] },
+      { LITELLM_API_KEY: 'key', LITELLM_BASE_URL: 'https://litellm.example' },
+    );
+
+    expect(result).toBe(legacyText);
+    const body = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body));
+    expect(body).toMatchObject({ temperature: 0.7, max_tokens: 4096 });
+  });
+
   it('usa budget total inferior a 60s por padrão', async () => {
     expect(resolveLiteLLMRequestBudgetMs()).toBe(38_000);
     await callLiteLLM(
@@ -289,5 +313,170 @@ describe('callLiteLLM', () => {
       ),
     ).rejects.toThrow('budget');
     expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('distingue timeout interno e remove o timer do transporte', async () => {
+    vi.useFakeTimers();
+    const clearTimeoutSpy = vi.spyOn(globalThis, 'clearTimeout');
+    fetchMock.mockImplementationOnce(
+      () => new Promise<Response>(() => undefined),
+    );
+
+    const pending = callLiteLLM(
+      { model: 'model', userContent: 'prompt', timeoutMs: 10 },
+      {
+        LITELLM_API_KEY: 'key',
+        LITELLM_BASE_URL: 'https://litellm.example',
+        LITELLM_MAX_RETRIES: '0',
+      },
+    );
+    const assertion = expect(pending).rejects.toMatchObject({
+      code: 'GATEWAY_TIMEOUT',
+    });
+
+    await vi.advanceTimersByTimeAsync(11);
+    await assertion;
+    expect(clearTimeoutSpy).toHaveBeenCalled();
+    vi.useRealTimers();
+  });
+
+  it('distingue abort externo e remove o listener do signal', async () => {
+    const controller = new AbortController();
+    const removeListenerSpy = vi.spyOn(controller.signal, 'removeEventListener');
+    fetchMock.mockImplementationOnce(
+      () => new Promise<Response>(() => undefined),
+    );
+
+    const pending = callLiteLLM(
+      { model: 'model', userContent: 'prompt', signal: controller.signal, timeoutMs: 5_000 },
+      {
+        LITELLM_API_KEY: 'key',
+        LITELLM_BASE_URL: 'https://litellm.example',
+        LITELLM_MAX_RETRIES: '0',
+      },
+    );
+    const assertion = expect(pending).rejects.toMatchObject({
+      code: 'GATEWAY_ABORTED',
+    });
+
+    controller.abort();
+    await assertion;
+    expect(removeListenerSpy).toHaveBeenCalled();
+  });
+});
+
+describe('runDossierGateway', () => {
+  const gatewayInput = (mode: DossierGatewayMode) => ({
+    mode,
+    userContent: 'conteúdo',
+    signal: new AbortController().signal,
+    correlationId: 'req-gateway-model',
+    runId: '11111111-1111-4111-8111-111111111111',
+  });
+
+  beforeEach(() => {
+    vi.stubGlobal('fetch', fetchMock);
+    fetchMock.mockReset();
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      text: async () => JSON.stringify({ choices: [{ message: { content: '# Resultado' } }] }),
+    });
+    process.env.LITELLM_BASE_URL = 'https://litellm.example';
+    process.env.LITELLM_API_KEY = 'key';
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    delete process.env.LITELLM_BASE_URL;
+    delete process.env.LITELLM_API_KEY;
+    delete process.env.LITELLM_DOSSIER_MODEL;
+    delete process.env.LITELLM_DOSSIER_CHAT_MODEL;
+    delete process.env.LITELLM_MAX_RETRIES;
+    delete process.env.LITELLM_RETRY_BASE_DELAY_MS;
+    delete process.env.LITELLM_MODEL;
+    delete process.env.OPENAI_MODEL;
+    delete process.env.ANTHROPIC_MODEL;
+  });
+
+  it('generate exige alias configurado e não chama fetch quando ausente', async () => {
+    await expect(runDossierGateway(gatewayInput('generate'))).rejects.toMatchObject({
+      code: 'GATEWAY_NOT_CONFIGURED',
+      retryable: false,
+    });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('generate usa exatamente o alias geral trimado', async () => {
+    process.env.LITELLM_DOSSIER_MODEL = '  scout-dossier-generate  ';
+
+    await runDossierGateway(gatewayInput('generate'));
+
+    const body = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body));
+    expect(body.model).toBe('scout-dossier-generate');
+  });
+
+  it('chat prioriza o alias específico trimado', async () => {
+    process.env.LITELLM_DOSSIER_MODEL = 'scout-dossier-generate';
+    process.env.LITELLM_DOSSIER_CHAT_MODEL = '  scout-dossier-chat  ';
+
+    await runDossierGateway(gatewayInput('chat'));
+
+    const body = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body));
+    expect(body.model).toBe('scout-dossier-chat');
+  });
+
+  it('chat usa alias geral quando o específico está ausente ou vazio', async () => {
+    process.env.LITELLM_DOSSIER_MODEL = '  scout-dossier-generate  ';
+    process.env.LITELLM_DOSSIER_CHAT_MODEL = '   ';
+
+    await runDossierGateway(gatewayInput('chat'));
+
+    const body = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body));
+    expect(body.model).toBe('scout-dossier-generate');
+  });
+
+  it('não usa nomes de provider de envs não autorizados como fallback', async () => {
+    process.env.LITELLM_MODEL = 'deepseek/provider-model';
+    process.env.OPENAI_MODEL = 'openai/provider-model';
+    process.env.ANTHROPIC_MODEL = 'anthropic/provider-model';
+
+    await expect(runDossierGateway(gatewayInput('generate'))).rejects.toMatchObject({
+      code: 'GATEWAY_NOT_CONFIGURED',
+    });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('mantém uma tentativa física no dossiê mesmo com retry global igual a um', async () => {
+    process.env.LITELLM_DOSSIER_MODEL = 'scout-dossier-generate';
+    process.env.LITELLM_MAX_RETRIES = '1';
+    process.env.LITELLM_RETRY_BASE_DELAY_MS = '0';
+    fetchMock.mockResolvedValue({ ok: false, status: 503, text: async () => 'busy' });
+
+    await expect(runDossierGateway(gatewayInput('generate'))).rejects.toMatchObject({
+      code: 'GATEWAY_HTTP_ERROR',
+      retryable: true,
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('preserva retry do caminho legado', async () => {
+    process.env.LITELLM_MAX_RETRIES = '1';
+    process.env.LITELLM_RETRY_BASE_DELAY_MS = '0';
+    fetchMock
+      .mockResolvedValueOnce({ ok: false, status: 503, text: async () => 'busy' })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        text: async () => JSON.stringify({ choices: [{ message: { content: 'legado recuperado' } }] }),
+      });
+
+    const result = await callLiteLLM({
+      model: 'legacy-alias',
+      messages: [{ role: 'user', content: 'prompt legado' }],
+    });
+
+    expect(result).toBe('legado recuperado');
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 });
