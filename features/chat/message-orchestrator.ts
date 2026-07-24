@@ -8,7 +8,7 @@ import { sendMessageToGemini } from '../../services/llmService';
 import { withAutoRetry } from '../../utils/retry';
 import { useMaybeChatStore } from '../../stores/chatStore';
 import { findReusableEmptySession } from './session-reuse';
-import { Sender, type ChatSession, type LastAction, type Message, type RunMegaPromptWaterfallArgs } from '../../types';
+import { Sender, type ChatSession, type LastAction, type Message, type RunMegaPromptWaterfallArgs, type DossierWaterfallResult } from '../../types';
 import { scoutDiag, setDiagnosticsSessionId, flushDiagnosticsNow } from '../../utils/diagnosticLog';
 import { collectBlankPanelSnapshot } from '../../utils/blankPanelTelemetry';
 import { normalizeAppError } from '../../utils/errorHelpers';
@@ -31,6 +31,9 @@ import {
 import { useToast } from '../../hooks/useToast';
 import { trackOperatorEvent } from '../../services/operatorTracking';
 import { getWaterfallGuardState, isAnyWaterfallActive } from '../dossier/waterfall-guard';
+import { acquireDossierRunLease, createOrGetDossierRun, DOSSIER_RUN_RPC_TIMEOUT_MS } from '../../lib/supabase/dossierRuns';
+import { clearActiveDossierRun, setActiveDossierRun } from '../dossier/active-run-registry';
+import { startDossierRunHeartbeat } from '../dossier/dossier-run-heartbeat';
 
 interface ResetLoadingProgressOptions {
   incremental?: boolean;
@@ -80,7 +83,7 @@ export interface UseChatMessageOrchestratorOptions {
   toast: { warning?: (message: string) => void };
   investigationLogged: boolean;
   setInvestigationLogged: Dispatch<SetStateAction<boolean>>;
-  runMegaPromptWaterfall: (args: RunMegaPromptWaterfallArgs) => Promise<void>;
+  runMegaPromptWaterfall: (args: RunMegaPromptWaterfallArgs) => Promise<DossierWaterfallResult>;
   operatorId?: string;
   email?: string;
 }
@@ -498,6 +501,8 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
         .replace(/[\u0300-\u036f]/g, '')
         .toUpperCase();
       const isMegaPrompt = normalizedUpperText.includes('DOSSIE COMPLETO') && resolvedRequestKind !== 'deep_dive';
+      let lifecycleRunId: string | null = null;
+      let lifecycleHeartbeatCleanup: (() => void) | null = null;
 
       try {
         if (isMegaPrompt) {
@@ -509,6 +514,39 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
             company: normalizedCompany,
             generationBefore,
           });
+          const createdRun = await createOrGetDossierRun({
+            sessionId,
+            idempotencyKey: `dossier:${sessionId}:${botMessageId}`,
+          }, { signal, timeoutMs: DOSSIER_RUN_RPC_TIMEOUT_MS });
+          const leaseOwner = `${botMessageId}:lease`;
+          const leasedRun = await acquireDossierRunLease(createdRun.run_id, leaseOwner, { signal, timeoutMs: DOSSIER_RUN_RPC_TIMEOUT_MS });
+          if (!leasedRun || leasedRun.status !== 'RUNNING' || leasedRun.lease_expires_at === null) {
+            scoutDiag.warn('MessageOrchestrator', 'dossier-run-lease-not-acquired', {
+              sessionId,
+              runId: createdRun.run_id,
+              status: leasedRun?.status ?? null,
+            });
+            const leaseError = normalizeAppError(new Error('Não foi possível iniciar o dossiê porque já existe uma execução em andamento para esta sessão. Aguarde a conclusão ou interrompa a execução ativa.'));
+            updateSessionById(sessionId, session => ({
+              ...session,
+              messages: session.messages.map(message =>
+                message.id === botMessageId
+                  ? {
+                      ...message,
+                      text: 'Não foi possível iniciar o dossiê porque já existe uma execução em andamento para esta sessão. Aguarde a conclusão ou interrompa a execução ativa.',
+                      isThinking: false,
+                      loadingVariant: undefined,
+                      isError: true,
+                      errorDetails: leaseError,
+                    }
+                  : message,
+              ),
+            }));
+            return;
+          }
+          lifecycleRunId = createdRun.run_id;
+          setActiveDossierRun({ sessionId, runId: lifecycleRunId, leaseOwner, clientAttemptId: botMessageId });
+          lifecycleHeartbeatCleanup = startDossierRunHeartbeat({ sessionId, runId: lifecycleRunId, leaseOwner });
           trackOperatorEvent('dossier_started', {
             operatorId,
             email: operatorEmail || undefined,
@@ -518,7 +556,7 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
             companyCnpj: sessionCnpjDigits || undefined,
             companyName: normalizedCompany || undefined,
           });
-          await runMegaPromptWaterfall({
+          const waterfallResult = await runMegaPromptWaterfall({
             sessionId,
             text,
             safeVisibleText,
@@ -529,14 +567,11 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
             signal,
             isFirstInteraction,
             sessionCnpjDigits,
+            dossierRunId: lifecycleRunId,
+            dossierLeaseOwner: leaseOwner,
           });
-
-          const postGuard = getWaterfallGuardState(sessionId);
-          const generationAfter = postGuard?.generationCount ?? generationBefore;
-          const waterfallRan = generationAfter > generationBefore;
-
-          if (waterfallRan) {
-            trackOperatorEvent('dossier_completed', {
+          if (waterfallResult.status === 'CANCELLED') {
+            trackOperatorEvent('dossier_cancelled', {
               operatorId,
               email: operatorEmail || undefined,
               sessionId,
@@ -544,17 +579,43 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
               entityId: botMessageId,
               companyCnpj: sessionCnpjDigits || undefined,
               companyName: normalizedCompany || undefined,
+              metadata: { runId: lifecycleRunId },
             });
-          } else {
-            scoutDiag.warn('MessageOrchestrator', 'waterfall bloqueado pelo guard; pulando dossier_completed', {
-              sessionId,
-              generationBefore,
-              generationAfter,
-            });
+            setSessions(prev => prev.map(session => session.id === sessionId ? { ...session, messages: session.messages.filter(message => message.id !== botMessageId || message.text.trim().length > 0) } : session));
+            return;
           }
+          if (waterfallResult.status === 'FAILED') {
+            const generatedBotMessage = sessionsRef.current
+              .find(session => session.id === sessionId)
+              ?.messages.find(message => message.id === botMessageId);
+            if (generatedBotMessage?.text.trim()) {
+              const appError = normalizeAppError(waterfallResult.error);
+              trackOperatorEvent('dossier_failed', {
+                operatorId,
+                email: operatorEmail || undefined,
+                sessionId,
+                entityType: 'session',
+                entityId: botMessageId,
+                companyCnpj: sessionCnpjDigits || undefined,
+                companyName: normalizedCompany || undefined,
+                metadata: { errorMessage: waterfallResult.error.message },
+              });
+              updateSessionById(sessionId, session => ({
+                ...session,
+                messages: session.messages.map(message =>
+                  message.id === botMessageId
+                    ? { ...message, isError: true, errorDetails: appError }
+                    : message,
+                ),
+              }));
+              return;
+            }
+            throw waterfallResult.error;
+          }
+          trackOperatorEvent('dossier_completed', { operatorId, email: operatorEmail || undefined, sessionId, entityType: 'session', entityId: botMessageId, companyCnpj: sessionCnpjDigits || undefined, companyName: normalizedCompany || undefined });
           scoutDiag.info('MessageOrchestrator', 'processMessage:waterfall:returned', {
             sessionId,
-            waterfallRan,
+            runId: lifecycleRunId,
           });
           return;
         }
@@ -732,6 +793,8 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
           ],
         }));
       } finally {
+        lifecycleHeartbeatCleanup?.();
+        if (lifecycleRunId) clearActiveDossierRun(sessionId, lifecycleRunId);
         const isAbort = !abortControllerRef.current;
 
         scoutDiag.info('MessageOrchestrator', 'processMessage:finally', {

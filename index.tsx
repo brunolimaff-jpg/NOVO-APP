@@ -10,7 +10,7 @@ import ErrorBoundary from './components/ErrorBoundary';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ChatStoreProvider } from './stores/chatStore';
 import { DossierStoreProvider } from './stores/dossierStore';
-import { flushDiagnosticsNow, setupHeartbeat, setupVisibilityTracking } from './utils/diagnosticLog';
+import { flushDiagnosticsNow, setupVisibilityTracking } from './utils/diagnosticLog';
 
 // ── Sentry: monitoramento de erros em producao ──
 const sentryRelease =
@@ -168,8 +168,6 @@ if (typeof window !== 'undefined') {
   // ── Visibility tracking: monitora hidden/visible, pagehide, pageshow, freeze/resume ──
   setupVisibilityTracking();
 
-  // ── Heartbeat de diagnostico a cada 30s ──
-  setupHeartbeat();
 }
 
 const root = createRoot(rootElement);

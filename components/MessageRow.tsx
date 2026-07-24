@@ -124,6 +124,7 @@ const MessageRowBody = memo(({ index, msg, data }: MessageRowBodyProps) => {
   const showHeroLoading = isBot && msg.isThinking && !hasRenderableText && loadingVariant === 'hero' && data.isLoading;
   const showInlineLoading =
     isBot && msg.isThinking && !hasRenderableText && loadingVariant === 'inline' && data.isLoading;
+  const hasContentError = Boolean(msg.isError && msg.errorDetails && hasRenderableText);
   // Stale-thinking: msg acha que está carregando mas a store já liberou.
   // Não é erro de rede — é bug de propagação de estado. Só esconde o loading.
   const isStaleThinking = isBot && msg.isThinking && !data.isLoading && !hasRenderableText;
@@ -134,7 +135,7 @@ const MessageRowBody = memo(({ index, msg, data }: MessageRowBodyProps) => {
       ? 'hero-loading'
       : showInlineLoading
         ? 'inline-loading'
-        : msg.isError && msg.errorDetails
+        : msg.isError && msg.errorDetails && !hasRenderableText
           ? 'error-card'
           : showGhostContent
             ? 'ghost-content'
@@ -246,7 +247,7 @@ const MessageRowBody = memo(({ index, msg, data }: MessageRowBodyProps) => {
         />
       </div>
     );
-  } else if (msg.isError && msg.errorDetails) {
+  } else if (msg.isError && msg.errorDetails && !hasRenderableText) {
     content = (
       <ErrorMessageCard
         error={msg.errorDetails}
@@ -316,6 +317,19 @@ const MessageRowBody = memo(({ index, msg, data }: MessageRowBodyProps) => {
             <DossierErrorBoundary isDarkMode={isDarkMode}>
               <>
                 {displayScore && <ScorePorta {...displayScore} isDarkMode={isDarkMode} />}
+                {hasContentError && (
+                  <div
+                    role="alert"
+                    data-testid="dossier-persistence-warning"
+                    className={`mb-3 rounded-lg border px-3 py-2 text-sm ${
+                      isDarkMode
+                        ? 'border-amber-700/60 bg-amber-950/40 text-amber-200'
+                        : 'border-amber-300 bg-amber-50 text-amber-900'
+                    }`}
+                  >
+                    Dossiê gerado, mas não foi possível confirmar a persistência. O conteúdo permanece disponível nesta sessão.
+                  </div>
+                )}
                 {msg.clienteSeniorData?.encontrado && isFirstBotMessage && (
                   <ClienteSeniorScore data={msg.clienteSeniorData} cnpj={cnpj} isDarkMode={isDarkMode} />
                 )}

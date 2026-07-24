@@ -114,6 +114,21 @@ describe('operatorTracking', () => {
       expect(inserted?.session_id).toBe('sess_abc123');
     });
 
+    it('aceita dossier_cancelled com runId sem alterar schema dos eventos', () => {
+      trackOperatorEvent('dossier_cancelled', {
+        operatorId: 'op_test123',
+        sessionId: 'session-1',
+        entityType: 'session',
+        entityId: 'message-1',
+        metadata: { runId: 'run-1' },
+      });
+
+      expect(mockInsert).toHaveBeenCalledWith(expect.objectContaining({
+        event_name: 'dossier_cancelled',
+        metadata: expect.objectContaining({ runId: 'run-1' }),
+      }));
+    });
+
     it('deve usar sessionId do payload quando fornecido', () => {
       trackOperatorEvent('dossier_shared', {
         operatorId: 'op_test123',

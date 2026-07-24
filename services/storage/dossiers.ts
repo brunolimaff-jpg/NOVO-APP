@@ -2,6 +2,7 @@
 import { supabase, isSupabaseAvailable } from '../../lib/supabaseClient';
 import { getOperatorId } from './_shared';
 import { storageGet } from '../../utils/localStorage';
+import { scoutDiag } from '../../utils/diagnosticLog';
 import type { ChatSession } from './types';
 
 function stripTransientMessageState(message: ChatSession['messages'][number]): ChatSession['messages'][number] {
@@ -91,6 +92,38 @@ export const dossiers = {
     if (error) {
       console.error('[Storage] saveDossier failed:', session.id, error);
       throw new Error(error.message);
+    }
+  },
+
+  async saveDossierStrict(session: ChatSession): Promise<void> {
+    const operatorId = getOperatorId();
+    if (!isSupabaseAvailable()) throw new Error('Supabase indisponível para persistência estrita');
+    if (!operatorId) throw new Error('operatorId obrigatório para persistência estrita');
+    const cleanSession = stripTransientState(session);
+    const { data, error } = await supabase!
+      .from('dossies')
+      .upsert({
+        id: cleanSession.id, operator_id: operatorId, operator_email: storageGet('operator_email') ?? null,
+        title: cleanSession.title, empresa_alvo: cleanSession.empresaAlvo, cnpj: cleanSession.cnpj,
+        modo_principal: cleanSession.modoPrincipal, score_oportunidade: cleanSession.scoreOportunidade,
+        resumo_dossie: cleanSession.resumoDossie, content: cleanSession as unknown as Record<string, unknown>,
+        updated_at: cleanSession.updatedAt || new Date().toISOString(),
+      })
+      .select('id');
+    if (error) {
+      scoutDiag.warn('Storage', 'save-dossier-strict-failed', {
+        sessionId: session.id,
+        error: error.message,
+      });
+      throw new Error(error.message, { cause: error });
+    }
+    const persisted = Array.isArray(data) ? data[0] : data;
+    if (!persisted?.id || persisted.id !== cleanSession.id) {
+      scoutDiag.warn('Storage', 'save-dossier-strict-unconfirmed', {
+        sessionId: session.id,
+        persistedId: persisted?.id ?? null,
+      });
+      throw new Error('Persistência estrita sem confirmação do dossiê');
     }
   },
 

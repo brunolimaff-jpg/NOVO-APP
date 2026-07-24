@@ -28,7 +28,7 @@ import { generatePortaContextForDeepDive } from '../../services/portaStateServic
 import { fetchCompanyByCnpj } from '../../services/brasilApiService';
 import { storage } from '../../services/storage';
 import { useMaybeChatStore } from '../../stores/chatStore';
-import { type ChatSession, type ClienteSeniorData, Sender, type WebVerificationStatus } from '../../types';
+import { type ChatSession, type ClienteSeniorData, Sender, type WebVerificationStatus, type DossierWaterfallResult } from '../../types';
 import { scoutDiag } from '../../utils/diagnosticLog';
 import { finalizeWaterfallUI } from '../../utils/finalizeWaterfallUI';
 import { stripPortaMarkers } from '../../utils/porta';
@@ -51,6 +51,8 @@ import { finalizeDossierMarkdown } from '../../utils/dossierFinalize';
 import type { MutableRefObject } from 'react';
 import type { RunMegaPromptWaterfallArgs } from '../../types';
 import { isAbortLikeError } from '../../utils/abortHelpers';
+import { DossierRunCancelledError, assertDossierRunCanContinue, isDossierRunControlError } from './dossier-run-control';
+import { markDossierRunCancelled, markDossierRunCompleted, markDossierRunFailed, releaseDossierRunLease } from '../../lib/supabase/dossierRuns';
 import { isEvidencePipelineV2 } from '../../utils/feature-flags';
 import { ensureContinuitySuggestions, pickCompanyLabel } from '../../utils/messageHelpers';
 import { runDossierBenchmarkStage } from './benchmark-stage';
@@ -560,7 +562,27 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
       operatorId: waterfallOperatorId,
       operatorEmail: waterfallOperatorEmail,
       operatorSessionId: waterfallOperatorSessionId,
-    }: RunMegaPromptWaterfallArgs) => {
+      dossierRunId,
+      dossierLeaseOwner,
+    }: RunMegaPromptWaterfallArgs): Promise<DossierWaterfallResult> => {
+      let terminalLeaseReleased = false;
+      const persistFailedTerminal = async (errorCode: string, errorStage: string): Promise<boolean> => {
+        if (!dossierRunId || !dossierLeaseOwner) return false;
+        try {
+          await markDossierRunFailed(dossierRunId, dossierLeaseOwner, errorCode, errorStage);
+          terminalLeaseReleased = true;
+          return true;
+        } catch (error) {
+          scoutDiag.warn('WaterfallLifecycle', 'terminal-failure-persist-failed', {
+            sessionId,
+            dossierRunId,
+            errorCode,
+            errorStage,
+            error: error instanceof Error ? error.message : String(error),
+          });
+          return false;
+        }
+      };
       const guardCheck = registerWaterfallStart(sessionId);
       if (!guardCheck.allowed) {
         scoutDiag.warn('WaterfallGuard', 'waterfall bloqueado por floodgate; abortando execução', {
@@ -572,14 +594,30 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
           ...session,
           messages: session.messages.filter(message => message.id !== botMessageId),
         }));
-        return;
+        const terminalPersisted = await persistFailedTerminal('waterfall_blocked', 'guard');
+        if (!terminalPersisted && dossierRunId && dossierLeaseOwner) {
+          await releaseDossierRunLease(dossierRunId, dossierLeaseOwner).catch(error => {
+            scoutDiag.warn('WaterfallLifecycle', 'lease-release-failed', {
+              sessionId,
+              dossierRunId,
+              error: error instanceof Error ? error.message : String(error),
+            });
+          });
+        }
+        return { status: 'FAILED', dossierRunId, errorCode: 'waterfall_blocked', errorStage: 'guard', error: new Error('Waterfall bloqueado') } satisfies DossierWaterfallResult;
       }
       const waterfallRunId = guardCheck.runId;
-      let waterfallEndStatus: 'completed' | 'failed' = 'failed';
+      let waterfallEndStatus: 'completed' | 'failed' | 'aborted' = 'failed';
+      let currentLifecycleStage = 'waterfall_start';
+      const assertRunCanContinue = async (stage: string) => {
+        currentLifecycleStage = stage;
+        await assertDossierRunCanContinue({ runId: dossierRunId, leaseOwner: dossierLeaseOwner, signal, stage });
+      };
       let foundationCacheName: string | undefined;
       let sessionToPersist: ChatSession | null = null;
 
       try {
+        await assertRunCanContinue('waterfall_start');
         let accumulatedText = '';
         let previousStageCompleted = false;
         const optionalStepFailures = new Set<string>();
@@ -643,12 +681,14 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
 
         if (lookupTarget) {
           try {
+            await assertRunCanContinue('before_lookup_cliente');
             const clienteData = await withAbortSignal(lookupCliente(lookupTarget), signal);
-            waterfallLookupContext = formatarParaPrompt(clienteData);
-            waterfallClienteSeniorData = extractClienteSeniorData(clienteData);
-          } catch (error) {
-            if (isAbortLikeError(error)) throw error;
-            scoutDiag.warn('ModularDossier', 'lookup cliente senior falhou antes da orquestração', {
+            await assertRunCanContinue('after_lookup_cliente');
+          waterfallLookupContext = formatarParaPrompt(clienteData);
+          waterfallClienteSeniorData = extractClienteSeniorData(clienteData);
+        } catch (error) {
+          if (isAbortLikeError(error) || isDossierRunControlError(error)) throw error;
+          scoutDiag.warn('ModularDossier', 'lookup cliente senior falhou antes da orquestração', {
               sessionId,
               company: lookupTarget,
               error: error instanceof Error ? error.message : String(error),
@@ -660,12 +700,13 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
           resolvedMegaCompany || waterfallClienteSeniorData?.grupo || 'empresa analisada',
           waterfallClienteSeniorData,
         );
+        await assertRunCanContinue('before_teia_research_context');
         const teiaResearchContext = await buildTeiaResearchContext({
           company: resolvedMegaCompany || waterfallClienteSeniorData?.grupo || 'empresa analisada',
           sessionCnpjDigits,
           signal,
         });
-        assertNotAborted();
+        await assertRunCanContinue('after_teia_research_context');
 
         const staticDossierContext = buildStaticDossierContext({
           dossierSeedContext,
@@ -676,14 +717,15 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
 
         if (isFoundationCacheEnabled()) {
           try {
+            await assertRunCanContinue('before_foundation_cache');
             foundationCacheName = await createWaterfallFoundationCache({
               foundationBlock: SHARED_FOUNDATION_BLOCK,
               staticContext: staticDossierContext,
               signal,
             });
-            assertNotAborted();
+            await assertRunCanContinue('after_foundation_cache');
           } catch (error) {
-            if (isAbortLikeError(error)) throw error;
+            if (isAbortLikeError(error) || isDossierRunControlError(error)) throw error;
             scoutDiag.warn('ModularDossier', 'falha ao criar foundation cache; continuando sem cache', {
               sessionId,
               company: resolvedMegaCompany || null,
@@ -789,6 +831,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
           let identityResult: string;
 
           try {
+            await assertRunCanContinue('before_teia_identity');
             const identityStart = performance.now();
             identityResult = await generateDossierModule(
               'Teia Societaria — Identidade',
@@ -803,6 +846,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
                 ...sharedDossierModuleOptions,
               },
             );
+            await assertRunCanContinue('after_teia_identity');
             const identityElapsed = performance.now() - identityStart;
             scoutDiag.info('Waterfall', 'module:complete', {
               module: 'Teia Societaria — Identidade',
@@ -812,12 +856,12 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
               scoutDiag.warn('Waterfall', 'module:deadline', {
                 module: 'Teia Societaria — Identidade',
                 elapsedMs: identityElapsed,
-              });
-            }
-          } catch (identityError) {
-            if (isAbortLikeError(identityError)) throw identityError;
+            });
+          }
+        } catch (identityError) {
+          if (isAbortLikeError(identityError) || isDossierRunControlError(identityError)) throw identityError;
 
-            scoutDiag.warn('ModularDossier', 'modulo 1a (teia identity) falhou, usando fallback', {
+          scoutDiag.warn('ModularDossier', 'modulo 1a (teia identity) falhou, usando fallback', {
               sessionId,
               company: resolvedMegaCompany || null,
               error: identityError instanceof Error ? identityError.message : String(identityError),
@@ -901,7 +945,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
               combinedTeiaText += '\n\n---\n\n' + deepResult;
               advanceLoadingProgress(MODULAR_DOSSIER_STAGES[2], MODULAR_DOSSIER_TOTAL_STAGES);
             } catch (deepError) {
-              if (isAbortLikeError(deepError)) throw deepError;
+              if (isAbortLikeError(deepError) || isDossierRunControlError(deepError)) throw deepError;
               optionalStepFailures.add('Teia Societaria — Profundidade');
               setFailureCount(count => count + 1);
               scoutDiag.warn('ModularDossier', 'modulo 1b (teia deep) falhou', {
@@ -956,10 +1000,12 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
               return result.text || '';
             };
 
-            assertNotAborted();
+            await assertRunCanContinue('before_query_planner');
             const plan = await withAbortSignal(planQueries(entity, callLLM), signal);
-            assertNotAborted();
+            await assertRunCanContinue('after_query_planner');
+            await assertRunCanContinue('before_query_collector');
             const pack = await withAbortSignal(executeQueryPlan(plan), signal);
+            await assertRunCanContinue('after_query_collector');
 
             scoutDiag.info('PipelineV2', 'planner+collector concluído', {
               sessionId,
@@ -972,7 +1018,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
               modules: pack.confidenceProfile.modulesCovered.length,
             });
           } catch (err) {
-            if (isAbortLikeError(err)) throw err;
+            if (isAbortLikeError(err) || isDossierRunControlError(err)) throw err;
             console.error('[PipelineV2:FATAL]', err);
             scoutDiag.warn('PipelineV2', 'Fallback v1 (planner/collector falhou)', {
               sessionId,
@@ -992,9 +1038,8 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
         }
 
         for (let index = 0; index < modules.length; index += 1) {
-          assertNotAborted();
-
           const module = modules[index];
+          await assertRunCanContinue(`before_module:${module.name}`);
           if (index > 0) {
             if (previousStageCompleted) {
               advanceLoadingProgress(module.stage, MODULAR_DOSSIER_TOTAL_STAGES);
@@ -1017,12 +1062,12 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
               }
             }
             appendWaterfallChunk(moduleResult);
-            assertNotAborted();
+            await assertRunCanContinue(`after_module:${module.name}`);
             optionalStepFailures.delete(module.name);
             previousStageCompleted = true;
             setFailureCount(0);
           } catch (error) {
-            if (isAbortLikeError(error)) throw error;
+            if (isAbortLikeError(error) || isDossierRunControlError(error)) throw error;
             if (!module.optional) throw error;
 
             previousStageCompleted = false;
@@ -1037,7 +1082,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
           }
         }
 
-        assertNotAborted();
+        await assertRunCanContinue('before_benchmark');
         if (previousStageCompleted) {
           advanceLoadingProgress(MODULAR_DOSSIER_STAGES[5], MODULAR_DOSSIER_TOTAL_STAGES);
         } else {
@@ -1053,7 +1098,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
           optionalStepFailures,
           setFailureCount,
         });
-        assertNotAborted();
+        await assertRunCanContinue('after_benchmark');
         scoutDiag.info('WaterfallLifecycle', 'pos-benchmark', { sessionId, waterfallRunId, benchmarkCompleted });
 
         if (benchmarkCompleted) {
@@ -1073,6 +1118,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
 
         scoutDiag.info('WaterfallLifecycle', 'pre-porta-reconciliation', { sessionId, waterfallRunId });
         try {
+          await assertRunCanContinue('before_porta_reconciliation');
           const result = await Promise.race([
             reconcileWaterfallPorta({
               sessionId,
@@ -1102,7 +1148,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
           waterfallPortaResolution = result.resolution;
           portaIntegrityHold = result.portaIntegrityHold;
         } catch (error) {
-          if (signal?.aborted) throw error;
+          if (signal?.aborted || isDossierRunControlError(error)) throw error;
           scoutDiag.warn(
             'ModularDossier',
             'reconcileWaterfallPorta falhou ou timeout; continuando com texto acumulado',
@@ -1117,6 +1163,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
         } finally {
           if (portaTimeoutId) clearTimeout(portaTimeoutId);
         }
+        await assertRunCanContinue('after_porta_reconciliation');
         scoutDiag.info('WaterfallLifecycle', 'pos-porta-reconciliation', { sessionId, waterfallRunId });
         accumulatedText = reconciledText;
         assertNotAborted();
@@ -1153,10 +1200,12 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
           textLength: waterfallPrepared.length,
           groundingSourcesCount: waterfallGroundingSources.length,
         });
+        await assertRunCanContinue('before_inline_source_validation');
         const promotedInlineSources = await validateInlineSourcesForPromotion(
           waterfallPrepared,
           waterfallGroundingSources,
         );
+        await assertRunCanContinue('after_inline_source_validation');
         scoutDiag.info('FreezeDiag', 'post-validate-inline', {
           sessionId,
           waterfallRunId,
@@ -1224,6 +1273,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
           }
 
           try {
+            await assertRunCanContinue('before_continuity_question');
             const continuityPromise = generateContinuityQuestion(
               [
                 ...historyToPass,
@@ -1275,7 +1325,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
             signal.removeEventListener('abort', forwardContinuityAbort);
           }
         } catch (error) {
-          if (signal.aborted) throw error;
+          if (signal.aborted || isDossierRunControlError(error)) throw error;
           scoutDiag.warn('ModularDossier', 'falha ao gerar sugestões finais do waterfall', {
             sessionId,
             company: resolvedMegaCompany || null,
@@ -1285,7 +1335,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
           });
         }
         scoutDiag.info('WaterfallLifecycle', 'pos-continuity-question', { sessionId, waterfallRunId });
-        assertNotAborted();
+        await assertRunCanContinue('after_continuity_question');
 
         waterfallSuggestions = ensureContinuitySuggestions(
           waterfallSuggestions,
@@ -1311,11 +1361,19 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
               activeBotId: activeGenerationRef?.current?.[sessionId] ?? 'undefined',
             },
           });
-          return;
+          await persistFailedTerminal('generation_ref_cleared', 'before_final_session_update');
+          return {
+            status: 'FAILED',
+            dossierRunId,
+            errorCode: 'generation_ref_cleared',
+            errorStage: 'before_final_session_update',
+            error: new Error('Geração substituída antes da persistência final'),
+          };
         }
 
         sessionToPersist = null;
         let originalMsgCount = -1;
+        await assertRunCanContinue('before_final_session_update');
         const updatedSession = updateSessionById(sessionId, session => {
           originalMsgCount = session.messages?.length ?? 0;
           const finalCompany = normalizedCompany || session.empresaAlvo || pickCompanyLabel(session.title);
@@ -1489,54 +1547,82 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
           }
         }
 
-        // Fire-and-forget: persistência no Supabase não deve bloquear o retorno
-        // do waterfall nem atrasar setIsLoading(false) no message-orchestrator.
-        // O dossiê já está no React state — a UI não depende do Supabase.
-        if (sessionToPersist) {
-          const dossier = sessionToPersist as ChatSession;
-          scoutDiag.info('WaterfallLifecycle', 'pre-save-dossier', { sessionId, waterfallRunId });
-
-          let saveResolved = false;
-          const saveTimeoutId = setTimeout(() => {
-            if (!saveResolved) {
-              scoutDiag.warn('ModularDossier', 'saveDossier demorando mais de 15s — ainda pendente', {
-                sessionId,
-              });
+        if (!sessionToPersist) {
+          if (dossierRunId && dossierLeaseOwner) {
+            try {
+              await markDossierRunFailed(dossierRunId, dossierLeaseOwner, 'final_session_unavailable', 'before_save');
+              terminalLeaseReleased = true;
+            } catch {
+              // O retorno continua fail-closed; finally tenta liberar a lease ainda existente.
             }
-          }, 15_000);
+          }
+          return {
+            status: 'FAILED',
+            dossierRunId,
+            errorCode: 'final_session_unavailable',
+            errorStage: 'before_save',
+            error: new Error('Sessão final indisponível antes da persistência'),
+          } satisfies DossierWaterfallResult;
+        }
 
-          storage
-            .saveDossier(dossier)
-            .then(() => {
-              saveResolved = true;
-              clearTimeout(saveTimeoutId);
-              window.dispatchEvent(
-                new CustomEvent('dossier:completed', {
-                  detail: {
-                    dossierId: dossier.id,
-                    companyName: resolvedMegaCompany || normalizedCompany || '',
-                    cnpj: dossier.cnpj,
-                  },
-                }),
-              );
-            })
-            .catch(error => {
-              saveResolved = true;
-              clearTimeout(saveTimeoutId);
-              scoutDiag.warn('ModularDossier', 'falha ao persistir dossiê final; mantendo sessão em memória', {
-                sessionId,
-                company: resolvedMegaCompany || normalizedCompany || null,
-                error: error instanceof Error ? error.message : String(error),
-              });
-              scoutDiag.warn('WaterfallLifecycle', 'dossier-completed-event-not-dispatched', {
-                sessionId,
-                reason: error instanceof Error ? error.message : String(error),
-              });
-            });
+        {
+          const dossier = sessionToPersist;
+          await assertRunCanContinue('save_dossier');
+          try { await storage.saveDossierStrict(dossier); }
+          catch (error) {
+            if (dossierRunId && dossierLeaseOwner) {
+              try {
+                await markDossierRunFailed(dossierRunId, dossierLeaseOwner, 'persist_failed', 'save_dossier');
+                terminalLeaseReleased = true;
+              } catch (markError) {
+                scoutDiag.warn('WaterfallLifecycle', 'mark-failed-after-save-error', { sessionId, dossierRunId, error: markError instanceof Error ? markError.message : String(markError) });
+              }
+            }
+            return { status: 'FAILED', dossierRunId, errorCode: 'persist_failed', errorStage: 'save_dossier', error: error instanceof Error ? error : new Error(String(error)) } satisfies DossierWaterfallResult;
+          }
+          await assertRunCanContinue('after_save_dossier_before_complete');
+          if (dossierRunId && dossierLeaseOwner) {
+            try {
+              await markDossierRunCompleted(dossierRunId, dossierLeaseOwner, dossier.id);
+              terminalLeaseReleased = true;
+            }
+            catch (error) {
+              try {
+                await markDossierRunFailed(dossierRunId, dossierLeaseOwner, 'lifecycle_completion_failed', 'mark_completed');
+                terminalLeaseReleased = true;
+              } catch (markError) {
+                scoutDiag.warn('WaterfallLifecycle', 'mark-failed-after-completion-error', { sessionId, dossierRunId, error: markError instanceof Error ? markError.message : String(markError) });
+              }
+              return { status: 'FAILED', dossierRunId, errorCode: 'lifecycle_completion_failed', errorStage: 'mark_completed', error: error instanceof Error ? error : new Error(String(error)) } satisfies DossierWaterfallResult;
+            }
+          }
+          window.dispatchEvent(new CustomEvent('dossier:completed', { detail: { dossierId: dossier.id, companyName: resolvedMegaCompany || normalizedCompany || '', cnpj: dossier.cnpj } }));
         }
 
         waterfallEndStatus = 'completed';
+        return { status: 'COMPLETED', dossierRunId } satisfies DossierWaterfallResult;
+      } catch (error) {
+        if (signal.aborted || error instanceof DossierRunCancelledError || isAbortLikeError(error)) {
+          waterfallEndStatus = 'aborted';
+          if (dossierRunId && dossierLeaseOwner) {
+            const terminalPersisted = await markDossierRunCancelled(dossierRunId, dossierLeaseOwner).then(() => true).catch(() => false);
+            terminalLeaseReleased = terminalPersisted;
+            return { status: 'CANCELLED', dossierRunId, terminalPersisted, reason: error instanceof DossierRunCancelledError ? error.reason : 'local_abort' };
+          }
+          return { status: 'CANCELLED', dossierRunId, terminalPersisted: false, reason: 'local_abort' };
+        }
+        const normalized = error instanceof Error ? error : new Error(String(error));
+        if (dossierRunId && dossierLeaseOwner) {
+          try {
+            await markDossierRunFailed(dossierRunId, dossierLeaseOwner, 'waterfall_failed', currentLifecycleStage);
+            terminalLeaseReleased = true;
+          } catch (markError) {
+            scoutDiag.warn('WaterfallLifecycle', 'mark-failed-after-waterfall-error', { sessionId, dossierRunId, error: markError instanceof Error ? markError.message : String(markError) });
+          }
+        }
+        return { status: 'FAILED', dossierRunId, errorCode: 'waterfall_failed', errorStage: currentLifecycleStage, error: normalized };
       } finally {
+        if (dossierRunId && dossierLeaseOwner && !terminalLeaseReleased) await releaseDossierRunLease(dossierRunId, dossierLeaseOwner).catch(() => scoutDiag.warn('WaterfallLifecycle', 'lease-release-failed', { sessionId, dossierRunId }));
         // Fire-and-forget: limpeza de cache não deve bloquear o retorno do waterfall.
         // Timeout de 15s com warning se a promise não resolver.
         if (foundationCacheName) {

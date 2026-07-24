@@ -6,6 +6,8 @@ import type { LoadingVariant, RequestKind } from '../../../utils/loadingVariant'
 
 const uuidv4Mock = vi.hoisted(() => vi.fn());
 const sendMessageToGeminiMock = vi.hoisted(() => vi.fn());
+const lifecycleMocks = vi.hoisted(() => ({ create: vi.fn(), acquire: vi.fn(), start: vi.fn(() => vi.fn()), set: vi.fn(), clear: vi.fn() }));
+const trackOperatorEventMock = vi.hoisted(() => vi.fn());
 
 vi.mock('uuid', () => ({
   v4: uuidv4Mock,
@@ -14,6 +16,14 @@ vi.mock('uuid', () => ({
 vi.mock('../../../services/llmService', () => ({
   sendMessageToGemini: sendMessageToGeminiMock,
 }));
+vi.mock('../../../lib/supabase/dossierRuns', () => ({
+  DOSSIER_RUN_RPC_TIMEOUT_MS: 15_000,
+  createOrGetDossierRun: lifecycleMocks.create,
+  acquireDossierRunLease: lifecycleMocks.acquire,
+}));
+vi.mock('../../../features/dossier/dossier-run-heartbeat', () => ({ startDossierRunHeartbeat: lifecycleMocks.start }));
+vi.mock('../../../features/dossier/active-run-registry', () => ({ setActiveDossierRun: lifecycleMocks.set, clearActiveDossierRun: lifecycleMocks.clear }));
+vi.mock('../../../services/operatorTracking', () => ({ trackOperatorEvent: trackOperatorEventMock }));
 
 // Outros testes mockam useToast e chatStore globalmente com vi.mock().
 // Como vitest nao restaura mocks de modulo entre arquivos, esses mocks
@@ -140,7 +150,7 @@ function makeHarness(
   const setInvestigationLogged = vi.fn((next: boolean | ((prev: boolean) => boolean)) => {
     state.investigationLogged = applyStateUpdate(state.investigationLogged, next);
   });
-  const runMegaPromptWaterfall = vi.fn(async () => {});
+  const runMegaPromptWaterfall = vi.fn(async (): Promise<import('../../../types').DossierWaterfallResult> => ({ status: 'COMPLETED' }));
 
   const buildOptions = (): Parameters<typeof useChatMessageOrchestrator>[0] => ({
     currentSessionId: state.currentSessionId,
@@ -207,6 +217,8 @@ describe('useChatMessageOrchestrator', () => {
     vi.clearAllMocks();
     uuidv4Mock.mockReset();
     sendMessageToGeminiMock.mockReset();
+    lifecycleMocks.create.mockResolvedValue({ run_id: 'run-1' });
+    lifecycleMocks.acquire.mockResolvedValue({ status: 'RUNNING', lease_expires_at: 'future' });
     global.fetch = vi.fn(async () => ({ ok: true }) as Response) as unknown as typeof fetch;
   });
 
@@ -403,6 +415,82 @@ describe('useChatMessageOrchestrator', () => {
     expect(sendMessageToGeminiMock).not.toHaveBeenCalled();
   });
 
+  it('mantém placeholder como erro visível quando a lease não é adquirida', async () => {
+    uuidv4Mock
+      .mockReturnValueOnce('session-new')
+      .mockReturnValueOnce('message-user')
+      .mockReturnValueOnce('message-bot');
+    lifecycleMocks.acquire.mockResolvedValueOnce(null);
+    const harness = makeHarness();
+
+    await act(async () => {
+      await harness.result.current.handleSendMessage('DOSSIÊ COMPLETO de Acme Agro');
+    });
+
+    const placeholder = harness.state.sessions[0].messages.find(message => message.id === 'message-bot');
+    expect(placeholder).toMatchObject({
+      isThinking: false,
+      loadingVariant: undefined,
+      isError: true,
+      text: expect.stringContaining('já existe uma execução em andamento'),
+    });
+    expect(placeholder?.errorDetails).toBeDefined();
+    expect(lifecycleMocks.create).toHaveBeenCalledWith(
+      expect.any(Object),
+      expect.objectContaining({ signal: expect.any(AbortSignal), timeoutMs: 15_000 }),
+    );
+    expect(lifecycleMocks.acquire).toHaveBeenCalledWith(
+      'run-1',
+      expect.any(String),
+      expect.objectContaining({ signal: expect.any(AbortSignal), timeoutMs: 15_000 }),
+    );
+    expect(lifecycleMocks.start).not.toHaveBeenCalled();
+    expect(lifecycleMocks.set).not.toHaveBeenCalled();
+    expect(harness.runMegaPromptWaterfall).not.toHaveBeenCalled();
+    expect(trackOperatorEventMock).not.toHaveBeenCalledWith('dossier_started', expect.anything());
+    expect(trackOperatorEventMock).not.toHaveBeenCalledWith('dossier_failed', expect.anything());
+    expect(trackOperatorEventMock).not.toHaveBeenCalledWith('dossier_cancelled', expect.anything());
+  });
+
+  it('falha de RPC inicial mantém lifecycle fail-closed e não inicia waterfall', async () => {
+    uuidv4Mock
+      .mockReturnValueOnce('session-new')
+      .mockReturnValueOnce('message-user')
+      .mockReturnValueOnce('message-bot')
+      .mockReturnValueOnce('message-error');
+    lifecycleMocks.create.mockRejectedValueOnce(new Error('RPC indisponível'));
+    const harness = makeHarness();
+
+    await act(async () => {
+      await harness.result.current.handleSendMessage('DOSSIÊ COMPLETO de Acme Agro');
+    });
+
+    expect(harness.runMegaPromptWaterfall).not.toHaveBeenCalled();
+    expect(lifecycleMocks.start).not.toHaveBeenCalled();
+    expect(harness.state.sessions[0].messages.some(message => message.isError)).toBe(true);
+  });
+
+  it('CANCELLED rastreia dossier_cancelled uma vez sem terminal de falha ou sucesso', async () => {
+    uuidv4Mock
+      .mockReturnValueOnce('session-new')
+      .mockReturnValueOnce('message-user')
+      .mockReturnValueOnce('message-bot');
+    const harness = makeHarness();
+    harness.runMegaPromptWaterfall.mockResolvedValueOnce({
+      status: 'CANCELLED',
+      terminalPersisted: true,
+      reason: 'remote_cancel',
+    });
+
+    await act(async () => {
+      await harness.result.current.handleSendMessage('DOSSIÊ COMPLETO de Acme Agro');
+    });
+
+    expect(trackOperatorEventMock.mock.calls.filter(([event]) => event === 'dossier_cancelled')).toHaveLength(1);
+    expect(trackOperatorEventMock.mock.calls.filter(([event]) => event === 'dossier_failed')).toHaveLength(0);
+    expect(trackOperatorEventMock.mock.calls.filter(([event]) => event === 'dossier_completed')).toHaveLength(0);
+  });
+
   it('anexa mensagem de erro quando waterfall falha apos limpar activeGeneration', async () => {
     uuidv4Mock
       .mockReturnValueOnce('session-new')
@@ -412,7 +500,7 @@ describe('useChatMessageOrchestrator', () => {
     const harness = makeHarness();
     harness.runMegaPromptWaterfall.mockImplementationOnce(async () => {
       delete harness.activeGenerationRef.current['session-new'];
-      throw new Error('api gemini indisponivel');
+      return { status: 'FAILED', errorCode: 'api_unavailable', errorStage: 'waterfall', error: new Error('api gemini indisponivel') };
     });
 
     await act(async () => {
@@ -429,8 +517,38 @@ describe('useChatMessageOrchestrator', () => {
     });
   });
 
+  it.each([
+    ['persist_failed', 'save_dossier'],
+    ['lifecycle_completion_failed', 'mark_completed'],
+  ])('preserva texto e emite dossier_failed uma vez para %s', async (errorCode, errorStage) => {
+    uuidv4Mock
+      .mockReturnValueOnce('session-new')
+      .mockReturnValueOnce('message-user')
+      .mockReturnValueOnce('message-bot');
+    const harness = makeHarness();
+    harness.runMegaPromptWaterfall.mockImplementationOnce(async () => {
+      harness.updateSessionById('session-new', session => ({
+        ...session,
+        messages: session.messages.map(message =>
+          message.id === 'message-bot' ? { ...message, text: 'Dossiê consolidado' } : message,
+        ),
+      }));
+      return { status: 'FAILED', errorCode, errorStage, error: new Error('persistência indisponível') };
+    });
+
+    await act(async () => {
+      await harness.result.current.handleSendMessage('DOSSIÊ COMPLETO de Acme Agro');
+    });
+
+    const botMessage = harness.state.sessions[0].messages.find(message => message.id === 'message-bot');
+    expect(botMessage).toMatchObject({ id: 'message-bot', text: 'Dossiê consolidado', isError: true });
+    expect(harness.state.sessions[0].messages.some(message => message.text === 'Erro no processamento')).toBe(false);
+    expect(trackOperatorEventMock).toHaveBeenCalledTimes(2);
+    expect(trackOperatorEventMock).toHaveBeenLastCalledWith('dossier_failed', expect.any(Object));
+  });
+
   it('nao cria sessao orfa quando a primeira investigacao dispara duas vezes antes do re-render', async () => {
-    const deferred = createDeferred<void>();
+    const deferred = createDeferred<import('../../../types').DossierWaterfallResult>();
     uuidv4Mock
       .mockReturnValueOnce('session-first')
       .mockReturnValueOnce('message-user-first')
@@ -468,7 +586,7 @@ describe('useChatMessageOrchestrator', () => {
     expect(harness.runMegaPromptWaterfall).toHaveBeenCalledTimes(1);
 
     await act(async () => {
-      deferred.resolve();
+      deferred.resolve({ status: 'COMPLETED' });
       await firstSend;
     });
   });
