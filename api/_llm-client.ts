@@ -43,6 +43,7 @@ export interface LiteLLMCallInput {
   correlationId?: string;
   runId?: string;
   action?: string;
+  maxRetries?: number;
 }
 
 export interface LiteLLMCallResult {
@@ -347,9 +348,11 @@ export async function callLiteLLM(
       ? resolveLiteLLMClientTimeoutMs(env.VITE_LITELLM_CLIENT_TIMEOUT_MS)
       : resolveLiteLLMRequestBudgetMs(env.LITELLM_REQUEST_TIMEOUT_MS));
   const deadline = Date.now() + budgetMs;
-  const configuredRetries = Number(env.LITELLM_MAX_RETRIES ?? DEFAULT_MAX_RETRIES);
-  const maxRetries = Number.isInteger(configuredRetries) && configuredRetries >= 0
-    ? Math.min(configuredRetries, DEFAULT_MAX_RETRIES)
+  const requestedRetries = !legacy && input.maxRetries !== undefined
+    ? input.maxRetries
+    : Number(env.LITELLM_MAX_RETRIES ?? DEFAULT_MAX_RETRIES);
+  const maxRetries = Number.isInteger(requestedRetries) && requestedRetries >= 0
+    ? Math.min(requestedRetries, DEFAULT_MAX_RETRIES)
     : DEFAULT_MAX_RETRIES;
   const configuredDelay = Number(env.LITELLM_RETRY_BASE_DELAY_MS ?? DEFAULT_RETRY_BASE_DELAY_MS);
   const retryDelayMs = Number.isFinite(configuredDelay) && configuredDelay >= 0

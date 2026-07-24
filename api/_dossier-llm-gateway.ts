@@ -1,4 +1,4 @@
-import { callLiteLLM, type LiteLLMCallResult } from './_llm-client.js';
+import { callLiteLLM, LiteLLMRequestError, type LiteLLMCallResult } from './_llm-client.js';
 
 export type DossierGatewayMode = 'generate' | 'chat';
 
@@ -35,10 +35,17 @@ function resolveDossierGatewayTimeoutMs(): number {
 }
 
 function resolveModel(mode: DossierGatewayMode): string {
-  if (mode === 'chat') {
-    return process.env.LITELLM_DOSSIER_CHAT_MODEL || process.env.LITELLM_DOSSIER_MODEL || 'deepseek/deepseek-chat';
+  const generalAlias = process.env.LITELLM_DOSSIER_MODEL?.trim();
+  const chatAlias = process.env.LITELLM_DOSSIER_CHAT_MODEL?.trim();
+  const alias = mode === 'chat' ? chatAlias || generalAlias : generalAlias;
+  if (!alias) {
+    throw new LiteLLMRequestError(
+      'GATEWAY_NOT_CONFIGURED',
+      'LiteLLM dossier model alias is required',
+      false,
+    );
   }
-  return process.env.LITELLM_DOSSIER_MODEL || 'deepseek/deepseek-chat';
+  return alias;
 }
 
 export async function runDossierGateway(input: DossierGatewayInput): Promise<LiteLLMCallResult> {
@@ -58,5 +65,6 @@ export async function runDossierGateway(input: DossierGatewayInput): Promise<Lit
     action: input.mode,
     temperature: input.mode === 'chat' ? 0.2 : 0.1,
     timeoutMs: resolveDossierGatewayTimeoutMs(),
+    maxRetries: 0,
   });
 }

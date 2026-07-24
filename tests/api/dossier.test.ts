@@ -122,6 +122,7 @@ describe('POST /api/dossier', () => {
     process.env.SUPABASE_ANON_KEY = 'anon-key';
     process.env.LITELLM_BASE_URL = 'https://litellm.internal';
     process.env.LITELLM_API_KEY = 'litellm-key';
+    process.env.LITELLM_DOSSIER_MODEL = 'scout-dossier-generate';
     process.env.LITELLM_MAX_RETRIES = '0';
   });
 
@@ -132,6 +133,8 @@ describe('POST /api/dossier', () => {
     delete process.env.SUPABASE_ANON_KEY;
     delete process.env.LITELLM_BASE_URL;
     delete process.env.LITELLM_API_KEY;
+    delete process.env.LITELLM_DOSSIER_MODEL;
+    delete process.env.LITELLM_DOSSIER_CHAT_MODEL;
     delete process.env.LITELLM_MAX_RETRIES;
     delete process.env.LITELLM_DOSSIER_TIMEOUT_MS;
   });
@@ -371,6 +374,36 @@ describe('POST /api/dossier', () => {
     expect(res.statusCode).toBe(200);
     expect(acquiredOwner).toMatch(/^[0-9a-f-]{36}$/);
     expect(acquiredOwner).not.toBe('client-controlled');
+  });
+
+  it('generate sem alias de modelo falha fechado antes do LiteLLM', async () => {
+    delete process.env.LITELLM_DOSSIER_MODEL;
+    let leaseOwner = '';
+    fetchMock.mockImplementation(async (url: string, init?: Parameters<typeof fetch>[1]) => {
+      if (url.endsWith('/auth/v1/user')) return successfulAuthResponse();
+      const rpc = rpcName(url);
+      if (rpc === 'get_own_dossier_run') return successfulRunResponse('PENDING');
+      if (rpc === 'acquire_dossier_run_lease') {
+        leaseOwner = JSON.parse(String(init?.body)).p_lease_owner;
+        return successfulRunResponse('RUNNING', {
+          lease_owner: leaseOwner,
+          lease_expires_at: new Date(Date.now() + 60_000).toISOString(),
+        });
+      }
+      if (rpc === 'release_dossier_run_lease') return successfulRunResponse('RUNNING');
+      throw new Error(`Unexpected fetch: ${url}`);
+    });
+    const req = new MockRequest();
+    req.body = generateBody();
+    const res = new MockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(res.statusCode).toBe(503);
+    expect(res.body).toMatchObject({
+      error: { code: 'GATEWAY_NOT_CONFIGURED', stage: 'gateway', retryable: false },
+    });
+    expect(fetchMock.mock.calls.some(([url]) => url === 'https://litellm.internal/chat/completions')).toBe(false);
   });
 
   it('heartbeat com cancelamento aborta o gateway, marca CANCELLED e não libera novamente', async () => {

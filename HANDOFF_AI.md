@@ -55,6 +55,18 @@ O waterfall atual mantém lease client-side e completa após persistir.
 A PR6 deverá definir um único proprietário da lease durante geração,
 persistência e complete_dossier_run antes de conectar a UI ao endpoint.
 
+LITELLM_DOSSIER_MODEL_SOURCE:
+alias lógico obrigatório configurado por env
+
+LITELLM_DOSSIER_APP_RETRIES:
+0
+
+LITELLM_PROXY_RETRIES_AND_FALLBACKS:
+desativados no primeiro cutover ou controlados exclusivamente no proxy
+
+TOOLS_FUNCTION_CALLING:
+reservado para PR5
+
 ## Próximo passo seguro
 
 Revisar o commit documental local e, somente com autorização futura, decidir push/abertura de PR e Preview G3. Antes do release, resolver isolamento Supabase e migration sem inferência.
