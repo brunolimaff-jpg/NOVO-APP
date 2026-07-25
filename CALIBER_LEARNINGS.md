@@ -483,6 +483,10 @@ Afeta: qualquer comando `gh api`ou`gh pr` com corpo gerado dinamicamente.
 
 <!-- caliber:managed:learnings -->
 
+- **Ausência de valor efetivo Vercel não prova isolamento Supabase** [vercel, supabase, auditoria, evidencia]
+  ID `prj_*` identifica projeto Vercel, não project ref Supabase. Sem comparar project refs extraídos dos valores efetivos por ambiente, usar `PREVIEW_DATABASE_ISOLATION: NÃO_VERIFICADO`; comentário de migration também não prova estado remoto.
+  Vault: `Projetos/NOVO-APP/Lições/vercel/vercel-env-sem-valor-nao-prova-isolamento-supabase.md`.
+
 _Atualizado automaticamente pelo Caliber apos sessoes de agente._
 
 <!-- /caliber:managed:learnings -->
