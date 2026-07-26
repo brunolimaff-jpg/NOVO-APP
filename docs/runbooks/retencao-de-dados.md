@@ -19,7 +19,7 @@
 **Ações sugeridas (PROPOSTA, não implementadas):**
 
 ```sql
--- dossier_runs (apenas Preview): 
+-- dossier_runs (apenas Preview):
 -- DELETE WHERE completed_at < now() - interval '90 days'
 --   AND status IN ('COMPLETED','FAILED','CANCELLED');
 
