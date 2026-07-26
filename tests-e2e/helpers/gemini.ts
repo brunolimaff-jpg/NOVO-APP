@@ -37,7 +37,7 @@ async function fulfillJson(route: Route, body: unknown, status = 200) {
 }
 
 async function stubGeminiApi(route: Route) {
-  let payload: GeminiRequestBody = {};
+  let payload: GeminiRequestBody;
   try {
     payload = route.request().postDataJSON() as GeminiRequestBody;
   } catch {
