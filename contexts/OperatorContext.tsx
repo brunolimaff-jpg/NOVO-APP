@@ -10,6 +10,12 @@ import React, {
 } from 'react';
 import { storageGet, storageRemove, storageSet } from '../utils/localStorage';
 import { storage } from '../services/storage';
+import {
+  markResolving,
+  setAuthenticatedOperatorId,
+  markResolutionError,
+  markGuest,
+} from '../services/storage/_shared';
 import { initSessionTracking, trackOperatorEvent, endOperatorSession } from '../services/operatorTracking';
 import { useMaybeAuth } from './AuthContext';
 import { supabase } from '../lib/supabaseClient';
@@ -53,6 +59,8 @@ interface OperatorContextType {
 const OPERATOR_NAME_KEY = 'operator_name';
 const OPERATOR_ID_KEY = 'operator_id';
 const OPERATOR_EMAIL_KEY = 'operator_email';
+export const OPERATOR_RESOLUTION_MAX_ATTEMPTS = 3;
+export const OPERATOR_RESOLUTION_RETRY_BASE_MS = 500;
 
 function generateOperatorId(): string {
   return `op_${crypto.randomUUID().replace(/-/g, '').slice(0, 16)}`;
@@ -213,6 +221,10 @@ export const OperatorProvider: React.FC<{ children: ReactNode }> = ({ children }
   const didTrackInFlightRef = useRef(false);
   const didBackfillInFlightRef = useRef(false);
   const operatorResolvedRef = useRef(false); // Ja resolveu operator_id do auth?
+  const resolvingAuthUserIdRef = useRef<string | null>(null);
+  const operatorResolutionAttemptRef = useRef(0);
+  const operatorResolutionRetryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [operatorResolutionRetry, setOperatorResolutionRetry] = useState(0);
 
   const setName = useCallback(
     (nextName: string) => {
@@ -250,12 +262,29 @@ export const OperatorProvider: React.FC<{ children: ReactNode }> = ({ children }
 
   const linkToExistingOperator = useCallback(
     (existingOperatorId: string, existingName: string, existingEmail: string) => {
+      // linkToExistingOperator pode ser chamado em dois contextos:
+      //   1. Fluxo autenticado (há authUser/JWT): a fonte canônica do operator_id
+      //      é profiles.operator_id; fazer sentido promover para 'authenticated'.
+      //   2. Fluxo guest (sem authUser): o ID foi resolvido apenas por email
+      //      (user_context), sem prova criptográfica de identidade. NÃO devemos
+      //      marcar como 'authenticated' — isso concederia falsamente o estado
+      //      de "ID canônico em memória" a uma sessão que ainda é guest.
+      //
+      // Em fluxo guest mantemos o ID no localStorage (comportamento legado) e
+      // NÃO chamamos setAuthenticatedOperatorId() — a máquina de identidade
+      // permanece em 'guest'.
       storageSet(OPERATOR_ID_KEY, existingOperatorId);
       storageSet(OPERATOR_NAME_KEY, existingName);
       storageSet(OPERATOR_EMAIL_KEY, existingEmail);
       setOperatorId(existingOperatorId);
       setOperatorName(existingName);
       setOperatorEmail(existingEmail);
+
+      // Somente promover para 'authenticated' quando há authUser/JWT.
+      // Em fluxo guest sem auth, o ID continua legado no localStorage.
+      if (authUser) {
+        setAuthenticatedOperatorId(existingOperatorId);
+      }
 
       // Sync to Supabase
       void storage
@@ -281,7 +310,7 @@ export const OperatorProvider: React.FC<{ children: ReactNode }> = ({ children }
       // Notificar sessoes para recarregar com o novo operatorId
       window.dispatchEvent(new CustomEvent('operator-relinked'));
     },
-    [],
+    [authUser],
   );
 
   const registerOperator = useCallback(
@@ -376,22 +405,100 @@ export const OperatorProvider: React.FC<{ children: ReactNode }> = ({ children }
   //   se nao acha → mantem localStorage (primeiro login, trigger ja criou profile)
   // ===================================================================
   useEffect(() => {
-    if (!authUser) {
+    const handleResolutionRetry = () => {
+      if (operatorResolutionRetryTimerRef.current) {
+        clearTimeout(operatorResolutionRetryTimerRef.current);
+        operatorResolutionRetryTimerRef.current = null;
+      }
+      operatorResolutionAttemptRef.current = 0;
       operatorResolvedRef.current = false;
+      setOperatorResolutionRetry(attempt => attempt + 1);
+    };
+    window.addEventListener('operator-resolution-retry', handleResolutionRetry);
+    return () => {
+      window.removeEventListener('operator-resolution-retry', handleResolutionRetry);
+      if (operatorResolutionRetryTimerRef.current) {
+        clearTimeout(operatorResolutionRetryTimerRef.current);
+        operatorResolutionRetryTimerRef.current = null;
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (authLoading) return;
+
+    if (!authUser) {
+      if (operatorResolutionRetryTimerRef.current) {
+        clearTimeout(operatorResolutionRetryTimerRef.current);
+        operatorResolutionRetryTimerRef.current = null;
+      }
+      operatorResolutionAttemptRef.current = 0;
+      operatorResolvedRef.current = false;
+      resolvingAuthUserIdRef.current = null;
+      markGuest();
       return;
     }
-    if (!authUser || operatorResolvedRef.current || authLoading) return;
+
+    if (resolvingAuthUserIdRef.current !== authUser.id) {
+      if (operatorResolutionRetryTimerRef.current) {
+        clearTimeout(operatorResolutionRetryTimerRef.current);
+        operatorResolutionRetryTimerRef.current = null;
+      }
+      resolvingAuthUserIdRef.current = authUser.id;
+      operatorResolvedRef.current = false;
+      operatorResolutionAttemptRef.current = 0;
+    }
+
+    if (operatorResolvedRef.current) return;
 
     operatorResolvedRef.current = true; // Sincrono — protege backfill effect abaixo
+    operatorResolutionAttemptRef.current += 1;
+
+    // MARCAR como 'resolving' SÍNCRONO antes da consulta assíncrona.
+    // Isso fecha a janela de identidade: getOperatorId() retorna null
+    // durante a resolução, impedindo escritas com ID temporário/stale.
+    markResolving();
+
     const abort = new AbortController();
+    const scheduleRetry = () => {
+      if (operatorResolutionAttemptRef.current >= OPERATOR_RESOLUTION_MAX_ATTEMPTS) return;
+
+      const expectedAuthUserId = authUser.id;
+      const delay = OPERATOR_RESOLUTION_RETRY_BASE_MS
+        * 2 ** (operatorResolutionAttemptRef.current - 1);
+
+      operatorResolutionRetryTimerRef.current = setTimeout(() => {
+        operatorResolutionRetryTimerRef.current = null;
+        if (resolvingAuthUserIdRef.current !== expectedAuthUserId) return;
+        operatorResolvedRef.current = false;
+        setOperatorResolutionRetry(attempt => attempt + 1);
+      }, delay);
+    };
 
     void (async () => {
       try {
         const resolved = await resolveOperatorFromAuth(authUser);
         if (abort.signal.aborted) return;
         if (!resolved) {
-          // Nao conseguiu resolver — mantem valores atuais do localStorage
+          // Resolução falhou para usuário autenticado:
+          // NÃO fazer fallback para ID legado do localStorage.
+          // Transitamos para o estado explícito 'error' em vez de voltar para
+          // 'guest' — isso impede que escritas usem o ID legado do localStorage
+          // e sinaliza o erro de forma detectável. getOperatorId() passa a
+          // retornar null (nunca o ID do localStorage).
+          markResolutionError();
+          scheduleRetry();
           return;
+        }
+
+        // DEFINIR ID autenticado canônico ANTES de liberar operações de storage.
+        // A partir deste ponto, getOperatorId() retorna exclusivamente este ID,
+        // ignorando localStorage como fonte de autorização.
+        setAuthenticatedOperatorId(resolved.operatorId);
+        operatorResolutionAttemptRef.current = 0;
+        if (operatorResolutionRetryTimerRef.current) {
+          clearTimeout(operatorResolutionRetryTimerRef.current);
+          operatorResolutionRetryTimerRef.current = null;
         }
 
         const currentOpId = operatorIdRef.current;
@@ -410,11 +517,6 @@ export const OperatorProvider: React.FC<{ children: ReactNode }> = ({ children }
         if (resolved.name && resolved.name !== nameRef.current) setOperatorName(resolved.name);
         if (resolved.email && resolved.email !== emailRef.current) setOperatorEmail(resolved.email);
 
-        // O storage layer (getOperatorId em _shared.ts) só lê do localStorage.
-        // Sem esta escrita, loadSessions() → getDossiers() → getOperatorId()
-        // retorna null após a resolução de auth e o sidebar fica vazio (PR #376).
-        storageSet(OPERATOR_ID_KEY, resolved.operatorId);
-
         if (abort.signal.aborted) return;
 
         // Persiste user_context com operator_id canonico (NUNCA com ID temporario)
@@ -428,14 +530,19 @@ export const OperatorProvider: React.FC<{ children: ReactNode }> = ({ children }
 
         if (abort.signal.aborted) return;
 
-        // Dispara relink se operator_id mudou (recarrega dossies etc.)
+        // Dispara SEMPRE o evento operator-relinked após resolução bem-sucedida,
+        // mesmo quando o ID resolvido é igual ao ID anterior. Isso garante que
+        // dossies/sidebar sejam recarregados após a transição 'resolving' ->
+        // 'authenticated': durante o 'resolving', getOperatorId() retornava null,
+        // então qualquer leitura feita no intervalo retornou vazio e precisa ser
+        // refeita agora que o ID canônico está disponível.
         // setTimeout(0) garante que child components ja registraram
         // seus listeners antes do evento disparar (race condition fix).
-        if (needsRelink) {
-          setTimeout(() => {
+        setTimeout(() => {
+          if (!abort.signal.aborted) {
             window.dispatchEvent(new CustomEvent('operator-relinked'));
-          }, 0);
-        }
+          }
+        }, 0);
 
         // Inicia tracking se ainda nao iniciado
         if (!didTrackAppOpenRef.current && !didTrackInFlightRef.current) {
@@ -451,11 +558,16 @@ export const OperatorProvider: React.FC<{ children: ReactNode }> = ({ children }
         }
       } catch (err) {
         warnOperator('[OperatorContext] operator resolution error:', err);
+        // Falha inesperada durante a resolução para usuário autenticado:
+        // transitar para 'error' (NÃO voltar para 'guest'), impedindo
+        // reutilização do ID legado do localStorage como fallback silencioso.
+        markResolutionError();
+        scheduleRetry();
       }
     })();
 
     return () => abort.abort();
-  }, [authUser?.id, authLoading]);
+  }, [authUser?.id, authLoading, operatorResolutionRetry]);
 
   // ===================================================================
   // Backfill — apenas para usuarios nao autenticados (guest)
@@ -521,11 +633,16 @@ export const OperatorProvider: React.FC<{ children: ReactNode }> = ({ children }
   // Limpa dados do operador ao fazer logout
   useEffect(() => {
     const handleSignedOut = () => {
+      // Limpar identidade autenticada imediatamente — impedir reutilização
+      // do ID anterior após logout (janela de identidade fechada).
+      markGuest();
+
       storageRemove(OPERATOR_ID_KEY);
       storageRemove(OPERATOR_NAME_KEY);
       storageRemove(OPERATOR_EMAIL_KEY);
       const nextGuestOperatorId = getOrCreateOperatorId();
       operatorResolvedRef.current = false;
+      resolvingAuthUserIdRef.current = null;
       didBackfillRef.current = false;
       didTrackAppOpenRef.current = false;
       setOperatorName('');

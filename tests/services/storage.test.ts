@@ -35,6 +35,7 @@ import { storage } from '../../services/storage';
 import { get, set } from 'idb-keyval';
 import { isSupabaseAvailable } from '../../lib/supabaseClient';
 import { Sender, type ChatSession } from '../../types';
+import { markGuest, setAuthenticatedOperatorId } from '../../services/storage/_shared';
 
 describe('storage (simplificado — Supabase direto)', () => {
   const mockSession: ChatSession = {
@@ -54,6 +55,7 @@ describe('storage (simplificado — Supabase direto)', () => {
     vi.clearAllMocks();
     localStorage.clear();
     localStorage.setItem('scout360:operator_id', 'op_test123');
+    setAuthenticatedOperatorId('op_test123');
     vi.mocked(isSupabaseAvailable).mockReturnValue(true);
   });
 
@@ -117,6 +119,7 @@ describe('storage (simplificado — Supabase direto)', () => {
 
     it('deve retornar array vazio se não houver operatorId', async () => {
       localStorage.removeItem('scout360:operator_id');
+      markGuest();
 
       const result = await storage.getDossiers();
 
@@ -177,6 +180,7 @@ describe('storage (simplificado — Supabase direto)', () => {
 
     it('deve retornar null se não houver operatorId', async () => {
       localStorage.removeItem('scout360:operator_id');
+      markGuest();
 
       const result = await storage.getDossier('session-1');
 
@@ -238,6 +242,7 @@ describe('storage (simplificado — Supabase direto)', () => {
 
     it('não deve fazer upsert se não houver operatorId', async () => {
       localStorage.removeItem('scout360:operator_id');
+      markGuest();
 
       await storage.saveDossier(mockSession);
 
@@ -272,6 +277,7 @@ describe('storage (simplificado — Supabase direto)', () => {
 
     it('não deve fazer upsert se não houver operatorId', async () => {
       localStorage.removeItem('scout360:operator_id');
+      markGuest();
 
       await storage.saveAllDossiers([mockSession]);
 
@@ -297,6 +303,7 @@ describe('storage (simplificado — Supabase direto)', () => {
 
     it('não deve fazer delete se não houver operatorId', async () => {
       localStorage.removeItem('scout360:operator_id');
+      markGuest();
 
       await storage.deleteDossier('session-1');
 
@@ -309,6 +316,16 @@ describe('storage (simplificado — Supabase direto)', () => {
   // ===================================================================
 
   describe('extract cache', () => {
+    it('guest salva no IDB sem tocar no Supabase protegido', async () => {
+      markGuest();
+      vi.mocked(set).mockResolvedValue(undefined);
+
+      await storage.saveExtractCache('guest-key', { data: 'local' });
+
+      expect(set).toHaveBeenCalledWith('ext-cache-guest-key', expect.any(Object));
+      expect(supabaseMock.from).not.toHaveBeenCalled();
+    });
+
     it('getExtractCache deve usar IDB', async () => {
       vi.mocked(get).mockResolvedValue({ result: 'cached', timestamp: Date.now() });
 
@@ -405,6 +422,17 @@ describe('storage (simplificado — Supabase direto)', () => {
   // ===================================================================
 
   describe('radar', () => {
+    it('guest não consulta nem escreve tabelas protegidas do radar', async () => {
+      markGuest();
+
+      await expect(storage.getRadarAlerts()).resolves.toEqual([]);
+      await expect(storage.getRadarConfig()).resolves.toBeNull();
+      await expect(storage.saveRadarAlerts([])).resolves.toBeUndefined();
+      await expect(storage.saveRadarConfig({ enabled: true })).resolves.toBeUndefined();
+
+      expect(supabaseMock.from).not.toHaveBeenCalled();
+    });
+
     it('getRadarAlerts deve buscar do Supabase', async () => {
       const mockAlerts = [{ id: 'alert-1', title: 'Test Alert' }];
       supabaseMock.maybeSingle.mockResolvedValue({

@@ -1,6 +1,7 @@
 import { scoutDiag } from '../utils/diagnosticLog';
 import { supabase, isSupabaseAvailable } from '../lib/supabaseClient';
 import type { FeedbackReason, FeedbackScope } from '../types';
+import { canUseProtectedRemoteStorage, getIdentityState } from './storage/_shared';
 
 export type FeedbackType = 'like' | 'dislike';
 
@@ -22,6 +23,22 @@ export interface RemoteFeedbackPayload {
 }
 
 export async function sendFeedbackRemote(entry: RemoteFeedbackPayload) {
+  if (getIdentityState() === 'guest') {
+    scoutDiag.info('Feedback', 'guest_local_only', {
+      sessionId: entry.sessionId,
+      messageId: entry.messageId,
+    });
+    return false;
+  }
+
+  if (!canUseProtectedRemoteStorage()) {
+    scoutDiag.error('Feedback', 'identidade autenticada não resolvida', {
+      sessionId: entry.sessionId,
+      messageId: entry.messageId,
+    });
+    return false;
+  }
+
   if (!isSupabaseAvailable() || !entry.userId) {
     scoutDiag.error('Feedback', 'Supabase indisponível ou userId ausente', {
       sessionId: entry.sessionId,

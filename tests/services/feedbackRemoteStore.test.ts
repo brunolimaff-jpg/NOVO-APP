@@ -25,6 +25,7 @@ vi.mock('../../lib/supabaseClient', () => ({
 }));
 
 import { sendFeedbackRemote, RemoteFeedbackPayload } from '../../services/feedbackRemoteStore';
+import { markGuest, setAuthenticatedOperatorId } from '../../services/storage/_shared';
 
 function makePayload(overrides: Partial<RemoteFeedbackPayload> = {}): RemoteFeedbackPayload {
   return {
@@ -46,8 +47,23 @@ function makePayload(overrides: Partial<RemoteFeedbackPayload> = {}): RemoteFeed
 describe('sendFeedbackRemote', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    setAuthenticatedOperatorId('user-123');
     isSupabaseAvailableMock.mockReturnValue(true);
     supabaseInsertMock.mockResolvedValue({ error: null });
+  });
+
+  it('guest não envia feedback para tabela protegida', async () => {
+    markGuest();
+
+    const result = await sendFeedbackRemote(makePayload());
+
+    expect(result).toBe(false);
+    expect(supabaseFromMock).not.toHaveBeenCalled();
+    expect(scoutDiagMock.info).toHaveBeenCalledWith(
+      'Feedback',
+      'guest_local_only',
+      expect.any(Object),
+    );
   });
 
   it('retorna true em caso de sucesso no Supabase', async () => {
