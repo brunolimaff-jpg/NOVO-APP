@@ -26,7 +26,11 @@
 
 import { describe, it, expect } from 'vitest';
 import { readFileSync, existsSync } from 'fs';
-import { resolve } from 'path';
+import { resolve, dirname } from 'path';
+import { fileURLToPath } from 'url';
+
+// ESM-safe: este repositório é "type": "module". __dirname não existe nativo.
+const __dirname = dirname(fileURLToPath(import.meta.url));
 
 const MIGRATION_PATH = resolve(
   __dirname,
@@ -109,9 +113,34 @@ describe('rlsSensitiveTablesHardening contract — remoção de policies legadas
 describe('rlsSensitiveTablesHardening contract — grants mínimos', () => {
   const sql = loadMigration();
 
-  it.each(SENSITIVE_TABLES)('revoga TODO acesso de anon em %s', table => {
-    const revokePattern = new RegExp(`REVOKE\\s+ALL\\s+ON\\s+TABLE\\s+public\\.${table}\\s+FROM\\s+anon`, 'i');
+  it.each(SENSITIVE_TABLES)('revoga TODO acesso de anon em %s (junto com PUBLIC e authenticated)', table => {
+    // A migration usa um único REVOKE consolidado: FROM PUBLIC, anon, authenticated.
+    // Verificamos a presença de anon na cláusula FROM do mesmo statement que
+    // também revoga de PUBLIC.
+    const revokePattern = new RegExp(
+      `REVOKE\\s+ALL\\s+ON\\s+TABLE\\s+public\\.${table}\\s+FROM\\s+PUBLIC\\s*,\\s*anon\\s*,\\s*authenticated`,
+      'i',
+    );
     expect(revokePattern.test(sql)).toBe(true);
+  });
+
+  it.each(SENSITIVE_TABLES)('revoga TODO acesso de PUBLIC em %s (herança de role)', table => {
+    // PUBLIC é herdado por TODAS as roles. Sem revoke explícito de PUBLIC,
+    // qualquer grant residual sobrevive às revogações de anon/authenticated.
+    const revokePublicPattern = new RegExp(
+      `REVOKE\\s+ALL\\s+ON\\s+TABLE\\s+public\\.${table}\\s+FROM\\s+PUBLIC`,
+      'i',
+    );
+    expect(revokePublicPattern.test(sql)).toBe(true);
+
+    // A cláusula FROM deve listar PUBLIC, anon e authenticated no mesmo REVOKE
+    // (ou pelo menos PUBLIC em conjunto). Aqui exigimos a forma canônica
+    // `FROM PUBLIC, anon, authenticated` para fixar a normalização.
+    const combinedRevokePattern = new RegExp(
+      `REVOKE\\s+ALL\\s+ON\\s+TABLE\\s+public\\.${table}\\s+FROM\\s+PUBLIC\\s*,\\s*anon\\s*,\\s*authenticated`,
+      'i',
+    );
+    expect(combinedRevokePattern.test(sql)).toBe(true);
   });
 
   it.each(SENSITIVE_TABLES)(
@@ -189,10 +218,32 @@ describe('rlsSensitiveTablesHardening contract — semântica fail-closed', () =
     },
   );
 
-  it('feedback_events NÃO tem policy UPDATE (write-once por design)', () => {
-    // Garante que não há CREATE POLICY ... FOR UPDATE em feedback_events.
-    const updateAbsentPattern = /CREATE\s+POLICY\s+\w*update\w*\s+ON\s+public\.feedback_events/i;
-    expect(updateAbsentPattern.test(sql)).toBe(false);
+  it('feedback_events NÃO tem policy UPDATE nem ALL (write-once por design)', () => {
+    // Detectar pela CLÁUSULA da policy, não pelo nome. Uma policy chamada
+    // "modify_feedback" com FOR UPDATE passaria pelo teste anterior baseado
+    // apenas em nome contendo "update". Aqui examinamos o escopo FOR.
+    const createdPolicies = Array.from(
+      sql.matchAll(/EXECUTE\s+\$sql\$\s*(CREATE\s+POLICY[\s\S]*?)\$sql\$/gi),
+      match => match[1],
+    );
+    const feedbackPolicies = createdPolicies.filter(p =>
+      /ON\s+public\.feedback_events/i.test(p),
+    );
+    expect(feedbackPolicies.length).toBeGreaterThan(0);
+    for (const policy of feedbackPolicies) {
+      // Cada policy de feedback_events deve ser FOR SELECT ou FOR INSERT.
+      const scopeMatch = policy.match(/\bFOR\s+(SELECT|INSERT|UPDATE|DELETE|ALL)\b/i);
+      expect(scopeMatch).not.toBeNull();
+      const scope = scopeMatch![1].toUpperCase();
+      expect(scope === 'UPDATE' || scope === 'ALL' || scope === 'DELETE').toBe(false);
+    }
+
+    // Sanity: nenhuma policy ON feedback_events pode declarar FOR UPDATE ou FOR ALL.
+    const feedbackUpdateOrAll = new RegExp(
+      `CREATE\\s+POLICY\\s+\\w+\\s+ON\\s+public\\.feedback_events[\\s\\S]*?\\bFOR\\s+(?:UPDATE|ALL)\\b`,
+      'i',
+    );
+    expect(feedbackUpdateOrAll.test(sql)).toBe(false);
   });
 
   it('dossies usa UPDATE com USING + WITH CHECK para suportar soft delete próprio', () => {

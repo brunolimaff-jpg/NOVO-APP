@@ -45,11 +45,15 @@ BEGIN
   -- Habilita RLS (idempotente).
   EXECUTE 'ALTER TABLE public.dossies ENABLE ROW LEVEL SECURITY';
 
-  -- Revoga TODO acesso de anon.
-  EXECUTE 'REVOKE ALL ON TABLE public.dossies FROM anon';
+  -- Revoga TODO acesso de PUBLIC, anon e authenticated antes de regrant mínimo.
+  -- PUBLIC precisa ser revogado explicitamente porque seus privilégios são
+  -- herdados por todas as roles — deixar PUBLIC com qualquer privilégio abriria
+  -- rota de bypass das revogações acima. Esta migration é fail-closed: cada
+  -- bloco normaliza a própria superfície de privilégios sem depender de
+  -- migration anterior.
+  EXECUTE 'REVOKE ALL ON TABLE public.dossies FROM PUBLIC, anon, authenticated';
 
   -- Concede apenas o necessário para authenticated (sem DELETE/TRUNCATE).
-  EXECUTE 'REVOKE ALL ON TABLE public.dossies FROM authenticated';
   EXECUTE 'GRANT SELECT, INSERT, UPDATE ON TABLE public.dossies TO authenticated';
 
   -- Remove qualquer policy residual antes de recriar o conjunto canônico.
@@ -131,9 +135,9 @@ BEGIN
 
   EXECUTE 'ALTER TABLE public.extract_cache ENABLE ROW LEVEL SECURITY';
 
-  EXECUTE 'REVOKE ALL ON TABLE public.extract_cache FROM anon';
+  -- Revoga TODO acesso de PUBLIC, anon e authenticated antes do regrant mínimo.
+  EXECUTE 'REVOKE ALL ON TABLE public.extract_cache FROM PUBLIC, anon, authenticated';
 
-  EXECUTE 'REVOKE ALL ON TABLE public.extract_cache FROM authenticated';
   EXECUTE 'GRANT SELECT, INSERT, UPDATE ON TABLE public.extract_cache TO authenticated';
 
   FOR policy_record IN
@@ -213,9 +217,9 @@ BEGIN
 
   EXECUTE 'ALTER TABLE public.feedback_events ENABLE ROW LEVEL SECURITY';
 
-  EXECUTE 'REVOKE ALL ON TABLE public.feedback_events FROM anon';
+  -- Revoga TODO acesso de PUBLIC, anon e authenticated antes do regrant mínimo.
+  EXECUTE 'REVOKE ALL ON TABLE public.feedback_events FROM PUBLIC, anon, authenticated';
 
-  EXECUTE 'REVOKE ALL ON TABLE public.feedback_events FROM authenticated';
   EXECUTE 'GRANT SELECT, INSERT ON TABLE public.feedback_events TO authenticated';
 
   FOR policy_record IN
