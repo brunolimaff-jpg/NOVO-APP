@@ -204,3 +204,24 @@ jobs:
         run: ruby scripts/test-runtime-safety.rb
       - name: Run DCG live readiness tests
         run: ruby scripts/test-dcg-live-readiness.rb
+
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@60edb5dd545a775178f52524783378180af0d1f8 # v4.0.2
+        with:
+          node-version-file: '.nvmrc'
+          cache: npm
+      - name: Fix npm version
+        run: |
+          npm install --global npm@11.11.0
+          test "$(node --version)" = "v24.14.1"
+          test "$(npm --version)" = "11.11.0"
+          node --version
+          npm --version
+      - run: npm ci
+      - run: npm run lint
