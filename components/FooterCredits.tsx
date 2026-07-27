@@ -1,5 +1,6 @@
+import { SUPPORT_CONTACT_URL, SUPPORT_CONTACT_LABEL } from '../constants/support';
+
 const currentYear = new Date().getFullYear();
-const TEAMS_SUPPORT_URL = 'https://teams.microsoft.com/l/chat/0/0?users=bruno.ferreira@senior.com.br';
 
 export default function FooterCredits() {
   return (
@@ -8,12 +9,12 @@ export default function FooterCredits() {
         <p className="flex flex-wrap items-center justify-center gap-x-1 gap-y-0.5 md:justify-end">
           <span>Ajuda e Suporte:</span>
           <a
-            href={TEAMS_SUPPORT_URL}
+            href={SUPPORT_CONTACT_URL}
             target="_blank"
             rel="noopener noreferrer"
             className="font-medium text-gray-500 transition-colors hover:text-gray-700 hover:underline dark:text-gray-400 dark:hover:text-gray-200"
           >
-            bruno.ferreira
+            {SUPPORT_CONTACT_LABEL}
           </a>
           <span aria-hidden="true" className="text-gray-300 dark:text-gray-600">
             ·

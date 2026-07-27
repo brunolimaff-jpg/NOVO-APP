@@ -22,6 +22,7 @@ vi.mock('../../contexts/AuthContext', () => ({
 }));
 
 import { AuthModal } from '../../components/AuthModal';
+import { SUPPORT_CONTACT_URL, SUPPORT_CONTACT_LABEL, PASSWORD_RECOVERY_SUPPORT_TEXT } from '../../constants/support';
 
 function renderModal(showGuestOption = true) {
   const onClose = vi.fn();
@@ -183,5 +184,80 @@ describe('AuthModal', () => {
     // O input de email deve ter o valor do storage
     const emailInput = screen.getByPlaceholderText('seu@email.com') as HTMLInputElement;
     expect(emailInput.value).toBe('returning@agro.com');
+  });
+
+  // ============================================================
+  // Recuperação de senha — orientação de contato (sem e-mail)
+  // ============================================================
+
+  describe('Esqueci minha senha — orientação de contato', () => {
+    it('clicar em "Esqueci minha senha" abre a orientação de contato', async () => {
+      renderModal(true);
+
+      // Modal abre em criar-conta; mudar para entrar para ver o botão
+      const entrarButtons = screen.getAllByText('Entrar');
+      fireEvent.click(entrarButtons[0]);
+
+      fireEvent.click(screen.getByText('Esqueci minha senha'));
+
+      expect(screen.getByText(PASSWORD_RECOVERY_SUPPORT_TEXT)).toBeInTheDocument();
+    });
+
+    it('não exibe campo de email no modo recuperação', () => {
+      renderModal(true);
+
+      const entrarButtons = screen.getAllByText('Entrar');
+      fireEvent.click(entrarButtons[0]);
+      fireEvent.click(screen.getByText('Esqueci minha senha'));
+
+      expect(screen.queryByPlaceholderText('seu@email.com')).not.toBeInTheDocument();
+    });
+
+    it('não exibe botão de envio de link de recuperação', () => {
+      renderModal(true);
+
+      const entrarButtons = screen.getAllByText('Entrar');
+      fireEvent.click(entrarButtons[0]);
+      fireEvent.click(screen.getByText('Esqueci minha senha'));
+
+      expect(screen.queryByRole('button', { name: /Enviar Link/i })).not.toBeInTheDocument();
+    });
+
+    it('resetPassword permanece com zero chamadas', () => {
+      renderModal(true);
+
+      const entrarButtons = screen.getAllByText('Entrar');
+      fireEvent.click(entrarButtons[0]);
+      fireEvent.click(screen.getByText('Esqueci minha senha'));
+
+      expect(resetPasswordMock).not.toHaveBeenCalled();
+    });
+
+    it('link de contato usa SUPPORT_CONTACT_URL e SUPPORT_CONTACT_LABEL', () => {
+      renderModal(true);
+
+      const entrarButtons = screen.getAllByText('Entrar');
+      fireEvent.click(entrarButtons[0]);
+      fireEvent.click(screen.getByText('Esqueci minha senha'));
+
+      const contactLink = screen.getByRole('link', { name: new RegExp(SUPPORT_CONTACT_LABEL) });
+      expect(contactLink).toHaveAttribute('href', SUPPORT_CONTACT_URL);
+      expect(contactLink).toHaveAttribute('target', '_blank');
+      expect(contactLink).toHaveAttribute('rel', 'noopener noreferrer');
+    });
+
+    it('Voltar ao login restaura a tela de entrada', () => {
+      renderModal(true);
+
+      const entrarButtons = screen.getAllByText('Entrar');
+      fireEvent.click(entrarButtons[0]);
+      fireEvent.click(screen.getByText('Esqueci minha senha'));
+
+      fireEvent.click(screen.getByText('← Voltar ao login'));
+
+      // Tela de login visível novamente
+      expect(screen.getByPlaceholderText('Sua senha')).toBeInTheDocument();
+      expect(screen.queryByText(PASSWORD_RECOVERY_SUPPORT_TEXT)).not.toBeInTheDocument();
+    });
   });
 });
