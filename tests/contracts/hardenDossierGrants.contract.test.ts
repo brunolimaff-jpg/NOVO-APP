@@ -31,8 +31,9 @@ describe('harden_dossier_grants contract', () => {
     expect(sql).not.toMatch(/GRANT\s+UPDATE\s+ON\s+TABLE\s+public\.profiles/i);
   });
 
-  it('deve revogar execucao de handle_new_user() para PUBLIC, anon e authenticated', () => {
+  it('deve revogar execucao de handle_new_user() para PUBLIC, anon e authenticated e conceder explicitamente a service_role', () => {
     expect(sql).toContain('REVOKE ALL ON FUNCTION public.handle_new_user() FROM PUBLIC, anon, authenticated;');
+    expect(sql).toContain('GRANT EXECUTE ON FUNCTION public.handle_new_user() TO service_role;');
     expect(sql).not.toMatch(/GRANT EXECUTE ON FUNCTION public\.handle_new_user\(\) TO (authenticated|anon|PUBLIC)/i);
   });
 
