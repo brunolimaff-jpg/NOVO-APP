@@ -29,12 +29,12 @@ describe('supabaseMigrationChain contract', () => {
     expect(files[0]).toBe('20260501000000_production_schema_baseline.sql');
   });
 
-  it('devem existir exatamente 20 arquivos de migration ativos no total (1 baseline + 18 marcadores + 1 harden_grants)', () => {
-    expect(files.length).toBe(20);
+  it('devem existir exatamente 21 arquivos de migration ativos no total (1 baseline + 18 marcadores + 1 harden_dossier_grants + 1 harden_legacy_operator_linking)', () => {
+    expect(files.length).toBe(21);
   });
 
   it('todos os 18 marcadores de producao devem conter apenas comentarios e whitespace (no-op)', () => {
-    const markers = files.filter(f => !f.includes('production_schema_baseline') && !f.includes('harden_dossier_grants'));
+    const markers = files.filter(f => !f.includes('production_schema_baseline') && !f.includes('harden_dossier_grants') && !f.includes('harden_legacy_operator_linking'));
     expect(markers.length).toBe(18);
 
     markers.forEach(m => {
@@ -47,11 +47,15 @@ describe('supabaseMigrationChain contract', () => {
     });
   });
 
-  it('o hardening de grants deve ser posterior a 20260727224304', () => {
-    const hardenFile = files.find(f => f.includes('harden_dossier_grants'));
-    expect(hardenFile).toBeDefined();
-    const timestamp = hardenFile!.split('_')[0];
-    expect(timestamp > '20260727224304').toBe(true);
+  it('o hardening de grants e o hardening de identity devem ser posteriores a 20260727224304', () => {
+    const hardenGrants = files.find(f => f.includes('harden_dossier_grants'));
+    const hardenIdentity = files.find(f => f.includes('harden_legacy_operator_linking'));
+
+    expect(hardenGrants).toBeDefined();
+    expect(hardenIdentity).toBeDefined();
+
+    expect(hardenGrants!.split('_')[0] > '20260727224304').toBe(true);
+    expect(hardenIdentity!.split('_')[0] > '20260727224304').toBe(true);
   });
 
   it('nenhum arquivo arquivado em migrations_legacy com formato desatualizado deve estar no diretorio ativo', () => {

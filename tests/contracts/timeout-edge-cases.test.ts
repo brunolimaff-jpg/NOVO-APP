@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { buildTimeoutError, runWithStepTimeout } from '../../services/llm/runtime';
+import { buildTimeoutError, runWithStepTimeout } from '../../services/gemini/runtime';
 
 async function delay(ms: number, shouldThrow = false): Promise<string> {
   return new Promise((resolve, reject) => {

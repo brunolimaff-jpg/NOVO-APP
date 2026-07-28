@@ -1,6 +1,6 @@
 // tests/contracts/supabaseMigrations.contract.test.ts
-// Adapted for canonical baseline migration chain (1 baseline + 18 no-op markers + 1 harden_grants)
-// All original behavioral guarantees are preserved.
+// Adapted for canonical baseline migration chain (1 baseline + 18 no-op markers + 1 harden_grants + 1 harden_legacy_operator)
+// All original behavioral guarantees are preserved across the full migration chain.
 import { describe, it, expect } from 'vitest';
 import { readdirSync, readFileSync, existsSync } from 'fs';
 import { resolve } from 'path';
@@ -30,9 +30,9 @@ describe('supabaseMigrations contract — estrutura', () => {
     expect(existsSync(MIGRATIONS_DIR)).toBe(true);
   });
 
-  it('contém exatamente 20 arquivos .sql (1 baseline + 18 marcadores + 1 harden_grants)', () => {
+  it('contém exatamente 21 arquivos .sql (1 baseline + 18 marcadores + 1 harden_dossier_grants + 1 harden_legacy_operator_linking)', () => {
     const files = readdirSync(MIGRATIONS_DIR).filter(f => f.endsWith('.sql'));
-    expect(files.length).toBe(20);
+    expect(files.length).toBe(21);
   });
 
   it('baseline é o primeiro arquivo e existe', () => {
@@ -93,12 +93,10 @@ describe('supabaseMigrations contract — tabelas críticas documentadas', () =>
   });
 });
 
-describe('supabaseMigrations contract — auth remediation (Phase 2-4)', () => {
+describe('supabaseMigrations contract — auth remediation & least privilege', () => {
   const allContent = getAllContent();
 
-  it('profiles.operator_id imutavel para authenticated via column grant (harden grants)', () => {
-    // After harden_grants: REVOKE ALL ON TABLE public.profiles FROM PUBLIC, anon, authenticated
-    // and GRANT UPDATE (name) ON TABLE public.profiles TO authenticated
+  it('profiles.operator_id imutável para authenticated via column grant', () => {
     const revokeMatch = allContent.match(/REVOKE\s+ALL\s+ON\s+TABLE\s+(?:")?public(?:")?\.(?:")?profiles(?:")?\s+FROM\s+PUBLIC/i);
     const grantNameMatch = allContent.match(
       /GRANT\s+UPDATE\s*\(\s*(?:")?name(?:")?\s*\)\s+ON\s+(?:TABLE\s+)?(?:")?public(?:")?\.(?:")?profiles(?:")?\s+TO\s+(?:")?authenticated(?:")?/i,
@@ -108,29 +106,51 @@ describe('supabaseMigrations contract — auth remediation (Phase 2-4)', () => {
     expect(grantNameMatch).not.toBeNull();
   });
 
-  it('get_expired_unconfirmed_users function exists with SECURITY DEFINER', () => {
-    expect(allContent).toContain('get_expired_unconfirmed_users');
-    expect(allContent).toContain('SECURITY DEFINER');
+  it('get_expired_unconfirmed_users executável por service_role com revogação pública', () => {
+    const revokePublic = allContent.match(
+      /REVOKE\s+(?:ALL|EXECUTE)\s+ON\s+FUNCTION\s+(?:")?public(?:")?\.(?:")?get_expired_unconfirmed_users(?:")?(?:\([^)]*\))?\s+FROM\s+PUBLIC/i,
+    );
+    const grantSr = allContent.match(
+      /GRANT\s+(?:ALL|EXECUTE)\s+ON\s+FUNCTION\s+(?:")?public(?:")?\.(?:")?get_expired_unconfirmed_users(?:")?(?:\([^)]*\))?\s+TO\s+(?:")?service_role(?:")?/i,
+    );
+    const grantAnon = allContent.match(
+      /GRANT\s+(?:ALL|EXECUTE)\s+ON\s+FUNCTION\s+(?:")?public(?:")?\.(?:")?get_expired_unconfirmed_users(?:")?(?:\([^)]*\))?\s+TO\s+(?:")?anon(?:")?/i,
+    );
+    const grantAuth = allContent.match(
+      /GRANT\s+(?:ALL|EXECUTE)\s+ON\s+FUNCTION\s+(?:")?public(?:")?\.(?:")?get_expired_unconfirmed_users(?:")?(?:\([^)]*\))?\s+TO\s+(?:")?authenticated(?:")?/i,
+    );
+
+    expect(revokePublic).not.toBeNull();
+    expect(grantSr).not.toBeNull();
+    expect(grantAnon).toBeNull();
+    expect(grantAuth).toBeNull();
   });
 
-  it('baseline contem coluna supabase_auth_id em user_context', () => {
+  it('baseline contém colunas supabase_auth_id e auth_provider em user_context', () => {
     expect(allContent).toContain('supabase_auth_id');
-  });
-
-  it('baseline contem coluna auth_provider em user_context', () => {
     expect(allContent).toContain('auth_provider');
   });
 
-  it('link_legacy_operator RPC existe e e SECURITY DEFINER', () => {
+  it('link_legacy_operator RPC existe e é SECURITY DEFINER com search_path limpo', () => {
     expect(allContent).toContain('link_legacy_operator');
     expect(allContent).toContain('SECURITY DEFINER');
+    expect(allContent).toMatch(/SET\s+"?search_path"?\s+(TO\s+|=)\s*''/i);
   });
 
-  it('link_legacy_operator exige autenticacao e nao aceita claim sem prova', () => {
-    // The dump includes the full function body with auth.uid() checks
-    expect(allContent).toContain('link_legacy_operator');
-    expect(allContent).toContain('auth.uid()');
+  it('link_legacy_operator exige ownership, email obrigatório, email de perfil e validação em user_context', () => {
     expect(allContent).toContain('You can only link your own account');
+    expect(allContent).toContain('Email is required to link legacy operator');
+    expect(allContent).toContain('Email does not match authenticated profile');
+    expect(allContent).toContain('Operator ID does not match authenticated email');
+  });
+
+  it('link_legacy_operator tem ACL restrita a apenas authenticated', () => {
+    const hardenFile = readFileSync(resolve(MIGRATIONS_DIR, '20260728180000_harden_legacy_operator_linking.sql'), 'utf-8');
+
+    expect(hardenFile).toContain('REVOKE ALL ON FUNCTION public.link_legacy_operator(UUID, TEXT, TEXT, TEXT) FROM PUBLIC');
+    expect(hardenFile).toContain('REVOKE ALL ON FUNCTION public.link_legacy_operator(UUID, TEXT, TEXT, TEXT) FROM anon');
+    expect(hardenFile).toContain('REVOKE ALL ON FUNCTION public.link_legacy_operator(UUID, TEXT, TEXT, TEXT) FROM service_role');
+    expect(hardenFile).toContain('GRANT EXECUTE ON FUNCTION public.link_legacy_operator(UUID, TEXT, TEXT, TEXT) TO authenticated');
   });
 
   it('auth storage policies permitem contexto proprio sem confiar em localStorage', () => {
@@ -168,7 +188,7 @@ describe('supabaseMigrations contract — dossier run lifecycle', () => {
 
   it('lifecycle permanece SECURITY DEFINER, auth.uid e sem acesso anon', () => {
     expect(allContent).toContain('SECURITY DEFINER');
-    expect(allContent).toMatch(/SET\s+"?search_path"?\s+(TO\s+)?''/);
+    expect(allContent).toMatch(/SET\s+"?search_path"?\s+(TO\s+|=)\s*''/i);
     expect(allContent).toContain('owner_id = auth.uid()');
     expect(allContent).toContain('REVOKE ALL ON TABLE public.dossier_runs FROM PUBLIC, anon');
     expect(allContent).toContain('TO authenticated');
@@ -202,22 +222,21 @@ describe('supabaseMigrations contract — baseline integrity (PR #464)', () => {
     expect(invalidFrom).toBeNull();
   });
 
-  it('nenhum objeto de extensao pg_trgm e recriado como LANGUAGE c', () => {
+  it('nenhum objeto de extensão pg_trgm é recriado como LANGUAGE c', () => {
     expect(allContent).not.toMatch(/LANGUAGE\s+c\b/i);
   });
 
-  it('baseline nao cria auth.users nem substitui auth.uid()', () => {
+  it('baseline não cria auth.users nem substitui auth.uid()', () => {
     expect(allContent).not.toMatch(/CREATE\s+TABLE\s+(?:")?auth(?:")?\.(?:")?users(?:")?/i);
     expect(allContent).not.toMatch(/CREATE\s+SCHEMA\s+(?:")?auth(?:")?/i);
-    // auth.uid() references in functions/policies are expected and fine
   });
 
-  it('trigger on_auth_user_created esta presente', () => {
+  it('trigger on_auth_user_created está presente', () => {
     expect(allContent).toContain('on_auth_user_created');
     expect(allContent).toContain('handle_new_user');
   });
 
-  it('extensao pg_trgm esta declarada canonicamente', () => {
+  it('extensão pg_trgm está declarada canonicamente', () => {
     expect(allContent).toContain('pg_trgm');
   });
 });
