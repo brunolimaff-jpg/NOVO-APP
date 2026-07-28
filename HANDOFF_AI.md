@@ -1,81 +1,51 @@
-# Handoff — estabilização do dossiê e migração LiteLLM
+# HANDOFF AI — Baseline Canônico de Migrações Supabase & Hardening (PR #464)
 
-> Atualizado: 2026-07-24
-> Checkpoint canônico: `docs/checkpoints/2026-07-24-pr4-code-gate-e-preview-isolado.md`
-> Head funcional da PR4 antes deste commit documental: `5807e630a3134b321847b900293b6b59f4622868`
+> Atualizado: 2026-07-28  
+> Projeto: **NOVO-APP**  
+> Branch Ativa: `fix/canonical-supabase-migration-baseline`  
+> PR Ativa: **#464** (Draft, Mergeável, Base `main`)  
+> HEAD Commit SHA: `a8a07919a606969fc34c7daee4ec41ca72f48b57`  
+> Vault Narrative: [[2026-07-28T17-25-00-fix-canonical-supabase-migration-baseline|Nota de Handoff no Bruno Vault]]
 
-## Estado das PRs
+---
 
-- PR1 `#448`: mergeada.
-- PR2 `#449`: concluída.
-- PR3 `#450`: branch `codex/dossie-pr3-lifecycle`, head `3b929f7b4d2be01e9b9c1d33e753599b96f98355`.
-- PR3: code gate **APROVADO**; release gate **BLOQUEADO**.
-- PR4 `#451`: branch `codex/dossie-pr4-gateway`, base `codex/dossie-pr3-lifecycle`.
-- PR4: **DRAFT**, mergeável, code gate **APROVADO**.
+## 1. Estado da PR #464 & Migrações
 
-## Preview e isolamento
+- **Objetivo:** Substituir a cadeia de migrações corrompida por um baseline canônico nativo do schema de Produção e aplicar o hardening de privilégios e identidade (least privilege).
+- **Status:** **CONCLUÍDO / AGUARDANDO AUTORIZAÇÃO DO ORQUESTRADOR**
+- **Cadeia de Migrações (21 arquivos ativos com timestamps de 14 dígitos):**
+  - `20260501000000_production_schema_baseline.sql`: Dump nativo PG 17 do schema `public` de Produção (`vmqfcaoirjcfucvlnpig`). Sem objetos do schema `auth`, sem `auth.users`, sem `auth.uid()`, e com extensões canônicas (`pg_trgm`, `pgcrypto`, `uuid-ossp`).
+  - **18 Marcadores no-op de Produção:** Preservam os timestamps canônicos de Produção sem executar DDL redundante.
+  - `20260728173731_harden_dossier_grants.sql`: Restringe privilégios em `dossier_runs`, `dossies`, `profiles` e `handle_new_user()` para o princípio do menor privilégio.
+  - `20260728180000_harden_legacy_operator_linking.sql`: Hardening da RPC `link_legacy_operator` (exige `auth.uid()` igual a `p_auth_user_id`, e-mail obrigatório e correspondente ao perfil autenticado e ao `user_context`, `SECURITY DEFINER`, `search_path = ''` e ACL restrita a `authenticated`).
 
-- Preview da PR4: **READY**, commit `5807e630a3134b321847b900293b6b59f4622868`, match confirmado.
-- Build Output remoto: **10 Functions**; deployment originado por Git, sem deploy manual.
-- Produção Supabase: `vmqf…npig`, sem alteração.
-- Preview Supabase: `scoutagro-preview`, ref `xlvs…owec`, organização `brunolimaff-jpg's Org`, região `sa-east-1`.
-- Projeto Preview: custo registrado de `0 por mês`, status `ACTIVE_HEALTHY`.
-- `PREVIEW_DATABASE_ISOLATION`: **CONFIRMADO**.
-- Envs Preview configurados: `SUPABASE_URL`, `VITE_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_URL`, `SUPABASE_ANON_KEY`, `VITE_SUPABASE_ANON_KEY`.
-- LiteLLM Preview: base URL, API key e alias geral presentes; alias de chat ausente e opcional.
-- Os envs ainda exigem um novo deployment Preview para entrarem em vigor.
+---
 
-## Code gate da PR4
+## 2. Validação & Garantias de Qualidade
 
-- Auth Supabase obrigatória e ownership server-side; cliente não escolhe proprietário, provider, modelo, base URL ou chave.
-- Generate/chat vinculados a `runId`, `dossierId` e `operator_id`; contexto carregado server-side e acesso entre operadores bloqueado.
-- Limites de contexto/payload, lease server-side, heartbeat fail-closed e cancelamento cooperativo.
-- Finalização/recuperação de cancelamento e descarte de resposta após cancelamento tardio ou perda de lease.
-- `AbortSignal` chega ao fetch; timeout aborta a chamada física.
-- Erros estáveis e logs correlacionados sem conteúdo sensível.
-- Alias lógico LiteLLM obrigatório; nenhum modelo físico hardcoded.
-- Gateway do dossiê com zero retry; retry legado preservado; nenhuma tool/function calling.
-- Baseline registrada: **65 testes focados**, build passando e zero erro novo de typecheck nos arquivos da PR4.
+- **Paridade de Catálogo:** 15 categorias de catálogo comparadas individualmente contra Produção (incluindo `pg_get_constraintdef` para 37/37 constraints, `pg_get_functiondef`, RLS, views, triggers e grants).  
+  `PRODUCTION_BASELINE_CATALOG_DIFF: ZERO`.
+- **Replay Local & `db push`:**
+  - `BASELINE_PSQL_EXIT_CODE: 0` (Replay estrito com `-v ON_ERROR_STOP=1` em PostgreSQL 17 local).
+  - `FULL_CHAIN_PUSH_EXIT_CODE: 0` (`npx supabase db push` registrou 21 migrações limpas).
+- **Testes PostgreSQL Runtime:**
+  - `scripts/test_harden_dossier_grants.sql`: Todos os asserts passaram.
+  - `scripts/test_harden_identity.sql`: 11/11 asserts de segurança e negação de UPDATE direto de `operator_id` passaram.
+- **Suíte Vitest Contratos:** 61/61 asserções de contrato de migração aprovadas em `tests/contracts/`.
+- **Gates Estáticos:** `git diff --check` zerado; `npm run lint` zerado (0 erros).
 
-## Decisões
+---
 
-```text
-LITELLM_DOSSIER_MODEL_SOURCE: alias lógico obrigatório configurado por env
-LITELLM_DOSSIER_APP_RETRIES: 0
-LITELLM_PROXY_RETRIES_AND_FALLBACKS: desativados no primeiro cutover ou controlados exclusivamente no proxy
-TOOLS_FUNCTION_CALLING: reservado para PR5
-BRAVE_AND_EVIDENCEPACK: PR5
-WATERFALL_PERSISTENCE_UI_CUTOVER: PR6
-```
+## 3. Restrições Estritas
 
-```text
-HEARTBEAT_TRANSIENT_TOLERANCE: REJEITADA NA PR4
-MOTIVO: a execução permanece fail-closed quando a posse válida da lease não pode ser comprovada.
-FOLLOW_UP: pode ser reavaliada posteriormente com evidência operacional, sem bloquear a PR4.
-```
+- NÃO aplicar migrações remotamente em Preview ou Produção.
+- NÃO executar `migration repair` nem `db push` remoto.
+- NÃO alterar a PR #456.
+- NÃO fazer force push.
+- NÃO marcar Ready e NÃO fazer merge sem palavra-chave `MERGE` e autorização do orquestrador.
 
-## Bloqueios e pendências
+---
 
-- Migration da PR3 no Preview: **NÃO APLICADA**.
-- SQL, RPC/RLS, usuário/run controlados e smoke autenticado: **NÃO EXECUTADOS**.
-- Usuário e run autorizados para teste: **NÃO_VERIFICADOS**.
-- Categorias amplas preexistentes: Tests, Typecheck, Dossier Golden e E2E Critical Browser.
-- Elas não são novos bloqueadores da PR4: já existiam na baseline; build e testes focados da PR4 passaram.
+## 4. Próxima Ação
 
-PR6_INTEGRATION_BLOCKER:
-
-O endpoint generate adquire e libera uma lease server-side.
-O waterfall atual mantém lease client-side e completa após persistir.
-
-A PR6 deverá definir um único proprietário da lease durante:
-- geração;
-- persistência;
-- complete_dossier_run;
-- tratamento de falha;
-- cancelamento.
-
-Isso deve ser resolvido antes de conectar a UI ao novo endpoint.
-
-## Próxima ação
-
-Gerar novo deployment Preview mediante autorização; confirmar Preview em `xlvs…owec` e Produção em `vmqf…npig`. Só depois autorizar migration da PR3 no Preview, validar RPC/RLS e executar smoke autenticado controlado. Não iniciar PR5/PR6, não marcar ready e não fazer merge antes dos gates correspondentes.
+Aguardar a validação final do orquestrador Bruno. Se autorizada com a instrução contendo a palavra `MERGE`, marcar a PR #464 como Ready e realizar o squash merge na `main`.
