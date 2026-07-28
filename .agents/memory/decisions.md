@@ -1,5 +1,10 @@
 # decisions.md — NOVO-APP
 
+## DI-2026-07-28-01: Baseline de Produção em dump nativo PG 17 e paridade exata de catálogo (37/37 constraints)
+
+- **Decisão:** O baseline canônico de migrações do schema `public` deve ser extraído via `pg_dump` 17.10 nativo a partir do servidor PostgreSQL 17.6 de Produção (`vmqfcaoirjcfucvlnpig`), sem modificar ou criar objetos no schema `auth` (`auth.users`, `auth.uid()`). A paridade de catálogo deve ser validada contra Produção em 15 categorias distintas (incluindo `pg_get_constraintdef` para todas as 37 constraints de Produção, `pg_get_functiondef`, RLS, views, triggers e grants), exigindo `PRODUCTION_BASELINE_CATALOG_DIFF: ZERO`. Migrações subsequentes de hardening (`harden_dossier_grants` e `harden_legacy_operator_linking`) aplicam o menor privilégio e proteções estritas de identidade via `SECURITY DEFINER` e validações de `auth.uid()`.
+- **Referência:** PR #464 (`fix/canonical-supabase-migration-baseline`), Bruno Vault [[2026-07-28T17-25-00-fix-canonical-supabase-migration-baseline]].
+
 ## DI-2026-07-20-01: Primeiro ciclo restrito ao dossiê
 
 - **Decisão:** O ciclo inicial mantém somente o fluxo de pesquisa, geração, persistência, renderização e acompanhamento contextual do dossiê. Radar, War Room, benchmark independente e ferramentas laterais ficam explicitamente indisponíveis, sem execução oculta.

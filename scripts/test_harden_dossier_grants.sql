@@ -67,10 +67,10 @@ GRANT EXECUTE ON FUNCTION public.handle_new_user() TO PUBLIC, anon, authenticate
 REVOKE EXECUTE ON FUNCTION public.handle_new_user() FROM service_role;
 
 -- 5. Primeira Aplicacao da Migration
-\i supabase/migrations/20260724000000_harden_dossier_grants.sql
+\i supabase/migrations/20260728173731_harden_dossier_grants.sql
 
 -- 6. Segunda Aplicacao da Migration (Provar Idempotencia)
-\i supabase/migrations/20260724000000_harden_dossier_grants.sql
+\i supabase/migrations/20260728173731_harden_dossier_grants.sql
 
 -- 7. Asserts Obrigatorios
 DO $$
@@ -181,6 +181,7 @@ BEGIN
 
   -- H. Testes de Execução Real como role `authenticated`
   RESET ROLE;
+  INSERT INTO auth.users (id) VALUES (v_profile_id);
   INSERT INTO public.profiles (id, operator_id, email, name) VALUES (v_profile_id, 'op_123', 'test@example.com', 'Nome Antigo');
   SET LOCAL ROLE authenticated;
 

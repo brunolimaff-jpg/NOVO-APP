@@ -3,7 +3,9 @@ import * as fs from 'fs';
 import * as path from 'path';
 
 describe('harden_dossier_grants contract', () => {
-  const migrationPath = path.join(process.cwd(), 'supabase/migrations/20260724000000_harden_dossier_grants.sql');
+  const migrationsDir = path.join(process.cwd(), 'supabase/migrations');
+  const hardenFileName = fs.readdirSync(migrationsDir).find(f => f.includes('harden_dossier_grants.sql'));
+  const migrationPath = path.join(migrationsDir, hardenFileName || '');
   const sql = fs.readFileSync(migrationPath, 'utf8');
 
   it('deve revogar ALL de PUBLIC, anon e authenticated para dossier_runs, dossies e profiles', () => {

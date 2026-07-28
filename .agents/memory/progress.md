@@ -1,5 +1,17 @@
 # Progress
 
+## 2026-07-28 — PR #464 baseline nativo PG 17 & least privilege hardening
+
+- Reconstruída a cadeia canônica de migrações em `fix/canonical-supabase-migration-baseline` (PR #464, HEAD: `a8a07919a606969fc34c7daee4ec41ca72f48b57`).
+- Dump nativo via `pg_dump` 17.10 contra PostgreSQL 17.6 remoto de Produção gerou `20260501000000_production_schema_baseline.sql` sem contaminar objetos do schema `auth`.
+- Mantidos 18 marcadores no-op de Produção (preservando timestamps canônicos).
+- Adicionadas migrações de hardening: `20260728173731_harden_dossier_grants.sql` e `20260728180000_harden_legacy_operator_linking.sql`.
+- Paridade de catálogo em 15 categorias contra Produção aprovada com `PRODUCTION_BASELINE_CATALOG_DIFF: ZERO` (37/37 constraints com `pg_get_constraintdef`).
+- Replay PSQL (`-v ON_ERROR_STOP=1`) e `npx supabase db push` local em PG 17 aprovados com 21 migrações registradas.
+- Testes runtime PostgreSQL (`test_harden_dossier_grants.sql` e `test_harden_identity.sql`) e 61/61 asserções vitest de contrato aprovados.
+- Lint (0 erros) e `git diff --check` aprovados.
+- Vault: [[2026-07-28T17-25-00-fix-canonical-supabase-migration-baseline|Baseline nativo PG17 + Hardening]].
+
 ## 2026-07-24 — PR4 code gate e Preview Supabase isolado
 
 - PR3 `#450` permanece com code gate aprovado e release gate bloqueado; head `3b929f7b`.

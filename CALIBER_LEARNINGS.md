@@ -481,6 +481,9 @@ A classificação adequada é `incidente mitigado com causa aberta`, acompanhada
   `gh api ... -f body='text with \`command\` backticks'`faz o shell expandir os backticks como`$(comando)` — executando o conteudo e expondo stdout como argumento. Se o corpo contem tokens ou comandos (`gh auth token`, variaveis), eles sao executados e o resultado aparece publicamente no comentario GitHub. A gravidade: tokens do ambiente ficam visiveis em URL publica. **Solucao obrigatoria:** sempre usar heredocs com aspa simples: `cat <<'EOF' | gh api --input -`. A aspa simples no delimitador ('EOF') impede qualquer expansao de shell.
 Afeta: qualquer comando `gh api`ou`gh pr` com corpo gerado dinamicamente.
 
+- **Baseline de Produção via `supabase db dump` exige PG17 nativo e paridade exata de catálogo** [supabase, postgres, migration, baseline]
+  `npx supabase db dump --linked` invoca `pg_dump`. Se o servidor remoto Supabase Cloud é PG 17.6 e a CLI local usa PG 16, ocorre erro de mismatch. Solução: usar `pg_dump` 17.10 nativo via dry-run script com `PATH` apontando para `/opt/homebrew/opt/postgresql@17/bin`. No baseline do schema `public`, NUNCA criar/sobrescrever schema `auth`, `auth.users` ou `auth.uid()`. Validar paridade de catálogo em 15 categorias (incluindo `pg_get_constraintdef` para 37 constraints e normalização de roles em RLS policies) exigindo `PRODUCTION_BASELINE_CATALOG_DIFF: ZERO`.
+
 <!-- caliber:managed:learnings -->
 
 _Atualizado automaticamente pelo Caliber apos sessoes de agente._
