@@ -1,10 +1,15 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { insertDiagnosticsBatch } from '../../utils/serverDiagnostics';
+import {
+  insertDiagnosticsBatch,
+  resetDiagnosticsRetentionThrottleForTests,
+  shouldPersistDiagnostic,
+} from '../../utils/serverDiagnostics';
 
 describe('serverDiagnostics payload sanitizer', () => {
   let fetchMock: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
+    resetDiagnosticsRetentionThrottleForTests();
     fetchMock = vi.fn().mockResolvedValue({ ok: true });
     vi.stubGlobal('fetch', fetchMock);
     vi.stubEnv('SUPABASE_URL', 'https://example.supabase.co/');
@@ -47,14 +52,14 @@ describe('serverDiagnostics payload sanitizer', () => {
           },
           runId: 'run-1',
           sessionId: 'sess-1',
-          severity: 'info',
+          severity: 'warn',
           t: 123,
         },
       ],
     );
 
     expect(result).toEqual({ inserted: 1 });
-    expect(fetchMock).toHaveBeenCalledOnce();
+    expect(fetchMock).toHaveBeenCalledTimes(2);
 
     const [, requestInit] = fetchMock.mock.calls[0];
     const rows = JSON.parse(String(requestInit.body)) as Array<{ payload: Record<string, unknown> }>;
@@ -70,5 +75,106 @@ describe('serverDiagnostics payload sanitizer', () => {
     expect(rows[0].payload).not.toHaveProperty('content');
     expect(rows[0].payload).not.toHaveProperty('responseText');
     expect(rows[0].payload).not.toHaveProperty('textPreview');
+  });
+
+  it('bloqueia heartbeat e eventos ruidosos de UI antes do Supabase', () => {
+    const base = { at: '', t: 0, runId: 'run-1', severity: 'info' };
+    expect(shouldPersistDiagnostic({ ...base, area: 'Diagnostic', event: 'heartbeat' })).toBe(false);
+    expect(shouldPersistDiagnostic({ ...base, area: 'App', event: 'overlay:render-decision' })).toBe(false);
+    expect(shouldPersistDiagnostic({ ...base, area: 'MessageRow', event: 'commit:dimensions' })).toBe(false);
+    expect(shouldPersistDiagnostic({ ...base, area: 'ChatInterface', event: 'panel:snapshot' })).toBe(false);
+    expect(shouldPersistDiagnostic({ ...base, area: 'Virtuoso', event: 'static-fallback-rendered' })).toBe(false);
+    expect(shouldPersistDiagnostic({ ...base, area: 'BlankPanelDebug', event: 'probe:raf1' })).toBe(false);
+    expect(shouldPersistDiagnostic({ ...base, area: 'LayoutTrace', event: 'mount' })).toBe(false);
+    expect(shouldPersistDiagnostic({ ...base, area: 'Visibility', event: 'pagehide', severity: 'warn' })).toBe(false);
+    expect(shouldPersistDiagnostic({ ...base, area: 'Visibility', event: 'pagehide', severity: 'error' })).toBe(false);
+  });
+
+  it('mantém error, warn acionável e lifecycle do dossiê', () => {
+    const base = { at: '', t: 0, runId: 'run-1' };
+    expect(shouldPersistDiagnostic({ ...base, area: 'Api', event: 'request:error', severity: 'error' })).toBe(true);
+    expect(shouldPersistDiagnostic({ ...base, area: 'Provider', event: 'fallback', severity: 'warn' })).toBe(true);
+    expect(shouldPersistDiagnostic({ ...base, area: 'DossierLifecycle', event: 'started', severity: 'info' })).toBe(
+      true,
+    );
+    expect(shouldPersistDiagnostic({ ...base, area: 'Usage', event: 'tokens', severity: 'info' })).toBe(true);
+    expect(shouldPersistDiagnostic({ ...base, area: 'Provider', event: 'selected', severity: 'info' })).toBe(true);
+    expect(shouldPersistDiagnostic({ ...base, area: 'Model', event: 'selected', severity: 'info' })).toBe(true);
+    expect(shouldPersistDiagnostic({ ...base, area: 'Usage', event: 'cost', severity: 'info' })).toBe(true);
+    expect(shouldPersistDiagnostic({ ...base, area: 'Request', event: 'retry', severity: 'info' })).toBe(true);
+    expect(shouldPersistDiagnostic({ ...base, area: 'Request', event: 'fallback', severity: 'info' })).toBe(true);
+    expect(shouldPersistDiagnostic({ ...base, area: 'DossierLifecycle', event: 'failed', severity: 'info' })).toBe(
+      true,
+    );
+    expect(shouldPersistDiagnostic({ ...base, area: 'Lease', event: 'lost', severity: 'info' })).toBe(true);
+    expect(shouldPersistDiagnostic({ ...base, area: 'DossierModule', event: 'usage metadata', severity: 'info' })).toBe(
+      true,
+    );
+  });
+
+  it('aplica amostragem determinística de 10% aos infos restantes', () => {
+    const decisions = Array.from({ length: 10_000 }, (_, index) =>
+      shouldPersistDiagnostic({
+        at: '',
+        t: 0,
+        runId: `sample-${index}`,
+        area: 'BackgroundMetric',
+        event: 'observed',
+        severity: 'info',
+      }),
+    );
+    const persisted = decisions.filter(Boolean).length;
+    expect(persisted).toBeGreaterThanOrEqual(900);
+    expect(persisted).toBeLessThanOrEqual(1_100);
+
+    const sameInput = {
+      at: '',
+      t: 0,
+      runId: 'stable-run',
+      area: 'BackgroundMetric',
+      event: 'observed',
+      severity: 'info',
+    };
+    expect(shouldPersistDiagnostic(sameInput)).toBe(shouldPersistDiagnostic({ ...sameInput }));
+  });
+
+  it('não chama Supabase quando todo o lote é ruído', async () => {
+    const result = await insertDiagnosticsBatch({ runId: 'run-noise', events: [] }, [
+      { at: '', t: 0, runId: 'run-noise', area: 'Diagnostic', event: 'heartbeat', severity: 'info' },
+    ]);
+    expect(result).toEqual({ inserted: 0 });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('servidor limita o lote final a MAX_EVENTS_PER_BATCH', async () => {
+    const events = Array.from({ length: 101 }, (_, index) => ({
+      at: '',
+      t: index,
+      runId: 'run-limit',
+      area: 'Api',
+      event: `warning-${index}`,
+      severity: 'warn',
+    }));
+    const result = await insertDiagnosticsBatch({ runId: 'run-limit', events: [] }, events);
+    expect(result).toEqual({ inserted: 100 });
+    const rows = JSON.parse(String(fetchMock.mock.calls[0][1].body)) as unknown[];
+    expect(rows).toHaveLength(100);
+  });
+
+  it('falha best-effort da retenção não altera a gravação principal', async () => {
+    fetchMock.mockResolvedValueOnce({ ok: true }).mockRejectedValueOnce(new Error('retention unavailable'));
+    const result = await insertDiagnosticsBatch({ runId: 'run-write', events: [] }, [
+      { at: '', t: 0, runId: 'run-write', area: 'Api', event: 'failed', severity: 'error' },
+    ]);
+    expect(result).toEqual({ inserted: 1 });
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+  });
+
+  it('throttle local tenta a retenção no máximo uma vez por dia', async () => {
+    const event = { at: '', t: 0, runId: 'run-throttle', area: 'Api', event: 'failed', severity: 'error' };
+    await insertDiagnosticsBatch({ runId: 'run-throttle-1', events: [] }, [event]);
+    await insertDiagnosticsBatch({ runId: 'run-throttle-2', events: [] }, [event]);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(String(fetchMock.mock.calls[1][0])).toContain('/rpc/cleanup_scout_diagnostics_opportunistic');
   });
 });

@@ -159,6 +159,7 @@ const MessageRowBody = memo(({ index, msg, data }: MessageRowBodyProps) => {
 
   // Mede dimensões do nó DOM real após commit, apenas para diagnóstico
   useEffect(() => {
+    if (import.meta.env.PROD) return;
     const el = contentRef.current;
     if (!el || !msg.text) return;
 
@@ -327,7 +328,8 @@ const MessageRowBody = memo(({ index, msg, data }: MessageRowBodyProps) => {
                         : 'border-amber-300 bg-amber-50 text-amber-900'
                     }`}
                   >
-                    Dossiê gerado, mas não foi possível confirmar a persistência. O conteúdo permanece disponível nesta sessão.
+                    Dossiê gerado, mas não foi possível confirmar a persistência. O conteúdo permanece disponível nesta
+                    sessão.
                   </div>
                 )}
                 {msg.clienteSeniorData?.encontrado && isFirstBotMessage && (

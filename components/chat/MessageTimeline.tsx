@@ -393,16 +393,18 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
     const botMsg = safeMessages.find(message => message.sender === Sender.Bot);
     const hasLargeBot = hasBotMessage && (botMsg?.text?.length ?? 0) > 4000;
 
-    scoutDiag.warn('Virtuoso', 'static-fallback-rendered', {
-      sessionId: currentSession?.id ?? null,
-      totalItems: safeMessages.length,
-      hasBotMessage,
-      botTextLen: botMsg?.text?.length ?? 0,
-      hasLargeBot,
-    });
+    if (import.meta.env.DEV) {
+      scoutDiag.warn('Virtuoso', 'static-fallback-rendered', {
+        sessionId: currentSession?.id ?? null,
+        totalItems: safeMessages.length,
+        hasBotMessage,
+        botTextLen: botMsg?.text?.length ?? 0,
+        hasLargeBot,
+      });
+    }
 
     // LayoutTrace: para dossiê grande, verificar se container tem dimensões válidas
-    if (hasLargeBot) {
+    if (import.meta.env.DEV && hasLargeBot) {
       requestAnimationFrame(() => {
         import('../../utils/layoutTraceTelemetry')
           .then(({ traceLayout }) => {
@@ -480,11 +482,7 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
         </div>
       ) : showInitialHome ? (
         <div className="h-full min-h-0 overflow-y-auto custom-scrollbar">
-          <EmptyStateHome
-            mode={mode}
-            isDarkMode={isDarkMode}
-            onStartInvestigation={onStartInvestigation}
-          />
+          <EmptyStateHome mode={mode} isDarkMode={isDarkMode} onStartInvestigation={onStartInvestigation} />
           <HelpCenterFloating isDarkMode={isDarkMode} />
         </div>
       ) : shouldRenderStaticTimelineFallback ? (
