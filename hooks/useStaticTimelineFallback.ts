@@ -101,6 +101,7 @@ export function useStaticTimelineFallback(params: UseStaticTimelineFallbackParam
 
   // ── Efeito #2: Panel snapshot telemetry ──
   useEffect(() => {
+    if (import.meta.env.PROD) return;
     const signature = [
       currentSession?.id ?? 'no-session',
       panelState,

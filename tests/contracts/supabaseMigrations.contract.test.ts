@@ -1,5 +1,5 @@
 // tests/contracts/supabaseMigrations.contract.test.ts
-// Adapted for canonical baseline migration chain (1 baseline + 18 no-op markers + 1 harden_grants + 1 harden_legacy_operator)
+// Adapted for canonical baseline migration chain (21 existing + 2 scout diagnostics maintenance migrations)
 // All original behavioral guarantees are preserved across the full migration chain.
 import { describe, it, expect } from 'vitest';
 import { readdirSync, readFileSync, existsSync } from 'fs';
@@ -30,13 +30,15 @@ describe('supabaseMigrations contract — estrutura', () => {
     expect(existsSync(MIGRATIONS_DIR)).toBe(true);
   });
 
-  it('contém exatamente 21 arquivos .sql (1 baseline + 18 marcadores + 1 harden_dossier_grants + 1 harden_legacy_operator_linking)', () => {
+  it('contém exatamente 23 arquivos .sql', () => {
     const files = readdirSync(MIGRATIONS_DIR).filter(f => f.endsWith('.sql'));
-    expect(files.length).toBe(21);
+    expect(files.length).toBe(23);
   });
 
   it('baseline é o primeiro arquivo e existe', () => {
-    const files = readdirSync(MIGRATIONS_DIR).filter(f => f.endsWith('.sql')).sort();
+    const files = readdirSync(MIGRATIONS_DIR)
+      .filter(f => f.endsWith('.sql'))
+      .sort();
     expect(files[0]).toBe('20260501000000_production_schema_baseline.sql');
   });
 
@@ -97,7 +99,9 @@ describe('supabaseMigrations contract — auth remediation & least privilege', (
   const allContent = getAllContent();
 
   it('profiles.operator_id imutável para authenticated via column grant', () => {
-    const revokeMatch = allContent.match(/REVOKE\s+ALL\s+ON\s+TABLE\s+(?:")?public(?:")?\.(?:")?profiles(?:")?\s+FROM\s+PUBLIC/i);
+    const revokeMatch = allContent.match(
+      /REVOKE\s+ALL\s+ON\s+TABLE\s+(?:")?public(?:")?\.(?:")?profiles(?:")?\s+FROM\s+PUBLIC/i,
+    );
     const grantNameMatch = allContent.match(
       /GRANT\s+UPDATE\s*\(\s*(?:")?name(?:")?\s*\)\s+ON\s+(?:TABLE\s+)?(?:")?public(?:")?\.(?:")?profiles(?:")?\s+TO\s+(?:")?authenticated(?:")?/i,
     );
@@ -145,12 +149,23 @@ describe('supabaseMigrations contract — auth remediation & least privilege', (
   });
 
   it('link_legacy_operator tem ACL restrita a apenas authenticated', () => {
-    const hardenFile = readFileSync(resolve(MIGRATIONS_DIR, '20260728180000_harden_legacy_operator_linking.sql'), 'utf-8');
+    const hardenFile = readFileSync(
+      resolve(MIGRATIONS_DIR, '20260728180000_harden_legacy_operator_linking.sql'),
+      'utf-8',
+    );
 
-    expect(hardenFile).toContain('REVOKE ALL ON FUNCTION public.link_legacy_operator(UUID, TEXT, TEXT, TEXT) FROM PUBLIC');
-    expect(hardenFile).toContain('REVOKE ALL ON FUNCTION public.link_legacy_operator(UUID, TEXT, TEXT, TEXT) FROM anon');
-    expect(hardenFile).toContain('REVOKE ALL ON FUNCTION public.link_legacy_operator(UUID, TEXT, TEXT, TEXT) FROM service_role');
-    expect(hardenFile).toContain('GRANT EXECUTE ON FUNCTION public.link_legacy_operator(UUID, TEXT, TEXT, TEXT) TO authenticated');
+    expect(hardenFile).toContain(
+      'REVOKE ALL ON FUNCTION public.link_legacy_operator(UUID, TEXT, TEXT, TEXT) FROM PUBLIC',
+    );
+    expect(hardenFile).toContain(
+      'REVOKE ALL ON FUNCTION public.link_legacy_operator(UUID, TEXT, TEXT, TEXT) FROM anon',
+    );
+    expect(hardenFile).toContain(
+      'REVOKE ALL ON FUNCTION public.link_legacy_operator(UUID, TEXT, TEXT, TEXT) FROM service_role',
+    );
+    expect(hardenFile).toContain(
+      'GRANT EXECUTE ON FUNCTION public.link_legacy_operator(UUID, TEXT, TEXT, TEXT) TO authenticated',
+    );
   });
 
   it('auth storage policies permitem contexto proprio sem confiar em localStorage', () => {
@@ -201,7 +216,9 @@ describe('supabaseMigrations contract — dossier run lifecycle', () => {
   });
 
   it('fail é retry-safe apenas para mesmo código e stage terminal sem lease', () => {
-    expect(allContent).toContain("status = 'FAILED' AND error_code = p_error_code AND error_stage = p_error_stage AND lease_owner IS NULL");
+    expect(allContent).toContain(
+      "status = 'FAILED' AND error_code = p_error_code AND error_stage = p_error_stage AND lease_owner IS NULL",
+    );
     expect(allContent).toContain("status NOT IN ('CANCELLED', 'COMPLETED', 'FAILED')");
     expect(allContent).toContain('failed_at = coalesce(failed_at, now())');
   });

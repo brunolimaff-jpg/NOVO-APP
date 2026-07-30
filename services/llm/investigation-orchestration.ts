@@ -246,7 +246,7 @@ export async function sendMessageToGemini(
 
   if (targetCompanyForLookup) {
     emitDossieStatus(onStatus, 'cadastral');
-    scoutDiag.warn('Cadastral', 'iniciando lookupCliente', {
+    scoutDiag.info('Cadastral', 'iniciando lookupCliente', {
       target: String(targetCompanyForLookup).slice(0, 80),
     });
     try {
@@ -276,7 +276,7 @@ export async function sendMessageToGemini(
           clienteSeniorData = extractClienteSeniorData(clienteData);
         }
 
-        scoutDiag.warn('Cadastral', 'lookupCliente concluído', {
+        scoutDiag.info('Cadastral', 'lookupCliente concluído', {
           encontrado: clienteData?.encontrado,
           query: clienteData?.query,
           ok: clienteData?.ok,

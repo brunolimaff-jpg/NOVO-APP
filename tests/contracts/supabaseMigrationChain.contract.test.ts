@@ -6,7 +6,8 @@ describe('supabaseMigrationChain contract', () => {
   const migrationsDir = path.join(process.cwd(), 'supabase/migrations');
   const legacyDir = path.join(process.cwd(), 'supabase/migrations_legacy');
 
-  const files = fs.readdirSync(migrationsDir)
+  const files = fs
+    .readdirSync(migrationsDir)
     .filter(f => f.endsWith('.sql'))
     .sort();
 
@@ -29,12 +30,19 @@ describe('supabaseMigrationChain contract', () => {
     expect(files[0]).toBe('20260501000000_production_schema_baseline.sql');
   });
 
-  it('devem existir exatamente 21 arquivos de migration ativos no total (1 baseline + 18 marcadores + 1 harden_dossier_grants + 1 harden_legacy_operator_linking)', () => {
-    expect(files.length).toBe(21);
+  it('devem existir exatamente 23 arquivos de migration ativos no total', () => {
+    expect(files.length).toBe(23);
   });
 
   it('todos os 18 marcadores de producao devem conter apenas comentarios e whitespace (no-op)', () => {
-    const markers = files.filter(f => !f.includes('production_schema_baseline') && !f.includes('harden_dossier_grants') && !f.includes('harden_legacy_operator_linking'));
+    const markers = files.filter(
+      f =>
+        !f.includes('production_schema_baseline') &&
+        !f.includes('harden_dossier_grants') &&
+        !f.includes('harden_legacy_operator_linking') &&
+        !f.includes('scout_diagnostics_opportunistic_retention') &&
+        !f.includes('remove_duplicate_scout_diagnostics_indexes'),
+    );
     expect(markers.length).toBe(18);
 
     markers.forEach(m => {
@@ -74,7 +82,7 @@ describe('supabaseMigrationChain contract', () => {
       '20260613_lock_profiles_operator_id.sql',
       '20260613_user_context_schema.sql',
       '20260721090000_dossier_runs_lifecycle.sql',
-      '20260724000000_harden_dossier_grants.sql'
+      '20260724000000_harden_dossier_grants.sql',
     ];
     forbidden.forEach(f => {
       expect(files.includes(f)).toBe(false);

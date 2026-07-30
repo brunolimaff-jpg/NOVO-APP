@@ -7,6 +7,7 @@ import {
   getScoutTraceTarget,
   isScoutDiagEnabled,
   isScoutTraceEnabled,
+  setupHeartbeat,
 } from '../../utils/diagnosticLog';
 
 /** Promise.withResolvers() polyfill para Node.js 20 (CI). */
@@ -247,5 +248,30 @@ describe('scoutDiag', () => {
 
       vi.useRealTimers();
     });
+  });
+
+  it('heartbeat não agenda nem envia diagnóstico', async () => {
+    vi.useFakeTimers();
+    window.localStorage.setItem('SCOUT_DIAG_ENABLED', '1');
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue({ ok: true } as Response);
+    vi.stubGlobal('fetch', fetchMock);
+    const cleanup = setupHeartbeat();
+    await vi.advanceTimersByTimeAsync(120_000);
+    expect(fetchMock).not.toHaveBeenCalled();
+    cleanup();
+    vi.useRealTimers();
+  });
+
+  it('cliente não força persistência de evento bloqueado nem com severity error', async () => {
+    vi.useFakeTimers();
+    window.localStorage.setItem('SCOUT_DIAG_ENABLED', '1');
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue({ ok: true } as Response);
+    vi.stubGlobal('fetch', fetchMock);
+    scoutDiag.error('Visibility', 'pagehide', { force: true });
+    scoutDiag.warn('MessageRow', 'commit:dimensions');
+    scoutDiag.warn('ChatInterface', 'panel:snapshot');
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect(fetchMock).not.toHaveBeenCalled();
+    vi.useRealTimers();
   });
 });

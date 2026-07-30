@@ -25,6 +25,18 @@ const DIAG_LOCALSTORAGE_MAX_KEYS = 5;
 const DIAG_FLUSH_INTERVAL_MS = 5_000;
 const DIAG_FLUSH_BATCH_SIZE = 10;
 const DIAG_FLUSH_TIMEOUT_MS = 3_000;
+const INFO_SAMPLE_PERCENT = 10;
+const NOISY_DIAGNOSTIC_AREAS = new Set(['BlankPanelDebug', 'LayoutTrace', 'Visibility']);
+const NOISY_DIAGNOSTIC_EVENTS = new Set([
+  'heartbeat',
+  'overlay:render-decision',
+  'commit:dimensions',
+  'panel:snapshot',
+  'static-fallback-rendered',
+]);
+const BUSINESS_DIAGNOSTIC_AREA = /Lifecycle|Provider|Model|Usage|Lease/i;
+const BUSINESS_DIAGNOSTIC_EVENT =
+  /(^|:)(start|started|begin|end|ended|complete|completed|success|failed|failure|error|provider|model|tokens?|cost|retry|fallback|lifecycle|lease)(:|$)/i;
 
 // ── Buffer global ──────────────────────────────────────────────────
 
@@ -53,13 +65,37 @@ let diagSessionId: string | null = null;
 let diagFlushTimer: ReturnType<typeof setTimeout> | null = null;
 let diagFlushing = false;
 let pendingForceFlush = false;
-let heartbeatIntervalId: ReturnType<typeof setInterval> | null = null;
 
 function getDiagnosticsRunId(): string {
   if (!diagRunId) {
     diagRunId = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
   }
   return diagRunId;
+}
+
+function stableDiagnosticBucket(value: string): number {
+  let hash = 2166136261;
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return (hash >>> 0) % 100;
+}
+
+function shouldBufferDiagnostic(area: string, event: string, severity: string, runId: string): boolean {
+  if (
+    area === 'Diagnostic' ||
+    NOISY_DIAGNOSTIC_AREAS.has(area) ||
+    NOISY_DIAGNOSTIC_EVENTS.has(event) ||
+    event.startsWith('probe:')
+  ) {
+    return false;
+  }
+  if (severity === 'error' || severity === 'warn') return true;
+  if (area === 'DossierModule' && event === 'usage metadata') return true;
+  if (BUSINESS_DIAGNOSTIC_AREA.test(area) || BUSINESS_DIAGNOSTIC_EVENT.test(`${area}:${event}`)) return true;
+  if (severity !== 'info') return false;
+  return stableDiagnosticBucket(`${runId}:${area}:${event}`) < INFO_SAMPLE_PERCENT;
 }
 
 export function setDiagnosticsSessionId(sessionId: string): void {
@@ -269,34 +305,8 @@ function ensureHiddenAt(): void {
   }
 }
 
-function buildVisibilityPayload(extra?: Record<string, unknown>): Record<string, unknown> {
-  // textContent evita reflow forçado do innerText — não considera CSS,
-  // mas para checagem de presença de "Dossiê" no DOM é suficiente
-  const bodyText = document.body?.textContent || '';
-  return {
-    visibilityState: document.visibilityState,
-    isLoading: visibilityState.isLoading,
-    loadingVariant: visibilityState.loadingVariant,
-    requestKind: visibilityState.requestKind,
-    bodyLen: bodyText.length,
-    containsDossie: /dossi[eê]/i.test(bodyText),
-    containsLoading: /Preparando|Mapeando|Verificando|Investigando|Interromper/i.test(bodyText),
-    ...extra,
-  };
-}
-
-function pushVisibilityEvent(event: string, severity: 'info' | 'warn', extra?: Record<string, unknown>): void {
+function pushVisibilityEvent(event: string, _severity: 'info' | 'warn', extra?: Record<string, unknown>): void {
   if (!isDiagnosticsEnabled()) return;
-  pushToBuffer({
-    at: new Date().toISOString(),
-    t: performance.now(),
-    runId: getDiagnosticsRunId(),
-    sessionId: diagSessionId || undefined,
-    area: 'Visibility',
-    event,
-    severity,
-    payload: buildVisibilityPayload(extra),
-  });
 
   // Salva evento de visibilidade em chave dedicada no localStorage
   // para sobreviver a descarte de tab (pagehide/freeze)
@@ -387,52 +397,7 @@ export function setupVisibilityTracking(): void {
 // ── Heartbeat ────────────────────────────────────────────────────────
 
 export function setupHeartbeat(): () => void {
-  if (typeof window === 'undefined') return () => {};
-
-  const tick = () => {
-    if (!isDiagnosticsEnabled()) return;
-    const buffer = getBuffer();
-    pushToBuffer({
-      at: new Date().toISOString(),
-      t: performance.now(),
-      runId: getDiagnosticsRunId(),
-      sessionId: diagSessionId || undefined,
-      area: 'Diagnostic',
-      event: 'heartbeat',
-      severity: 'info',
-      payload: {
-        bufferLen: buffer.length,
-        elapsed: performance.now(),
-        url: location.pathname,
-      },
-    });
-    flushDiagnosticsNow('heartbeat');
-  };
-
-  heartbeatIntervalId = setInterval(tick, 30_000);
-
-  const cleanup = () => {
-    if (heartbeatIntervalId !== null) {
-      clearInterval(heartbeatIntervalId);
-      heartbeatIntervalId = null;
-    }
-  };
-
-  const handlePageHide = () => cleanup();
-  const handleFreeze = () => cleanup();
-
-  window.addEventListener('pagehide', handlePageHide);
-  if ('onfreeze' in document) {
-    document.addEventListener('freeze', handleFreeze);
-  }
-
-  return () => {
-    cleanup();
-    window.removeEventListener('pagehide', handlePageHide);
-    if ('onfreeze' in document) {
-      document.removeEventListener('freeze', handleFreeze);
-    }
-  };
+  return () => {};
 }
 
 // ── Scout trace ────────────────────────────────────────────────────
@@ -547,10 +512,12 @@ export function isScoutDiagEnabled(): boolean {
 
 function diagEntry(area: string, event: string, severity: string, payload?: Record<string, unknown>): void {
   if (!isDiagnosticsEnabled()) return;
+  const runId = getDiagnosticsRunId();
+  if (!shouldBufferDiagnostic(area, event, severity, runId)) return;
   pushToBuffer({
     at: new Date().toISOString(),
     t: performance.now(),
-    runId: getDiagnosticsRunId(),
+    runId,
     sessionId: diagSessionId || undefined,
     area,
     event,
