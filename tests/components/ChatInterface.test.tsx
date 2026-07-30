@@ -202,6 +202,7 @@ function buildProps(
     sessions: [],
     onNewSession: vi.fn(),
     onSelectSession: vi.fn(),
+    onOpenLoadedSession: vi.fn(),
     onDeleteSession: vi.fn(),
     onDeepDive: vi.fn(async () => undefined),
     isSidebarOpen: false,

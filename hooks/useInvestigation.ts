@@ -3,37 +3,32 @@ import { buildInvestigationHiddenPrompt, PROMPT_VERSION } from '../prompts/megaP
 import { fetchCompanyByCnpj } from '../services/brasilApiService';
 import { storage } from '../services/storage';
 import { trackOperatorEvent } from '../services/operatorTracking';
-import { logDossierAccess } from '../services/dossierAccessService';
 import { scoutDiag } from '../utils/diagnosticLog';
 import { resolvePromptMode, shouldIncludeBudgetPrompt } from '../utils/promptResolvers';
-import { findExistingDossier, type ExistingDossier } from '../lib/supabase/dossierDuplicate';
-import { supabase } from '../lib/supabaseClient';
+import {
+  findExistingDossier,
+  reuseDossierForCurrentOperator,
+  type ExistingDossier,
+} from '../lib/supabase/dossierDuplicate';
 import type { ChatSession } from '../types';
 import type { StartInvestigationPayload } from '../components/chat/contracts';
-
-/** Telemetria best-effort — nunca bloqueia reopen/override. */
-async function safeLogDossierAccess(dossierId: string, operatorId: string, cnpj?: string | null): Promise<void> {
-  try {
-    await logDossierAccess(dossierId, operatorId, cnpj);
-  } catch {
-    // logDossierAccess já faz warn interno; exceções inesperadas não travam UX.
-  }
-}
 
 interface UseInvestigationParams {
   mode: unknown;
   onDeepDive: (prompt: string, hiddenPrompt: string, companyName: string, cnpj?: string) => Promise<void>;
   operatorId: string;
-  onSelectSession: (sessionId: string) => void;
+  onOpenLoadedSession: (session: ChatSession) => void;
 }
 
 export function useInvestigation({
   mode,
   onDeepDive,
   operatorId,
-  onSelectSession,
+  onOpenLoadedSession,
 }: UseInvestigationParams) {
   const [duplicateDossier, setDuplicateDossier] = useState<ExistingDossier | null>(null);
+  const [isAccessingDossier, setIsAccessingDossier] = useState(false);
+  const [accessDossierError, setAccessDossierError] = useState<string | null>(null);
   const pendingPayloadRef = useRef<StartInvestigationPayload | null>(null);
   const processingRef = useRef(false);
 
@@ -91,6 +86,7 @@ export function useInvestigation({
           const existing = await findExistingDossier(payload.cnpj, payload.companyName, operatorId || '');
           if (existing) {
             pendingPayloadRef.current = payload;
+            setAccessDossierError(null);
             setDuplicateDossier(existing);
             return;
           }
@@ -112,37 +108,35 @@ export function useInvestigation({
   const handleAccessExistingDossier = useCallback(async () => {
     if (processingRef.current || !duplicateDossier || !operatorId) return;
     processingRef.current = true;
+    setIsAccessingDossier(true);
+    setAccessDossierError(null);
 
-    // Esconde modal IMEDIATAMENTE — antes de qualquer await
-    const dossierId = duplicateDossier.id;
+    const sourceDossierId = duplicateDossier.id;
     const dossierEmpresaAlvo = duplicateDossier.empresaAlvo;
-    const cnpj = pendingPayloadRef.current?.cnpj;
-    setDuplicateDossier(null);
-    pendingPayloadRef.current = null;
 
     try {
-      let dossier = await storage.getDossier(dossierId);
-      if (!dossier) {
-        if (!supabase) return;
-        const { data } = await supabase.from('dossies').select('content').eq('id', dossierId).maybeSingle();
-        if (!data || !data.content) return;
-        dossier = data.content as ChatSession;
-        await storage.saveDossier(dossier!);
-      }
-
-      void safeLogDossierAccess(dossierId, operatorId, cnpj);
-
-      onSelectSession(dossierId);
+      const reused = await reuseDossierForCurrentOperator(sourceDossierId);
+      onOpenLoadedSession(reused.content);
       trackOperatorEvent('dossier_reopened', {
         operatorId,
-        entityId: dossierId,
+        entityId: reused.dossierId,
         entityType: 'dossier',
         companyName: dossierEmpresaAlvo,
       });
+      setDuplicateDossier(null);
+      pendingPayloadRef.current = null;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Não foi possível abrir o dossiê';
+      setAccessDossierError(message);
+      scoutDiag.warn('Investigation', 'Falha ao reutilizar dossiê', {
+        sourceDossierId,
+        error: message,
+      });
     } finally {
       processingRef.current = false;
+      setIsAccessingDossier(false);
     }
-  }, [duplicateDossier, operatorId, onSelectSession]);
+  }, [duplicateDossier, operatorId, onOpenLoadedSession]);
 
   const handleNewResearchOverride = useCallback(async () => {
     if (processingRef.current) return;
@@ -153,7 +147,6 @@ export function useInvestigation({
 
     // Esconde modal IMEDIATAMENTE — antes da geração que leva minutos
     const oldDossierId = oldDossier?.id;
-    const oldDossierCnpj = payload.cnpj;
     setDuplicateDossier(null);
     pendingPayloadRef.current = null;
 
@@ -161,7 +154,6 @@ export function useInvestigation({
       await executeInvestigation(payload);
 
       if (oldDossierId) {
-        void safeLogDossierAccess(oldDossierId, operatorId, oldDossierCnpj);
         await storage.deleteDossier(oldDossierId);
       }
 
@@ -187,6 +179,8 @@ export function useInvestigation({
     handleAccessExistingDossier,
     handleNewResearchOverride,
     duplicateDossier,
+    isAccessingDossier,
+    accessDossierError,
     setDuplicateDossier,
     pendingPayloadRef,
   };

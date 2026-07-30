@@ -6,6 +6,8 @@ interface DuplicateDossierModalProps {
   onAccessExisting: () => void;
   onNewResearch: () => void;
   onDismiss: () => void;
+  isLoading?: boolean;
+  error?: string | null;
 }
 
 export function DuplicateDossierModal({
@@ -14,6 +16,8 @@ export function DuplicateDossierModal({
   onAccessExisting,
   onNewResearch,
   onDismiss,
+  isLoading = false,
+  error = null,
 }: DuplicateDossierModalProps) {
   const date = existing.createdAt ? new Date(existing.createdAt) : null;
   const createdAt = date && !isNaN(date.getTime()) ? date.toLocaleDateString('pt-BR') : 'data desconhecida';
@@ -21,7 +25,9 @@ export function DuplicateDossierModal({
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
-      onClick={onDismiss}
+      onClick={() => {
+        if (!isLoading) onDismiss();
+      }}
     >
       <div
         className="bg-white dark:bg-gray-900 rounded-xl shadow-2xl p-6 max-w-md w-full mx-4 border border-gray-200 dark:border-gray-700"
@@ -41,21 +47,36 @@ export function DuplicateDossierModal({
         )}
 
         <div className="flex flex-col gap-3">
+          {error && (
+            <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-950/40 dark:text-red-300">
+              {error}
+            </p>
+          )}
           <button
             onClick={onAccessExisting}
-            className="w-full px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors"
+            disabled={isLoading}
+            className="w-full px-4 py-3 bg-blue-600 hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60 text-white font-medium rounded-lg transition-colors"
           >
-            Acessar Dossiê Existente
+            {isLoading
+              ? 'Abrindo dossiê...'
+              : existing.isOwner
+                ? 'Abrir meu dossiê existente'
+                : 'Acessar cópia do dossiê existente'}
           </button>
           <button
             onClick={onNewResearch}
+            disabled={isLoading}
             className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300 font-medium rounded-lg transition-colors"
           >
             Nova Pesquisa do Zero
           </button>
         </div>
 
-        <button onClick={onDismiss} className="mt-3 w-full text-sm text-gray-400 hover:text-gray-500 transition-colors">
+        <button
+          onClick={onDismiss}
+          disabled={isLoading}
+          className="mt-3 w-full text-sm text-gray-400 hover:text-gray-500 disabled:cursor-not-allowed disabled:opacity-60 transition-colors"
+        >
           Cancelar
         </button>
       </div>

@@ -219,6 +219,20 @@ describe('useSessionManager session controller', () => {
     expect(getRemoteSessionMock).not.toHaveBeenCalled();
   });
 
+  it('handleOpenLoadedSession injeta, promove e não busca no backend legado', () => {
+    const options = makeOptions();
+    const { result } = renderHook(() => useSessionManager(options));
+    const loaded = makeSession('copy-id', 'Cópia pronta', true);
+
+    act(() => result.current.handleOpenLoadedSession(loaded));
+
+    const updater = (options.setSessions as ReturnType<typeof vi.fn>).mock.calls[0][0] as (sessions: ChatSession[]) => ChatSession[];
+    const existingSession = makeSession('s1', 'Sessão 1');
+    expect(updater([existingSession])).toEqual([loaded, existingSession]);
+    expect(options.setCurrentSessionId).toHaveBeenCalledWith('copy-id');
+    expect(getRemoteSessionMock).not.toHaveBeenCalled();
+  });
+
   it('handleDeleteSession remove a sessão da lista', () => {
     const options = makeOptions();
     const { result } = renderHook(() => useSessionManager(options));

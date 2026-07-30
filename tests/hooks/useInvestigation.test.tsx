@@ -1,91 +1,123 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { renderHook, act } from '@testing-library/react';
+import { act, renderHook } from '@testing-library/react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useInvestigation } from '../../hooks/useInvestigation';
-import { scoutDiag } from '../../utils/diagnosticLog';
+import { Sender, type ChatSession } from '../../types';
 
-const getDossierMock = vi.fn();
-const saveDossierMock = vi.fn();
-const maybeSingleMock = vi.fn();
+const findExistingDossierMock = vi.hoisted(() => vi.fn());
+const reuseDossierMock = vi.hoisted(() => vi.fn());
+const saveDossierMock = vi.hoisted(() => vi.fn());
+const getRemoteSessionMock = vi.hoisted(() => vi.fn());
+
+vi.mock('../../lib/supabase/dossierDuplicate', () => ({
+  findExistingDossier: findExistingDossierMock,
+  reuseDossierForCurrentOperator: reuseDossierMock,
+}));
 
 vi.mock('../../services/storage', () => ({
   storage: {
-    getDossier: (...args: unknown[]) => getDossierMock(...args),
-    saveDossier: (...args: unknown[]) => saveDossierMock(...args),
+    saveDossier: saveDossierMock,
     touchUserContext: vi.fn(),
+    deleteDossier: vi.fn(),
   },
 }));
 
-vi.mock('../../lib/supabaseClient', () => ({
-  supabase: {
-    from: vi.fn(() => ({
-      select: vi.fn(() => ({
-        eq: vi.fn(() => ({
-          maybeSingle: (...args: unknown[]) => maybeSingleMock(...args),
-        })),
-      })),
-    })),
-  },
-}));
+vi.mock('../../services/sessionRemoteStore', () => ({ getRemoteSession: getRemoteSessionMock }));
+vi.mock('../../services/operatorTracking', () => ({ trackOperatorEvent: vi.fn() }));
 
-vi.mock('../../services/operatorTracking', () => ({
-  trackOperatorEvent: vi.fn(),
-}));
+const existing = {
+  id: 'source-id',
+  title: 'Empresa Teste',
+  empresaAlvo: 'Empresa Teste',
+  createdAt: '2026-01-01T00:00:00.000Z',
+  scoreOportunidade: 75,
+  isOwner: false,
+};
 
-vi.mock('../../services/dossierAccessService', () => ({
-  logDossierAccess: vi.fn(),
-}));
+const copiedSession: ChatSession = {
+  id: 'copy-id',
+  title: 'Empresa Teste',
+  empresaAlvo: 'Empresa Teste',
+  cnpj: '12345678000199',
+  modoPrincipal: 'default',
+  scoreOportunidade: 75,
+  resumoDossie: 'Resumo',
+  createdAt: '2026-07-30T00:00:00.000Z',
+  updatedAt: '2026-07-30T00:00:00.000Z',
+  messages: [{ id: 'm1', sender: Sender.Bot, text: 'Conteúdo', timestamp: new Date() }],
+};
 
-describe('useInvestigation — handleAccessExistingDossier', () => {
-  const onSelectSession = vi.fn();
-  const onDeepDive = vi.fn();
-  const toast = { error: vi.fn() };
-
-  const baseParams = {
+function renderInvestigation() {
+  const onOpenLoadedSession = vi.fn();
+  const hook = renderHook(() => useInvestigation({
     mode: 'default',
-    onDeepDive,
-    operatorId: 'op-1',
-    onSelectSession,
-    toast,
-  };
+    onDeepDive: vi.fn(),
+    operatorId: 'op-b',
+    onOpenLoadedSession,
+  }));
+  return { ...hook, onOpenLoadedSession };
+}
 
+describe('useInvestigation — copy-on-access', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    getDossierMock.mockResolvedValue(null);
-    saveDossierMock.mockResolvedValue(undefined);
-    maybeSingleMock.mockResolvedValue({ data: null, error: null });
-    vi.spyOn(scoutDiag, 'warn').mockImplementation(() => {});
+    findExistingDossierMock.mockResolvedValue(existing);
+    reuseDossierMock.mockResolvedValue({ dossierId: 'copy-id', content: copiedSession, wasCloned: true });
   });
 
-  it('exibe toast e registra warn quando Supabase não retorna conteúdo', async () => {
-    const { result } = renderHook(() => useInvestigation(baseParams));
+  it('usa a RPC de descoberta ao iniciar investigação', async () => {
+    const { result } = renderInvestigation();
+    await act(() => result.current.handleStartInvestigation({
+      companyName: 'Empresa Teste', cnpj: '12345678000199', city: 'Cuiabá', state: 'MT',
+    }));
+    expect(findExistingDossierMock).toHaveBeenCalledWith('12345678000199', 'Empresa Teste', 'op-b');
+    expect(result.current.duplicateDossier).toEqual(existing);
+  });
 
-    act(() => {
-      result.current.setDuplicateDossier({
-        id: 'dossier-1',
-        title: 'Empresa Teste',
-        empresaAlvo: 'Empresa Teste',
-        createdAt: '2026-01-01T00:00:00.000Z',
-        scoreOportunidade: null,
-        operatorId: 'op-1',
-      });
-      result.current.pendingPayloadRef.current = {
-        companyName: 'Empresa Teste',
-        cnpj: '12345678000199',
-        city: 'SP',
-        state: 'SP',
-      };
-    });
+  it('mantém modal durante loading e injeta diretamente a sessão copiada', async () => {
+    let resolveReuse: ((value: unknown) => void) | undefined;
+    reuseDossierMock.mockReturnValue(new Promise(resolve => { resolveReuse = resolve; }));
+    const { result, onOpenLoadedSession } = renderInvestigation();
+    act(() => result.current.setDuplicateDossier(existing));
+
+    let accessPromise: Promise<void>;
+    act(() => { accessPromise = result.current.handleAccessExistingDossier(); });
+    expect(result.current.isAccessingDossier).toBe(true);
+    expect(result.current.duplicateDossier).toEqual(existing);
 
     await act(async () => {
-      await result.current.handleAccessExistingDossier();
+      resolveReuse?.({ dossierId: 'copy-id', content: copiedSession, wasCloned: true });
+      await accessPromise!;
     });
+    expect(onOpenLoadedSession).toHaveBeenCalledWith(copiedSession);
+    expect(result.current.duplicateDossier).toBeNull();
+    expect(saveDossierMock).not.toHaveBeenCalled();
+    expect(getRemoteSessionMock).not.toHaveBeenCalled();
+  });
 
-    expect(toast.error).toHaveBeenCalledWith('Não foi possível carregar esta sessão');
-    expect(scoutDiag.warn).toHaveBeenCalledWith(
-      'Investigation',
-      'Falha ao carregar dossiê remoto',
-      expect.objectContaining({ dossierId: 'dossier-1' }),
-    );
-    expect(onSelectSession).not.toHaveBeenCalled();
+  it('mantém erro visível e não fecha o modal quando a RPC falha', async () => {
+    reuseDossierMock.mockRejectedValue(new Error('Acesso negado'));
+    const { result, onOpenLoadedSession } = renderInvestigation();
+    act(() => result.current.setDuplicateDossier(existing));
+    await act(() => result.current.handleAccessExistingDossier());
+    expect(result.current.accessDossierError).toBe('Acesso negado');
+    expect(result.current.duplicateDossier).toEqual(existing);
+    expect(onOpenLoadedSession).not.toHaveBeenCalled();
+  });
+
+  it('bloqueia clique duplo com uma única chamada à RPC', async () => {
+    let resolveReuse: ((value: unknown) => void) | undefined;
+    reuseDossierMock.mockReturnValue(new Promise(resolve => { resolveReuse = resolve; }));
+    const { result } = renderInvestigation();
+    act(() => result.current.setDuplicateDossier(existing));
+    let first: Promise<void>;
+    act(() => {
+      first = result.current.handleAccessExistingDossier();
+      void result.current.handleAccessExistingDossier();
+    });
+    expect(reuseDossierMock).toHaveBeenCalledOnce();
+    await act(async () => {
+      resolveReuse?.({ dossierId: 'copy-id', content: copiedSession, wasCloned: true });
+      await first!;
+    });
   });
 });

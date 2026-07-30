@@ -328,5 +328,17 @@ export function useSessionManager(options: Partial<UseSessionManagerOptions> = {
     ],
   );
 
-  return { handleNewSession, handleSelectSession, handleDeleteSession };
+  const handleOpenLoadedSession = useCallback(
+    (loadedSession: ChatSession) => {
+      setSessions(previous => {
+        const remaining = previous.filter(session => session.id !== loadedSession.id);
+        return [loadedSession, ...remaining];
+      });
+      setCurrentSessionId(loadedSession.id);
+      resetSessionUI();
+    },
+    [resetSessionUI, setCurrentSessionId, setSessions],
+  );
+
+  return { handleNewSession, handleSelectSession, handleOpenLoadedSession, handleDeleteSession };
 }
