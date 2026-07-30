@@ -58,9 +58,29 @@ BEGIN
       FROM public.dossies AS d
      WHERE regexp_replace(coalesce(d.cnpj, ''), '[^0-9]', '', 'g') = v_cnpj
        AND d.deleted_at IS NULL
-       AND (d.source_dossier_id IS NULL OR d.operator_id = v_operator_id)
+       AND (
+         d.operator_id = v_operator_id
+         OR (
+           d.source_dossier_id IS NULL
+           AND (
+             SELECT count(*)
+             FROM jsonb_array_elements(
+               CASE
+                 WHEN jsonb_typeof(d.content->'messages') = 'array' THEN d.content->'messages'
+                 ELSE '[]'::jsonb
+               END
+             ) AS candidate(message)
+             WHERE candidate.message->>'sender' = 'bot'
+               AND btrim(coalesce(candidate.message->>'text', '')) <> ''
+               AND candidate.message->'isError' IS DISTINCT FROM 'true'::jsonb
+               AND candidate.message->'isThinking' IS DISTINCT FROM 'true'::jsonb
+               AND candidate.message ? 'scorePorta'
+               AND jsonb_typeof(candidate.message->'scorePorta') = 'object'
+           ) = 1
+         )
+       )
      ORDER BY (d.operator_id = v_operator_id) DESC,
-              (d.source_dossier_id IS NULL) DESC,
+              (d.operator_id = v_operator_id AND d.source_dossier_id IS NOT NULL) DESC,
               d.created_at DESC NULLS LAST,
               d.id DESC
      LIMIT 1;
@@ -74,9 +94,29 @@ BEGIN
       FROM public.dossies AS d
      WHERE lower(regexp_replace(btrim(coalesce(d.empresa_alvo, '')), '\s+', ' ', 'g')) = v_empresa_normalizada
        AND d.deleted_at IS NULL
-       AND (d.source_dossier_id IS NULL OR d.operator_id = v_operator_id)
+       AND (
+         d.operator_id = v_operator_id
+         OR (
+           d.source_dossier_id IS NULL
+           AND (
+             SELECT count(*)
+             FROM jsonb_array_elements(
+               CASE
+                 WHEN jsonb_typeof(d.content->'messages') = 'array' THEN d.content->'messages'
+                 ELSE '[]'::jsonb
+               END
+             ) AS candidate(message)
+             WHERE candidate.message->>'sender' = 'bot'
+               AND btrim(coalesce(candidate.message->>'text', '')) <> ''
+               AND candidate.message->'isError' IS DISTINCT FROM 'true'::jsonb
+               AND candidate.message->'isThinking' IS DISTINCT FROM 'true'::jsonb
+               AND candidate.message ? 'scorePorta'
+               AND jsonb_typeof(candidate.message->'scorePorta') = 'object'
+           ) = 1
+         )
+       )
      ORDER BY (d.operator_id = v_operator_id) DESC,
-              (d.source_dossier_id IS NULL) DESC,
+              (d.operator_id = v_operator_id AND d.source_dossier_id IS NOT NULL) DESC,
               d.created_at DESC NULLS LAST,
               d.id DESC
      LIMIT 1;
@@ -106,6 +146,9 @@ DECLARE
   v_now timestamptz := clock_timestamp();
   v_now_iso text;
   v_content jsonb;
+  v_report jsonb;
+  v_report_count integer;
+  v_report_message jsonb;
 BEGIN
   IF v_auth_user_id IS NULL THEN
     RAISE EXCEPTION 'access denied' USING ERRCODE = '42501';
@@ -158,7 +201,26 @@ BEGIN
     END IF;
   END IF;
 
-  -- Serializa a criação por operador+fonte; o índice parcial é a segunda barreira.
+  SELECT count(*), jsonb_agg(candidate.message)->0
+    INTO v_report_count, v_report
+    FROM jsonb_array_elements(
+      CASE
+        WHEN jsonb_typeof(v_root.content->'messages') = 'array' THEN v_root.content->'messages'
+        ELSE '[]'::jsonb
+      END
+    ) AS candidate(message)
+   WHERE candidate.message->>'sender' = 'bot'
+     AND btrim(coalesce(candidate.message->>'text', '')) <> ''
+     AND candidate.message->'isError' IS DISTINCT FROM 'true'::jsonb
+     AND candidate.message->'isThinking' IS DISTINCT FROM 'true'::jsonb
+     AND candidate.message ? 'scorePorta'
+     AND jsonb_typeof(candidate.message->'scorePorta') = 'object';
+
+  IF v_report_count <> 1 OR v_report IS NULL THEN
+    RAISE EXCEPTION 'dossier unavailable' USING ERRCODE = 'P0002';
+  END IF;
+
+  -- Serializa a criação por operador+raiz; índice e ON CONFLICT são barreiras adicionais.
   PERFORM pg_catalog.pg_advisory_xact_lock(
     pg_catalog.hashtextextended(v_operator_id || ':' || v_root.id::text, 0)
   );
@@ -182,12 +244,39 @@ BEGIN
 
   v_new_id := gen_random_uuid();
   v_now_iso := to_char(v_now AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"');
-  v_content := jsonb_set(
-    jsonb_set(
-      jsonb_set(v_root.content, '{id}', to_jsonb(v_new_id::text), true),
-      '{createdAt}', to_jsonb(v_now_iso), true
-    ),
-    '{updatedAt}', to_jsonb(v_now_iso), true
+  v_report_message :=
+    jsonb_build_object(
+      'id', gen_random_uuid()::text,
+      'sender', 'bot',
+      'text', v_report->>'text',
+      'timestamp', v_now_iso
+    )
+    || CASE WHEN v_report ? 'groundingSources' THEN jsonb_build_object('groundingSources', v_report->'groundingSources') ELSE '{}'::jsonb END
+    || CASE WHEN v_report ? 'scorePorta' THEN jsonb_build_object('scorePorta', v_report->'scorePorta') ELSE '{}'::jsonb END
+    || CASE WHEN v_report ? 'statuses' THEN jsonb_build_object('statuses', v_report->'statuses') ELSE '{}'::jsonb END
+    || CASE WHEN v_report ? 'suggestions' THEN jsonb_build_object('suggestions', v_report->'suggestions') ELSE '{}'::jsonb END
+    || CASE WHEN v_report ? 'clienteSeniorData' THEN jsonb_build_object('clienteSeniorData', v_report->'clienteSeniorData') ELSE '{}'::jsonb END
+    || CASE WHEN v_report ? 'groundingUsed' THEN jsonb_build_object('groundingUsed', v_report->'groundingUsed') ELSE '{}'::jsonb END
+    || CASE WHEN v_report ? 'webVerificationStatus' THEN jsonb_build_object('webVerificationStatus', v_report->'webVerificationStatus') ELSE '{}'::jsonb END;
+  v_content := jsonb_build_object(
+    'id', v_new_id::text,
+    'title', v_root.title,
+    'empresaAlvo', v_root.empresa_alvo,
+    'cnpj', v_root.cnpj,
+    'modoPrincipal', v_root.modo_principal,
+    'scoreOportunidade', v_root.score_oportunidade,
+    'resumoDossie', v_root.resumo_dossie,
+    'createdAt', v_now_iso,
+    'updatedAt', v_now_iso,
+    'messages', jsonb_build_array(
+      jsonb_build_object(
+        'id', gen_random_uuid()::text,
+        'sender', 'user',
+        'text', '🔍 Investigando ' || coalesce(v_root.empresa_alvo, '') || '...',
+        'timestamp', v_now_iso
+      ),
+      v_report_message
+    )
   );
 
   INSERT INTO public.dossies (
@@ -200,7 +289,26 @@ BEGIN
     v_root.modo_principal, v_root.score_oportunidade, v_root.resumo_dossie, v_content,
     v_now, v_now, v_root.id, v_root.operator_id, v_now
   )
+  ON CONFLICT (operator_id, source_dossier_id)
+  WHERE source_dossier_id IS NOT NULL
+    AND deleted_at IS NULL
+  DO NOTHING
   RETURNING * INTO v_copy;
+
+  IF NOT FOUND THEN
+    SELECT d.*
+      INTO v_copy
+      FROM public.dossies AS d
+     WHERE d.operator_id = v_operator_id
+       AND d.source_dossier_id = v_root.id
+       AND d.deleted_at IS NULL
+     ORDER BY d.created_at DESC NULLS LAST, d.id DESC
+     LIMIT 1;
+
+    IF NOT FOUND THEN
+      RAISE EXCEPTION 'dossier unavailable' USING ERRCODE = 'P0002';
+    END IF;
+  END IF;
 
   INSERT INTO public.dossier_accesses (dossier_id, operator_id, cnpj)
   VALUES (v_copy.id, v_operator_id, v_copy.cnpj);

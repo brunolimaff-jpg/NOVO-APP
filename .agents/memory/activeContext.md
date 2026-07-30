@@ -1,16 +1,17 @@
 # Active Context
 
-Last updated: 2026-07-30 — correção final da Draft PR #466 validada localmente
+Last updated: 2026-07-30 — correção de privacidade da Draft PR #466 em validação
 
 ## Estado
 
 - PR #465 mergeada em `main`: `bd98c829`.
 - PR #466 `OPEN/DRAFT`: https://github.com/brunolimaff-jpg/NOVO-APP/pull/466
-- Branch `codex/secure-cross-operator-dossier-reuse`; base anterior `6c4884ed`.
+- Branch `codex/secure-cross-operator-dossier-reuse`; head inicial `c82f6833`.
 - RPCs exigem Auth confirmado `@senior.com.br`, e-mail igual ao perfil e `operator_id`; somente `authenticated` executa.
-- Descoberta expõe raiz/cópia própria e reutilização canonicaliza cópia estrangeira diretamente para a raiz.
-- Teste PG com A/B/C/X/U/M comprova autorização e linhagem; concorrência limitada às barreiras advisory lock + índice único.
-- Gates: 65/65 direcionados, PG17 PASS, replay 24/24, build/lint/diff PASS, zero regressão vs `main`.
+- Descoberta é fail-closed e só expõe raiz estrangeira com exatamente um relatório canônico marcado por `scorePorta`.
+- Cópia estrangeira contém duas mensagens por allowlist; conversa privada e chaves desconhecidas não são copiadas.
+- Teste PG com A/B/C/X/U/M comprova privacidade, autorização, raiz e conflito parcial direcionado.
+- Gates: 152/152 direcionados; PG17 e replay 24/24 PASS; 14 erros Typecheck idênticos à `main`; 0 falha nova; lint/build/diff PASS.
 
 ## Guardrails
 
@@ -21,4 +22,4 @@ Last updated: 2026-07-30 — correção final da Draft PR #466 validada localmen
 ## Ponteiros
 
 - `HANDOFF_AI.md`
-- Vault: `/Users/brunolima/Documents/bruno vault/04 - Histórico ChatGPT/Sessões Anteriores/2026-07/2026-07-30T15-51-32-pr466-reutilizacao-segura-dossies.md`
+- A referência portátil do Bruno Vault está centralizada no handoff.

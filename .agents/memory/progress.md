@@ -1,5 +1,15 @@
 # Progress
 
+## 2026-07-30 — Privacidade fail-closed da Draft PR #466
+
+- Relatório compartilhável exige exatamente uma mensagem bot não vazia, sem erro/thinking e com `scorePorta` objeto.
+- Cópia estrangeira passou a ser snapshot de duas mensagens por allowlist; conversa, follow-up, feedback, erro e contexto privado ficam na fonte.
+- Descoberta diferencia `FOUND`, `NOT_FOUND`, `UNAVAILABLE` e `ACCESS_DENIED`; somente `NOT_FOUND` permite geração.
+- Troca para sessão carregada cancela run ativo, aborta controller, limpa loading e deduplica a sessão.
+- `ON CONFLICT` aponta para o índice parcial; outras constraints continuam propagando.
+- Validação: 152/152 direcionados; PostgreSQL runtime e replay 24/24 PASS; branch 34 falhas vs 35 na `main`, sem falha nova; lint/build/diff PASS.
+- Migration 24 segue não aplicada; rollout controlado continua obrigatório antes de merge/deploy.
+
 ## 2026-07-30 — Correção final da Draft PR #466
 
 - Autorização das duas RPCs endurecida com `auth.users`: domínio Senior exato, confirmação de e-mail, igualdade perfil/Auth e `operator_id` obrigatório.

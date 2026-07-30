@@ -100,6 +100,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
     duplicateDossier,
     isAccessingDossier,
     accessDossierError,
+    discoveryError,
     setDuplicateDossier,
     pendingPayloadRef,
   } = useInvestigation({
@@ -241,6 +242,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
                   }
                 }}
                 onStartInvestigation={handleStartInvestigation}
+                discoveryError={discoveryError}
                 onLoadMore={onLoadMore}
                 onRetry={onRetry}
                 onDeleteMessage={onDeleteMessage}

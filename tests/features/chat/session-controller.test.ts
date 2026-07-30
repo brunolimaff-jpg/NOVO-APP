@@ -6,10 +6,15 @@ import { useSessionManager, useSessionRemoteSave } from '../../../features/chat/
 
 const getRemoteSessionMock = vi.hoisted(() => vi.fn());
 const saveRemoteSessionMock = vi.hoisted(() => vi.fn());
+const requestCancellationMock = vi.hoisted(() => vi.fn());
 
 vi.mock('../../../services/sessionRemoteStore', () => ({
   getRemoteSession: getRemoteSessionMock,
   saveRemoteSession: saveRemoteSessionMock,
+}));
+
+vi.mock('../../../features/dossier/cancel-active-dossier-run', () => ({
+  requestCancellationForActiveDossierRun: requestCancellationMock,
 }));
 
 function makeSession(id: string, title: string, hasMessages = false): ChatSession {
@@ -44,6 +49,7 @@ function makeOptions(overrides: Partial<Parameters<typeof useSessionManager>[0]>
   const setLastQuery = vi.fn();
   const resetLoadingProgress = vi.fn();
   const setIsLoading = vi.fn();
+  const setLoadingPinnedLabel = vi.fn();
 
   return {
     sessions,
@@ -63,6 +69,7 @@ function makeOptions(overrides: Partial<Parameters<typeof useSessionManager>[0]>
     setLastQuery,
     resetLoadingProgress,
     setIsLoading,
+    setLoadingPinnedLabel,
     ...overrides,
   };
 }
@@ -86,6 +93,7 @@ describe('useSessionManager session controller', () => {
     vi.clearAllMocks();
     getRemoteSessionMock.mockResolvedValue(null);
     saveRemoteSessionMock.mockResolvedValue({ ok: true });
+    requestCancellationMock.mockResolvedValue(true);
   });
 
   it('handleNewSession adiciona nova sessão ao início da lista', () => {
@@ -231,6 +239,43 @@ describe('useSessionManager session controller', () => {
     expect(updater([existingSession])).toEqual([loaded, existingSession]);
     expect(options.setCurrentSessionId).toHaveBeenCalledWith('copy-id');
     expect(getRemoteSessionMock).not.toHaveBeenCalled();
+  });
+
+  it('handleOpenLoadedSession cancela geração ativa e limpa controles de loading', () => {
+    const controller = new AbortController();
+    const abortSpy = vi.spyOn(controller, 'abort');
+    const options = makeOptions({
+      isLoading: true,
+      currentSessionId: 'run-active',
+      abortControllerRef: makeRef<AbortController | null>(controller),
+    });
+    const { result } = renderHook(() => useSessionManager(options));
+
+    act(() => result.current.handleOpenLoadedSession(makeSession('copy-id', 'Cópia pronta', true)));
+
+    expect(requestCancellationMock).toHaveBeenCalledWith('run-active', 'session_switch');
+    expect(abortSpy).toHaveBeenCalledOnce();
+    expect(options.abortControllerRef.current).toBeNull();
+    expect(options.setIsLoading).toHaveBeenCalledWith(false);
+    expect(options.setLoadingPinnedLabel).toHaveBeenCalledWith(null);
+    expect(getRemoteSessionMock).not.toHaveBeenCalled();
+  });
+
+  it('handleOpenLoadedSession substitui sessão existente sem duplicar e tolera estado não-array', () => {
+    const options = makeOptions();
+    const { result } = renderHook(() => useSessionManager(options));
+    const loaded = makeSession('copy-id', 'Cópia atualizada', true);
+
+    act(() => result.current.handleOpenLoadedSession(loaded));
+
+    const updater = (options.setSessions as ReturnType<typeof vi.fn>).mock.calls[0][0] as (
+      sessions: ChatSession[] | unknown,
+    ) => ChatSession[];
+    expect(updater([makeSession('copy-id', 'Antiga'), makeSession('s1', 'Outra')])).toEqual([
+      loaded,
+      expect.objectContaining({ id: 's1' }),
+    ]);
+    expect(updater(null)).toEqual([loaded]);
   });
 
   it('handleDeleteSession remove a sessão da lista', () => {

@@ -1,4 +1,4 @@
--- Teste PostgreSQL versionado para autorização corporativa e copy-on-access.
+-- Teste PostgreSQL versionado para autorização, privacidade e copy-on-access.
 -- Executar somente no banco descartável com o nome exato:
 --   psql -v ON_ERROR_STOP=1 -d novoapp_dossier_reuse_test \
 --     -f scripts/test_secure_dossier_reuse.sql
@@ -110,6 +110,7 @@ INSERT INTO public.profiles (id, operator_id, email, name) VALUES
   ('55555555-5555-4555-8555-555555555555', 'operator-u', 'u@senior.com.br', 'Não confirmado U'),
   ('66666666-6666-4666-8666-666666666666', 'operator-m', 'm-profile@senior.com.br', 'Divergente M');
 
+-- Raiz A: conversa privada completa, exatamente um relatório canônico.
 INSERT INTO public.dossies (
   id, operator_id, title, empresa_alvo, cnpj, modo_principal,
   score_oportunidade, resumo_dossie, content, created_at, updated_at
@@ -122,20 +123,116 @@ INSERT INTO public.dossies (
   'default',
   81,
   'Resumo original',
-  '{"id":"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa","title":"Dossiê Fonte","empresaAlvo":"Empresa Fonte","cnpj":"12345678000199","modoPrincipal":"default","scoreOportunidade":81,"resumoDossie":"Resumo original","createdAt":"2026-07-01T10:00:00.000Z","updatedAt":"2026-07-01T10:00:00.000Z","messages":[{"id":"m1","sender":"bot","text":"conteúdo original"}]}'::jsonb,
+  jsonb_build_object(
+    'id', 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+    'title', 'Dossiê Fonte',
+    'empresaAlvo', 'Empresa Fonte',
+    'cnpj', '12345678000199',
+    'modoPrincipal', 'default',
+    'scoreOportunidade', 81,
+    'resumoDossie', 'Resumo original',
+    'createdAt', '2026-07-01T10:00:00.000Z',
+    'updatedAt', '2026-07-01T10:00:00.000Z',
+    'companyContext', jsonb_build_object('private', 'COMPANY_CONTEXT_PRIVADO'),
+    'unknownSessionKey', 'NAO_COPIAR_SESSAO',
+    'messages', jsonb_build_array(
+      jsonb_build_object(
+        'id', 'source-user-1', 'sender', 'user', 'text', 'Pedido inicial privado',
+        'timestamp', '2026-07-01T10:00:00.000Z'
+      ),
+      jsonb_build_object(
+        'id', 'source-report-1',
+        'sender', 'bot',
+        'text', 'RELATORIO_CANONICO_SENTINELA: análise comercial completa e segura.',
+        'timestamp', '2026-07-01T10:05:00.000Z',
+        'scorePorta', jsonb_build_object('score', 81, 'dimensions', jsonb_build_array('P', 'O', 'R', 'T', 'A')),
+        'groundingSources', jsonb_build_array(jsonb_build_object('url', 'https://example.com/fonte')),
+        'statuses', jsonb_build_object('fiscal', 'ok'),
+        'suggestions', jsonb_build_array('Próximo passo'),
+        'clienteSeniorData', jsonb_build_object('isCliente', false),
+        'groundingUsed', true,
+        'webVerificationStatus', 'verified',
+        'feedback', jsonb_build_object('private', 'FEEDBACK_PRIVADO'),
+        'sectionFeedback', jsonb_build_object('private', 'SECTION_FEEDBACK_PRIVADO'),
+        'errorDetails', 'ERROR_DETAILS_PRIVADO',
+        'isSourcesOpen', true,
+        'unknownReportKey', 'NAO_COPIAR_RELATORIO'
+      ),
+      jsonb_build_object(
+        'id', 'source-user-private', 'sender', 'user',
+        'text', 'PERGUNTA_PRIVADA_SENTINELA', 'timestamp', '2026-07-01T10:06:00.000Z'
+      ),
+      jsonb_build_object(
+        'id', 'source-bot-followup', 'sender', 'bot',
+        'text', 'RESPOSTA_POSTERIOR_SENTINELA', 'timestamp', '2026-07-01T10:07:00.000Z'
+      )
+    )
+  ),
   '2026-07-01T10:00:00Z',
   '2026-07-01T10:00:00Z'
 );
+
+-- Raízes estrangeiras sem marcador e ambígua; registro próprio incompleto de B.
+INSERT INTO public.dossies (id, operator_id, title, empresa_alvo, cnpj, content, created_at) VALUES
+  (
+    'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee', 'operator-a', 'Sem marcador', 'Empresa Sem Marcador',
+    '11111111000111',
+    '{"id":"eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee","messages":[{"id":"e1","sender":"bot","text":"Relatório sem scorePorta"}]}'::jsonb,
+    '2026-07-02T10:00:00Z'
+  ),
+  (
+    'ffffffff-ffff-4fff-8fff-ffffffffffff', 'operator-a', 'Ambígua', 'Empresa Ambígua',
+    '22222222000122',
+    '{"id":"ffffffff-ffff-4fff-8fff-ffffffffffff","messages":[{"id":"f1","sender":"bot","text":"Primeiro","scorePorta":{}},{"id":"f2","sender":"bot","text":"Segundo","scorePorta":{}}]}'::jsonb,
+    '2026-07-03T10:00:00Z'
+  ),
+  (
+    'bbbbbbbb-0000-4000-8000-000000000000', 'operator-b', 'Meu incompleto', 'Empresa Própria Incompleta',
+    '33333333000133',
+    '{"id":"bbbbbbbb-0000-4000-8000-000000000000","privateOwnerContent":"CONTEUDO_COMPLETO_DO_PROPRIETARIO","messages":[]}'::jsonb,
+    '2026-07-04T10:00:00Z'
+  );
 
 CREATE TEMP TABLE source_before AS
 SELECT to_jsonb(d) AS snapshot
 FROM public.dossies AS d
 WHERE d.id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 
-CREATE TEMP TABLE runtime_results (key text PRIMARY KEY, value jsonb NOT NULL);
+CREATE TEMP TABLE runtime_results (key text, value jsonb);
 GRANT ALL ON runtime_results TO authenticated;
 
--- B não lê o conteúdo de A diretamente, descobre a raiz e cria sua cópia.
+CREATE OR REPLACE FUNCTION pg_temp.assert_runtime_captures()
+RETURNS void
+LANGUAGE plpgsql
+AS $$
+DECLARE
+  v_key text;
+  v_count integer;
+  v_nonnull integer;
+BEGIN
+  FOREACH v_key IN ARRAY ARRAY[
+    'direct_rows_b',
+    'discovery_b_before',
+    'reuse_b_first',
+    'reuse_b_second',
+    'discovery_b_after',
+    'discovery_c_before',
+    'reuse_c_from_b',
+    'reuse_c_from_root',
+    'reuse_a'
+  ] LOOP
+    SELECT count(*), count(value)
+      INTO v_count, v_nonnull
+      FROM runtime_results
+     WHERE key = v_key;
+    IF v_count <> 1 OR v_nonnull <> 1 THEN
+      RAISE EXCEPTION 'capture inválida: % (rows=%, nonnull=%)', v_key, v_count, v_nonnull;
+    END IF;
+  END LOOP;
+END;
+$$;
+
+-- B não lê conteúdo de A diretamente, descobre a raiz e cria snapshot próprio.
 SET LOCAL request.jwt.claim.sub = '22222222-2222-4222-8222-222222222222';
 SET LOCAL ROLE authenticated;
 INSERT INTO runtime_results VALUES (
@@ -154,9 +251,23 @@ FROM public.reuse_dossier_for_current_operator('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaa
 INSERT INTO runtime_results
 SELECT 'discovery_b_after', to_jsonb(r)
 FROM public.find_reusable_dossier('12.345.678/0001-99', 'Nome ignorado') AS r;
+INSERT INTO runtime_results
+SELECT 'owner_incomplete_discovery', to_jsonb(r)
+FROM public.find_reusable_dossier('33333333000133', 'Nome ignorado') AS r;
+INSERT INTO runtime_results
+SELECT 'owner_incomplete_reuse', to_jsonb(r)
+FROM public.reuse_dossier_for_current_operator('bbbbbbbb-0000-4000-8000-000000000000') AS r;
+INSERT INTO runtime_results VALUES (
+  'unmarked_discovery_count',
+  to_jsonb((SELECT count(*) FROM public.find_reusable_dossier('11111111000111', 'Empresa Sem Marcador')))
+);
+INSERT INTO runtime_results VALUES (
+  'ambiguous_discovery_count',
+  to_jsonb((SELECT count(*) FROM public.find_reusable_dossier('22222222000122', 'Empresa Ambígua')))
+);
 RESET ROLE;
 
--- C ainda não possui cópia: descobre a raiz, nunca a cópia de B.
+-- C descobre apenas a raiz e canonicaliza até quando recebe o ID da cópia de B.
 SET LOCAL request.jwt.claim.sub = '33333333-3333-4333-8333-333333333333';
 SET LOCAL ROLE authenticated;
 INSERT INTO runtime_results
@@ -172,7 +283,7 @@ SELECT 'reuse_c_from_root', to_jsonb(r)
 FROM public.reuse_dossier_for_current_operator('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa') AS r;
 RESET ROLE;
 
--- A abre seu próprio dossiê, sem clone.
+-- A abre seu próprio conteúdo completo, sem exigir marcador nem clone.
 SET LOCAL request.jwt.claim.sub = '11111111-1111-4111-8111-111111111111';
 SET LOCAL ROLE authenticated;
 INSERT INTO runtime_results
@@ -180,12 +291,31 @@ SELECT 'reuse_a', to_jsonb(r)
 FROM public.reuse_dossier_for_current_operator('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa') AS r;
 RESET ROLE;
 
--- Autorização corporativa: domínio, confirmação e igualdade de e-mail são obrigatórios.
+-- Guarda positiva e negativa das nove capturas obrigatórias.
+SELECT pg_temp.assert_runtime_captures();
+DO $$
+DECLARE
+  v_guard_failed boolean := false;
+BEGIN
+  BEGIN
+    DELETE FROM runtime_results WHERE key = 'reuse_a';
+    PERFORM pg_temp.assert_runtime_captures();
+  EXCEPTION WHEN OTHERS THEN
+    v_guard_failed := true;
+  END;
+  IF NOT v_guard_failed THEN
+    RAISE EXCEPTION 'FALHA: guarda aceitou captura ausente';
+  END IF;
+  PERFORM pg_temp.assert_runtime_captures();
+END $$;
+
+-- Bloqueios corporativos: handler captura só o erro da RPC; bypass falha fora dele.
 DO $$
 DECLARE
   v_user_id uuid;
   v_error_code text;
   v_error_message text;
+  v_returned boolean;
 BEGIN
   FOREACH v_user_id IN ARRAY ARRAY[
     '44444444-4444-4444-8444-444444444444'::uuid,
@@ -195,31 +325,70 @@ BEGIN
     PERFORM set_config('request.jwt.claim.sub', v_user_id::text, true);
     EXECUTE 'SET LOCAL ROLE authenticated';
 
+    v_returned := false;
     BEGIN
       PERFORM public.find_reusable_dossier('12.345.678/0001-99', 'Empresa Fonte');
-      RAISE EXCEPTION 'FALHA: usuário não corporativo executou descoberta';
+      v_returned := true;
     EXCEPTION WHEN OTHERS THEN
       GET STACKED DIAGNOSTICS v_error_code = RETURNED_SQLSTATE, v_error_message = MESSAGE_TEXT;
       IF v_error_code <> '42501' OR v_error_message <> 'access denied' THEN
         RAISE EXCEPTION 'FALHA: descoberta revelou condição interna: state=%, msg=%', v_error_code, v_error_message;
       END IF;
     END;
+    IF v_returned THEN
+      RAISE EXCEPTION 'FALHA: usuário não corporativo executou descoberta';
+    END IF;
 
+    v_returned := false;
     BEGIN
       PERFORM public.reuse_dossier_for_current_operator('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa');
-      RAISE EXCEPTION 'FALHA: usuário não corporativo executou reutilização';
+      v_returned := true;
     EXCEPTION WHEN OTHERS THEN
       GET STACKED DIAGNOSTICS v_error_code = RETURNED_SQLSTATE, v_error_message = MESSAGE_TEXT;
       IF v_error_code <> '42501' OR v_error_message <> 'access denied' THEN
         RAISE EXCEPTION 'FALHA: reutilização revelou condição interna: state=%, msg=%', v_error_code, v_error_message;
       END IF;
     END;
+    IF v_returned THEN
+      RAISE EXCEPTION 'FALHA: usuário não corporativo executou reutilização';
+    END IF;
 
     RESET ROLE;
   END LOOP;
 END $$;
 
--- Fixture deliberadamente inválida: uma cópia apontando para a cópia de B.
+-- Chamadas diretas de raízes estrangeiras sem marcador inequívoco são recusadas.
+SET LOCAL request.jwt.claim.sub = '22222222-2222-4222-8222-222222222222';
+DO $$
+DECLARE
+  v_source_id uuid;
+  v_error_code text;
+  v_error_message text;
+  v_returned boolean;
+BEGIN
+  EXECUTE 'SET LOCAL ROLE authenticated';
+  FOREACH v_source_id IN ARRAY ARRAY[
+    'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee'::uuid,
+    'ffffffff-ffff-4fff-8fff-ffffffffffff'::uuid
+  ] LOOP
+    v_returned := false;
+    BEGIN
+      PERFORM public.reuse_dossier_for_current_operator(v_source_id);
+      v_returned := true;
+    EXCEPTION WHEN OTHERS THEN
+      GET STACKED DIAGNOSTICS v_error_code = RETURNED_SQLSTATE, v_error_message = MESSAGE_TEXT;
+      IF v_error_code <> 'P0002' OR v_error_message <> 'dossier unavailable' THEN
+        RAISE EXCEPTION 'FALHA: raiz não compartilhável revelou detalhe: state=%, msg=%', v_error_code, v_error_message;
+      END IF;
+    END;
+    IF v_returned THEN
+      RAISE EXCEPTION 'FALHA: raiz não compartilhável foi reutilizada: %', v_source_id;
+    END IF;
+  END LOOP;
+  RESET ROLE;
+END $$;
+
+-- Fixture inválida: cópia apontando para a cópia de B.
 INSERT INTO public.dossies (
   id, operator_id, title, empresa_alvo, cnpj, content, source_dossier_id, source_operator_id
 )
@@ -232,18 +401,23 @@ FROM runtime_results WHERE key = 'reuse_b_first';
 SET LOCAL request.jwt.claim.sub = '33333333-3333-4333-8333-333333333333';
 DO $$
 DECLARE
+  v_error_code text;
   v_error_message text;
+  v_returned boolean := false;
 BEGIN
   EXECUTE 'SET LOCAL ROLE authenticated';
   BEGIN
     PERFORM public.reuse_dossier_for_current_operator('dddddddd-dddd-4ddd-8ddd-dddddddddddd');
-    RAISE EXCEPTION 'FALHA: cadeia cópia para cópia foi aceita';
-  EXCEPTION WHEN no_data_found THEN
-    GET STACKED DIAGNOSTICS v_error_message = MESSAGE_TEXT;
-    IF v_error_message <> 'invalid dossier lineage' THEN
+    v_returned := true;
+  EXCEPTION WHEN OTHERS THEN
+    GET STACKED DIAGNOSTICS v_error_code = RETURNED_SQLSTATE, v_error_message = MESSAGE_TEXT;
+    IF v_error_code <> 'P0002' OR v_error_message <> 'invalid dossier lineage' THEN
       RAISE;
     END IF;
   END;
+  IF v_returned THEN
+    RAISE EXCEPTION 'FALHA: cadeia cópia para cópia foi aceita';
+  END IF;
   RESET ROLE;
 END $$;
 
@@ -256,13 +430,24 @@ DECLARE
   v_c_from_b jsonb;
   v_c_from_root jsonb;
   v_owner jsonb;
+  v_owner_incomplete jsonb;
   v_b_copy_id uuid;
   v_c_copy_id uuid;
+  v_b_content jsonb;
+  v_c_content jsonb;
+  v_source_content jsonb;
+  v_source_report jsonb;
+  v_b_report jsonb;
   v_source_before jsonb;
   v_source_after jsonb;
   v_function_definition text;
   v_hardened_functions integer;
+  v_session_keys text[];
+  v_user_message_keys text[];
+  v_report_message_keys text[];
 BEGIN
+  PERFORM pg_temp.assert_runtime_captures();
+
   IF EXISTS (
     SELECT 1 FROM information_schema.routine_privileges
     WHERE routine_schema = 'public'
@@ -296,44 +481,134 @@ BEGIN
     RAISE EXCEPTION 'FALHA: RPCs não estão SECURITY DEFINER com search_path vazio';
   END IF;
 
-  IF (SELECT value FROM runtime_results WHERE key = 'direct_rows_b') <> '0'::jsonb THEN
+  IF (SELECT value FROM runtime_results WHERE key = 'direct_rows_b') IS DISTINCT FROM '0'::jsonb THEN
     RAISE EXCEPTION 'FALHA: B leu diretamente o dossiê de A';
   END IF;
+  IF (SELECT value FROM runtime_results WHERE key = 'unmarked_discovery_count') IS DISTINCT FROM '0'::jsonb OR
+     (SELECT value FROM runtime_results WHERE key = 'ambiguous_discovery_count') IS DISTINCT FROM '0'::jsonb THEN
+    RAISE EXCEPTION 'FALHA: descoberta revelou raiz estrangeira não compartilhável';
+  END IF;
 
-  SELECT value INTO v_b_first FROM runtime_results WHERE key = 'reuse_b_first';
-  SELECT value INTO v_b_second FROM runtime_results WHERE key = 'reuse_b_second';
-  SELECT value INTO v_b_discovery FROM runtime_results WHERE key = 'discovery_b_after';
-  SELECT value INTO v_c_discovery FROM runtime_results WHERE key = 'discovery_c_before';
-  SELECT value INTO v_c_from_b FROM runtime_results WHERE key = 'reuse_c_from_b';
-  SELECT value INTO v_c_from_root FROM runtime_results WHERE key = 'reuse_c_from_root';
-  SELECT value INTO v_owner FROM runtime_results WHERE key = 'reuse_a';
+  SELECT value INTO STRICT v_b_first FROM runtime_results WHERE key = 'reuse_b_first';
+  SELECT value INTO STRICT v_b_second FROM runtime_results WHERE key = 'reuse_b_second';
+  SELECT value INTO STRICT v_b_discovery FROM runtime_results WHERE key = 'discovery_b_after';
+  SELECT value INTO STRICT v_c_discovery FROM runtime_results WHERE key = 'discovery_c_before';
+  SELECT value INTO STRICT v_c_from_b FROM runtime_results WHERE key = 'reuse_c_from_b';
+  SELECT value INTO STRICT v_c_from_root FROM runtime_results WHERE key = 'reuse_c_from_root';
+  SELECT value INTO STRICT v_owner FROM runtime_results WHERE key = 'reuse_a';
+  SELECT value INTO STRICT v_owner_incomplete FROM runtime_results WHERE key = 'owner_incomplete_reuse';
   v_b_copy_id := (v_b_first->>'dossier_id')::uuid;
   v_c_copy_id := (v_c_from_b->>'dossier_id')::uuid;
+  v_b_content := v_b_first->'content';
+  v_c_content := v_c_from_b->'content';
 
-  IF (SELECT value->>'dossier_id' FROM runtime_results WHERE key = 'discovery_b_before') <>
-     'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa' THEN
-    RAISE EXCEPTION 'FALHA: B não descobriu a raiz antes de possuir cópia';
+  IF (SELECT value->>'dossier_id' FROM runtime_results WHERE key = 'discovery_b_before')
+       IS DISTINCT FROM 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa' THEN
+    RAISE EXCEPTION 'FALHA: B não descobriu a raiz compartilhável';
   END IF;
-  IF v_b_discovery->>'dossier_id' <> v_b_copy_id::text OR
-     NOT (v_b_discovery->>'is_owner')::boolean THEN
-    RAISE EXCEPTION 'FALHA: descoberta de B não priorizou sua própria cópia';
+  IF v_b_discovery->>'dossier_id' IS DISTINCT FROM v_b_copy_id::text OR
+     (v_b_discovery->>'is_owner')::boolean IS DISTINCT FROM true THEN
+    RAISE EXCEPTION 'FALHA: descoberta de B não priorizou sua cópia';
   END IF;
-  IF v_c_discovery->>'dossier_id' <> 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa' OR
-     (v_c_discovery->>'is_owner')::boolean THEN
+  IF v_c_discovery->>'dossier_id' IS DISTINCT FROM 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa' OR
+     (v_c_discovery->>'is_owner')::boolean IS DISTINCT FROM false THEN
     RAISE EXCEPTION 'FALHA: C descobriu cópia alheia em vez da raiz';
+  END IF;
+  IF (SELECT value->>'dossier_id' FROM runtime_results WHERE key = 'owner_incomplete_discovery')
+       IS DISTINCT FROM 'bbbbbbbb-0000-4000-8000-000000000000' OR
+     (SELECT (value->>'is_owner')::boolean FROM runtime_results WHERE key = 'owner_incomplete_discovery')
+       IS DISTINCT FROM true THEN
+    RAISE EXCEPTION 'FALHA: registro próprio incompleto deixou de ser elegível';
+  END IF;
+  IF v_owner_incomplete->'content'->>'privateOwnerContent'
+       IS DISTINCT FROM 'CONTEUDO_COMPLETO_DO_PROPRIETARIO' OR
+     (v_owner_incomplete->>'was_cloned')::boolean IS DISTINCT FROM false THEN
+    RAISE EXCEPTION 'FALHA: proprietário não recebeu conteúdo próprio completo';
   END IF;
 
   IF v_b_copy_id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa' OR
-     NOT (v_b_first->>'was_cloned')::boolean OR
-     v_b_second->>'dossier_id' <> v_b_copy_id::text THEN
-    RAISE EXCEPTION 'FALHA: cópia de B não é nova ou idempotente';
+     (v_b_first->>'was_cloned')::boolean IS DISTINCT FROM true OR
+     v_b_second->>'dossier_id' IS DISTINCT FROM v_b_copy_id::text THEN
+    RAISE EXCEPTION 'FALHA: snapshot de B não é novo ou idempotente';
   END IF;
   IF v_c_copy_id = v_b_copy_id OR v_c_copy_id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa' OR
-     v_c_from_root->>'dossier_id' <> v_c_copy_id::text THEN
+     v_c_from_root->>'dossier_id' IS DISTINCT FROM v_c_copy_id::text THEN
     RAISE EXCEPTION 'FALHA: canonicalização/idempotência da cópia de C falhou';
   END IF;
-  IF v_c_from_b->'content'->>'id' <> v_c_copy_id::text THEN
-    RAISE EXCEPTION 'FALHA: content.id da cópia de C está inconsistente';
+
+  IF jsonb_array_length(v_b_content->'messages') IS DISTINCT FROM 2 OR
+     jsonb_array_length(v_c_content->'messages') IS DISTINCT FROM 2 THEN
+    RAISE EXCEPTION 'FALHA: snapshot não contém exatamente duas mensagens';
+  END IF;
+  IF v_b_content->'messages'->0->>'sender' IS DISTINCT FROM 'user' OR
+     v_b_content->'messages'->0->>'text' IS DISTINCT FROM '🔍 Investigando Empresa Fonte...' OR
+     v_b_content->'messages'->1->>'sender' IS DISTINCT FROM 'bot' OR
+     v_b_content->'messages'->1->>'text'
+       IS DISTINCT FROM 'RELATORIO_CANONICO_SENTINELA: análise comercial completa e segura.' THEN
+    RAISE EXCEPTION 'FALHA: mensagens sintética/canônica incorretas';
+  END IF;
+
+  SELECT array_agg(key ORDER BY key) INTO v_session_keys FROM jsonb_object_keys(v_b_content) AS key;
+  IF v_session_keys IS DISTINCT FROM ARRAY[
+    'cnpj', 'createdAt', 'empresaAlvo', 'id', 'messages', 'modoPrincipal',
+    'resumoDossie', 'scoreOportunidade', 'title', 'updatedAt'
+  ]::text[] THEN
+    RAISE EXCEPTION 'FALHA: allowlist da sessão divergente: %', v_session_keys;
+  END IF;
+  SELECT array_agg(key ORDER BY key) INTO v_user_message_keys
+    FROM jsonb_object_keys(v_b_content->'messages'->0) AS key;
+  IF v_user_message_keys IS DISTINCT FROM ARRAY['id', 'sender', 'text', 'timestamp']::text[] THEN
+    RAISE EXCEPTION 'FALHA: allowlist da mensagem sintética divergente: %', v_user_message_keys;
+  END IF;
+  SELECT array_agg(key ORDER BY key) INTO v_report_message_keys
+    FROM jsonb_object_keys(v_b_content->'messages'->1) AS key;
+  IF v_report_message_keys IS DISTINCT FROM ARRAY[
+    'clienteSeniorData', 'groundingSources', 'groundingUsed', 'id', 'scorePorta',
+    'sender', 'statuses', 'suggestions', 'text', 'timestamp', 'webVerificationStatus'
+  ]::text[] THEN
+    RAISE EXCEPTION 'FALHA: allowlist do relatório divergente: %', v_report_message_keys;
+  END IF;
+
+  SELECT d.content INTO v_source_content
+  FROM public.dossies AS d WHERE d.id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+  SELECT message INTO v_source_report
+  FROM jsonb_array_elements(v_source_content->'messages') AS message
+  WHERE message->>'id' = 'source-report-1';
+  v_b_report := v_b_content->'messages'->1;
+
+  IF v_b_content->'messages'->0->>'id' IN ('source-user-1', 'source-report-1', 'source-user-private', 'source-bot-followup') OR
+     v_b_report->>'id' IN ('source-user-1', 'source-report-1', 'source-user-private', 'source-bot-followup') OR
+     v_b_content->'messages'->0->>'id' = v_b_report->>'id' THEN
+    RAISE EXCEPTION 'FALHA: IDs das mensagens não são novos e distintos';
+  END IF;
+  IF v_b_content->'messages'->0->>'timestamp' IS DISTINCT FROM v_b_content->>'createdAt' OR
+     v_b_report->>'timestamp' IS DISTINCT FROM v_b_content->>'createdAt' OR
+     v_b_report->>'timestamp' = v_source_report->>'timestamp' THEN
+    RAISE EXCEPTION 'FALHA: timestamps novos/internamente consistentes não foram usados';
+  END IF;
+  IF v_b_content->>'id' IS DISTINCT FROM v_b_copy_id::text OR
+     v_c_content->>'id' IS DISTINCT FROM v_c_copy_id::text THEN
+    RAISE EXCEPTION 'FALHA: content.id não corresponde ao ID da cópia';
+  END IF;
+
+  IF v_b_content::text LIKE '%PERGUNTA_PRIVADA_SENTINELA%' OR
+     v_b_content::text LIKE '%RESPOSTA_POSTERIOR_SENTINELA%' OR
+     v_b_content::text LIKE '%FEEDBACK_PRIVADO%' OR
+     v_b_content::text LIKE '%SECTION_FEEDBACK_PRIVADO%' OR
+     v_b_content::text LIKE '%ERROR_DETAILS_PRIVADO%' OR
+     v_b_content::text LIKE '%COMPANY_CONTEXT_PRIVADO%' OR
+     v_b_content::text LIKE '%NAO_COPIAR_%' THEN
+    RAISE EXCEPTION 'FALHA: conteúdo privado/desconhecido vazou para o snapshot';
+  END IF;
+
+  IF v_b_report->'groundingSources' IS DISTINCT FROM v_source_report->'groundingSources' OR
+     v_b_report->'scorePorta' IS DISTINCT FROM v_source_report->'scorePorta' OR
+     v_b_report->'statuses' IS DISTINCT FROM v_source_report->'statuses' OR
+     v_b_report->'suggestions' IS DISTINCT FROM v_source_report->'suggestions' OR
+     v_b_report->'clienteSeniorData' IS DISTINCT FROM v_source_report->'clienteSeniorData' OR
+     v_b_report->'groundingUsed' IS DISTINCT FROM v_source_report->'groundingUsed' OR
+     v_b_report->'webVerificationStatus' IS DISTINCT FROM v_source_report->'webVerificationStatus' THEN
+    RAISE EXCEPTION 'FALHA: campos comerciais aprovados não foram preservados';
   END IF;
 
   IF NOT EXISTS (
@@ -351,11 +626,21 @@ BEGIN
     WHERE source_dossier_id = v_b_copy_id
       AND operator_id IN ('operator-b', 'operator-c')
   ) THEN
-    RAISE EXCEPTION 'FALHA: clone válido usa a cópia de B como fonte';
+    RAISE EXCEPTION 'FALHA: clone válido usa cópia de B como fonte';
   END IF;
   IF (SELECT count(*) FROM public.dossies WHERE operator_id = 'operator-b' AND source_dossier_id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa' AND deleted_at IS NULL) <> 1 OR
      (SELECT count(*) FROM public.dossies WHERE operator_id = 'operator-c' AND source_dossier_id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa' AND deleted_at IS NULL) <> 1 THEN
     RAISE EXCEPTION 'FALHA: B ou C possui mais de uma cópia ativa da raiz';
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM public.dossier_accesses
+    WHERE operator_id = 'operator-b' AND dossier_id = v_b_copy_id
+  ) OR NOT EXISTS (
+    SELECT 1 FROM public.dossier_accesses
+    WHERE operator_id = 'operator-c' AND dossier_id = v_c_copy_id
+  ) THEN
+    RAISE EXCEPTION 'FALHA: dossier_accesses não registrou a cópia efetivamente retornada';
   END IF;
 
   SELECT snapshot INTO v_source_before FROM source_before;
@@ -364,16 +649,20 @@ BEGIN
   IF v_source_after IS DISTINCT FROM v_source_before THEN
     RAISE EXCEPTION 'FALHA: dossiê fonte A foi alterado';
   END IF;
-  IF v_owner->>'dossier_id' <> 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa' OR
-     (v_owner->>'was_cloned')::boolean THEN
-    RAISE EXCEPTION 'FALHA: A deveria receber o original sem clone';
+  IF v_owner->>'dossier_id' IS DISTINCT FROM 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa' OR
+     (v_owner->>'was_cloned')::boolean IS DISTINCT FROM false OR
+     v_owner->'content' IS DISTINCT FROM v_source_content THEN
+    RAISE EXCEPTION 'FALHA: A deveria receber o original completo sem clone';
   END IF;
 
   SELECT pg_get_functiondef('public.reuse_dossier_for_current_operator(uuid)'::regprocedure)
     INTO v_function_definition;
   IF position('pg_advisory_xact_lock' IN v_function_definition) = 0 OR
+     position('ON CONFLICT (operator_id, source_dossier_id)' IN v_function_definition) = 0 OR
+     position('deleted_at IS NULL' IN v_function_definition) = 0 OR
+     position('DO NOTHING' IN v_function_definition) = 0 OR
      to_regclass('public.idx_dossies_active_source_copy') IS NULL THEN
-    RAISE EXCEPTION 'FALHA: barreiras de concorrência ausentes';
+    RAISE EXCEPTION 'FALHA: barreiras ou conflito parcial direcionado ausentes';
   END IF;
 
   BEGIN
@@ -389,23 +678,37 @@ BEGIN
   END;
 END $$;
 
--- Raiz excluída não pode ser usada para nova reutilização por ID.
-UPDATE public.dossies SET deleted_at = now()
-WHERE id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+-- Outra constraint UNIQUE deve propagar; o ON CONFLICT parcial não pode mascará-la.
+ALTER TABLE public.dossies ADD CONSTRAINT test_operator_title_unique UNIQUE (operator_id, title);
+INSERT INTO public.dossies (id, operator_id, title, empresa_alvo, cnpj, content) VALUES
+  (
+    '99999999-0000-4000-8000-000000000001', 'operator-b', 'Título de conflito',
+    'Registro bloqueador', '44444444000144', '{"id":"99999999-0000-4000-8000-000000000001","messages":[]}'::jsonb
+  ),
+  (
+    '99999999-0000-4000-8000-000000000002', 'operator-a', 'Título de conflito',
+    'Raiz de conflito', '55555555000155',
+    '{"id":"99999999-0000-4000-8000-000000000002","messages":[{"id":"conflict-report","sender":"bot","text":"Relatório conflito","scorePorta":{}}]}'::jsonb
+  );
 
-SET LOCAL request.jwt.claim.sub = '33333333-3333-4333-8333-333333333333';
+SET LOCAL request.jwt.claim.sub = '22222222-2222-4222-8222-222222222222';
 DO $$
+DECLARE
+  v_unique_propagated boolean := false;
 BEGIN
   EXECUTE 'SET LOCAL ROLE authenticated';
   BEGIN
-    PERFORM public.reuse_dossier_for_current_operator('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa');
-    RAISE EXCEPTION 'FALHA: raiz excluída foi reutilizada';
-  EXCEPTION WHEN no_data_found THEN
-    NULL;
+    PERFORM public.reuse_dossier_for_current_operator('99999999-0000-4000-8000-000000000002');
+  EXCEPTION WHEN unique_violation THEN
+    v_unique_propagated := true;
   END;
+  IF NOT v_unique_propagated THEN
+    RAISE EXCEPTION 'FALHA: outra constraint UNIQUE foi mascarada';
+  END IF;
   RESET ROLE;
 END $$;
 
 ROLLBACK;
 
-\echo 'PASS: corporate authorization, root lineage and copy-on-access assertions'
+\echo 'PASS: privacy snapshot, fail-closed sharing, corporate authorization and root lineage'
+\echo 'CONCURRENCY_PROOF_LEVEL: ADVISORY_LOCK + UNIQUE_PARTIAL_INDEX + TARGETED_ON_CONFLICT'

@@ -40,6 +40,7 @@ export interface UseSessionManagerOptions {
   setLastQuery: (query: string) => void;
   resetLoadingProgress: (stage?: string) => void;
   setIsLoading: (loading: boolean) => void;
+  setLoadingPinnedLabel?: (label: string | null) => void;
 }
 
 export interface UseSessionRemoteSaveOptions {
@@ -148,7 +149,7 @@ export function useSessionManager(options: Partial<UseSessionManagerOptions> = {
     'resetLoadingProgress',
   );
   const setIsLoading = requireDependency(options.setIsLoading ?? chatStore?.setIsLoading, 'setIsLoading');
-  const setLoadingPinnedLabel = chatStore?.setLoadingPinnedLabel;
+  const setLoadingPinnedLabel = options.setLoadingPinnedLabel ?? chatStore?.setLoadingPinnedLabel;
 
   const resetSessionUI = useCallback(() => {
     setVisibleCount(PAGE_SIZE);
@@ -330,14 +331,33 @@ export function useSessionManager(options: Partial<UseSessionManagerOptions> = {
 
   const handleOpenLoadedSession = useCallback(
     (loadedSession: ChatSession) => {
+      if (isLoading) {
+        if (currentSessionId) {
+          void requestCancellationForActiveDossierRun(currentSessionId, 'session_switch').catch(() => undefined);
+        }
+        abortControllerRef.current?.abort();
+        abortControllerRef.current = null;
+        setIsLoading(false);
+        setLoadingPinnedLabel?.(null);
+      }
       setSessions(previous => {
-        const remaining = previous.filter(session => session.id !== loadedSession.id);
+        const safePrevious = Array.isArray(previous) ? previous : [];
+        const remaining = safePrevious.filter(session => session.id !== loadedSession.id);
         return [loadedSession, ...remaining];
       });
       setCurrentSessionId(loadedSession.id);
       resetSessionUI();
     },
-    [resetSessionUI, setCurrentSessionId, setSessions],
+    [
+      abortControllerRef,
+      currentSessionId,
+      isLoading,
+      resetSessionUI,
+      setCurrentSessionId,
+      setIsLoading,
+      setLoadingPinnedLabel,
+      setSessions,
+    ],
   );
 
   return { handleNewSession, handleSelectSession, handleOpenLoadedSession, handleDeleteSession };

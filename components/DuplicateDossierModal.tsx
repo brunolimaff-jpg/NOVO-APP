@@ -53,6 +53,7 @@ export function DuplicateDossierModal({
             </p>
           )}
           <button
+            type="button"
             onClick={onAccessExisting}
             disabled={isLoading}
             className="w-full px-4 py-3 bg-blue-600 hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60 text-white font-medium rounded-lg transition-colors"
@@ -64,6 +65,7 @@ export function DuplicateDossierModal({
                 : 'Acessar cópia do dossiê existente'}
           </button>
           <button
+            type="button"
             onClick={onNewResearch}
             disabled={isLoading}
             className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300 font-medium rounded-lg transition-colors"
@@ -73,6 +75,7 @@ export function DuplicateDossierModal({
         </div>
 
         <button
+          type="button"
           onClick={onDismiss}
           disabled={isLoading}
           className="mt-3 w-full text-sm text-gray-400 hover:text-gray-500 disabled:cursor-not-allowed disabled:opacity-60 transition-colors"

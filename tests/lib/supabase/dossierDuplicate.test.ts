@@ -1,15 +1,24 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Sender } from '../../../types';
 
-const rpcMock = vi.fn();
+const { rpcMock, availabilityMock, diagnosticWarnMock } = vi.hoisted(() => ({
+  rpcMock: vi.fn(),
+  availabilityMock: vi.fn(() => true),
+  diagnosticWarnMock: vi.fn(),
+}));
 
 vi.mock('../../../lib/supabaseClient', () => ({
   supabase: { rpc: rpcMock },
-  isSupabaseAvailable: vi.fn(() => true),
+  isSupabaseAvailable: availabilityMock,
+}));
+
+vi.mock('../../../utils/diagnosticLog', () => ({
+  scoutDiag: { warn: diagnosticWarnMock },
 }));
 
 beforeEach(() => {
   vi.clearAllMocks();
+  availabilityMock.mockReturnValue(true);
 });
 
 describe('secure dossier reuse client', () => {
@@ -34,19 +43,60 @@ describe('secure dossier reuse client', () => {
       p_empresa_alvo: 'Empresa Teste',
     });
     expect(result).toEqual({
-      id: 'dossier-1',
-      title: 'Empresa Teste',
-      empresaAlvo: 'Empresa Teste',
-      createdAt: '2026-05-29T10:00:00Z',
-      scoreOportunidade: 82,
-      isOwner: false,
+      status: 'FOUND',
+      dossier: {
+        id: 'dossier-1',
+        title: 'Empresa Teste',
+        empresaAlvo: 'Empresa Teste',
+        createdAt: '2026-05-29T10:00:00Z',
+        scoreOportunidade: 82,
+        isOwner: false,
+      },
     });
   });
 
-  it('não consulta quando identidade local ainda não foi resolvida', async () => {
+  it('retorna UNAVAILABLE quando identidade local ainda não foi resolvida', async () => {
     const { findExistingDossier } = await import('../../../lib/supabase/dossierDuplicate');
-    expect(await findExistingDossier('12345678000199', 'Empresa', '')).toBeNull();
+    expect(await findExistingDossier('12345678000199', 'Empresa', '')).toEqual({ status: 'UNAVAILABLE' });
     expect(rpcMock).not.toHaveBeenCalled();
+  });
+
+  it('retorna UNAVAILABLE quando Supabase está indisponível', async () => {
+    availabilityMock.mockReturnValue(false);
+    const { findExistingDossier } = await import('../../../lib/supabase/dossierDuplicate');
+    await expect(findExistingDossier(null, 'Empresa', 'op-current')).resolves.toEqual({ status: 'UNAVAILABLE' });
+    expect(rpcMock).not.toHaveBeenCalled();
+  });
+
+  it('diferencia NOT_FOUND, ACCESS_DENIED e erro desconhecido', async () => {
+    const { findExistingDossier } = await import('../../../lib/supabase/dossierDuplicate');
+
+    rpcMock.mockResolvedValueOnce({ data: [], error: null });
+    await expect(findExistingDossier(null, 'Ausente', 'op-current')).resolves.toEqual({ status: 'NOT_FOUND' });
+
+    rpcMock.mockResolvedValueOnce({ data: null, error: { code: '42501', message: 'SQL privado' } });
+    await expect(findExistingDossier(null, 'Negado', 'op-current')).resolves.toEqual({ status: 'ACCESS_DENIED' });
+
+    rpcMock.mockResolvedValueOnce({ data: null, error: { code: 'PGRST202', message: 'function missing' } });
+    await expect(findExistingDossier(null, 'Falha', 'op-current')).resolves.toEqual({ status: 'UNAVAILABLE' });
+
+    expect(diagnosticWarnMock).toHaveBeenCalledWith(
+      'dossierDuplicate',
+      'Erro na descoberta segura de dossiê reutilizável',
+      { code: '42501', error: 'SQL privado' },
+    );
+  });
+
+  it('falha fechada quando o transporte da descoberta lança exceção', async () => {
+    rpcMock.mockRejectedValue(new Error('network stack trace privado'));
+    const { findExistingDossier } = await import('../../../lib/supabase/dossierDuplicate');
+
+    await expect(findExistingDossier(null, 'Empresa', 'op-current')).resolves.toEqual({ status: 'UNAVAILABLE' });
+    expect(diagnosticWarnMock).toHaveBeenCalledWith(
+      'dossierDuplicate',
+      'Falha de transporte na descoberta segura de dossiê',
+      { code: undefined, error: 'network stack trace privado' },
+    );
   });
 
   it('preserva a marcação de propriedade retornada pela descoberta', async () => {
@@ -64,8 +114,8 @@ describe('secure dossier reuse client', () => {
 
     const { findExistingDossier } = await import('../../../lib/supabase/dossierDuplicate');
     await expect(findExistingDossier(null, 'Empresa Própria', 'op-current')).resolves.toMatchObject({
-      id: 'owned-id',
-      isOwner: true,
+      status: 'FOUND',
+      dossier: { id: 'owned-id', isOwner: true },
     });
   });
 
@@ -102,5 +152,35 @@ describe('secure dossier reuse client', () => {
     });
     const { reuseDossierForCurrentOperator } = await import('../../../lib/supabase/dossierDuplicate');
     await expect(reuseDossierForCurrentOperator('source-id')).rejects.toThrow('inconsistente');
+  });
+
+  it.each([
+    ['42501', 'access denied from database', 'Seu acesso corporativo não foi autorizado.'],
+    ['P0002', 'dossier unavailable internally', 'O dossiê não está mais disponível.'],
+    ['23505', 'idx_dossies_secret_constraint', 'Não foi possível abrir o dossiê. Tente novamente.'],
+  ])('sanitiza erro RPC %s antes de expor à UI', async (code, rawMessage, expectedMessage) => {
+    rpcMock.mockResolvedValue({ data: null, error: { code, message: rawMessage } });
+    const { reuseDossierForCurrentOperator } = await import('../../../lib/supabase/dossierDuplicate');
+
+    await expect(reuseDossierForCurrentOperator('source-id')).rejects.toThrow(expectedMessage);
+    expect(diagnosticWarnMock).toHaveBeenCalledWith(
+      'dossierDuplicate',
+      'Erro ao reutilizar dossiê',
+      { code, error: rawMessage },
+    );
+  });
+
+  it('sanitiza exceção de transporte na reutilização', async () => {
+    rpcMock.mockRejectedValue(new Error('fetch failed at private endpoint'));
+    const { reuseDossierForCurrentOperator } = await import('../../../lib/supabase/dossierDuplicate');
+
+    await expect(reuseDossierForCurrentOperator('source-id')).rejects.toThrow(
+      'Não foi possível abrir o dossiê. Tente novamente.',
+    );
+    expect(diagnosticWarnMock).toHaveBeenCalledWith(
+      'dossierDuplicate',
+      'Falha de transporte ao reutilizar dossiê',
+      { code: undefined, error: 'fetch failed at private endpoint' },
+    );
   });
 });

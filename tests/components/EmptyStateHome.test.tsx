@@ -57,6 +57,22 @@ describe('EmptyStateHome onboarding gate', () => {
     ).toBeInTheDocument();
   });
 
+  it('exibe falha de descoberta junto ao formulário sem expor erro bruto', () => {
+    render(
+      <EmptyStateHome
+        mode="investigacao"
+        onStartInvestigation={vi.fn()}
+        isDarkMode={false}
+        discoveryError="Não foi possível verificar dossiês existentes. Tente novamente antes de iniciar uma nova pesquisa."
+      />,
+    );
+
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'Não foi possível verificar dossiês existentes. Tente novamente antes de iniciar uma nova pesquisa.',
+    );
+    expect(screen.queryByText(/relation|schema|function|PGRST/i)).not.toBeInTheDocument();
+  });
+
   it('does not submit while required fields are missing', () => {
     const onStartInvestigation = vi.fn();
 

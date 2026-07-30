@@ -29,6 +29,7 @@ export function useInvestigation({
   const [duplicateDossier, setDuplicateDossier] = useState<ExistingDossier | null>(null);
   const [isAccessingDossier, setIsAccessingDossier] = useState(false);
   const [accessDossierError, setAccessDossierError] = useState<string | null>(null);
+  const [discoveryError, setDiscoveryError] = useState<string | null>(null);
   const pendingPayloadRef = useRef<StartInvestigationPayload | null>(null);
   const processingRef = useRef(false);
 
@@ -75,6 +76,7 @@ export function useInvestigation({
   const handleStartInvestigation = useCallback(
     async (payload: StartInvestigationPayload) => {
       if (processingRef.current) return;
+      setDiscoveryError(null);
 
       if (operatorId) {
         void storage.touchUserContext(operatorId);
@@ -83,11 +85,17 @@ export function useInvestigation({
       if (payload.cnpj || payload.companyName) {
         processingRef.current = true;
         try {
-          const existing = await findExistingDossier(payload.cnpj, payload.companyName, operatorId || '');
-          if (existing) {
+          const discovery = await findExistingDossier(payload.cnpj, payload.companyName, operatorId || '');
+          if (discovery.status === 'FOUND') {
             pendingPayloadRef.current = payload;
             setAccessDossierError(null);
-            setDuplicateDossier(existing);
+            setDuplicateDossier(discovery.dossier);
+            return;
+          }
+          if (discovery.status !== 'NOT_FOUND') {
+            setDiscoveryError(
+              'Não foi possível verificar dossiês existentes. Tente novamente antes de iniciar uma nova pesquisa.',
+            );
             return;
           }
         } finally {
@@ -181,6 +189,7 @@ export function useInvestigation({
     duplicateDossier,
     isAccessingDossier,
     accessDossierError,
+    discoveryError,
     setDuplicateDossier,
     pendingPayloadRef,
   };

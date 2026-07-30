@@ -229,6 +229,38 @@ describe('supabaseMigrations contract — dossier run lifecycle', () => {
   });
 });
 
+describe('supabaseMigrations contract — secure dossier reuse privacy', () => {
+  const migration = readFileSync(
+    resolve(MIGRATIONS_DIR, '20260730193000_secure_cross_operator_dossier_reuse.sql'),
+    'utf-8',
+  );
+
+  it('exige exatamente um relatório bot não vazio com scorePorta objeto', () => {
+    expect(migration).toContain("candidate.message->>'sender' = 'bot'");
+    expect(migration).toContain("btrim(coalesce(candidate.message->>'text', '')) <> ''");
+    expect(migration).toContain("candidate.message->'isError' IS DISTINCT FROM 'true'::jsonb");
+    expect(migration).toContain("candidate.message->'isThinking' IS DISTINCT FROM 'true'::jsonb");
+    expect(migration).toContain("jsonb_typeof(candidate.message->'scorePorta') = 'object'");
+    expect(migration).toContain('IF v_report_count <> 1 OR v_report IS NULL');
+  });
+
+  it('constrói snapshot por allowlist e não parte do content integral da raiz', () => {
+    expect(migration).toContain("'messages', jsonb_build_array(");
+    expect(migration).toContain("'groundingSources', v_report->'groundingSources'");
+    expect(migration).toContain("'webVerificationStatus', v_report->'webVerificationStatus'");
+    expect(migration).not.toContain("jsonb_set(v_root.content");
+    expect(migration).not.toContain("'feedback', v_report->'feedback'");
+    expect(migration).not.toContain("'companyContext'");
+  });
+
+  it('usa ON CONFLICT direcionado ao índice parcial e busca a cópia efetiva', () => {
+    expect(migration).toContain('ON CONFLICT (operator_id, source_dossier_id)');
+    expect(migration).toContain('WHERE source_dossier_id IS NOT NULL');
+    expect(migration).toContain('DO NOTHING');
+    expect(migration).toContain("RAISE EXCEPTION 'dossier unavailable' USING ERRCODE = 'P0002'");
+  });
+});
+
 describe('supabaseMigrations contract — baseline integrity (PR #464)', () => {
   const allContent = getAllContent();
 
