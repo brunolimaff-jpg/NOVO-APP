@@ -14,7 +14,7 @@ CREATE OR REPLACE FUNCTION public.cleanup_scout_diagnostics_opportunistic(
 RETURNS integer
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public, pg_temp
+SET search_path = ''
 AS $$
 DECLARE
   deleted_count integer := 0;

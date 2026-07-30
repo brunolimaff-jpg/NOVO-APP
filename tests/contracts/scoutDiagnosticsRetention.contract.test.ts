@@ -9,6 +9,7 @@ describe('scout_diagnostics retention migrations', () => {
       'utf8',
     );
     expect(sql).toContain('pg_try_advisory_xact_lock');
+    expect(sql).toContain("SET search_path = ''");
     expect(sql).toContain('last_run_date < EXCLUDED.last_run_date');
     expect(sql).toContain('LIMIT batch_size');
     expect(sql).toContain('batch_size > 1000');
