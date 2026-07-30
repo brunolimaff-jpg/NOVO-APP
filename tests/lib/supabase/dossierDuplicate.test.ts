@@ -49,6 +49,26 @@ describe('secure dossier reuse client', () => {
     expect(rpcMock).not.toHaveBeenCalled();
   });
 
+  it('preserva a marcação de propriedade retornada pela descoberta', async () => {
+    rpcMock.mockResolvedValue({
+      data: [{
+        dossier_id: 'owned-id',
+        title: 'Empresa Própria',
+        empresa_alvo: 'Empresa Própria',
+        created_at: '2026-07-30T10:00:00Z',
+        score_oportunidade: 90,
+        is_owner: true,
+      }],
+      error: null,
+    });
+
+    const { findExistingDossier } = await import('../../../lib/supabase/dossierDuplicate');
+    await expect(findExistingDossier(null, 'Empresa Própria', 'op-current')).resolves.toMatchObject({
+      id: 'owned-id',
+      isOwner: true,
+    });
+  });
+
   it('retorna a sessão completa com o novo ID pela RPC de reutilização', async () => {
     const content = {
       id: 'copy-id',

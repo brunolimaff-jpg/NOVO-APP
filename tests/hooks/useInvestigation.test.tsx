@@ -89,7 +89,27 @@ describe('useInvestigation — copy-on-access', () => {
       await accessPromise!;
     });
     expect(onOpenLoadedSession).toHaveBeenCalledWith(copiedSession);
+    expect(reuseDossierMock).toHaveBeenCalledWith('source-id');
     expect(result.current.duplicateDossier).toBeNull();
+    expect(saveDossierMock).not.toHaveBeenCalled();
+    expect(getRemoteSessionMock).not.toHaveBeenCalled();
+  });
+
+  it('abre o dossiê próprio retornado pela descoberta sem criar cópia no cliente', async () => {
+    const ownedSession: ChatSession = { ...copiedSession, id: 'source-id' };
+    reuseDossierMock.mockResolvedValue({
+      dossierId: 'source-id',
+      content: ownedSession,
+      wasCloned: false,
+    });
+    const ownedDossier = { ...existing, isOwner: true };
+    const { result, onOpenLoadedSession } = renderInvestigation();
+    act(() => result.current.setDuplicateDossier(ownedDossier));
+
+    await act(() => result.current.handleAccessExistingDossier());
+
+    expect(reuseDossierMock).toHaveBeenCalledWith('source-id');
+    expect(onOpenLoadedSession).toHaveBeenCalledWith(ownedSession);
     expect(saveDossierMock).not.toHaveBeenCalled();
     expect(getRemoteSessionMock).not.toHaveBeenCalled();
   });

@@ -490,3 +490,9 @@
 ### 2026-06-08 — Handoff final precisa apontar repo + Bruno Vault (APLICADO na PR #346)
 
 ### 2026-06-11 — Tracking de Operador: canonical operatorId, findUserByEmail, PII-safe logging
+### DI-2026-07-30-01: Reutilização interna exige identidade corporativa Auth e raiz canônica
+
+- **Decisão:** As RPCs de descoberta/reutilização aceitam apenas usuário Auth confirmado `@senior.com.br`, com e-mail igual em `profiles` e `operator_id`; somente `authenticated` recebe `EXECUTE`.
+- **Linhagem:** Descoberta não expõe cópias alheias e reutilização resolve qualquer cópia estrangeira diretamente para uma raiz válida, recusando copy-to-copy inválido.
+- **Concorrência:** advisory lock transacional e índice único parcial são barreiras comprovadas; teste simultâneo em duas sessões não foi executado.
+- **Impacto:** copy-on-access preserva isolamento por operador sem delegar autorização ao cliente ou ao `service_role`.

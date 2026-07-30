@@ -1,15 +1,16 @@
 # Active Context
 
-Last updated: 2026-07-30 — Draft PR #466 publicada
+Last updated: 2026-07-30 — correção final da Draft PR #466 validada localmente
 
 ## Estado
 
 - PR #465 mergeada em `main`: `bd98c829`.
 - PR #466 `OPEN/DRAFT`: https://github.com/brunolimaff-jpg/NOVO-APP/pull/466
-- Branch `codex/secure-cross-operator-dossier-reuse`; commit funcional `6f3e128b`.
-- Copy-on-access implementado por RPCs `SECURITY DEFINER`, `search_path=''`, auth obrigatória e grants mínimos.
-- Migration 24 e teste PostgreSQL versionado concluídos; nenhuma aplicação remota.
-- Gates: 110/110 direcionados, PG17 PASS, replay 24/24, build/lint/diff PASS, zero regressão vs `main`.
+- Branch `codex/secure-cross-operator-dossier-reuse`; base anterior `6c4884ed`.
+- RPCs exigem Auth confirmado `@senior.com.br`, e-mail igual ao perfil e `operator_id`; somente `authenticated` executa.
+- Descoberta expõe raiz/cópia própria e reutilização canonicaliza cópia estrangeira diretamente para a raiz.
+- Teste PG com A/B/C/X/U/M comprova autorização e linhagem; concorrência limitada às barreiras advisory lock + índice único.
+- Gates: 65/65 direcionados, PG17 PASS, replay 24/24, build/lint/diff PASS, zero regressão vs `main`.
 
 ## Guardrails
 

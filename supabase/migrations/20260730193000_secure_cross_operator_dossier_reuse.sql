@@ -34,16 +34,21 @@ DECLARE
   v_empresa_normalizada text := lower(regexp_replace(btrim(coalesce(p_empresa_alvo, '')), '\s+', ' ', 'g'));
 BEGIN
   IF v_auth_user_id IS NULL THEN
-    RAISE EXCEPTION 'authentication required' USING ERRCODE = '42501';
+    RAISE EXCEPTION 'access denied' USING ERRCODE = '42501';
   END IF;
 
   SELECT p.operator_id
     INTO v_operator_id
     FROM public.profiles AS p
-   WHERE p.id = v_auth_user_id;
+    JOIN auth.users AS u ON u.id = p.id
+   WHERE u.id = v_auth_user_id
+     AND u.email_confirmed_at IS NOT NULL
+     AND right(lower(btrim(u.email)), 14) = '@senior.com.br'
+     AND lower(p.email) = lower(u.email)
+     AND p.operator_id IS NOT NULL;
 
   IF v_operator_id IS NULL THEN
-    RAISE EXCEPTION 'authenticated profile has no operator' USING ERRCODE = '42501';
+    RAISE EXCEPTION 'access denied' USING ERRCODE = '42501';
   END IF;
 
   IF length(v_cnpj) = 14 THEN
@@ -53,7 +58,11 @@ BEGIN
       FROM public.dossies AS d
      WHERE regexp_replace(coalesce(d.cnpj, ''), '[^0-9]', '', 'g') = v_cnpj
        AND d.deleted_at IS NULL
-     ORDER BY d.created_at DESC NULLS LAST, d.id DESC
+       AND (d.source_dossier_id IS NULL OR d.operator_id = v_operator_id)
+     ORDER BY (d.operator_id = v_operator_id) DESC,
+              (d.source_dossier_id IS NULL) DESC,
+              d.created_at DESC NULLS LAST,
+              d.id DESC
      LIMIT 1;
     RETURN;
   END IF;
@@ -65,7 +74,11 @@ BEGIN
       FROM public.dossies AS d
      WHERE lower(regexp_replace(btrim(coalesce(d.empresa_alvo, '')), '\s+', ' ', 'g')) = v_empresa_normalizada
        AND d.deleted_at IS NULL
-     ORDER BY d.created_at DESC NULLS LAST, d.id DESC
+       AND (d.source_dossier_id IS NULL OR d.operator_id = v_operator_id)
+     ORDER BY (d.operator_id = v_operator_id) DESC,
+              (d.source_dossier_id IS NULL) DESC,
+              d.created_at DESC NULLS LAST,
+              d.id DESC
      LIMIT 1;
   END IF;
 END;
@@ -86,7 +99,8 @@ AS $$
 DECLARE
   v_auth_user_id uuid := auth.uid();
   v_operator_id text;
-  v_source public.dossies%ROWTYPE;
+  v_requested public.dossies%ROWTYPE;
+  v_root public.dossies%ROWTYPE;
   v_copy public.dossies%ROWTYPE;
   v_new_id uuid;
   v_now timestamptz := clock_timestamp();
@@ -94,20 +108,25 @@ DECLARE
   v_content jsonb;
 BEGIN
   IF v_auth_user_id IS NULL THEN
-    RAISE EXCEPTION 'authentication required' USING ERRCODE = '42501';
+    RAISE EXCEPTION 'access denied' USING ERRCODE = '42501';
   END IF;
 
   SELECT p.operator_id
     INTO v_operator_id
     FROM public.profiles AS p
-   WHERE p.id = v_auth_user_id;
+    JOIN auth.users AS u ON u.id = p.id
+   WHERE u.id = v_auth_user_id
+     AND u.email_confirmed_at IS NOT NULL
+     AND right(lower(btrim(u.email)), 14) = '@senior.com.br'
+     AND lower(p.email) = lower(u.email)
+     AND p.operator_id IS NOT NULL;
 
   IF v_operator_id IS NULL THEN
-    RAISE EXCEPTION 'authenticated profile has no operator' USING ERRCODE = '42501';
+    RAISE EXCEPTION 'access denied' USING ERRCODE = '42501';
   END IF;
 
   SELECT d.*
-    INTO v_source
+    INTO v_requested
     FROM public.dossies AS d
    WHERE d.id = p_source_dossier_id
      AND d.deleted_at IS NULL;
@@ -116,24 +135,39 @@ BEGIN
     RAISE EXCEPTION 'source dossier not found' USING ERRCODE = 'P0002';
   END IF;
 
-  IF v_source.operator_id = v_operator_id THEN
+  IF v_requested.operator_id = v_operator_id THEN
     INSERT INTO public.dossier_accesses (dossier_id, operator_id, cnpj)
-    VALUES (v_source.id, v_operator_id, v_source.cnpj);
+    VALUES (v_requested.id, v_operator_id, v_requested.cnpj);
 
-    RETURN QUERY SELECT v_source.id, v_source.content, false;
+    RETURN QUERY SELECT v_requested.id, v_requested.content, false;
     RETURN;
+  END IF;
+
+  IF v_requested.source_dossier_id IS NULL THEN
+    v_root := v_requested;
+  ELSE
+    SELECT d.*
+      INTO v_root
+      FROM public.dossies AS d
+     WHERE d.id = v_requested.source_dossier_id
+       AND d.deleted_at IS NULL
+       AND d.source_dossier_id IS NULL;
+
+    IF NOT FOUND OR v_root.id = v_requested.id THEN
+      RAISE EXCEPTION 'invalid dossier lineage' USING ERRCODE = 'P0002';
+    END IF;
   END IF;
 
   -- Serializa a criação por operador+fonte; o índice parcial é a segunda barreira.
   PERFORM pg_catalog.pg_advisory_xact_lock(
-    pg_catalog.hashtextextended(v_operator_id || ':' || p_source_dossier_id::text, 0)
+    pg_catalog.hashtextextended(v_operator_id || ':' || v_root.id::text, 0)
   );
 
   SELECT d.*
     INTO v_copy
     FROM public.dossies AS d
    WHERE d.operator_id = v_operator_id
-     AND d.source_dossier_id = p_source_dossier_id
+     AND d.source_dossier_id = v_root.id
      AND d.deleted_at IS NULL
    ORDER BY d.created_at DESC NULLS LAST, d.id DESC
    LIMIT 1;
@@ -150,7 +184,7 @@ BEGIN
   v_now_iso := to_char(v_now AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"');
   v_content := jsonb_set(
     jsonb_set(
-      jsonb_set(v_source.content, '{id}', to_jsonb(v_new_id::text), true),
+      jsonb_set(v_root.content, '{id}', to_jsonb(v_new_id::text), true),
       '{createdAt}', to_jsonb(v_now_iso), true
     ),
     '{updatedAt}', to_jsonb(v_now_iso), true
@@ -162,9 +196,9 @@ BEGIN
     created_at, updated_at, source_dossier_id, source_operator_id, reused_at
   )
   VALUES (
-    v_new_id, v_operator_id, NULL, v_source.title, v_source.empresa_alvo, v_source.cnpj,
-    v_source.modo_principal, v_source.score_oportunidade, v_source.resumo_dossie, v_content,
-    v_now, v_now, v_source.id, v_source.operator_id, v_now
+    v_new_id, v_operator_id, NULL, v_root.title, v_root.empresa_alvo, v_root.cnpj,
+    v_root.modo_principal, v_root.score_oportunidade, v_root.resumo_dossie, v_content,
+    v_now, v_now, v_root.id, v_root.operator_id, v_now
   )
   RETURNING * INTO v_copy;
 
@@ -175,7 +209,7 @@ BEGIN
 END;
 $$;
 
-REVOKE ALL ON FUNCTION public.find_reusable_dossier(text, text) FROM PUBLIC, anon;
-REVOKE ALL ON FUNCTION public.reuse_dossier_for_current_operator(uuid) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.find_reusable_dossier(text, text) TO authenticated, service_role;
-GRANT EXECUTE ON FUNCTION public.reuse_dossier_for_current_operator(uuid) TO authenticated, service_role;
+REVOKE ALL ON FUNCTION public.find_reusable_dossier(text, text) FROM PUBLIC, anon, service_role;
+REVOKE ALL ON FUNCTION public.reuse_dossier_for_current_operator(uuid) FROM PUBLIC, anon, service_role;
+GRANT EXECUTE ON FUNCTION public.find_reusable_dossier(text, text) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.reuse_dossier_for_current_operator(uuid) TO authenticated;

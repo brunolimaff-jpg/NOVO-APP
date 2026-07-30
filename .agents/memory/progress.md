@@ -1,5 +1,14 @@
 # Progress
 
+## 2026-07-30 — Correção final da Draft PR #466
+
+- Autorização das duas RPCs endurecida com `auth.users`: domínio Senior exato, confirmação de e-mail, igualdade perfil/Auth e `operator_id` obrigatório.
+- `EXECUTE` removido de `PUBLIC`, `anon` e `service_role`; mantido somente para `authenticated`.
+- Descoberta restrita à raiz/cópia própria e reuse canonicalizado diretamente na raiz, recusando linhagem inválida.
+- Runtime PostgreSQL com A/B/C/X/U/M passou; advisory lock + índice foram comprovados como barreiras, sem alegar teste simultâneo de sessões.
+- 65/65 direcionados; replay PG17 24/24; 14 erros Typecheck baseline; branch 34 falhas vs 35 na `main`; lint/build/diff aprovados.
+- Nenhuma escrita em Supabase remoto, Produção, Preview ou `shared_dossiers`.
+
 ## 2026-07-30 — Draft PR #466 reutilização segura entre operadores
 
 - PR #465 mergeada (`bd98c829`); cadeia-base confirmada com 23 migrations.

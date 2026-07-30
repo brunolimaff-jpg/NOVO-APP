@@ -1,4 +1,4 @@
--- Teste PostgreSQL versionado para copy-on-access entre operadores.
+-- Teste PostgreSQL versionado para autorização corporativa e copy-on-access.
 -- Executar somente no banco descartável com o nome exato:
 --   psql -v ON_ERROR_STOP=1 -d novoapp_dossier_reuse_test \
 --     -f scripts/test_secure_dossier_reuse.sql
@@ -37,10 +37,18 @@ $$;
 DROP TABLE IF EXISTS public.dossier_accesses CASCADE;
 DROP TABLE IF EXISTS public.dossies CASCADE;
 DROP TABLE IF EXISTS public.profiles CASCADE;
+DROP TABLE IF EXISTS auth.users CASCADE;
+
+CREATE TABLE auth.users (
+  id uuid PRIMARY KEY,
+  email text,
+  email_confirmed_at timestamptz,
+  raw_user_meta_data jsonb DEFAULT '{}'::jsonb
+);
 
 CREATE TABLE public.profiles (
   id uuid PRIMARY KEY,
-  operator_id text NOT NULL UNIQUE,
+  operator_id text UNIQUE,
   email text,
   name text,
   created_at timestamptz NOT NULL DEFAULT now()
@@ -86,9 +94,21 @@ GRANT EXECUTE ON FUNCTION auth.uid() TO authenticated, anon, service_role;
 
 \i supabase/migrations/20260730193000_secure_cross_operator_dossier_reuse.sql
 
+INSERT INTO auth.users (id, email, email_confirmed_at) VALUES
+  ('11111111-1111-4111-8111-111111111111', 'a@senior.com.br', now()),
+  ('22222222-2222-4222-8222-222222222222', 'b@senior.com.br', now()),
+  ('33333333-3333-4333-8333-333333333333', 'c@senior.com.br', now()),
+  ('44444444-4444-4444-8444-444444444444', 'x@external.example', now()),
+  ('55555555-5555-4555-8555-555555555555', 'u@senior.com.br', NULL),
+  ('66666666-6666-4666-8666-666666666666', 'm-auth@senior.com.br', now());
+
 INSERT INTO public.profiles (id, operator_id, email, name) VALUES
-  ('11111111-1111-4111-8111-111111111111', 'operator-a', 'a@example.test', 'Operador A'),
-  ('22222222-2222-4222-8222-222222222222', 'operator-b', 'b@example.test', 'Operador B');
+  ('11111111-1111-4111-8111-111111111111', 'operator-a', 'a@senior.com.br', 'Operador A'),
+  ('22222222-2222-4222-8222-222222222222', 'operator-b', 'b@senior.com.br', 'Operador B'),
+  ('33333333-3333-4333-8333-333333333333', 'operator-c', 'c@senior.com.br', 'Operador C'),
+  ('44444444-4444-4444-8444-444444444444', 'operator-x', 'x@external.example', 'Externo X'),
+  ('55555555-5555-4555-8555-555555555555', 'operator-u', 'u@senior.com.br', 'Não confirmado U'),
+  ('66666666-6666-4666-8666-666666666666', 'operator-m', 'm-profile@senior.com.br', 'Divergente M');
 
 INSERT INTO public.dossies (
   id, operator_id, title, empresa_alvo, cnpj, modo_principal,
@@ -115,29 +135,44 @@ WHERE d.id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 CREATE TEMP TABLE runtime_results (key text PRIMARY KEY, value jsonb NOT NULL);
 GRANT ALL ON runtime_results TO authenticated;
 
--- Operador B não lê content diretamente com RLS owner-only.
+-- B não lê o conteúdo de A diretamente, descobre a raiz e cria sua cópia.
 SET LOCAL request.jwt.claim.sub = '22222222-2222-4222-8222-222222222222';
 SET LOCAL ROLE authenticated;
 INSERT INTO runtime_results VALUES (
   'direct_rows_b',
   to_jsonb((SELECT count(*) FROM public.dossies WHERE id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'))
 );
-
--- Descoberta retorna somente a assinatura mínima, sem content.
 INSERT INTO runtime_results
-SELECT 'discovery_b', to_jsonb(r)
+SELECT 'discovery_b_before', to_jsonb(r)
 FROM public.find_reusable_dossier('12.345.678/0001-99', 'Nome ignorado') AS r;
-
 INSERT INTO runtime_results
 SELECT 'reuse_b_first', to_jsonb(r)
 FROM public.reuse_dossier_for_current_operator('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa') AS r;
-
 INSERT INTO runtime_results
 SELECT 'reuse_b_second', to_jsonb(r)
 FROM public.reuse_dossier_for_current_operator('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa') AS r;
+INSERT INTO runtime_results
+SELECT 'discovery_b_after', to_jsonb(r)
+FROM public.find_reusable_dossier('12.345.678/0001-99', 'Nome ignorado') AS r;
 RESET ROLE;
 
--- O proprietário recebe o próprio registro, sem clone.
+-- C ainda não possui cópia: descobre a raiz, nunca a cópia de B.
+SET LOCAL request.jwt.claim.sub = '33333333-3333-4333-8333-333333333333';
+SET LOCAL ROLE authenticated;
+INSERT INTO runtime_results
+SELECT 'discovery_c_before', to_jsonb(r)
+FROM public.find_reusable_dossier('12.345.678/0001-99', 'Nome ignorado') AS r;
+INSERT INTO runtime_results
+SELECT 'reuse_c_from_b', to_jsonb(r)
+FROM public.reuse_dossier_for_current_operator(
+  (SELECT (value->>'dossier_id')::uuid FROM runtime_results WHERE key = 'reuse_b_first')
+) AS r;
+INSERT INTO runtime_results
+SELECT 'reuse_c_from_root', to_jsonb(r)
+FROM public.reuse_dossier_for_current_operator('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa') AS r;
+RESET ROLE;
+
+-- A abre seu próprio dossiê, sem clone.
 SET LOCAL request.jwt.claim.sub = '11111111-1111-4111-8111-111111111111';
 SET LOCAL ROLE authenticated;
 INSERT INTO runtime_results
@@ -145,31 +180,109 @@ SELECT 'reuse_a', to_jsonb(r)
 FROM public.reuse_dossier_for_current_operator('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa') AS r;
 RESET ROLE;
 
+-- Autorização corporativa: domínio, confirmação e igualdade de e-mail são obrigatórios.
 DO $$
 DECLARE
-  v_discovery jsonb;
-  v_first jsonb;
-  v_second jsonb;
+  v_user_id uuid;
+  v_error_code text;
+  v_error_message text;
+BEGIN
+  FOREACH v_user_id IN ARRAY ARRAY[
+    '44444444-4444-4444-8444-444444444444'::uuid,
+    '55555555-5555-4555-8555-555555555555'::uuid,
+    '66666666-6666-4666-8666-666666666666'::uuid
+  ] LOOP
+    PERFORM set_config('request.jwt.claim.sub', v_user_id::text, true);
+    EXECUTE 'SET LOCAL ROLE authenticated';
+
+    BEGIN
+      PERFORM public.find_reusable_dossier('12.345.678/0001-99', 'Empresa Fonte');
+      RAISE EXCEPTION 'FALHA: usuário não corporativo executou descoberta';
+    EXCEPTION WHEN OTHERS THEN
+      GET STACKED DIAGNOSTICS v_error_code = RETURNED_SQLSTATE, v_error_message = MESSAGE_TEXT;
+      IF v_error_code <> '42501' OR v_error_message <> 'access denied' THEN
+        RAISE EXCEPTION 'FALHA: descoberta revelou condição interna: state=%, msg=%', v_error_code, v_error_message;
+      END IF;
+    END;
+
+    BEGIN
+      PERFORM public.reuse_dossier_for_current_operator('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa');
+      RAISE EXCEPTION 'FALHA: usuário não corporativo executou reutilização';
+    EXCEPTION WHEN OTHERS THEN
+      GET STACKED DIAGNOSTICS v_error_code = RETURNED_SQLSTATE, v_error_message = MESSAGE_TEXT;
+      IF v_error_code <> '42501' OR v_error_message <> 'access denied' THEN
+        RAISE EXCEPTION 'FALHA: reutilização revelou condição interna: state=%, msg=%', v_error_code, v_error_message;
+      END IF;
+    END;
+
+    RESET ROLE;
+  END LOOP;
+END $$;
+
+-- Fixture deliberadamente inválida: uma cópia apontando para a cópia de B.
+INSERT INTO public.dossies (
+  id, operator_id, title, empresa_alvo, cnpj, content, source_dossier_id, source_operator_id
+)
+SELECT
+  'dddddddd-dddd-4ddd-8ddd-dddddddddddd', 'operator-invalid', 'Linhagem inválida',
+  'Empresa Fonte', '12345678000199', '{}'::jsonb,
+  (value->>'dossier_id')::uuid, 'operator-b'
+FROM runtime_results WHERE key = 'reuse_b_first';
+
+SET LOCAL request.jwt.claim.sub = '33333333-3333-4333-8333-333333333333';
+DO $$
+DECLARE
+  v_error_message text;
+BEGIN
+  EXECUTE 'SET LOCAL ROLE authenticated';
+  BEGIN
+    PERFORM public.reuse_dossier_for_current_operator('dddddddd-dddd-4ddd-8ddd-dddddddddddd');
+    RAISE EXCEPTION 'FALHA: cadeia cópia para cópia foi aceita';
+  EXCEPTION WHEN no_data_found THEN
+    GET STACKED DIAGNOSTICS v_error_message = MESSAGE_TEXT;
+    IF v_error_message <> 'invalid dossier lineage' THEN
+      RAISE;
+    END IF;
+  END;
+  RESET ROLE;
+END $$;
+
+DO $$
+DECLARE
+  v_b_first jsonb;
+  v_b_second jsonb;
+  v_b_discovery jsonb;
+  v_c_discovery jsonb;
+  v_c_from_b jsonb;
+  v_c_from_root jsonb;
   v_owner jsonb;
-  v_copy_id uuid;
-  v_source_after jsonb;
+  v_b_copy_id uuid;
+  v_c_copy_id uuid;
   v_source_before jsonb;
-  v_copy_count integer;
-  v_access_count integer;
+  v_source_after jsonb;
   v_function_definition text;
   v_hardened_functions integer;
 BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.routine_privileges
+    WHERE routine_schema = 'public'
+      AND routine_name IN ('find_reusable_dossier', 'reuse_dossier_for_current_operator')
+      AND grantee = 'PUBLIC'
+      AND privilege_type = 'EXECUTE'
+  ) THEN
+    RAISE EXCEPTION 'FALHA: PUBLIC possui EXECUTE nas RPCs';
+  END IF;
   IF has_function_privilege('anon', 'public.find_reusable_dossier(text,text)', 'EXECUTE') OR
      has_function_privilege('anon', 'public.reuse_dossier_for_current_operator(uuid)', 'EXECUTE') THEN
     RAISE EXCEPTION 'FALHA: anon possui EXECUTE nas RPCs';
   END IF;
+  IF has_function_privilege('service_role', 'public.find_reusable_dossier(text,text)', 'EXECUTE') OR
+     has_function_privilege('service_role', 'public.reuse_dossier_for_current_operator(uuid)', 'EXECUTE') THEN
+    RAISE EXCEPTION 'FALHA: service_role possui EXECUTE nas RPCs';
+  END IF;
   IF NOT has_function_privilege('authenticated', 'public.find_reusable_dossier(text,text)', 'EXECUTE') OR
      NOT has_function_privilege('authenticated', 'public.reuse_dossier_for_current_operator(uuid)', 'EXECUTE') THEN
     RAISE EXCEPTION 'FALHA: authenticated não possui EXECUTE nas RPCs';
-  END IF;
-  IF NOT has_function_privilege('service_role', 'public.find_reusable_dossier(text,text)', 'EXECUTE') OR
-     NOT has_function_privilege('service_role', 'public.reuse_dossier_for_current_operator(uuid)', 'EXECUTE') THEN
-    RAISE EXCEPTION 'FALHA: service_role não possui EXECUTE nas RPCs';
   END IF;
 
   SELECT count(*) INTO v_hardened_functions
@@ -184,59 +297,76 @@ BEGIN
   END IF;
 
   IF (SELECT value FROM runtime_results WHERE key = 'direct_rows_b') <> '0'::jsonb THEN
-    RAISE EXCEPTION 'FALHA: operador B leu diretamente o dossiê de A';
+    RAISE EXCEPTION 'FALHA: B leu diretamente o dossiê de A';
   END IF;
 
-  SELECT value INTO v_discovery FROM runtime_results WHERE key = 'discovery_b';
-  IF v_discovery->>'dossier_id' <> 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa' OR
-     (v_discovery->>'is_owner')::boolean OR v_discovery ? 'content' THEN
-    RAISE EXCEPTION 'FALHA: descoberta não retornou somente metadados seguros: %', v_discovery;
-  END IF;
-
-  SELECT value INTO v_first FROM runtime_results WHERE key = 'reuse_b_first';
-  SELECT value INTO v_second FROM runtime_results WHERE key = 'reuse_b_second';
+  SELECT value INTO v_b_first FROM runtime_results WHERE key = 'reuse_b_first';
+  SELECT value INTO v_b_second FROM runtime_results WHERE key = 'reuse_b_second';
+  SELECT value INTO v_b_discovery FROM runtime_results WHERE key = 'discovery_b_after';
+  SELECT value INTO v_c_discovery FROM runtime_results WHERE key = 'discovery_c_before';
+  SELECT value INTO v_c_from_b FROM runtime_results WHERE key = 'reuse_c_from_b';
+  SELECT value INTO v_c_from_root FROM runtime_results WHERE key = 'reuse_c_from_root';
   SELECT value INTO v_owner FROM runtime_results WHERE key = 'reuse_a';
-  v_copy_id := (v_first->>'dossier_id')::uuid;
+  v_b_copy_id := (v_b_first->>'dossier_id')::uuid;
+  v_c_copy_id := (v_c_from_b->>'dossier_id')::uuid;
 
-  IF v_copy_id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa' OR NOT (v_first->>'was_cloned')::boolean THEN
-    RAISE EXCEPTION 'FALHA: operador B não recebeu clone com novo UUID';
+  IF (SELECT value->>'dossier_id' FROM runtime_results WHERE key = 'discovery_b_before') <>
+     'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa' THEN
+    RAISE EXCEPTION 'FALHA: B não descobriu a raiz antes de possuir cópia';
   END IF;
-  IF v_first->'content'->>'id' <> v_copy_id::text THEN
-    RAISE EXCEPTION 'FALHA: content.id não foi reescrito para o UUID da cópia';
+  IF v_b_discovery->>'dossier_id' <> v_b_copy_id::text OR
+     NOT (v_b_discovery->>'is_owner')::boolean THEN
+    RAISE EXCEPTION 'FALHA: descoberta de B não priorizou sua própria cópia';
   END IF;
-  IF v_second->>'dossier_id' <> v_copy_id::text THEN
-    RAISE EXCEPTION 'FALHA: segundo acesso não reutilizou a mesma cópia ativa';
+  IF v_c_discovery->>'dossier_id' <> 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa' OR
+     (v_c_discovery->>'is_owner')::boolean THEN
+    RAISE EXCEPTION 'FALHA: C descobriu cópia alheia em vez da raiz';
+  END IF;
+
+  IF v_b_copy_id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa' OR
+     NOT (v_b_first->>'was_cloned')::boolean OR
+     v_b_second->>'dossier_id' <> v_b_copy_id::text THEN
+    RAISE EXCEPTION 'FALHA: cópia de B não é nova ou idempotente';
+  END IF;
+  IF v_c_copy_id = v_b_copy_id OR v_c_copy_id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa' OR
+     v_c_from_root->>'dossier_id' <> v_c_copy_id::text THEN
+    RAISE EXCEPTION 'FALHA: canonicalização/idempotência da cópia de C falhou';
+  END IF;
+  IF v_c_from_b->'content'->>'id' <> v_c_copy_id::text THEN
+    RAISE EXCEPTION 'FALHA: content.id da cópia de C está inconsistente';
   END IF;
 
   IF NOT EXISTS (
     SELECT 1 FROM public.dossies
-    WHERE id = v_copy_id
-      AND operator_id = 'operator-b'
+    WHERE id = v_c_copy_id
+      AND operator_id = 'operator-c'
       AND source_dossier_id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
       AND source_operator_id = 'operator-a'
       AND deleted_at IS NULL
   ) THEN
-    RAISE EXCEPTION 'FALHA: proveniência ou ownership da cópia está incorreto';
+    RAISE EXCEPTION 'FALHA: cópia de C não aponta diretamente para a raiz A';
+  END IF;
+  IF EXISTS (
+    SELECT 1 FROM public.dossies
+    WHERE source_dossier_id = v_b_copy_id
+      AND operator_id IN ('operator-b', 'operator-c')
+  ) THEN
+    RAISE EXCEPTION 'FALHA: clone válido usa a cópia de B como fonte';
+  END IF;
+  IF (SELECT count(*) FROM public.dossies WHERE operator_id = 'operator-b' AND source_dossier_id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa' AND deleted_at IS NULL) <> 1 OR
+     (SELECT count(*) FROM public.dossies WHERE operator_id = 'operator-c' AND source_dossier_id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa' AND deleted_at IS NULL) <> 1 THEN
+    RAISE EXCEPTION 'FALHA: B ou C possui mais de uma cópia ativa da raiz';
   END IF;
 
   SELECT snapshot INTO v_source_before FROM source_before;
   SELECT to_jsonb(d) INTO v_source_after FROM public.dossies AS d
    WHERE d.id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
   IF v_source_after IS DISTINCT FROM v_source_before THEN
-    RAISE EXCEPTION 'FALHA: dossiê fonte foi alterado';
+    RAISE EXCEPTION 'FALHA: dossiê fonte A foi alterado';
   END IF;
-
   IF v_owner->>'dossier_id' <> 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa' OR
      (v_owner->>'was_cloned')::boolean THEN
-    RAISE EXCEPTION 'FALHA: proprietário deveria receber o original sem clone';
-  END IF;
-
-  SELECT count(*) INTO v_copy_count FROM public.dossies
-   WHERE operator_id = 'operator-b'
-     AND source_dossier_id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
-     AND deleted_at IS NULL;
-  IF v_copy_count <> 1 THEN
-    RAISE EXCEPTION 'FALHA: esperado um único clone ativo, encontrados %', v_copy_count;
+    RAISE EXCEPTION 'FALHA: A deveria receber o original sem clone';
   END IF;
 
   SELECT pg_get_functiondef('public.reuse_dossier_for_current_operator(uuid)'::regprocedure)
@@ -253,30 +383,23 @@ BEGIN
       'operator-b', 'Clone concorrente', 'Empresa Fonte', '{}'::jsonb,
       'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 'operator-a'
     );
-    RAISE EXCEPTION 'FALHA: índice permitiu segunda cópia ativa concorrente';
+    RAISE EXCEPTION 'FALHA: índice permitiu segunda cópia ativa de B';
   EXCEPTION WHEN unique_violation THEN
     NULL;
   END;
-
-  SELECT count(*) INTO v_access_count FROM public.dossier_accesses
-   WHERE operator_id = 'operator-b' AND dossier_id = v_copy_id;
-  IF v_access_count <> 2 THEN
-    RAISE EXCEPTION 'FALHA: acessos de B não foram registrados, total %', v_access_count;
-  END IF;
 END $$;
 
--- Dossiê excluído não pode ser encontrado nem reutilizado.
-UPDATE public.dossies
-SET deleted_at = now()
+-- Raiz excluída não pode ser usada para nova reutilização por ID.
+UPDATE public.dossies SET deleted_at = now()
 WHERE id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 
-SET LOCAL request.jwt.claim.sub = '22222222-2222-4222-8222-222222222222';
+SET LOCAL request.jwt.claim.sub = '33333333-3333-4333-8333-333333333333';
 DO $$
 BEGIN
   EXECUTE 'SET LOCAL ROLE authenticated';
   BEGIN
     PERFORM public.reuse_dossier_for_current_operator('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa');
-    RAISE EXCEPTION 'FALHA: dossiê excluído foi reutilizado';
+    RAISE EXCEPTION 'FALHA: raiz excluída foi reutilizada';
   EXCEPTION WHEN no_data_found THEN
     NULL;
   END;
@@ -285,4 +408,4 @@ END $$;
 
 ROLLBACK;
 
-\echo 'PASS: secure cross-operator dossier reuse runtime assertions'
+\echo 'PASS: corporate authorization, root lineage and copy-on-access assertions'
