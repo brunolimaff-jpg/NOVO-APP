@@ -1,5 +1,13 @@
 # Progress
 
+## 2026-07-30 — Draft PR #466 reutilização segura entre operadores
+
+- PR #465 mergeada (`bd98c829`); cadeia-base confirmada com 23 migrations.
+- PR #466 criada em Draft com copy-on-access, duas RPCs autenticadas, novo UUID/proveniência e injeção direta da sessão.
+- Migration 24 + runtime PostgreSQL versionado: PASS; replay PG17 24/24.
+- 110/110 testes direcionados; 14 erros Typecheck baseline; branch 34 falhas vs 35 na `main`; build/lint/diff PASS.
+- Zero escrita em Supabase remoto/Produção; Vault: `2026-07-30T15-51-32-pr466-reutilizacao-segura-dossies.md`.
+
 ## 2026-07-28 — PR #464 baseline nativo PG 17 & least privilege hardening
 
 - Reconstruída a cadeia canônica de migrações em `fix/canonical-supabase-migration-baseline` (PR #464, HEAD: `a8a07919a606969fc34c7daee4ec41ca72f48b57`).

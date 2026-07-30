@@ -1,51 +1,45 @@
-# HANDOFF AI — Baseline Canônico de Migrações Supabase & Hardening (PR #464)
+# HANDOFF — PR #466 reutilização segura de dossiês
 
-> Atualizado: 2026-07-28  
-> Projeto: **NOVO-APP**  
-> Branch Ativa: `fix/canonical-supabase-migration-baseline`  
-> PR Ativa: **#464** (Draft, Mergeável, Base `main`)  
-> HEAD Commit SHA: `a8a07919a606969fc34c7daee4ec41ca72f48b57`  
-> Vault Narrative: [[2026-07-28T17-25-00-fix-canonical-supabase-migration-baseline|Nota de Handoff no Bruno Vault]]
+> Atualizado: 2026-07-30
+> Vault: `04 - Histórico ChatGPT/Sessões Anteriores/2026-07/2026-07-30T15-51-32-pr466-reutilizacao-segura-dossies.md`
 
----
+## Estado
 
-## 1. Estado da PR #464 & Migrações
+- PR #465 foi mergeada por autorização explícita: squash `bd98c829`.
+- PR #466: https://github.com/brunolimaff-jpg/NOVO-APP/pull/466
+- Branch: `codex/secure-cross-operator-dossier-reuse`
+- Commit funcional: `6f3e128bf15e56d8f4e61d46f6661a8f527d931f`
+- Estado: `OPEN/DRAFT`, mergeável; checks automáticos em andamento no último snapshot.
+- Migration 24 permanece code-only; nenhuma migration remota aplicada nesta missão.
 
-- **Objetivo:** Substituir a cadeia de migrações corrompida por um baseline canônico nativo do schema de Produção e aplicar o hardening de privilégios e identidade (least privilege).
-- **Status:** **CONCLUÍDO / AGUARDANDO AUTORIZAÇÃO DO ORQUESTRADOR**
-- **Cadeia de Migrações (21 arquivos ativos com timestamps de 14 dígitos):**
-  - `20260501000000_production_schema_baseline.sql`: Dump nativo PG 17 do schema `public` de Produção (`vmqfcaoirjcfucvlnpig`). Sem objetos do schema `auth`, sem `auth.users`, sem `auth.uid()`, e com extensões canônicas (`pg_trgm`, `pgcrypto`, `uuid-ossp`).
-  - **18 Marcadores no-op de Produção:** Preservam os timestamps canônicos de Produção sem executar DDL redundante.
-  - `20260728173731_harden_dossier_grants.sql`: Restringe privilégios em `dossier_runs`, `dossies`, `profiles` e `handle_new_user()` para o princípio do menor privilégio.
-  - `20260728180000_harden_legacy_operator_linking.sql`: Hardening da RPC `link_legacy_operator` (exige `auth.uid()` igual a `p_auth_user_id`, e-mail obrigatório e correspondente ao perfil autenticado e ao `user_context`, `SECURITY DEFINER`, `search_path = ''` e ACL restrita a `authenticated`).
+## Entrega
 
----
+- Descoberta usa `find_reusable_dossier`, sem `SELECT` direto de conteúdo alheio.
+- Acesso usa `reuse_dossier_for_current_operator`: proprietário abre o original; outro operador recebe cópia com novo UUID.
+- Fonte permanece imutável; cópia registra origem, ownership atual e `dossier_accesses`.
+- Concorrência protegida por advisory lock e índice único parcial.
+- Cliente mantém modal durante carga, mostra erro, bloqueia clique duplo e injeta a sessão completa sem `getRemoteSession` no fluxo.
+- `shared_dossiers`, policies amplas e PR #456 não foram alteradas.
 
-## 2. Validação & Garantias de Qualidade
+## Validação local
 
-- **Paridade de Catálogo:** 15 categorias de catálogo comparadas individualmente contra Produção (incluindo `pg_get_constraintdef` para 37/37 constraints, `pg_get_functiondef`, RLS, views, triggers e grants).  
-  `PRODUCTION_BASELINE_CATALOG_DIFF: ZERO`.
-- **Replay Local & `db push`:**
-  - `BASELINE_PSQL_EXIT_CODE: 0` (Replay estrito com `-v ON_ERROR_STOP=1` em PostgreSQL 17 local).
-  - `FULL_CHAIN_PUSH_EXIT_CODE: 0` (`npx supabase db push` registrou 21 migrações limpas).
-- **Testes PostgreSQL Runtime:**
-  - `scripts/test_harden_dossier_grants.sql`: Todos os asserts passaram.
-  - `scripts/test_harden_identity.sql`: 11/11 asserts de segurança e negação de UPDATE direto de `operator_id` passaram.
-- **Suíte Vitest Contratos:** 61/61 asserções de contrato de migração aprovadas em `tests/contracts/`.
-- **Gates Estáticos:** `git diff --check` zerado; `npm run lint` zerado (0 erros).
+- `npm ci`: PASS (Node local 26; projeto declara 24).
+- Direcionados: 110/110 PASS.
+- PostgreSQL 17 runtime: PASS; guarda de banco incorreto: PASS; rollback confirmado.
+- Replay: 24/24 migrations PASS.
+- Typecheck: 14 erros idênticos à `main`; novos 0.
+- Testes: branch 1532 PASS/34 FAIL; `main` 1526 PASS/35 FAIL; regressões 0.
+- Lint: 0 erros/61 warnings; build e diff check: PASS.
 
----
+## Próximo passo
 
-## 3. Restrições Estritas
+1. Auditar checks e findings automáticos da PR #466.
+2. Corrigir somente findings válidos e repetir gates afetados.
+3. Manter Draft; merge e rollout da migration exigem missões separadas.
 
-- NÃO aplicar migrações remotamente em Preview ou Produção.
-- NÃO executar `migration repair` nem `db push` remoto.
-- NÃO alterar a PR #456.
-- NÃO fazer force push.
-- NÃO marcar Ready e NÃO fazer merge sem palavra-chave `MERGE` e autorização do orquestrador.
+## Guardrails
 
----
-
-## 4. Próxima Ação
-
-Aguardar a validação final do orquestrador Bruno. Se autorizada com a instrução contendo a palavra `MERGE`, marcar a PR #464 como Ready e realizar o squash merge na `main`.
+- Não aplicar migration remota, não tocar Produção/Preview/Vercel manualmente.
+- Não executar smoke pago nem compartilhamento público por link.
+- Não alterar `shared_dossiers` ou PR #456.
+- Não fazer merge sem nova mensagem contendo `MERGE`.

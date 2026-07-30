@@ -1,5 +1,14 @@
 # decisions.md — NOVO-APP
 
+## Decisões 2026-07-30 — reutilização interna de dossiês
+
+- Compartilhamento interno usa copy-on-access: proprietário abre o original; outro operador recebe cópia própria com novo UUID.
+- Descoberta retorna somente metadados mínimos; conteúdo alheio só é acessado dentro de RPC `SECURITY DEFINER` autenticada.
+- Uma cópia ativa por `(operator_id, source_dossier_id)`, protegida por advisory lock e índice único parcial.
+- Sessão retornada é injetada diretamente em `sessions[]`; o fluxo não usa `getRemoteSession` nem salva com o ID fonte.
+- Policies amplas, `shared_dossiers`, rollout remoto e PR #456 permanecem fora da PR #466.
+- Sessão: `/Users/brunolima/Documents/bruno vault/04 - Histórico ChatGPT/Sessões Anteriores/2026-07/2026-07-30T15-51-32-pr466-reutilizacao-segura-dossies.md`.
+
 ## DI-2026-07-28-01: Baseline de Produção em dump nativo PG 17 e paridade exata de catálogo (37/37 constraints)
 
 - **Decisão:** O baseline canônico de migrações do schema `public` deve ser extraído via `pg_dump` 17.10 nativo a partir do servidor PostgreSQL 17.6 de Produção (`vmqfcaoirjcfucvlnpig`), sem modificar ou criar objetos no schema `auth` (`auth.users`, `auth.uid()`). A paridade de catálogo deve ser validada contra Produção em 15 categorias distintas (incluindo `pg_get_constraintdef` para todas as 37 constraints de Produção, `pg_get_functiondef`, RLS, views, triggers e grants), exigindo `PRODUCTION_BASELINE_CATALOG_DIFF: ZERO`. Migrações subsequentes de hardening (`harden_dossier_grants` e `harden_legacy_operator_linking`) aplicam o menor privilégio e proteções estritas de identidade via `SECURITY DEFINER` e validações de `auth.uid()`.
