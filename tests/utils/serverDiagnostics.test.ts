@@ -161,6 +161,39 @@ describe('serverDiagnostics payload sanitizer', () => {
     expect(rows).toHaveLength(100);
   });
 
+  it('filtra ruído antes do limite e preserva error após os primeiros 100 eventos', async () => {
+    const noisyEvents = Array.from({ length: 100 }, (_, index) => ({
+      at: '',
+      t: index,
+      runId: 'run-trailing-error',
+      area: 'Diagnostic',
+      event: 'heartbeat',
+      severity: 'info',
+    }));
+    const trailingError = {
+      at: '',
+      t: 100,
+      runId: 'run-trailing-error',
+      area: 'Api',
+      event: 'request:error',
+      severity: 'error',
+    };
+
+    const result = await insertDiagnosticsBatch(
+      { runId: 'run-trailing-error', events: [] },
+      [...noisyEvents, trailingError],
+    );
+
+    expect(result).toEqual({ inserted: 1 });
+    const rows = JSON.parse(String(fetchMock.mock.calls[0][1].body)) as Array<{
+      area: string;
+      event: string;
+      severity: string;
+    }>;
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ area: 'Api', event: 'request:error', severity: 'error' });
+  });
+
   it('falha best-effort da retenção não altera a gravação principal', async () => {
     fetchMock.mockResolvedValueOnce({ ok: true }).mockRejectedValueOnce(new Error('retention unavailable'));
     const result = await insertDiagnosticsBatch({ runId: 'run-write', events: [] }, [

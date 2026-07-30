@@ -191,8 +191,8 @@ export async function insertDiagnosticsBatch(
   if (!config) return { inserted: 0, error: 'Supabase not configured' };
 
   const rows = events
-    .slice(0, MAX_EVENTS_PER_BATCH)
     .filter(shouldPersistDiagnostic)
+    .slice(0, MAX_EVENTS_PER_BATCH)
     .map(event => {
       const clean = sanitizeEvent(event);
       return {

@@ -28,6 +28,9 @@ describe('scout_diagnostics retention migrations', () => {
       'utf8',
     );
     expect(sql).toContain("table_class.relname = 'scout_diagnostics'");
+    expect(sql).toContain('keeper.indisvalid');
+    expect(sql).toContain('keeper.indisready');
+    expect(sql).toContain('keeper.indislive');
     expect(sql).toContain('keeper.indkey = duplicate.indkey');
     expect(sql).toContain('keeper_class.relam = duplicate_class.relam');
     expect(sql).toContain('dependency.conindid = duplicate.indexrelid');

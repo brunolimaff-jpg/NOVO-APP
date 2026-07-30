@@ -23,6 +23,9 @@ BEGIN
         JOIN pg_class keeper_class ON keeper_class.oid = keeper.indexrelid
         WHERE keeper.indrelid = duplicate.indrelid
           AND keeper.indexrelid < duplicate.indexrelid
+          AND keeper.indisvalid
+          AND keeper.indisready
+          AND keeper.indislive
           AND keeper.indkey = duplicate.indkey
           AND keeper.indclass = duplicate.indclass
           AND keeper.indcollation = duplicate.indcollation

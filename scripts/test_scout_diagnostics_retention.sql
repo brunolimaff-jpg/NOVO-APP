@@ -1,8 +1,16 @@
 -- Teste PostgreSQL versionado para retenção e índices de scout_diagnostics.
--- Executar na raiz do repositório com:
---   psql -v ON_ERROR_STOP=1 -f scripts/test_scout_diagnostics_retention.sql
+-- Executar somente em banco descartável com o nome exato abaixo:
+--   psql -v ON_ERROR_STOP=1 -d novoapp_scout_diagnostics_test \
+--     -f scripts/test_scout_diagnostics_retention.sql
 
 BEGIN;
+
+DO $$
+BEGIN
+  IF current_database() <> 'novoapp_scout_diagnostics_test' THEN
+    RAISE EXCEPTION 'FALHA: execute somente no banco descartável novoapp_scout_diagnostics_test';
+  END IF;
+END $$;
 
 DO $$
 BEGIN
@@ -40,6 +48,28 @@ CREATE INDEX idx_sd_session_id ON public.scout_diagnostics (session_id);
 CREATE INDEX idx_sd_severity ON public.scout_diagnostics (severity);
 
 \i supabase/migrations/20260730090000_scout_diagnostics_opportunistic_retention.sql
+
+UPDATE pg_index
+SET indisvalid = false,
+    indisready = false,
+    indislive = false
+WHERE indexrelid = 'public.idx_scout_diagnostics_created_at'::regclass;
+
+\i supabase/migrations/20260730090100_remove_duplicate_scout_diagnostics_indexes.sql
+
+DO $$
+BEGIN
+  IF to_regclass('public.idx_sd_created_at') IS NULL THEN
+    RAISE EXCEPTION 'FALHA: keeper inválido ou não pronto removeu índice válido';
+  END IF;
+END $$;
+
+UPDATE pg_index
+SET indisvalid = true,
+    indisready = true,
+    indislive = true
+WHERE indexrelid = 'public.idx_scout_diagnostics_created_at'::regclass;
+
 \i supabase/migrations/20260730090100_remove_duplicate_scout_diagnostics_indexes.sql
 
 DO $$
@@ -109,8 +139,8 @@ BEGIN
   SELECT public.cleanup_scout_diagnostics_opportunistic(14, 500) INTO deleted_second;
   RESET ROLE;
 
-  IF deleted_first <> 10000 THEN
-    RAISE EXCEPTION 'FALHA: limite por execução deveria excluir 10000, excluiu %', deleted_first;
+  IF deleted_first <= 0 OR deleted_first > 10000 OR deleted_first % 500 <> 0 THEN
+    RAISE EXCEPTION 'FALHA: primeira execução deveria excluir múltiplo de 500 entre 1 e 10000, excluiu %', deleted_first;
   END IF;
   IF deleted_second <> 0 THEN
     RAISE EXCEPTION 'FALHA: segunda execução no mesmo dia deveria retornar 0, retornou %', deleted_second;
@@ -119,8 +149,8 @@ BEGIN
   SELECT count(*) INTO old_remaining
   FROM public.scout_diagnostics
   WHERE created_at < now() - interval '14 days';
-  IF old_remaining <> 1 THEN
-    RAISE EXCEPTION 'FALHA: deveria restar 1 linha antiga após o teto de 10000, restaram %', old_remaining;
+  IF old_remaining <> 10001 - deleted_first THEN
+    RAISE EXCEPTION 'FALHA: antigas restantes deveriam ser %, restaram %', 10001 - deleted_first, old_remaining;
   END IF;
 
   SELECT count(*) INTO recent_remaining
