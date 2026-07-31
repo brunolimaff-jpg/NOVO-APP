@@ -1,6 +1,16 @@
 // services/storage/radar.ts
+//
+// POLÍTICA DE IDENTIDADE (PR #456 — validação v3):
+// Leituras permanecem best-effort. Escritas, porém, lançam erro explícito em
+// 'resolving'/'error' para nunca sinalizar sucesso quando nada foi persistido.
 import { supabase, isSupabaseAvailable } from '../../lib/supabaseClient';
-import { getOperatorId } from './_shared';
+import {
+  canUseProtectedRemoteStorage,
+  getIdentityState,
+  getOperatorId,
+  getOperatorIdForWrite,
+} from './_shared';
+import { scoutDiag } from '../../utils/diagnosticLog';
 
 function warnRadar(message: string, error: unknown): void {
   if (import.meta.env.DEV) {
@@ -14,6 +24,7 @@ function warnRadar(message: string, error: unknown): void {
 export const radar = {
   async getRadarAlerts(): Promise<unknown[]> {
     if (!isSupabaseAvailable()) return [];
+    if (!canUseProtectedRemoteStorage()) return [];
     const operatorId = getOperatorId();
     if (!operatorId) return [];
 
@@ -33,7 +44,11 @@ export const radar = {
   },
 
   async saveRadarAlerts(alerts: unknown[]): Promise<void> {
-    const operatorId = getOperatorId();
+    if (getIdentityState() === 'guest') {
+      scoutDiag.info('StorageRadar', 'guest_local_only', { resource: 'alerts' });
+      return;
+    }
+    const operatorId = getOperatorIdForWrite();
     if (!isSupabaseAvailable() || !operatorId) return;
 
     const { error } = await supabase!
@@ -45,6 +60,7 @@ export const radar = {
 
   async getRadarConfig(): Promise<unknown | null> {
     if (!isSupabaseAvailable()) return null;
+    if (!canUseProtectedRemoteStorage()) return null;
     const operatorId = getOperatorId();
     if (!operatorId) return null;
 
@@ -62,7 +78,11 @@ export const radar = {
   },
 
   async saveRadarConfig(config: unknown): Promise<void> {
-    const operatorId = getOperatorId();
+    if (getIdentityState() === 'guest') {
+      scoutDiag.info('StorageRadar', 'guest_local_only', { resource: 'config' });
+      return;
+    }
+    const operatorId = getOperatorIdForWrite();
     if (!isSupabaseAvailable() || !operatorId) return;
 
     const { error } = await supabase!

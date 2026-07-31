@@ -9,7 +9,16 @@ vi.mock('../../../lib/supabaseClient', () => ({
   supabase: { from: vi.fn(() => ({ upsert })) },
   isSupabaseAvailable: () => true,
 }));
-vi.mock('../../../services/storage/_shared', () => ({ getOperatorId: () => 'operator-1' }));
+vi.mock('../../../services/storage/_shared', async importOriginal => {
+  const actual = await importOriginal<typeof import('../../../services/storage/_shared')>();
+  return {
+    ...actual,
+    getOperatorId: () => 'operator-1',
+    getIdentityState: () => 'authenticated',
+    getOperatorIdForWrite: () => 'operator-1',
+    canUseProtectedRemoteStorage: () => true,
+  };
+});
 vi.mock('../../../utils/localStorage', () => ({ storageGet: () => null }));
 vi.mock('../../../utils/diagnosticLog', () => ({ scoutDiag: { warn } }));
 
