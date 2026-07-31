@@ -1,5 +1,14 @@
 # decisions.md — NOVO-APP
 
+## Decisões 2026-07-30 — reutilização interna de dossiês
+
+- Compartilhamento interno usa copy-on-access: proprietário abre o original; outro operador recebe cópia própria com novo UUID.
+- Descoberta retorna somente metadados mínimos; conteúdo alheio só é acessado dentro de RPC `SECURITY DEFINER` autenticada.
+- Uma cópia ativa por `(operator_id, source_dossier_id)`, protegida por advisory lock e índice único parcial.
+- Sessão retornada é injetada diretamente em `sessions[]`; o fluxo não usa `getRemoteSession` nem salva com o ID fonte.
+- Policies amplas, `shared_dossiers`, rollout remoto e PR #456 permanecem fora da PR #466.
+- Referência da sessão centralizada de forma portátil em `HANDOFF_AI.md`.
+
 ## DI-2026-07-28-01: Baseline de Produção em dump nativo PG 17 e paridade exata de catálogo (37/37 constraints)
 
 - **Decisão:** O baseline canônico de migrações do schema `public` deve ser extraído via `pg_dump` 17.10 nativo a partir do servidor PostgreSQL 17.6 de Produção (`vmqfcaoirjcfucvlnpig`), sem modificar ou criar objetos no schema `auth` (`auth.users`, `auth.uid()`). A paridade de catálogo deve ser validada contra Produção em 15 categorias distintas (incluindo `pg_get_constraintdef` para todas as 37 constraints de Produção, `pg_get_functiondef`, RLS, views, triggers e grants), exigindo `PRODUCTION_BASELINE_CATALOG_DIFF: ZERO`. Migrações subsequentes de hardening (`harden_dossier_grants` e `harden_legacy_operator_linking`) aplicam o menor privilégio e proteções estritas de identidade via `SECURITY DEFINER` e validações de `auth.uid()`.
@@ -254,7 +263,7 @@
 - **Decisao:** O Playbook de Execucao a Prova de IA — Senior Scout 360 (16 tarefas, 5 fases) e registrado como plano bloqueante. Toda nova sessao deve carregar este plano como contexto principal. Se o usuario pedir algo fora do escopo do plano, o sistema deve perguntar: "O plano bloqueante ainda esta ativo. Quer pausar o plano e mudar de assunto, ou prefere continuar?"
 - **Contexto:** O playbook foi validado com 85% de confianca, 4 ajustes aplicados apos revisao. Contem 16 tarefas em 5 fases: Fundacao (Fase 0), Causa-raiz (Fase A), Loading declarativo (Fase B), Unificar timeout (Fase C), Liquidar divida (Fase D). A Fase 0 esta pronta para iniciar. O maior risco e T-A.1 (causa raiz de display:none desconhecida ha meses). O maior bloqueador e T-00.5 (helper timeout que bloqueia a Fase C).
 - **Impacto:** Mudancas de assunto agora exigem confirmacao explicita do Bruno. Proximas sessoes carregam automaticamente o plano.
-- **Referencia:** /Users/brunolima/Downloads/Particular e Compartilhado/Playbook de Execucao a Prova de IA — Senior Scout 360 e1af6db4856e40c88043249c0329ce7d.html
+- **Referencia:** artefato externo histórico “Playbook de Execução à Prova de IA — Senior Scout 360”.
 - **Superada por:** DI-2026-06-18-01.
 
 ## Novas Decisoes (Sessao 2026-06-16)
@@ -481,3 +490,17 @@
 ### 2026-06-08 — Handoff final precisa apontar repo + Bruno Vault (APLICADO na PR #346)
 
 ### 2026-06-11 — Tracking de Operador: canonical operatorId, findUserByEmail, PII-safe logging
+
+### DI-2026-07-30-01: Reutilização interna exige identidade corporativa Auth e raiz canônica
+
+- **Decisão:** As RPCs de descoberta/reutilização aceitam apenas usuário Auth confirmado `@senior.com.br`, com e-mail igual em `profiles` e `operator_id`; somente `authenticated` recebe `EXECUTE`.
+- **Linhagem:** Descoberta não expõe cópias alheias e reutilização resolve qualquer cópia estrangeira diretamente para uma raiz válida, recusando copy-to-copy inválido.
+- **Concorrência:** advisory lock transacional e índice único parcial são barreiras comprovadas; teste simultâneo em duas sessões não foi executado.
+- **Impacto:** copy-on-access preserva isolamento por operador sem delegar autorização ao cliente ou ao `service_role`.
+
+### DI-2026-07-30-02: Compartilhamento interno usa snapshot comercial por allowlist
+
+- **Decisão:** Outro operador recebe somente uma mensagem sintética e o único relatório bot não vazio marcado por `scorePorta` objeto; zero ou múltiplos candidatos tornam a raiz não compartilhável.
+- **Privacidade:** Perguntas, follow-ups, feedback, erros, contexto de empresa e chaves futuras não autorizadas permanecem exclusivamente na fonte.
+- **Falha segura:** Somente descoberta `NOT_FOUND` libera nova geração; indisponibilidade ou acesso negado bloqueiam custo e exibem mensagem genérica.
+- **Rollout:** Migration 24 deve ser aplicada e validada antes de merge/deploy; históricos sem marcador ficam sem compartilhamento nesta PR.

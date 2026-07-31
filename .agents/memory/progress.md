@@ -1,5 +1,32 @@
 # Progress
 
+## 2026-07-30 — Privacidade fail-closed da Draft PR #466
+
+- Relatório compartilhável exige exatamente uma mensagem bot não vazia, sem erro/thinking e com `scorePorta` objeto.
+- Cópia estrangeira passou a ser snapshot de duas mensagens por allowlist; conversa, follow-up, feedback, erro e contexto privado ficam na fonte.
+- Descoberta diferencia `FOUND`, `NOT_FOUND`, `UNAVAILABLE` e `ACCESS_DENIED`; somente `NOT_FOUND` permite geração.
+- Troca para sessão carregada cancela run ativo, aborta controller, limpa loading e deduplica a sessão.
+- `ON CONFLICT` aponta para o índice parcial; outras constraints continuam propagando.
+- Validação: 152/152 direcionados; PostgreSQL runtime e replay 24/24 PASS; branch 34 falhas vs 35 na `main`, sem falha nova; lint/build/diff PASS.
+- Migration 24 segue não aplicada; rollout controlado continua obrigatório antes de merge/deploy.
+
+## 2026-07-30 — Correção final da Draft PR #466
+
+- Autorização das duas RPCs endurecida com `auth.users`: domínio Senior exato, confirmação de e-mail, igualdade perfil/Auth e `operator_id` obrigatório.
+- `EXECUTE` removido de `PUBLIC`, `anon` e `service_role`; mantido somente para `authenticated`.
+- Descoberta restrita à raiz/cópia própria e reuse canonicalizado diretamente na raiz, recusando linhagem inválida.
+- Runtime PostgreSQL com A/B/C/X/U/M passou; advisory lock + índice foram comprovados como barreiras, sem alegar teste simultâneo de sessões.
+- 65/65 direcionados; replay PG17 24/24; 14 erros Typecheck baseline; branch 34 falhas vs 35 na `main`; lint/build/diff aprovados.
+- Nenhuma escrita em Supabase remoto, Produção, Preview ou `shared_dossiers`.
+
+## 2026-07-30 — Draft PR #466 reutilização segura entre operadores
+
+- PR #465 mergeada (`bd98c829`); cadeia-base confirmada com 23 migrations.
+- PR #466 criada em Draft com copy-on-access, duas RPCs autenticadas, novo UUID/proveniência e injeção direta da sessão.
+- Migration 24 + runtime PostgreSQL versionado: PASS; replay PG17 24/24.
+- 110/110 testes direcionados; 14 erros Typecheck baseline; branch 34 falhas vs 35 na `main`; build/lint/diff PASS.
+- Zero escrita em Supabase remoto/Produção; Vault: `2026-07-30T15-51-32-pr466-reutilizacao-segura-dossies.md`.
+
 ## 2026-07-28 — PR #464 baseline nativo PG 17 & least privilege hardening
 
 - Reconstruída a cadeia canônica de migrações em `fix/canonical-supabase-migration-baseline` (PR #464, HEAD: `a8a07919a606969fc34c7daee4ec41ca72f48b57`).

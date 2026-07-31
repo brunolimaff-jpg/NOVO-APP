@@ -1,30 +1,25 @@
 # Active Context
 
-Last updated: 2026-07-28 — PR #464 baseline nativo PG 17 & least privilege hardening completo
+Last updated: 2026-07-30 — correção de privacidade da Draft PR #466 em validação
 
-## Estado atual
+## Estado
 
-- **Fase:** Correção canônica de baseline de banco de dados e hardening de permissões (least privilege).
-- **Branch:** `fix/canonical-supabase-migration-baseline`.
-- **PR:** `#464` (Draft, Base `main`, HEAD: `a8a07919a606969fc34c7daee4ec41ca72f48b57`).
-- **Vault Narrative:** [[2026-07-28T17-25-00-fix-canonical-supabase-migration-baseline|Bruno Vault Session Note]].
+- PR #465 mergeada em `main`: `bd98c829`.
+- PR #466 `OPEN/DRAFT`: https://github.com/brunolimaff-jpg/NOVO-APP/pull/466
+- Branch `codex/secure-cross-operator-dossier-reuse`; head inicial `c82f6833`.
+- RPCs exigem Auth confirmado `@senior.com.br`, e-mail igual ao perfil e `operator_id`; somente `authenticated` executa.
+- Descoberta é fail-closed e só expõe raiz estrangeira com exatamente um relatório canônico marcado por `scorePorta`.
+- Cópia estrangeira contém duas mensagens por allowlist; conversa privada e chaves desconhecidas não são copiadas.
+- Teste PG com A/B/C/X/U/M comprova privacidade, autorização, raiz e conflito parcial direcionado.
+- Gates: 152/152 direcionados; PG17 e replay 24/24 PASS; 14 erros Typecheck idênticos à `main`; 0 falha nova; lint/build/diff PASS.
 
-## Migrações & Baseline Canônico
+## Guardrails
 
-- **Cadeia Ativa:** 21 arquivos `.sql` com timestamps de 14 dígitos.
-- **Baseline:** `20260501000000_production_schema_baseline.sql` gerado via `pg_dump` 17.10 nativo a partir do PostgreSQL 17.6 de Produção (`vmqfcaoirjcfucvlnpig`). Sem objetos `auth`.
-- **Hardening Grants:** `20260728173731_harden_dossier_grants.sql` (least privilege em `dossier_runs`, `dossies`, `profiles`, `handle_new_user()`).
-- **Hardening Identity:** `20260728180000_harden_legacy_operator_linking.sql` (RPC `link_legacy_operator` com ownership, e-mail estrito de perfil e `user_context`, `SECURITY DEFINER`, `search_path = ''` e ACL restrita a `authenticated`).
+- Manter a PR Draft; merge somente com `MERGE` explícito.
+- Não aplicar migration, smoke pago ou escrita manual em Produção/Preview/Vercel.
+- Não alterar `shared_dossiers` nem PR #456.
 
-## Paridade & Gates de Qualidade
+## Ponteiros
 
-- **Paridade Catálogo vs Produção:** `PRODUCTION_BASELINE_CATALOG_DIFF: ZERO` (15 categorias, 37/37 constraints com `pg_get_constraintdef`).
-- **Replay Local PSQL:** Exit 0 (`-v ON_ERROR_STOP=1`).
-- **Supabase CLI `db push` Local:** Exit 0 (21 migrações registradas).
-- **Testes Runtime PG:** `test_harden_dossier_grants.sql` (OK), `test_harden_identity.sql` (11/11 asserts OK).
-- **Testes de Contrato (Vitest):** 61/61 asserções aprovadas.
-- **Linting & Diff Check:** `npm run lint` sem erros (0 errors); `git diff --check` zerado.
-
-## Próxima ação
-
-Aguardar autorização do orquestrador Bruno. Se autorizada com token `MERGE`, marcar a PR #464 como Ready e fazer squash merge na `main`.
+- `HANDOFF_AI.md`
+- A referência portátil do Bruno Vault está centralizada no handoff.

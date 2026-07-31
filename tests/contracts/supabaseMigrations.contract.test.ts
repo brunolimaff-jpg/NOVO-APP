@@ -1,5 +1,5 @@
 // tests/contracts/supabaseMigrations.contract.test.ts
-// Adapted for canonical baseline migration chain (21 existing + 2 scout diagnostics maintenance migrations)
+// Adapted for canonical baseline migration chain (23 existing + 1 secure dossier reuse migration)
 // All original behavioral guarantees are preserved across the full migration chain.
 import { describe, it, expect } from 'vitest';
 import { readdirSync, readFileSync, existsSync } from 'fs';
@@ -30,9 +30,9 @@ describe('supabaseMigrations contract — estrutura', () => {
     expect(existsSync(MIGRATIONS_DIR)).toBe(true);
   });
 
-  it('contém exatamente 23 arquivos .sql', () => {
+  it('contém exatamente 24 arquivos .sql', () => {
     const files = readdirSync(MIGRATIONS_DIR).filter(f => f.endsWith('.sql'));
-    expect(files.length).toBe(23);
+    expect(files.length).toBe(24);
   });
 
   it('baseline é o primeiro arquivo e existe', () => {
@@ -226,6 +226,38 @@ describe('supabaseMigrations contract — dossier run lifecycle', () => {
   it('renew aceita somente lease válida do owner em RUNNING ou CANCEL_REQUESTED', () => {
     expect(allContent).toContain("status IN ('RUNNING', 'CANCEL_REQUESTED')");
     expect(allContent).toContain('lease_owner = p_lease_owner AND lease_expires_at >= now()');
+  });
+});
+
+describe('supabaseMigrations contract — secure dossier reuse privacy', () => {
+  const migration = readFileSync(
+    resolve(MIGRATIONS_DIR, '20260730193000_secure_cross_operator_dossier_reuse.sql'),
+    'utf-8',
+  );
+
+  it('exige exatamente um relatório bot não vazio com scorePorta objeto', () => {
+    expect(migration).toContain("candidate.message->>'sender' = 'bot'");
+    expect(migration).toContain("btrim(coalesce(candidate.message->>'text', '')) <> ''");
+    expect(migration).toContain("candidate.message->'isError' IS DISTINCT FROM 'true'::jsonb");
+    expect(migration).toContain("candidate.message->'isThinking' IS DISTINCT FROM 'true'::jsonb");
+    expect(migration).toContain("jsonb_typeof(candidate.message->'scorePorta') = 'object'");
+    expect(migration).toContain('IF v_report_count <> 1 OR v_report IS NULL');
+  });
+
+  it('constrói snapshot por allowlist e não parte do content integral da raiz', () => {
+    expect(migration).toContain("'messages', jsonb_build_array(");
+    expect(migration).toContain("'groundingSources', v_report->'groundingSources'");
+    expect(migration).toContain("'webVerificationStatus', v_report->'webVerificationStatus'");
+    expect(migration).not.toContain("jsonb_set(v_root.content");
+    expect(migration).not.toContain("'feedback', v_report->'feedback'");
+    expect(migration).not.toContain("'companyContext'");
+  });
+
+  it('usa ON CONFLICT direcionado ao índice parcial e busca a cópia efetiva', () => {
+    expect(migration).toContain('ON CONFLICT (operator_id, source_dossier_id)');
+    expect(migration).toContain('WHERE source_dossier_id IS NOT NULL');
+    expect(migration).toContain('DO NOTHING');
+    expect(migration).toContain("RAISE EXCEPTION 'dossier unavailable' USING ERRCODE = 'P0002'");
   });
 });
 

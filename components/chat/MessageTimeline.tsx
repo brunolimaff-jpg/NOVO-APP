@@ -24,6 +24,7 @@ interface MessageTimelineProps {
   forceStaticTimelineFallback?: boolean;
   onConfirmOperatorName: (name: string, email: string, existingOperatorId?: string) => void;
   onStartInvestigation: (payload: StartInvestigationPayload) => Promise<void>;
+  discoveryError?: string | null;
   onLoadMore: () => void;
   onRetry: () => void;
   onDeleteMessage?: (id: string) => void;
@@ -68,6 +69,7 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
   forceStaticTimelineFallback = false,
   onConfirmOperatorName,
   onStartInvestigation,
+  discoveryError,
   onLoadMore,
   onRetry,
   onDeleteMessage,
@@ -482,7 +484,12 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
         </div>
       ) : showInitialHome ? (
         <div className="h-full min-h-0 overflow-y-auto custom-scrollbar">
-          <EmptyStateHome mode={mode} isDarkMode={isDarkMode} onStartInvestigation={onStartInvestigation} />
+          <EmptyStateHome
+            mode={mode}
+            isDarkMode={isDarkMode}
+            onStartInvestigation={onStartInvestigation}
+            discoveryError={discoveryError}
+          />
           <HelpCenterFloating isDarkMode={isDarkMode} />
         </div>
       ) : shouldRenderStaticTimelineFallback ? (

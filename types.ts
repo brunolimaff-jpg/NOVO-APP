@@ -244,6 +244,7 @@ export interface ChatInterfaceProps {
   sessions: ChatSession[];
   onNewSession: () => void;
   onSelectSession: (sessionId: string) => void;
+  onOpenLoadedSession: (session: ChatSession) => void;
   onDeleteSession: (sessionId: string) => void;
   onDeepDive: (
     displayMessage: string,

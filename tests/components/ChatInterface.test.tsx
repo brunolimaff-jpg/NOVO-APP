@@ -99,6 +99,11 @@ vi.mock('../../contexts/OperatorContext', () => ({
   useOperator: () => operatorStateRef.current,
 }));
 
+vi.mock('../../lib/supabase/dossierDuplicate', () => ({
+  findExistingDossier: vi.fn().mockResolvedValue({ status: 'NOT_FOUND' }),
+  reuseDossierForCurrentOperator: vi.fn(),
+}));
+
 vi.mock('../../components/SessionsSidebar', () => ({
   default: (props: any) => {
     sessionsSidebarMock(props);
@@ -202,6 +207,7 @@ function buildProps(
     sessions: [],
     onNewSession: vi.fn(),
     onSelectSession: vi.fn(),
+    onOpenLoadedSession: vi.fn(),
     onDeleteSession: vi.fn(),
     onDeepDive: vi.fn(async () => undefined),
     isSidebarOpen: false,

@@ -21,6 +21,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
   sessions,
   onNewSession,
   onSelectSession,
+  onOpenLoadedSession,
   onDeleteSession,
   isSidebarOpen,
   onToggleSidebar,
@@ -97,13 +98,16 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
     handleAccessExistingDossier,
     handleNewResearchOverride,
     duplicateDossier,
+    isAccessingDossier,
+    accessDossierError,
+    discoveryError,
     setDuplicateDossier,
     pendingPayloadRef,
   } = useInvestigation({
     mode,
     onDeepDive,
     operatorId,
-    onSelectSession,
+    onOpenLoadedSession,
   });
 
   const { handleCopyMarkdown, handlePrefillComposer } = useChatActions(safeMessages);
@@ -238,6 +242,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
                   }
                 }}
                 onStartInvestigation={handleStartInvestigation}
+                discoveryError={discoveryError}
                 onLoadMore={onLoadMore}
                 onRetry={onRetry}
                 onDeleteMessage={onDeleteMessage}
@@ -290,7 +295,10 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
           companyName={pendingPayloadRef.current.companyName}
           onAccessExisting={handleAccessExistingDossier}
           onNewResearch={handleNewResearchOverride}
+          isLoading={isAccessingDossier}
+          error={accessDossierError}
           onDismiss={() => {
+            if (isAccessingDossier) return;
             setDuplicateDossier(null);
             pendingPayloadRef.current = null;
           }}

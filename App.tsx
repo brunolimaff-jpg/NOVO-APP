@@ -254,7 +254,7 @@ const App: React.FC = () => {
     document.title = APP_NAME;
   }, [mode]);
 
-  const { handleNewSession, handleSelectSession, handleDeleteSession } = useSessionManager();
+  const { handleNewSession, handleSelectSession, handleOpenLoadedSession, handleDeleteSession } = useSessionManager();
 
   useAppInitialization({
     loadSessions,
@@ -550,6 +550,7 @@ const App: React.FC = () => {
                 sessions={sessions}
                 onNewSession={handleNewSession}
                 onSelectSession={handleSelectSession}
+                onOpenLoadedSession={handleOpenLoadedSession}
                 onDeleteSession={handleDeleteSession}
                 isSidebarOpen={isSidebarOpen}
                 onToggleSidebar={() => setIsSidebarOpen(previous => !previous)}

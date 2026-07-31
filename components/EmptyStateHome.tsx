@@ -14,6 +14,7 @@ interface EmptyStateHomeProps {
   mode: ChatMode;
   onStartInvestigation: (payload: { companyName: string; cnpj: string | null; city: string; state: string }) => void;
   isDarkMode: boolean;
+  discoveryError?: string | null;
 }
 
 interface PreviewDemoPayload {
@@ -92,6 +93,7 @@ const EmptyStateHome: React.FC<EmptyStateHomeProps> = ({
   mode,
   onStartInvestigation,
   isDarkMode,
+  discoveryError = null,
 }) => {
   const { name: operatorName } = useOperator();
 
@@ -278,6 +280,14 @@ const EmptyStateHome: React.FC<EmptyStateHomeProps> = ({
               </div>
 
               <div className="space-y-4 p-5 md:p-6">
+                {discoveryError && (
+                  <p
+                    role="alert"
+                    className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-950/40 dark:text-red-300"
+                  >
+                    {discoveryError}
+                  </p>
+                )}
                 <div>
                   <label htmlFor="empty-company" className={`mb-1.5 block text-xs font-medium ${textMuted}`}>
                     Nome da empresa <span className="text-red-500">*</span>

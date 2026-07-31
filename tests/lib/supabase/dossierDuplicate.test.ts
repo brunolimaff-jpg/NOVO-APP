@@ -1,129 +1,196 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { Sender } from '../../../types';
 
-const mockFrom = vi.fn();
-const mockSelect = vi.fn();
-const mockEq = vi.fn();
-const mockIs = vi.fn();
-const mockOrder = vi.fn();
-const mockLimit = vi.fn();
-const mockMaybeSingle = vi.fn();
+const { rpcMock, availabilityMock, diagnosticWarnMock } = vi.hoisted(() => ({
+  rpcMock: vi.fn(),
+  availabilityMock: vi.fn(() => true),
+  diagnosticWarnMock: vi.fn(),
+}));
 
 vi.mock('../../../lib/supabaseClient', () => ({
-  get supabase() {
-    return {
-      from: mockFrom,
-    };
-  },
-  isSupabaseAvailable: vi.fn(() => true),
+  supabase: { rpc: rpcMock },
+  isSupabaseAvailable: availabilityMock,
+}));
+
+vi.mock('../../../utils/diagnosticLog', () => ({
+  scoutDiag: { warn: diagnosticWarnMock },
 }));
 
 beforeEach(() => {
   vi.clearAllMocks();
+  availabilityMock.mockReturnValue(true);
 });
 
-describe('findExistingDossier', () => {
-  it('retorna null quando Supabase indisponível', async () => {
-    const { isSupabaseAvailable } = await import('../../../lib/supabaseClient');
-    vi.mocked(isSupabaseAvailable).mockReturnValueOnce(false);
-    const { findExistingDossier } = await import('../../../lib/supabase/dossierDuplicate');
-    const result = await findExistingDossier('123', 'Empresa X', 'op-1');
-    expect(result).toBeNull();
-  });
-
-  it('retorna null quando operatorId vazio', async () => {
-    const { findExistingDossier } = await import('../../../lib/supabase/dossierDuplicate');
-    const result = await findExistingDossier('12345678000199', 'Empresa X', '');
-    expect(result).toBeNull();
-  });
-
-  it('retorna dossiê existente por CNPJ independente do operatorId', async () => {
-    const { isSupabaseAvailable } = await import('../../../lib/supabaseClient');
-    vi.mocked(isSupabaseAvailable).mockReturnValueOnce(true);
-
-    const chain = {
-      eq: mockEq.mockReturnThis(),
-      is: mockIs.mockReturnThis(),
-      order: mockOrder.mockReturnThis(),
-      limit: mockLimit.mockReturnThis(),
-      maybeSingle: mockMaybeSingle.mockResolvedValueOnce({
-        data: {
-          id: 'dossier-1',
-          title: 'Empresa Teste',
-          empresa_alvo: 'Empresa Teste',
-          created_at: '2026-05-29T10:00:00Z',
-          score_oportunidade: 82,
-          operator_id: 'op-other',
-        },
-        error: null,
-      }),
-    };
-    mockSelect.mockReturnValueOnce(chain);
-    mockFrom.mockReturnValueOnce({ select: mockSelect });
+describe('secure dossier reuse client', () => {
+  it('descobre somente metadados pela RPC autenticada', async () => {
+    rpcMock.mockResolvedValue({
+      data: [{
+        dossier_id: 'dossier-1',
+        title: 'Empresa Teste',
+        empresa_alvo: 'Empresa Teste',
+        created_at: '2026-05-29T10:00:00Z',
+        score_oportunidade: 82,
+        is_owner: false,
+      }],
+      error: null,
+    });
 
     const { findExistingDossier } = await import('../../../lib/supabase/dossierDuplicate');
-    // Mesmo operatorId diferente, deve encontrar (cross-operator)
     const result = await findExistingDossier('45.543.915/0001-81', 'Empresa Teste', 'op-current');
 
-    expect(result).toEqual({
-      id: 'dossier-1',
-      title: 'Empresa Teste',
-      empresaAlvo: 'Empresa Teste',
-      createdAt: '2026-05-29T10:00:00Z',
-      scoreOportunidade: 82,
-      operatorId: 'op-other',
+    expect(rpcMock).toHaveBeenCalledWith('find_reusable_dossier', {
+      p_cnpj: '45.543.915/0001-81',
+      p_empresa_alvo: 'Empresa Teste',
     });
-    // NÃO filtra por operator_id
-    const eqCalls = mockEq.mock.calls.map(c => c[0]);
-    expect(eqCalls).not.toContain('operator_id');
-  });
-
-  it('faz fallback por razão social quando CNPJ não retorna resultado', async () => {
-    const { isSupabaseAvailable } = await import('../../../lib/supabaseClient');
-    vi.mocked(isSupabaseAvailable).mockReturnValueOnce(true);
-
-    const chainCnpj = {
-      eq: mockEq.mockReturnThis(),
-      is: mockIs.mockReturnThis(),
-      order: mockOrder.mockReturnThis(),
-      limit: mockLimit.mockReturnThis(),
-      maybeSingle: mockMaybeSingle.mockResolvedValueOnce({ data: null, error: null }),
-    };
-    const chainRazao = {
-      eq: mockEq.mockReturnThis(),
-      is: mockIs.mockReturnThis(),
-      order: mockOrder.mockReturnThis(),
-      limit: mockLimit.mockReturnThis(),
-      maybeSingle: mockMaybeSingle.mockResolvedValueOnce({
-        data: {
-          id: 'dossier-2',
-          title: 'Empresa Filial',
-          empresa_alvo: 'Empresa Filial',
-          created_at: '2026-05-28T08:00:00Z',
-          score_oportunidade: 60,
-          operator_id: 'op-xyz',
-        },
-        error: null,
-      }),
-    };
-    mockSelect.mockReturnValueOnce(chainCnpj).mockReturnValueOnce(chainRazao);
-    mockFrom.mockReturnValueOnce({ select: mockSelect }).mockReturnValueOnce({ select: mockSelect });
-
-    const { findExistingDossier } = await import('../../../lib/supabase/dossierDuplicate');
-    const result = await findExistingDossier('00000000000000', 'Empresa Filial', 'op-1');
-
     expect(result).toEqual({
-      id: 'dossier-2',
-      title: 'Empresa Filial',
-      empresaAlvo: 'Empresa Filial',
-      createdAt: '2026-05-28T08:00:00Z',
-      scoreOportunidade: 60,
-      operatorId: 'op-xyz',
+      status: 'FOUND',
+      dossier: {
+        id: 'dossier-1',
+        title: 'Empresa Teste',
+        empresaAlvo: 'Empresa Teste',
+        createdAt: '2026-05-29T10:00:00Z',
+        scoreOportunidade: 82,
+        isOwner: false,
+      },
     });
   });
 
-  it('retorna null quando nenhum CNPJ nem razão social fornecidos', async () => {
+  it('retorna UNAVAILABLE quando identidade local ainda não foi resolvida', async () => {
     const { findExistingDossier } = await import('../../../lib/supabase/dossierDuplicate');
-    const result = await findExistingDossier(null, null, 'op-1');
-    expect(result).toBeNull();
+    expect(await findExistingDossier('12345678000199', 'Empresa', '')).toEqual({ status: 'UNAVAILABLE' });
+    expect(rpcMock).not.toHaveBeenCalled();
+  });
+
+  it('retorna UNAVAILABLE quando Supabase está indisponível', async () => {
+    availabilityMock.mockReturnValue(false);
+    const { findExistingDossier } = await import('../../../lib/supabase/dossierDuplicate');
+    await expect(findExistingDossier(null, 'Empresa', 'op-current')).resolves.toEqual({ status: 'UNAVAILABLE' });
+    expect(rpcMock).not.toHaveBeenCalled();
+  });
+
+  it('usa mensagem genérica quando Supabase está indisponível na reutilização', async () => {
+    availabilityMock.mockReturnValue(false);
+    const { reuseDossierForCurrentOperator } = await import('../../../lib/supabase/dossierDuplicate');
+
+    await expect(reuseDossierForCurrentOperator('source-id')).rejects.toThrow(
+      'Não foi possível abrir o dossiê. Tente novamente.',
+    );
+    expect(rpcMock).not.toHaveBeenCalled();
+  });
+
+  it('diferencia NOT_FOUND, ACCESS_DENIED e erro desconhecido', async () => {
+    const { findExistingDossier } = await import('../../../lib/supabase/dossierDuplicate');
+
+    rpcMock.mockResolvedValueOnce({ data: [], error: null });
+    await expect(findExistingDossier(null, 'Ausente', 'op-current')).resolves.toEqual({ status: 'NOT_FOUND' });
+
+    rpcMock.mockResolvedValueOnce({ data: null, error: { code: '42501', message: 'SQL privado' } });
+    await expect(findExistingDossier(null, 'Negado', 'op-current')).resolves.toEqual({ status: 'ACCESS_DENIED' });
+
+    rpcMock.mockResolvedValueOnce({ data: null, error: { code: 'PGRST202', message: 'function missing' } });
+    await expect(findExistingDossier(null, 'Falha', 'op-current')).resolves.toEqual({ status: 'UNAVAILABLE' });
+
+    expect(diagnosticWarnMock).toHaveBeenCalledWith(
+      'dossierDuplicate',
+      'Erro na descoberta segura de dossiê reutilizável',
+      { code: '42501', error: 'SQL privado' },
+    );
+  });
+
+  it('falha fechada quando o transporte da descoberta lança exceção', async () => {
+    rpcMock.mockRejectedValue(new Error('network stack trace privado'));
+    const { findExistingDossier } = await import('../../../lib/supabase/dossierDuplicate');
+
+    await expect(findExistingDossier(null, 'Empresa', 'op-current')).resolves.toEqual({ status: 'UNAVAILABLE' });
+    expect(diagnosticWarnMock).toHaveBeenCalledWith(
+      'dossierDuplicate',
+      'Falha de transporte na descoberta segura de dossiê',
+      { code: undefined, error: 'network stack trace privado' },
+    );
+  });
+
+  it('preserva a marcação de propriedade retornada pela descoberta', async () => {
+    rpcMock.mockResolvedValue({
+      data: [{
+        dossier_id: 'owned-id',
+        title: 'Empresa Própria',
+        empresa_alvo: 'Empresa Própria',
+        created_at: '2026-07-30T10:00:00Z',
+        score_oportunidade: 90,
+        is_owner: true,
+      }],
+      error: null,
+    });
+
+    const { findExistingDossier } = await import('../../../lib/supabase/dossierDuplicate');
+    await expect(findExistingDossier(null, 'Empresa Própria', 'op-current')).resolves.toMatchObject({
+      status: 'FOUND',
+      dossier: { id: 'owned-id', isOwner: true },
+    });
+  });
+
+  it('retorna a sessão completa com o novo ID pela RPC de reutilização', async () => {
+    const content = {
+      id: 'copy-id',
+      title: 'Empresa',
+      empresaAlvo: 'Empresa',
+      cnpj: '12345678000199',
+      modoPrincipal: 'default',
+      scoreOportunidade: 70,
+      resumoDossie: 'Resumo',
+      createdAt: '2026-07-30T00:00:00Z',
+      updatedAt: '2026-07-30T00:00:00Z',
+      messages: [{ id: 'm1', sender: Sender.Bot, text: 'Dossiê', timestamp: new Date() }],
+    };
+    rpcMock.mockResolvedValue({ data: [{ dossier_id: 'copy-id', content, was_cloned: true }], error: null });
+
+    const { reuseDossierForCurrentOperator } = await import('../../../lib/supabase/dossierDuplicate');
+    await expect(reuseDossierForCurrentOperator('source-id')).resolves.toEqual({
+      dossierId: 'copy-id',
+      content,
+      wasCloned: true,
+    });
+    expect(rpcMock).toHaveBeenCalledWith('reuse_dossier_for_current_operator', {
+      p_source_dossier_id: 'source-id',
+    });
+  });
+
+  it('rejeita payload cujo content.id não corresponde ao ID retornado', async () => {
+    rpcMock.mockResolvedValue({
+      data: [{ dossier_id: 'copy-id', content: { id: 'source-id' }, was_cloned: true }],
+      error: null,
+    });
+    const { reuseDossierForCurrentOperator } = await import('../../../lib/supabase/dossierDuplicate');
+    await expect(reuseDossierForCurrentOperator('source-id')).rejects.toThrow('inconsistente');
+  });
+
+  it.each([
+    ['42501', 'access denied from database', 'Seu acesso corporativo não foi autorizado.'],
+    ['P0002', 'dossier unavailable internally', 'O dossiê não está mais disponível.'],
+    ['23505', 'idx_dossies_secret_constraint', 'Não foi possível abrir o dossiê. Tente novamente.'],
+  ])('sanitiza erro RPC %s antes de expor à UI', async (code, rawMessage, expectedMessage) => {
+    rpcMock.mockResolvedValue({ data: null, error: { code, message: rawMessage } });
+    const { reuseDossierForCurrentOperator } = await import('../../../lib/supabase/dossierDuplicate');
+
+    await expect(reuseDossierForCurrentOperator('source-id')).rejects.toThrow(expectedMessage);
+    expect(diagnosticWarnMock).toHaveBeenCalledWith(
+      'dossierDuplicate',
+      'Erro ao reutilizar dossiê',
+      { code, error: rawMessage },
+    );
+  });
+
+  it('sanitiza exceção de transporte na reutilização', async () => {
+    rpcMock.mockRejectedValue(new Error('fetch failed at private endpoint'));
+    const { reuseDossierForCurrentOperator } = await import('../../../lib/supabase/dossierDuplicate');
+
+    await expect(reuseDossierForCurrentOperator('source-id')).rejects.toThrow(
+      'Não foi possível abrir o dossiê. Tente novamente.',
+    );
+    expect(diagnosticWarnMock).toHaveBeenCalledWith(
+      'dossierDuplicate',
+      'Falha de transporte ao reutilizar dossiê',
+      { code: undefined, error: 'fetch failed at private endpoint' },
+    );
   });
 });
