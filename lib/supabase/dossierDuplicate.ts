@@ -89,7 +89,7 @@ export async function findExistingDossier(
 
 export async function reuseDossierForCurrentOperator(sourceDossierId: string): Promise<ReusedDossier> {
   if (!isSupabaseAvailable()) {
-    throw new Error('Supabase indisponível para abrir o dossiê');
+    throw new Error('Não foi possível abrir o dossiê. Tente novamente.');
   }
 
   let response;

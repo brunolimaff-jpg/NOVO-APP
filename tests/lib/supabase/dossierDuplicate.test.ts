@@ -68,6 +68,16 @@ describe('secure dossier reuse client', () => {
     expect(rpcMock).not.toHaveBeenCalled();
   });
 
+  it('usa mensagem genérica quando Supabase está indisponível na reutilização', async () => {
+    availabilityMock.mockReturnValue(false);
+    const { reuseDossierForCurrentOperator } = await import('../../../lib/supabase/dossierDuplicate');
+
+    await expect(reuseDossierForCurrentOperator('source-id')).rejects.toThrow(
+      'Não foi possível abrir o dossiê. Tente novamente.',
+    );
+    expect(rpcMock).not.toHaveBeenCalled();
+  });
+
   it('diferencia NOT_FOUND, ACCESS_DENIED e erro desconhecido', async () => {
     const { findExistingDossier } = await import('../../../lib/supabase/dossierDuplicate');
 
