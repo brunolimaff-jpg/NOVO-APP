@@ -30,8 +30,8 @@ describe('supabaseMigrationChain contract', () => {
     expect(files[0]).toBe('20260501000000_production_schema_baseline.sql');
   });
 
-  it('devem existir exatamente 23 arquivos de migration ativos no total', () => {
-    expect(files.length).toBe(23);
+  it('devem existir exatamente 24 arquivos de migration ativos no total', () => {
+    expect(files.length).toBe(24);
   });
 
   it('todos os 18 marcadores de producao devem conter apenas comentarios e whitespace (no-op)', () => {
@@ -41,7 +41,8 @@ describe('supabaseMigrationChain contract', () => {
         !f.includes('harden_dossier_grants') &&
         !f.includes('harden_legacy_operator_linking') &&
         !f.includes('scout_diagnostics_opportunistic_retention') &&
-        !f.includes('remove_duplicate_scout_diagnostics_indexes'),
+        !f.includes('remove_duplicate_scout_diagnostics_indexes') &&
+        !f.includes('rls_sensitive_tables_hardening_v3'),
     );
     expect(markers.length).toBe(18);
 
@@ -64,6 +65,12 @@ describe('supabaseMigrationChain contract', () => {
 
     expect(hardenGrants!.split('_')[0] > '20260727224304').toBe(true);
     expect(hardenIdentity!.split('_')[0] > '20260727224304').toBe(true);
+  });
+
+  it('o hardening RLS v3 deve ser posterior às migrations canônicas atuais', () => {
+    const hardenRlsV3 = files.find(f => f.includes('rls_sensitive_tables_hardening_v3'));
+    expect(hardenRlsV3).toBe('20260731150000_rls_sensitive_tables_hardening_v3.sql');
+    expect(hardenRlsV3!.split('_')[0] > '20260730090100').toBe(true);
   });
 
   it('nenhum arquivo arquivado em migrations_legacy com formato desatualizado deve estar no diretorio ativo', () => {

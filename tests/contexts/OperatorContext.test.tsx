@@ -47,6 +47,7 @@ vi.mock('../../services/operatorTracking', () => ({
 }));
 
 import { OperatorProvider, useOperator } from '../../contexts/OperatorContext';
+import { getIdentityState } from '../../services/storage/_shared';
 
 const Probe: React.FC = () => {
   const { name, email, operatorId, clearName, setName, registerOperator, loading } = useOperator();
@@ -244,9 +245,10 @@ describe('OperatorProvider — auth resolution (Phase 1)', () => {
 
     // Deve ter consultado profiles via Supabase
     expect(mockSupabaseFrom).toHaveBeenCalledWith('profiles');
-    // PR #376: operator_id é restaurado no localStorage após resolução de auth
-    // para que getOperatorId() em _shared.ts consiga ler (loadSessions depende disso)
-    expect(window.localStorage.getItem('scout360:operator_id')).toBe('op_canonical_via_auth');
+    // Máquina de estados de identidade (PR #456): após resolução, o operator_id
+    // é REMOVIDO do localStorage — getOperatorId() lê exclusivamente da memória
+    // (authenticatedOperatorId) para impedir race condition e ID stale.
+    expect(window.localStorage.getItem('scout360:operator_id')).toBeNull();
     expect(window.localStorage.getItem('scout360:operator_name')).toBeNull();
     expect(window.localStorage.getItem('scout360:operator_email')).toBeNull();
   });
@@ -281,6 +283,29 @@ describe('OperatorProvider — auth resolution (Phase 1)', () => {
     // Profile com operator_id diferente do que estava em localStorage
     window.localStorage.setItem('scout360:operator_id', 'op_temporario');
     mockProfileResult({ operator_id: 'op_canonico', email: 'auth@agro.com', name: 'Auth User' });
+
+    renderProvider();
+
+    await waitFor(() => {
+      expect(relinkSpy).toHaveBeenCalled();
+    });
+
+    window.removeEventListener('operator-relinked', relinkSpy);
+  });
+
+  it('relink — dispara evento operator-relinked MESMO quando operator_id não muda (validação v3)', async () => {
+    // Validação v3 item 5: após resolução bem-sucedida, disparar SEMPRE o
+    // sinal que recarrega os dossiês/sidebar, MESMO quando o ID resolvido for
+    // igual ao ID anterior. Isso é necessário porque durante 'resolving',
+    // getOperatorId() retorna null e leituras retornaram vazio — precisam
+    // ser refeitas agora que o ID canônico está disponível.
+    const relinkSpy = vi.fn();
+    window.addEventListener('operator-relinked', relinkSpy);
+
+    // localStorage com o MESMO operator_id que será retornado pelo profile.
+    // needsRelink=false, MAS o evento deve disparar mesmo assim.
+    window.localStorage.setItem('scout360:operator_id', 'op_mesmo_id');
+    mockProfileResult({ operator_id: 'op_mesmo_id', email: 'auth@agro.com', name: 'Auth User' });
 
     renderProvider();
 
@@ -385,5 +410,146 @@ describe('OperatorProvider — auth resolution (Phase 1)', () => {
     expect(opId).toMatch(/^op_/);
     // Nao deve ter chamado saveUserContext com valores temporarios
     // (apenas o registerOperator manual chama saveUserContext)
+  });
+
+  // ===========================================================================
+  // Validação v3: estado `error` da máquina de identidade
+  // ===========================================================================
+  it('validação v3 — resolução falhando para authUser transita para estado error (não guest)', async () => {
+    // Pré-condição: existe um ID legado no localStorage que NÃO deve ser usado
+    // como fallback após falha de resolução.
+    window.localStorage.setItem('scout360:operator_id', 'op_legacy_nao_deve_ser_usado');
+    // Profile sem operator_id, sem email legado, sem user_context — resolução
+    // retorna null.
+    mockProfileResult(null);
+    findUserByEmailMock.mockResolvedValue(null);
+
+    renderProvider();
+
+    // Aguarda o effect de resolução rodar (markResolving -> null -> markError)
+    await new Promise(resolve => setTimeout(resolve, 100));
+
+    // Estado final deve ser 'error', não 'guest' e não 'resolving'.
+    expect(getIdentityState()).toBe('error');
+  });
+
+  it('validação v3 — exceção durante resolução transita para estado error', async () => {
+    // Faz a consulta profiles lançar erro via mock rejeitando.
+    mockMaybeSingle.mockReset();
+    mockMaybeSingle.mockImplementation(() => {
+      throw new Error('boom na rede');
+    });
+    findUserByEmailMock.mockResolvedValue(null);
+
+    renderProvider();
+
+    await new Promise(resolve => setTimeout(resolve, 100));
+
+    // Após exceção no effect, a máquina deve estar em 'error'.
+    expect(getIdentityState()).toBe('error');
+  });
+
+  it('validação v3 — retry controlado recupera error para authenticated', async () => {
+    mockProfileResult(null);
+    findUserByEmailMock.mockResolvedValue(null);
+    renderProvider();
+
+    await waitFor(() => {
+      expect(getIdentityState()).toBe('error');
+    });
+
+    mockProfileResult({ operator_id: 'op_retry_ok', email: 'auth@agro.com', name: 'Auth User' });
+    act(() => {
+      window.dispatchEvent(new CustomEvent('operator-resolution-retry'));
+    });
+
+    await waitFor(() => {
+      expect(getIdentityState()).toBe('authenticated');
+      expect(screen.getByTestId('operator-id')).toHaveTextContent('op_retry_ok');
+    });
+  });
+
+  it('retry automático limitado — null na primeira resolução e sucesso na segunda', async () => {
+    mockMaybeSingle
+      .mockResolvedValueOnce({ data: null, error: null })
+      .mockResolvedValueOnce({ data: null, error: null })
+      .mockResolvedValue({
+        data: { operator_id: 'op_auto_retry', email: 'auth@agro.com', name: 'Auth User' },
+        error: null,
+      });
+
+    renderProvider();
+
+    await waitFor(() => expect(getIdentityState()).toBe('error'));
+    await waitFor(() => {
+      expect(getIdentityState()).toBe('authenticated');
+      expect(screen.getByTestId('operator-id')).toHaveTextContent('op_auto_retry');
+    }, { timeout: 1_500 });
+  });
+
+  it('retry automático recupera uma exceção transitória', async () => {
+    mockMaybeSingle
+      .mockImplementationOnce(() => { throw new Error('rede indisponível'); })
+      .mockResolvedValue({
+        data: { operator_id: 'op_after_exception', email: 'auth@agro.com', name: 'Auth User' },
+        error: null,
+      });
+
+    renderProvider();
+
+    await waitFor(() => expect(getIdentityState()).toBe('error'));
+    await waitFor(() => {
+      expect(getIdentityState()).toBe('authenticated');
+      expect(screen.getByTestId('operator-id')).toHaveTextContent('op_after_exception');
+    }, { timeout: 1_500 });
+  });
+
+  it('logout durante backoff cancela retry e volta somente então para guest', async () => {
+    mockMaybeSingle.mockResolvedValue({ data: null, error: null });
+    const view = renderProvider();
+
+    await waitFor(() => expect(getIdentityState()).toBe('error'));
+    const callsBeforeLogout = mockMaybeSingle.mock.calls.length;
+
+    mockUseMaybeAuth.mockReturnValue({ isGuest: true, loading: false, user: null });
+    view.rerender(
+      <OperatorProvider>
+        <Probe />
+      </OperatorProvider>,
+    );
+
+    await waitFor(() => expect(getIdentityState()).toBe('guest'));
+    await new Promise(resolve => setTimeout(resolve, 600));
+    expect(mockMaybeSingle).toHaveBeenCalledTimes(callsBeforeLogout);
+  });
+
+  it('troca de usuário cancela retry anterior e nunca reutiliza ID stale', async () => {
+    window.localStorage.setItem('scout360:operator_id', 'op_stale_guest');
+    mockMaybeSingle.mockResolvedValue({ data: null, error: null });
+    const view = renderProvider();
+
+    await waitFor(() => expect(getIdentityState()).toBe('error'));
+
+    const nextUser = {
+      id: 'auth-uuid-456',
+      email: 'next@agro.com',
+      user_metadata: { name: 'Next User' },
+    };
+    mockUseMaybeAuth.mockReturnValue({ isGuest: false, loading: false, user: nextUser });
+    mockMaybeSingle.mockResolvedValue({
+      data: { operator_id: 'op_next_user', email: 'next@agro.com', name: 'Next User' },
+      error: null,
+    });
+    view.rerender(
+      <OperatorProvider>
+        <Probe />
+      </OperatorProvider>,
+    );
+
+    await waitFor(() => {
+      expect(getIdentityState()).toBe('authenticated');
+      expect(screen.getByTestId('operator-id')).toHaveTextContent('op_next_user');
+    });
+    expect(screen.getByTestId('operator-id')).not.toHaveTextContent('op_stale_guest');
   });
 });

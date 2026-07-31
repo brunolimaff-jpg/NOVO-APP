@@ -1,5 +1,5 @@
 // tests/contracts/supabaseMigrations.contract.test.ts
-// Adapted for canonical baseline migration chain (21 existing + 2 scout diagnostics maintenance migrations)
+// Adapted for canonical baseline migration chain (21 existing + 2 scout diagnostics maintenance migrations + PR456 RLS hardening v3)
 // All original behavioral guarantees are preserved across the full migration chain.
 import { describe, it, expect } from 'vitest';
 import { readdirSync, readFileSync, existsSync } from 'fs';
@@ -30,9 +30,9 @@ describe('supabaseMigrations contract — estrutura', () => {
     expect(existsSync(MIGRATIONS_DIR)).toBe(true);
   });
 
-  it('contém exatamente 23 arquivos .sql', () => {
+  it('contém exatamente 24 arquivos .sql', () => {
     const files = readdirSync(MIGRATIONS_DIR).filter(f => f.endsWith('.sql'));
-    expect(files.length).toBe(23);
+    expect(files.length).toBe(24);
   });
 
   it('baseline é o primeiro arquivo e existe', () => {
@@ -44,6 +44,12 @@ describe('supabaseMigrations contract — estrutura', () => {
 
   it.each(CRITICAL_INDEXES)('índice crítico existe no baseline/migrations: %s', indexName => {
     expect(getAllContent()).toContain(indexName);
+  });
+
+  it('inclui a migration v3 de hardening RLS da PR456', () => {
+    expect(
+      existsSync(resolve(MIGRATIONS_DIR, '20260731150000_rls_sensitive_tables_hardening_v3.sql')),
+    ).toBe(true);
   });
 });
 

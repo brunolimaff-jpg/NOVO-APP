@@ -1,9 +1,32 @@
 // services/storage/dossiers.ts
+//
+// POLÍTICA DE IDENTIDADE (PR #456 — validação v3):
+// Operações de ESCRITA (saveDossier, saveDossierStrict, saveAllDossiers,
+// deleteDossier) NÃO podem ser descartadas silenciosamente quando a máquina
+// de identidade está em estado 'resolving' ou 'error' (getOperatorId() null).
+// Nessas situações, lancamos um erro explícito para que o caller trate
+// (retry, surface ao usuário, etc.) em vez de achar que a escrita foi feita.
+//
+// Operações de LEITURA (getDossiers, getDossier) retornam vazio/null
+// silenciosamente quando getOperatorId() é null — não há dado para mostrar
+// antes da resolução, e a UI recarrega via 'operator-relinked' após o resolve.
 import { supabase, isSupabaseAvailable } from '../../lib/supabaseClient';
-import { getOperatorId } from './_shared';
+import {
+  getOperatorId,
+  getOperatorIdForWrite,
+  getIdentityState,
+  canUseProtectedRemoteStorage,
+  GUEST_REMOTE_SYNC_DISABLED_ERROR,
+  OPERATOR_IDENTITY_BLOCKED_ERROR,
+} from './_shared';
 import { storageGet } from '../../utils/localStorage';
 import { scoutDiag } from '../../utils/diagnosticLog';
 import type { ChatSession } from './types';
+
+// Mensagem canônica para escritas bloqueadas pela máquina de identidade.
+// Exportada para que testes/callers possam identificar a causa.
+export const OPERATOR_UNRESOLVED_ERROR =
+  OPERATOR_IDENTITY_BLOCKED_ERROR;
 
 function stripTransientMessageState(message: ChatSession['messages'][number]): ChatSession['messages'][number] {
   const { loadingVariant: _loadingVariant, isSourcesOpen: _isSourcesOpen, ...persistentMessage } = message;
@@ -23,6 +46,7 @@ function stripTransientState(session: ChatSession): ChatSession {
 export const dossiers = {
   async getDossiers(): Promise<ChatSession[]> {
     if (!isSupabaseAvailable()) return [];
+    if (!canUseProtectedRemoteStorage()) return [];
 
     const operatorId = getOperatorId();
     if (!operatorId) return [];
@@ -48,6 +72,7 @@ export const dossiers = {
 
   async getDossier(id: string): Promise<ChatSession | null> {
     if (!isSupabaseAvailable()) return null;
+    if (!canUseProtectedRemoteStorage()) return null;
 
     const operatorId = getOperatorId();
     if (!operatorId) return null;
@@ -70,8 +95,13 @@ export const dossiers = {
   },
 
   async saveDossier(session: ChatSession): Promise<void> {
-    const operatorId = getOperatorId();
-    if (!isSupabaseAvailable() || !operatorId) return;
+    if (getIdentityState() === 'guest') {
+      scoutDiag.info('Storage', 'guest-dossier-local-only', { sessionId: session.id });
+      return;
+    }
+    const operatorId = getOperatorIdForWrite();
+    if (!isSupabaseAvailable()) return;
+    if (!operatorId) return;
 
     const cleanSession = stripTransientState(session);
 
@@ -96,7 +126,10 @@ export const dossiers = {
   },
 
   async saveDossierStrict(session: ChatSession): Promise<void> {
-    const operatorId = getOperatorId();
+    if (getIdentityState() === 'guest') {
+      throw new Error(GUEST_REMOTE_SYNC_DISABLED_ERROR);
+    }
+    const operatorId = getOperatorIdForWrite();
     if (!isSupabaseAvailable()) throw new Error('Supabase indisponível para persistência estrita');
     if (!operatorId) throw new Error('operatorId obrigatório para persistência estrita');
     const cleanSession = stripTransientState(session);
@@ -128,8 +161,14 @@ export const dossiers = {
   },
 
   async saveAllDossiers(sessions: ChatSession[]): Promise<void> {
-    const operatorId = getOperatorId();
-    if (!isSupabaseAvailable() || !operatorId || sessions.length === 0) return;
+    if (getIdentityState() === 'guest') {
+      scoutDiag.info('Storage', 'guest-dossiers-local-only', { count: sessions.length });
+      return;
+    }
+    const operatorId = getOperatorIdForWrite();
+    if (!isSupabaseAvailable()) return;
+    if (sessions.length === 0) return;
+    if (!operatorId) return;
 
     const payloads = sessions.map(session => {
       const clean = stripTransientState(session);
@@ -155,8 +194,13 @@ export const dossiers = {
   },
 
   async deleteDossier(id: string): Promise<void> {
-    const operatorId = getOperatorId();
-    if (!isSupabaseAvailable() || !operatorId) return;
+    if (getIdentityState() === 'guest') {
+      scoutDiag.info('Storage', 'guest-dossier-delete-local-only', { sessionId: id });
+      return;
+    }
+    const operatorId = getOperatorIdForWrite();
+    if (!isSupabaseAvailable()) return;
+    if (!operatorId) return;
 
     const { error } = await supabase!
       .from('dossies')

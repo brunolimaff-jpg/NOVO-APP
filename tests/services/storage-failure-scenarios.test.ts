@@ -39,6 +39,11 @@ vi.mock('../../lib/supabaseClient', () => ({
 }));
 
 import { storage } from '../../services/storage';
+import {
+  getIdentityState,
+  markGuest,
+  setAuthenticatedOperatorId,
+} from '../../services/storage/_shared';
 import { Sender, type ChatSession } from '../../types';
 
 function makeSession(overrides: Partial<ChatSession> = {}): ChatSession {
@@ -62,7 +67,21 @@ describe('storage — cenários de falha silenciosa', () => {
     vi.clearAllMocks();
     localStorage.clear();
     localStorage.setItem('scout360:operator_id', 'op_test_123');
+    markGuest();
     isSupabaseAvailableMock.mockReturnValue(true);
+  });
+
+  it('operator_id legado no localStorage não promove guest para authenticated', async () => {
+    expect(getIdentityState()).toBe('guest');
+
+    await storage.saveDossier(makeSession());
+    await storage.saveAllDossiers([makeSession()]);
+    expect(await storage.getDossiers()).toEqual([]);
+    expect(await storage.getDossier('test-session-1')).toBeNull();
+    await storage.deleteDossier('test-session-1');
+
+    expect(getIdentityState()).toBe('guest');
+    expect(supabaseMock.from).not.toHaveBeenCalled();
   });
 
   // ===================================================================
@@ -70,6 +89,7 @@ describe('storage — cenários de falha silenciosa', () => {
   // ===================================================================
   describe('F1: saveDossier sem Supabase disponível', () => {
     it('deve lançar erro quando Supabase retorna erro (não silencioso)', async () => {
+      setAuthenticatedOperatorId('op_test_123');
       supabaseMock.upsert.mockResolvedValue({ error: { message: 'RLS denied' } });
       supabaseMock.from.mockReturnValue({ upsert: supabaseMock.upsert });
 
@@ -77,6 +97,7 @@ describe('storage — cenários de falha silenciosa', () => {
     });
 
     it('não deve tentar salvar quando Supabase indisponível', async () => {
+      setAuthenticatedOperatorId('op_test_123');
       isSupabaseAvailableMock.mockReturnValue(false);
 
       await storage.saveDossier(makeSession());
@@ -96,6 +117,7 @@ describe('storage — cenários de falha silenciosa', () => {
   // ===================================================================
   describe('F2: getDossiers retorna vazio em erro', () => {
     it('deve retornar [] quando Supabase retorna erro (usuário vê vazio)', async () => {
+      setAuthenticatedOperatorId('op_test_123');
       const orderMock = vi.fn().mockResolvedValue({ data: null, error: { message: 'DB down' } });
       const isMock = vi.fn().mockReturnValue({ order: orderMock });
       const eqMock = vi.fn().mockReturnValue({ is: isMock });
@@ -107,6 +129,7 @@ describe('storage — cenários de falha silenciosa', () => {
     });
 
     it('deve retornar [] quando Supabase indisponível', async () => {
+      setAuthenticatedOperatorId('op_test_123');
       isSupabaseAvailableMock.mockReturnValue(false);
 
       const result = await storage.getDossiers();
@@ -121,6 +144,7 @@ describe('storage — cenários de falha silenciosa', () => {
     });
 
     it('deve normalizar isThinking:false em mensagens retornadas', async () => {
+      setAuthenticatedOperatorId('op_test_123');
       const sessionWithThinking = makeSession({
         messages: [{ id: 'm1', sender: Sender.Bot, text: 'conteúdo', timestamp: new Date(), isThinking: true }],
       });
@@ -140,6 +164,7 @@ describe('storage — cenários de falha silenciosa', () => {
   // ===================================================================
   describe('F3: saveAllDossiers com falha parcial ou total', () => {
     it('deve logar erro quando Supabase retorna erro no bulk upsert', async () => {
+      setAuthenticatedOperatorId('op_test_123');
       const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
       supabaseMock.upsert.mockResolvedValue({ error: { message: 'Bulk upsert failed' } });
       supabaseMock.from.mockReturnValue({ upsert: supabaseMock.upsert });
@@ -163,6 +188,7 @@ describe('storage — cenários de falha silenciosa', () => {
     });
 
     it('deve fazer soft-delete com operator_id', async () => {
+      setAuthenticatedOperatorId('op_test_123');
       const eqOpMock = vi.fn().mockResolvedValue({ error: null });
       const eqIdMock = vi.fn().mockReturnValue({ eq: eqOpMock });
       supabaseMock.update.mockReturnValue({ eq: eqIdMock });
@@ -174,6 +200,7 @@ describe('storage — cenários de falha silenciosa', () => {
         deleted_at: expect.any(String),
         updated_at: expect.any(String),
       });
+      expect(supabaseMock.delete).not.toHaveBeenCalled();
     });
   });
 
@@ -182,6 +209,8 @@ describe('storage — cenários de falha silenciosa', () => {
   // ===================================================================
   describe('F5: getDossier verifica operator_id', () => {
     it('deve incluir operator_id na query', async () => {
+      localStorage.setItem('scout360:operator_id', 'op_stale_legacy');
+      setAuthenticatedOperatorId('op_test_123');
       supabaseMock.maybeSingle.mockResolvedValue({ data: { content: makeSession() }, error: null });
       const isMock = vi.fn().mockReturnValue({ maybeSingle: supabaseMock.maybeSingle });
       const eqOpMock = vi.fn().mockReturnValue({ is: isMock });
