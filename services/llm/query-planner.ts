@@ -332,7 +332,7 @@ export async function executeQueryPlan(plan: QueryPlan): Promise<EvidencePack> {
 
           const blocks = raw.split(/\n---\n/).filter(Boolean);
           return blocks
-            .map(block => {
+            .map((block: string) => {
               const urlMatch = block.match(/^URL:\s*(.+)$/m);
               const titleMatch = block.match(/^Título:\s*(.+)$/m);
               const resumoMatch = block.match(/^Resumo:\s*([\s\S]+?)(?:\n---|\n$|$)/m);
@@ -347,7 +347,7 @@ export async function executeQueryPlan(plan: QueryPlan): Promise<EvidencePack> {
                 retrievedAt: new Date().toISOString(),
               } as BraveSearchResult;
             })
-            .filter((r): r is BraveSearchResult => r !== null);
+            .filter((r: BraveSearchResult | null): r is BraveSearchResult => r !== null);
         } catch (err) {
           scoutDiag.warn('QueryPlanner', 'busca falhou na query', { queryId: q.id, error: String(err) });
           return [];

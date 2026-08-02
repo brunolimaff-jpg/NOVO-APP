@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import App from '../App';
 import { ChatStoreProvider } from '../stores/chatStore';
 import { DossierStoreProvider } from '../stores/dossierStore';
@@ -19,6 +19,7 @@ const {
   getIsolatedBenchmarkMock,
   lookupClienteMock,
   formatarParaPromptMock,
+  dossierRunMock,
 } = vi.hoisted(() => ({
   sessionStateRef: { current: [] as unknown[] },
   downloadFileMock: vi.fn(),
@@ -28,6 +29,40 @@ const {
   getIsolatedBenchmarkMock: vi.fn(),
   lookupClienteMock: vi.fn(),
   formatarParaPromptMock: vi.fn(),
+  dossierRunMock: {
+    owner: '',
+    create: vi.fn(),
+    get: vi.fn(),
+    acquire: vi.fn(),
+    renew: vi.fn(),
+    release: vi.fn(),
+    complete: vi.fn(),
+    fail: vi.fn(),
+  },
+}));
+
+vi.mock('../lib/supabase/dossierRuns', async importOriginal => {
+  const actual = await importOriginal<typeof import('../lib/supabase/dossierRuns')>();
+  return {
+    ...actual,
+    createOrGetDossierRun: dossierRunMock.create,
+    getDossierRun: dossierRunMock.get,
+    acquireDossierRunLease: dossierRunMock.acquire,
+    renewDossierRunLease: dossierRunMock.renew,
+    releaseDossierRunLease: dossierRunMock.release,
+    markDossierRunCompleted: dossierRunMock.complete,
+    markDossierRunFailed: dossierRunMock.fail,
+  };
+});
+
+vi.mock('../features/dossier/dossier-run-heartbeat', () => ({
+  startDossierRunHeartbeat: vi.fn(() => vi.fn()),
+}));
+
+vi.mock('../services/storage', () => ({
+  storage: {
+    saveDossierStrict: vi.fn(async () => undefined),
+  },
 }));
 
 vi.mock('../components/ChatInterface', () => ({
@@ -253,8 +288,29 @@ function loadModuleFixtures(): Record<string, string> {
 
 describe('App dossier markdown golden flow', () => {
   beforeEach(() => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    vi.setSystemTime(new Date('2026-06-17T12:00:00.000Z'));
     vi.clearAllMocks();
     sessionStateRef.current = [];
+
+    const runningRun = {
+      run_id: 'run-golden',
+      status: 'RUNNING' as const,
+      cancel_requested_at: null,
+      lease_expires_at: '2030-01-01T00:00:00.000Z',
+      lease_owner: null,
+    };
+    dossierRunMock.owner = '';
+    dossierRunMock.create.mockResolvedValue(runningRun);
+    dossierRunMock.get.mockImplementation(async () => ({ ...runningRun, lease_owner: dossierRunMock.owner }));
+    dossierRunMock.acquire.mockImplementation(async (_runId: string, leaseOwner: string) => {
+      dossierRunMock.owner = leaseOwner;
+      return { ...runningRun, lease_owner: leaseOwner };
+    });
+    dossierRunMock.renew.mockResolvedValue(runningRun);
+    dossierRunMock.release.mockResolvedValue(runningRun);
+    dossierRunMock.complete.mockResolvedValue({ ...runningRun, status: 'COMPLETED' as const });
+    dossierRunMock.fail.mockResolvedValue({ ...runningRun, status: 'FAILED' as const });
 
     const moduleFixtures = loadModuleFixtures();
     const lookupFixture = loadJsonFixture<Record<string, unknown>>(resolve(fixtureRoot, 'lookup.json'));
@@ -272,6 +328,10 @@ describe('App dossier markdown golden flow', () => {
       }
       return moduleFixtures[moduleName];
     });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it('gera e exporta o dossiê canônico em markdown para o caso Scheffer', async () => {

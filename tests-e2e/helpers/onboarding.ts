@@ -1,4 +1,5 @@
 import { expect, type Page } from '@playwright/test';
+import { installE2EMigrationClock } from './auth';
 
 const MIGRATION_SEEN_KEY = 'scout360:supabase_migration_seen';
 const AUTH_SKIP_KEY = 'scout360:auth_skip_until';
@@ -15,6 +16,7 @@ export function e2eCompanyName(prefix = 'Fazenda E2E') {
 }
 
 export async function preventMigrationNotice(page: Page) {
+  await installE2EMigrationClock(page);
   await page.addInitScript(
     ({ migrationSeenKey, authSkipKey, operatorEmailKey }) => {
       localStorage.setItem(migrationSeenKey, 'true');
@@ -82,5 +84,36 @@ export async function completeOnboarding(page: Page, options: CompleteOnboarding
 
   if (expectInvestigationForm) {
     await expect(investigationInput).toBeVisible({ timeout: 15_000 });
+  }
+}
+
+export async function startNewInvestigation(page: Page) {
+  const candidates = [
+    page.getByRole('button', { name: /nova pesquisa do zero/i }).first(),
+    page.getByRole('button', { name: /nova investigação|nova investigacao|nova pesquisa/i }).first(),
+    page.getByTestId('new-investigation-button'),
+    page.getByTestId('sidebar-new-investigation-button'),
+  ];
+
+  for (const candidate of candidates) {
+    if (await candidate.isVisible({ timeout: 2_000 }).catch(() => false)) {
+      await candidate.click({ force: true });
+      return;
+    }
+  }
+
+  const companyInput = page.getByTestId('investigation-company-input');
+  if (await companyInput.isVisible({ timeout: 2_000 }).catch(() => false)) return;
+
+  throw new Error('Não encontrei ação para iniciar nova investigação');
+}
+
+export async function dismissDuplicateDossierModal(page: Page) {
+  const newResearch = page.getByRole('button', { name: /nova pesquisa do zero|pesquisar novamente|nova pesquisa/i }).first();
+  if (await newResearch.isVisible({ timeout: 3_000 }).catch(() => false)) {
+    await newResearch.click({ force: true });
+    await expect(newResearch)
+      .toBeHidden({ timeout: 5_000 })
+      .catch(() => undefined);
   }
 }

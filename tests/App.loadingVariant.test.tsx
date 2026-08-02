@@ -5,20 +5,50 @@ import App from '../App';
 import { ChatStoreProvider } from '../stores/chatStore';
 import { DossierStoreProvider } from '../stores/dossierStore';
 
-const { deepDiveErrorRef, deepDiveAccessRef, sendMessageToGeminiMock, generateDossierModuleMock, setSessionsMock } =
-  vi.hoisted(() => ({
-    deepDiveErrorRef: { current: null as unknown },
-    deepDiveAccessRef: { current: true },
-    sendMessageToGeminiMock: vi.fn(async () => ({
-      text: 'Resposta consolidada',
-      sources: [],
-      suggestions: [],
-      scorePorta: null,
-      ghostReason: null,
-    })),
-    generateDossierModuleMock: vi.fn(),
-    setSessionsMock: vi.fn(),
-  }));
+const {
+  deepDiveErrorRef,
+  deepDiveAccessRef,
+  sendMessageToGeminiMock,
+  generateDossierModuleMock,
+  setSessionsMock,
+  dossierRunMocks,
+} = vi.hoisted(() => ({
+  deepDiveErrorRef: { current: null as unknown },
+  deepDiveAccessRef: { current: true },
+  sendMessageToGeminiMock: vi.fn(async () => ({
+    text: 'Resposta consolidada',
+    sources: [],
+    suggestions: [],
+    scorePorta: null,
+    ghostReason: null,
+  })),
+  generateDossierModuleMock: vi.fn(),
+  setSessionsMock: vi.fn(),
+  dossierRunMocks: {
+    create: vi.fn(),
+    get: vi.fn(),
+    acquire: vi.fn(),
+    renew: vi.fn(),
+    release: vi.fn(),
+    requestCancellation: vi.fn(),
+    cancel: vi.fn(),
+    complete: vi.fn(),
+    fail: vi.fn(),
+  },
+}));
+
+vi.mock('../lib/supabase/dossierRuns', () => ({
+  DOSSIER_RUN_RPC_TIMEOUT_MS: 15_000,
+  createOrGetDossierRun: dossierRunMocks.create,
+  getDossierRun: dossierRunMocks.get,
+  acquireDossierRunLease: dossierRunMocks.acquire,
+  renewDossierRunLease: dossierRunMocks.renew,
+  releaseDossierRunLease: dossierRunMocks.release,
+  requestDossierRunCancellation: dossierRunMocks.requestCancellation,
+  markDossierRunCancelled: dossierRunMocks.cancel,
+  markDossierRunCompleted: dossierRunMocks.complete,
+  markDossierRunFailed: dossierRunMocks.fail,
+}));
 
 vi.mock('../components/ChatInterface', () => ({
   default: (props: {
@@ -118,6 +148,14 @@ vi.mock('../contexts/OperatorContext', () => ({
   }),
 }));
 
+vi.mock('../contexts/AuthContext', () => ({
+  useMaybeAuth: () => ({
+    isGuest: false,
+    loading: false,
+    user: { id: 'test-user' },
+  }),
+}));
+
 vi.mock('../contexts/ModeContext', () => ({
   useMode: () => ({
     mode: 'investigacao',
@@ -173,6 +211,23 @@ vi.mock('../hooks/useUpdateNotification', () => ({
   }),
 }));
 
+vi.mock('../features/radar', () => ({
+  useRadar: () => ({
+    alerts: [],
+    config: { isConfigured: false },
+    unreadCount: 0,
+    isScanning: false,
+    lastScanAt: null,
+    lastError: null,
+    lastWarning: null,
+    updateConfig: vi.fn(),
+    markAsRead: vi.fn(),
+    markAllAsRead: vi.fn(),
+    dismissAlert: vi.fn(),
+    forceScan: vi.fn(),
+  }),
+}));
+
 vi.mock('../hooks/useAppInitialization', () => ({
   useAppInitialization: vi.fn(),
 }));
@@ -214,8 +269,10 @@ function renderApp() {
 vi.mock('../utils/featureAccess', () => ({
   getFeatureAccess: () => ({
     dashboard: false,
+    integrityCheck: false,
     clientLookup: false,
     deepDive: deepDiveAccessRef.current,
+    warRoom: false,
   }),
 }));
 
@@ -231,6 +288,29 @@ describe('App loading variant regression', () => {
     vi.clearAllMocks();
     deepDiveErrorRef.current = null;
     deepDiveAccessRef.current = true;
+
+    const lifecycleRun = {
+      run_id: '00000000-0000-4000-8000-000000000102',
+      status: 'RUNNING' as const,
+      cancel_requested_at: null,
+      lease_expires_at: '2099-01-01T00:00:00.000Z',
+      lease_owner: 'test-lease',
+    };
+    dossierRunMocks.create.mockResolvedValue({ ...lifecycleRun, status: 'PENDING', lease_expires_at: null });
+    dossierRunMocks.get.mockImplementation(async () => ({
+      ...lifecycleRun,
+      lease_owner: dossierRunMocks.acquire.mock.calls.at(-1)?.[1] ?? lifecycleRun.lease_owner,
+    }));
+    dossierRunMocks.acquire.mockImplementation(async (_runId: string, leaseOwner: string) => ({
+      ...lifecycleRun,
+      lease_owner: leaseOwner,
+    }));
+    dossierRunMocks.renew.mockResolvedValue(lifecycleRun);
+    dossierRunMocks.release.mockResolvedValue({ ...lifecycleRun, lease_expires_at: null });
+    dossierRunMocks.requestCancellation.mockResolvedValue({ ...lifecycleRun, status: 'CANCEL_REQUESTED' });
+    dossierRunMocks.cancel.mockResolvedValue({ ...lifecycleRun, status: 'CANCELLED', lease_expires_at: null });
+    dossierRunMocks.complete.mockResolvedValue({ ...lifecycleRun, status: 'COMPLETED', lease_expires_at: null });
+    dossierRunMocks.fail.mockResolvedValue({ ...lifecycleRun, status: 'FAILED', lease_expires_at: null });
   });
 
   it('renderiza o shell do chat sem ReferenceError de loadingVariant', () => {

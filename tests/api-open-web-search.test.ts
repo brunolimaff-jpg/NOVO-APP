@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
 const performWebSearchMock = vi.hoisted(() => vi.fn());
+const braveSearchMock = vi.hoisted(() => vi.fn());
 
 vi.mock('../utils/documentExtractor', async () => {
   const actual = await vi.importActual<typeof import('../utils/documentExtractor')>('../utils/documentExtractor');
@@ -10,6 +11,10 @@ vi.mock('../utils/documentExtractor', async () => {
     performWebSearch: performWebSearchMock,
   };
 });
+
+vi.mock('../services/search/brave-search', () => ({
+  braveSearch: braveSearchMock,
+}));
 
 function makeResponse() {
   let statusCode = 0;
@@ -42,11 +47,50 @@ describe('api/open-web-search', () => {
     vi.clearAllMocks();
     vi.resetModules();
     delete process.env.BRAVE_SEARCH_API_KEY;
+    braveSearchMock.mockResolvedValue([]);
     vi.spyOn(globalThis, 'fetch').mockReset();
   });
 
-  it('usa DuckDuckGo mesmo quando BRAVE_SEARCH_API_KEY está configurada', async () => {
+  it('usa Brave como provedor primário quando há resultado estruturado', async () => {
     process.env.BRAVE_SEARCH_API_KEY = 'brave-key';
+    braveSearchMock.mockResolvedValueOnce([
+      {
+        title: 'Grupo Piccini abre usina',
+        url: 'https://example.com/piccini-usina',
+        snippet: 'Investimento em etanol de milho.',
+      },
+    ]);
+
+    const { default: handler } = await import('../api/open-web-search');
+    const response = makeResponse();
+
+    await handler(
+      {
+        method: 'POST',
+        body: { query: 'Grupo Piccini RRP Energia Tapurah' },
+      } as VercelRequest,
+      response.res,
+    );
+
+    expect(response.statusCode).toBe(200);
+    expect(response.payload).toMatchObject({
+      content: expect.stringContaining('Grupo Piccini abre usina'),
+      source: 'OpenWebSearch/Brave',
+      degraded: false,
+      sources: [
+        expect.objectContaining({
+          title: 'Grupo Piccini abre usina',
+          url: 'https://example.com/piccini-usina',
+          provider: 'brave',
+        }),
+      ],
+      providerStatus: [{ provider: 'brave', ok: true }],
+    });
+    expect(fetch).not.toHaveBeenCalled();
+    expect(performWebSearchMock).not.toHaveBeenCalled();
+  });
+
+  it('usa DuckDuckGo como fallback quando Brave não retorna resultado', async () => {
     performWebSearchMock.mockResolvedValueOnce(
       'Título: Grupo Piccini abre usina\nURL: https://example.com/piccini-usina\nResumo: Investimento em etanol de milho.\n---',
     );
@@ -70,7 +114,6 @@ describe('api/open-web-search', () => {
       sources: [],
       providerStatus: [{ provider: 'duckduckgo', ok: true }],
     });
-    expect(fetch).not.toHaveBeenCalled();
     expect(performWebSearchMock).toHaveBeenCalledWith('Grupo Piccini RRP Energia Tapurah');
   });
 

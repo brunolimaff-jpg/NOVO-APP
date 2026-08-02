@@ -150,9 +150,16 @@ export function normalizeText(value: string): string {
     .trim();
 }
 
-export function buildCacheKey(rootCnpj: string, rootCompanyName: string, socioName: string): string {
+export function buildCacheKey(
+  rootCnpj: string,
+  rootCompanyName: string,
+  socioName: string,
+  operatorId?: string,
+): string {
   const cnpj = normalizeCnpj(rootCnpj);
-  return `${CACHE_KEY_VERSION}::${cnpj || normalizeText(rootCompanyName)}::${normalizeText(socioName)}`;
+  const base = `${CACHE_KEY_VERSION}::${cnpj || normalizeText(rootCompanyName)}::${normalizeText(socioName)}`;
+  const namespace = operatorId ? normalizeText(operatorId.replace(/-/g, ' ')) : 'anonymous';
+  return `${base}::${namespace}::`;
 }
 
 export function buildPersistentCacheId(key: string): string {

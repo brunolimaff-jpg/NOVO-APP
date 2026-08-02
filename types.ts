@@ -50,6 +50,16 @@ export interface AppError {
   details?: Record<string, unknown>;
 }
 
+export interface DossierModuleError {
+  moduleName: string;
+  modelDisplayName: string;
+  modelId: string;
+  errorMessage: string;
+  errorType: string;
+  timestamp: string;
+  stack?: string;
+}
+
 // ===================================================================
 // SCORE PORTA
 // ===================================================================

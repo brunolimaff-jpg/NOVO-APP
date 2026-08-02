@@ -10,6 +10,9 @@ import {
   type SocietaryPartnerInput,
 } from '../societaryGraph';
 
+export const SOCIO_SEARCH_CLIENT_TIMEOUT_MS = 52_000;
+export const SOCIO_SEARCH_BATCH_SIZE = 2;
+
 export type LoadState = 'idle' | 'loading' | 'ready' | 'empty' | 'error';
 
 export interface SocioSearchResponse {

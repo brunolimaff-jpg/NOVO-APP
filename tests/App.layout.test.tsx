@@ -54,6 +54,23 @@ vi.mock('../hooks/useUpdateNotification', () => ({
   }),
 }));
 
+vi.mock('../features/radar', () => ({
+  useRadar: () => ({
+    alerts: [],
+    config: {},
+    unreadCount: 0,
+    isScanning: false,
+    lastScanAt: null,
+    lastError: null,
+    lastWarning: null,
+    updateConfig: vi.fn(),
+    markAsRead: vi.fn(),
+    markAllAsRead: vi.fn(),
+    dismissAlert: vi.fn(),
+    forceScan: vi.fn(),
+  }),
+}));
+
 vi.mock('../hooks/useAppInitialization', () => ({
   useAppInitialization: vi.fn(),
 }));
@@ -104,6 +121,14 @@ vi.mock('../contexts/OperatorContext', () => ({
     registerOperator: vi.fn(),
     clearName: vi.fn(),
     linkToExistingOperator: vi.fn(),
+  }),
+}));
+
+vi.mock('../contexts/AuthContext', () => ({
+  useMaybeAuth: () => ({
+    isGuest: false,
+    loading: false,
+    user: { id: 'test-user' },
   }),
 }));
 
