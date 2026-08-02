@@ -4,6 +4,12 @@ import { z } from 'zod';
 
 import { runDossierGateway } from './_dossier-llm-gateway.js';
 import { LiteLLMRequestError, type LiteLLMErrorCode } from './_llm-client.js';
+import { DossierPersistenceError, persistAndCompleteDossierRun } from './_dossier-persistence.js';
+import {
+  sanitizeDossierEvidenceContract,
+  type DossierEvidenceContract,
+  type DossierUsage,
+} from '../shared/dossierGatewayContracts.js';
 
 const HistoryItemSchema = z.object({
   role: z.enum(['user', 'assistant']),
@@ -16,6 +22,7 @@ const GenerateRequestSchema = z.object({
   companyName: z.string().trim().min(1).max(240),
   cnpj: z.string().regex(/^\d{14}$/).optional(),
   context: z.string().trim().min(1).max(200_000),
+  evidence: z.unknown().optional(),
 });
 
 const ChatRequestSchema = z.object({
@@ -53,10 +60,12 @@ type DossierErrorCode =
   | 'RUN_LEASE_UNAVAILABLE'
   | 'REQUEST_ABORTED'
   | 'DOSSIER_CONTENT_UNAVAILABLE'
+  | 'PERSISTENCE_FAILED'
+  | 'DOSSIER_CONFLICT'
   | LiteLLMErrorCode
   | 'INTERNAL_ERROR';
 
-type DossierStage = 'validation' | 'auth' | 'ownership' | 'lease' | 'gateway' | 'request';
+type DossierStage = 'validation' | 'auth' | 'ownership' | 'lease' | 'gateway' | 'persistence' | 'request';
 
 class DossierApiError extends Error {
   constructor(
@@ -65,6 +74,7 @@ class DossierApiError extends Error {
     message: string,
     readonly stage: DossierStage,
     readonly retryable: boolean,
+    readonly cancellationConfirmed = false,
   ) {
     super(message);
     this.name = 'DossierApiError';
@@ -92,6 +102,16 @@ interface DossierRecord {
   operator_id?: unknown;
   content?: unknown;
 }
+
+type GenerateGatewayResult = {
+  text: string;
+  usage: {
+    promptTokenCount?: number;
+    candidatesTokenCount?: number;
+    totalTokenCount?: number;
+  };
+  finishReason?: string;
+};
 
 interface LogContext {
   correlationId: string;
@@ -147,10 +167,15 @@ function sendError(
   runId: string | undefined,
   error: DossierApiError,
 ) {
+  // Only report CANCELLED when the lifecycle RPC has explicitly confirmed
+  // the cancellation-requested terminal path. An abort or failed finalizer
+  // does not prove the run was cancelled and must remain FAILED/ambiguous.
+  const status = error.code === 'RUN_CANCEL_REQUESTED' && error.cancellationConfirmed ? 'CANCELLED' : 'FAILED';
   return res.status(error.status).json({
     ok: false,
     correlationId,
     ...(runId ? { runId } : {}),
+    status,
     error: {
       code: error.code,
       message: error.message,
@@ -161,7 +186,10 @@ function sendError(
 }
 
 function aggregatePayloadSize(request: DossierRequest): number {
-  if (request.action === 'generate') return request.context.length;
+  if (request.action === 'generate') {
+    const evidenceSize = request.evidence === undefined ? 0 : JSON.stringify(request.evidence)?.length ?? 0;
+    return request.context.length + evidenceSize;
+  }
   return (
     request.message.length +
     request.history.reduce((total, item) => total + item.content.length, 0)
@@ -221,33 +249,9 @@ async function loadDossierContent(
   operatorId: string,
   signal: AbortSignal,
 ): Promise<string | null> {
-  const response = await fetch(
-    `${user.supabase.url}/rest/v1/dossies?id=eq.${encodeURIComponent(dossierId)}` +
-      `&operator_id=eq.${encodeURIComponent(operatorId)}&select=id,operator_id,content&limit=1`,
-    {
-      headers: {
-        Authorization: `Bearer ${user.token}`,
-        apikey: user.supabase.anonKey,
-      },
-      signal,
-    },
-  );
-  if (!response.ok) {
-    throw new DossierApiError(502, 'INTERNAL_ERROR', 'Dossier content lookup failed', 'ownership', true);
-  }
-
-  let payload: unknown;
-  try {
-    payload = await response.json();
-  } catch {
-    throw new DossierApiError(502, 'INTERNAL_ERROR', 'Invalid dossier content response', 'ownership', true);
-  }
-  const record = Array.isArray(payload) ? payload[0] : payload;
-  if (!record || typeof record !== 'object') return null;
-  const dossier = record as DossierRecord;
+  const dossier = await loadDossierRecord(user, dossierId, operatorId, signal);
+  if (!dossier) return null;
   if (
-    dossier.id !== dossierId ||
-    dossier.operator_id !== operatorId ||
     !dossier.content ||
     typeof dossier.content !== 'object'
   ) return null;
@@ -276,6 +280,146 @@ async function loadDossierContent(
   return contextLines.join('\n\n');
 }
 
+async function loadDossierRecord(
+  user: AuthenticatedUser,
+  dossierId: string,
+  operatorId: string,
+  signal: AbortSignal,
+): Promise<DossierRecord | null> {
+  const response = await fetch(
+    `${user.supabase.url}/rest/v1/dossies?id=eq.${encodeURIComponent(dossierId)}` +
+      `&operator_id=eq.${encodeURIComponent(operatorId)}&select=id,operator_id,content&limit=1`,
+    {
+      headers: {
+        Authorization: `Bearer ${user.token}`,
+        apikey: user.supabase.anonKey,
+      },
+      signal,
+    },
+  );
+  if (!response.ok) {
+    throw new DossierApiError(502, 'INTERNAL_ERROR', 'Dossier content lookup failed', 'ownership', true);
+  }
+
+  let payload: unknown;
+  try {
+    payload = await response.json();
+  } catch {
+    throw new DossierApiError(502, 'INTERNAL_ERROR', 'Invalid dossier content response', 'ownership', true);
+  }
+  const record = Array.isArray(payload) ? payload[0] : payload;
+  if (!record || typeof record !== 'object') return null;
+  const dossier = record as DossierRecord;
+  if (dossier.id !== dossierId || dossier.operator_id !== operatorId) return null;
+  return dossier;
+}
+
+function canonicalJson(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(item => canonicalJson(item)).join(',')}]`;
+  if (value && typeof value === 'object') {
+    return `{${Object.keys(value as Record<string, unknown>).sort().map(key =>
+      `${JSON.stringify(key)}:${canonicalJson((value as Record<string, unknown>)[key])}`,
+    ).join(',')}}`;
+  }
+  return JSON.stringify(value);
+}
+
+function hasExactKeys(value: Record<string, unknown>, expected: string[]): boolean {
+  return canonicalJson(Object.keys(value).sort()) === canonicalJson([...expected].sort());
+}
+
+function matchesPersistedGenerateContent(
+  dossier: DossierRecord,
+  run: DossierRunRecord,
+  request: Extract<DossierRequest, { action: 'generate' }>,
+  gatewayResult: GenerateGatewayResult,
+  evidenceContract: DossierEvidenceContract | undefined,
+): boolean {
+  if (typeof run.operator_id !== 'string' || !run.operator_id.trim()) return false;
+  if (dossier.id !== request.runId || dossier.operator_id !== run.operator_id) return false;
+  if (!dossier.content || typeof dossier.content !== 'object') return false;
+  const content = dossier.content as Record<string, unknown>;
+  const expectedCnpj = request.cnpj ?? null;
+  if (
+    !hasExactKeys(content, [
+      'id',
+      'title',
+      'empresaAlvo',
+      'cnpj',
+      'modoPrincipal',
+      'scoreOportunidade',
+      'resumoDossie',
+      'createdAt',
+      'updatedAt',
+      'messages',
+      'gateway',
+      ...(evidenceContract === undefined ? [] : ['evidence']),
+    ]) ||
+    content.id !== request.runId ||
+    content.title !== request.companyName ||
+    content.empresaAlvo !== request.companyName ||
+    content.cnpj !== expectedCnpj ||
+    content.modoPrincipal !== 'investigacao' ||
+    content.scoreOportunidade !== null ||
+    content.resumoDossie !== null ||
+    typeof content.createdAt !== 'string' ||
+    typeof content.updatedAt !== 'string'
+  ) return false;
+
+  const messages = content.messages;
+  if (!Array.isArray(messages) || messages.length !== 2) return false;
+  const userMessage = messages[0];
+  const botMessage = messages[1];
+  const expectedPrompt = `Gere o dossiê de ${request.companyName}${request.cnpj ? `, CNPJ ${request.cnpj}` : ''}.`;
+  if (
+    !userMessage || typeof userMessage !== 'object' ||
+    !botMessage || typeof botMessage !== 'object' ||
+    !hasExactKeys(userMessage as Record<string, unknown>, ['id', 'sender', 'text', 'timestamp']) ||
+    !hasExactKeys(botMessage as Record<string, unknown>, [
+      'id',
+      'sender',
+      'text',
+      'timestamp',
+      'isThinking',
+      'isError',
+    ]) ||
+    (userMessage as Record<string, unknown>).id !== `${request.runId}:user` ||
+    (userMessage as Record<string, unknown>).sender !== 'user' ||
+    (userMessage as Record<string, unknown>).text !== expectedPrompt ||
+    typeof (userMessage as Record<string, unknown>).timestamp !== 'string' ||
+    (botMessage as Record<string, unknown>).id !== `${request.runId}:bot` ||
+    (botMessage as Record<string, unknown>).sender !== 'bot' ||
+    (botMessage as Record<string, unknown>).text !== gatewayResult.text ||
+    typeof (botMessage as Record<string, unknown>).timestamp !== 'string' ||
+    (botMessage as Record<string, unknown>).isThinking !== false ||
+    (botMessage as Record<string, unknown>).isError !== false
+  ) return false;
+
+  const gateway = content.gateway;
+  if (!gateway || typeof gateway !== 'object') return false;
+  const expectedGateway = {
+    runId: request.runId,
+    usage: mapGatewayUsage(gatewayResult.usage),
+    finishReason: gatewayResult.finishReason ?? 'unknown',
+  };
+  if (canonicalJson(gateway) !== canonicalJson(expectedGateway)) return false;
+  if (evidenceContract === undefined) return !Object.prototype.hasOwnProperty.call(content, 'evidence');
+  return canonicalJson(content.evidence) === canonicalJson(evidenceContract);
+}
+
+async function readPersistedGenerateDossier(
+  user: AuthenticatedUser,
+  run: DossierRunRecord,
+  dossierId: string,
+): Promise<DossierRecord | null> {
+  if (typeof run.operator_id !== 'string' || !run.operator_id.trim()) return null;
+  try {
+    return await loadDossierRecord(user, dossierId, run.operator_id, AbortSignal.timeout(2_000));
+  } catch {
+    return null;
+  }
+}
+
 function assertRunIdentity(
   run: DossierRunRecord | null,
   runId: string,
@@ -290,7 +434,14 @@ function assertRunIdentity(
 
 function assertRunNotCancelled(run: DossierRunRecord, stage: 'ownership' | 'lease'): void {
   if (run.status === 'CANCEL_REQUESTED' || run.status === 'CANCELLED' || run.cancel_requested_at) {
-    throw new DossierApiError(409, 'RUN_CANCEL_REQUESTED', 'Dossier run cancellation requested', stage, false);
+    throw new DossierApiError(
+      409,
+      'RUN_CANCEL_REQUESTED',
+      'Dossier run cancellation requested',
+      stage,
+      false,
+      run.status === 'CANCELLED',
+    );
   }
 }
 
@@ -378,11 +529,20 @@ async function acquireGenerateLease(
     const recoverableOwner = typeof current.lease_owner === 'string' && current.lease_owner.trim()
       ? current.lease_owner
       : null;
+    let cancellationConfirmed = false;
     if (recoverableOwner) {
       const finalized = await finalizeRunCancellation(user, runId, recoverableOwner, context);
       if (!finalized) throw cancellationFinalizationError();
+      cancellationConfirmed = true;
     }
-    throw new DossierApiError(409, 'RUN_CANCEL_REQUESTED', 'Dossier run cancellation requested', 'lease', false);
+    throw new DossierApiError(
+      409,
+      'RUN_CANCEL_REQUESTED',
+      'Dossier run cancellation requested',
+      'lease',
+      false,
+      cancellationConfirmed,
+    );
   }
   assertRunNotCancelled(current, 'lease');
   if (current.status !== 'PENDING' && current.status !== 'RUNNING') {
@@ -420,6 +580,25 @@ async function validateFinalLease(
   return { valid: hasValidLease(run, runId, leaseOwner), run };
 }
 
+async function readPersistenceLifecycle(
+  user: AuthenticatedUser,
+  runId: string,
+): Promise<DossierRunRecord | null> {
+  try {
+    const run = await callRunRpc(
+      user,
+      'get_own_dossier_run',
+      { p_run_id: runId },
+      AbortSignal.timeout(2_000),
+      'lease',
+    );
+    if (!run || run.run_id !== runId) return null;
+    return run;
+  } catch {
+    return null;
+  }
+}
+
 function combineSignals(first: AbortSignal, second: AbortSignal): { signal: AbortSignal; cleanup: () => void } {
   const controller = new AbortController();
   const abort = () => controller.abort();
@@ -445,6 +624,7 @@ function startLeaseHeartbeat(
 ): {
   signal: AbortSignal;
   getError: () => DossierApiError | undefined;
+  stop: () => Promise<void>;
   cleanup: () => void;
 } {
   const heartbeatController = new AbortController();
@@ -453,10 +633,9 @@ function startLeaseHeartbeat(
   let stopped = false;
   let heartbeatInFlight = false;
   let heartbeatError: DossierApiError | undefined;
+  let inFlightHeartbeat: Promise<void> | undefined;
 
-  const timer = setInterval(async () => {
-    if (stopped || heartbeatInFlight) return;
-    heartbeatInFlight = true;
+  const runHeartbeat = async (): Promise<void> => {
     try {
       const renewed = await callRunRpc(
         user,
@@ -465,9 +644,19 @@ function startLeaseHeartbeat(
         heartbeatController.signal,
         'lease',
       );
+      if (stopped) return;
       if (!renewed) {
         heartbeatError = new DossierApiError(409, 'RUN_LEASE_UNAVAILABLE', 'Dossier run lease lost', 'lease', true);
-      } else if (renewed.status === 'CANCEL_REQUESTED' || renewed.status === 'CANCELLED' || renewed.cancel_requested_at) {
+      } else if (renewed.status === 'CANCELLED') {
+        heartbeatError = new DossierApiError(
+          409,
+          'RUN_CANCEL_REQUESTED',
+          'Dossier run cancellation requested',
+          'lease',
+          false,
+          true,
+        );
+      } else if (renewed.status === 'CANCEL_REQUESTED' || renewed.cancel_requested_at) {
         heartbeatError = new DossierApiError(409, 'RUN_CANCEL_REQUESTED', 'Dossier run cancellation requested', 'lease', false);
       } else if (!hasValidLease(renewed, runId, leaseOwner)) {
         heartbeatError = new DossierApiError(409, 'RUN_LEASE_UNAVAILABLE', 'Dossier run lease lost', 'lease', true);
@@ -481,12 +670,25 @@ function startLeaseHeartbeat(
     } finally {
       heartbeatInFlight = false;
     }
-    if (heartbeatError) gatewayController.abort();
+    if (!stopped && heartbeatError) gatewayController.abort();
+  };
+
+  const timer = setInterval(() => {
+    if (stopped || heartbeatInFlight) return;
+    heartbeatInFlight = true;
+    inFlightHeartbeat = runHeartbeat();
   }, LEASE_HEARTBEAT_MS);
 
   return {
     signal: combined.signal,
     getError: () => heartbeatError,
+    stop: async () => {
+      stopped = true;
+      clearInterval(timer);
+      heartbeatController.abort();
+      combined.cleanup();
+      await inFlightHeartbeat;
+    },
     cleanup: () => {
       stopped = true;
       clearInterval(timer);
@@ -548,6 +750,39 @@ function mapGatewayError(error: LiteLLMRequestError, requestAborted: boolean): D
   return new DossierApiError(502, error.code, 'Dossier gateway unavailable', 'gateway', error.retryable);
 }
 
+function mapGatewayUsage(usage: {
+  promptTokenCount?: number;
+  candidatesTokenCount?: number;
+  totalTokenCount?: number;
+}): DossierUsage {
+  const promptTokens = Number.isFinite(usage.promptTokenCount) && (usage.promptTokenCount ?? 0) >= 0
+    ? Math.floor(usage.promptTokenCount ?? 0)
+    : 0;
+  const completionTokens = Number.isFinite(usage.candidatesTokenCount) && (usage.candidatesTokenCount ?? 0) >= 0
+    ? Math.floor(usage.candidatesTokenCount ?? 0)
+    : 0;
+  const totalTokens = Number.isFinite(usage.totalTokenCount) && (usage.totalTokenCount ?? 0) >= 0
+    ? Math.floor(usage.totalTokenCount ?? 0)
+    : promptTokens + completionTokens;
+  return { promptTokens, completionTokens, totalTokens };
+}
+
+function mapPersistenceError(error: DossierPersistenceError): DossierApiError {
+  if (error.code === 'RUN_CANCEL_REQUESTED') {
+    return new DossierApiError(409, 'RUN_CANCEL_REQUESTED', 'Dossier run cancellation requested', 'lease', false);
+  }
+  if (error.code === 'RUN_LEASE_UNAVAILABLE') {
+    return new DossierApiError(409, 'RUN_LEASE_UNAVAILABLE', 'Dossier run lease unavailable', 'lease', true);
+  }
+  if (error.code === 'RUN_NOT_FOUND') {
+    return new DossierApiError(404, 'RUN_NOT_FOUND', 'Dossier run not found', 'ownership', false);
+  }
+  if (error.code === 'DOSSIER_CONFLICT') {
+    return new DossierApiError(409, 'DOSSIER_CONFLICT', 'Dossier persistence conflict', 'persistence', false);
+  }
+  return new DossierApiError(502, 'PERSISTENCE_FAILED', 'Dossier persistence failed', 'persistence', error.retryable);
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const correlationId = resolveCorrelationId(req);
   const untrustedRunId = resolveUntrustedRunId(req.body);
@@ -572,6 +807,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       new DossierApiError(400, 'INVALID_REQUEST', 'Invalid request', 'validation', false),
     );
   }
+  let evidenceContract: DossierEvidenceContract | undefined;
+  if (parsed.data.action === 'generate' && parsed.data.evidence !== undefined) {
+    try {
+      const candidateEvidence = parsed.data.evidence;
+      evidenceContract = sanitizeDossierEvidenceContract(candidateEvidence);
+    } catch {
+      return sendError(
+        res,
+        correlationId,
+        parsed.data.runId,
+        new DossierApiError(400, 'INVALID_REQUEST', 'Invalid dossier evidence contract', 'validation', false),
+      );
+    }
+  }
   if (aggregatePayloadSize(parsed.data) > MAX_AGGREGATE_PAYLOAD_CHARS) {
     return sendError(
       res,
@@ -592,9 +841,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   let leaseAcquired = false;
   let leaseFinalized = false;
   let cancellationDetected = false;
+  let generatedDossierId: string | undefined;
   let dossierContent: string | undefined;
   let user: AuthenticatedUser | null = null;
   let heartbeat: ReturnType<typeof startLeaseHeartbeat> | undefined;
+  let gatewayResult: Awaited<ReturnType<typeof runDossierGateway>> | undefined;
+  let persistenceStarted = false;
   logEvent('info', 'request:start', context, 'auth');
 
   try {
@@ -629,7 +881,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     const gatewaySignal = heartbeat?.signal ?? controller.signal;
-    const gatewayResult =
+    gatewayResult =
       parsed.data.action === 'chat'
         ? await runDossierGateway({
             mode: 'chat',
@@ -650,6 +902,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           });
 
     if (parsed.data.action === 'generate' && leaseOwner) {
+      await heartbeat?.stop();
+      const heartbeatError = heartbeat?.getError();
+      if (heartbeatError) throw heartbeatError;
       const { valid, run } = await validateFinalLease(user, parsed.data.runId, leaseOwner, controller.signal);
       if (run && (run.status === 'CANCEL_REQUESTED' || run.status === 'CANCELLED' || run.cancel_requested_at)) {
         cancellationDetected = true;
@@ -661,6 +916,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           'Dossier run cancellation requested before response delivery',
           'gateway',
           false,
+          true,
         );
       }
       if (!valid) {
@@ -673,20 +929,103 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           true,
         );
       }
+
+      persistenceStarted = true;
+      const persisted = await persistAndCompleteDossierRun(
+        {
+          url: user.supabase.url,
+          token: user.token,
+          anonKey: user.supabase.anonKey,
+        },
+        {
+          runId: parsed.data.runId,
+          leaseOwner,
+          dossierId: parsed.data.runId,
+          companyName: parsed.data.companyName,
+          cnpj: parsed.data.cnpj,
+          generatedText: gatewayResult.text,
+          usage: mapGatewayUsage(gatewayResult.usage),
+          finishReason: gatewayResult.finishReason ?? 'unknown',
+          evidence: evidenceContract,
+        },
+        controller.signal,
+      );
+      generatedDossierId = persisted.dossierId;
+      leaseFinalized = true;
     }
 
     logEvent('info', 'request:complete', context, 'gateway');
     return res.status(200).json({
       ok: true,
       text: gatewayResult.text,
-      usage: gatewayResult.usage,
-      finishReason: gatewayResult.finishReason,
+      usage: mapGatewayUsage(gatewayResult.usage),
+      finishReason: gatewayResult.finishReason ?? 'unknown',
       correlationId,
       runId: parsed.data.runId,
+      dossierId: parsed.data.action === 'chat' ? parsed.data.dossierId : generatedDossierId,
+      status: 'COMPLETED',
     });
   } catch (error) {
     let normalized: DossierApiError;
     const heartbeatError = heartbeat?.getError();
+    let persistenceCancellationError: DossierApiError | undefined;
+    const persistenceFailureMayHaveCommitted =
+      !(error instanceof DossierPersistenceError) || error.code === 'PERSISTENCE_FAILED';
+    if (
+      persistenceStarted &&
+      persistenceFailureMayHaveCommitted &&
+      user &&
+      leaseOwner &&
+      leaseAcquired &&
+      gatewayResult
+    ) {
+      const observedRun = await readPersistenceLifecycle(user, parsed.data.runId);
+      const observedDossier =
+        parsed.data.action === 'generate' &&
+        observedRun?.status === 'COMPLETED' &&
+        observedRun.dossier_id === parsed.data.runId
+          ? await readPersistedGenerateDossier(user, observedRun, parsed.data.runId)
+          : null;
+      if (
+        parsed.data.action === 'generate' &&
+        observedRun?.status === 'COMPLETED' &&
+        observedRun.dossier_id === parsed.data.runId &&
+        observedDossier &&
+        matchesPersistedGenerateContent(observedDossier, observedRun, parsed.data, gatewayResult, evidenceContract)
+      ) {
+        generatedDossierId = observedRun.dossier_id as string;
+        leaseFinalized = true;
+        logEvent('info', 'request:reconciled-completed', context, 'persistence');
+        return res.status(200).json({
+          ok: true,
+          text: gatewayResult.text,
+          usage: mapGatewayUsage(gatewayResult.usage),
+          finishReason: gatewayResult.finishReason ?? 'unknown',
+          correlationId,
+          runId: parsed.data.runId,
+          dossierId: generatedDossierId,
+          status: 'COMPLETED',
+        });
+      }
+      if (
+        observedRun &&
+        (observedRun.status === 'CANCEL_REQUESTED' || observedRun.status === 'CANCELLED' || observedRun.cancel_requested_at) &&
+        !cancellationDetected
+      ) {
+        cancellationDetected = true;
+        leaseFinalized = await finalizeRunCancellation(user, parsed.data.runId, leaseOwner, context);
+        persistenceCancellationError = leaseFinalized
+          ? new DossierApiError(
+            409,
+            'RUN_CANCEL_REQUESTED',
+            'Dossier run cancellation requested',
+            'lease',
+            false,
+            true,
+          )
+          : cancellationFinalizationError();
+      }
+    }
     if (
       heartbeatError?.code === 'RUN_CANCEL_REQUESTED' &&
       user &&
@@ -697,14 +1036,136 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       cancellationDetected = true;
       leaseFinalized = await finalizeRunCancellation(user, parsed.data.runId, leaseOwner, context);
     }
-    if (heartbeatError?.code === 'RUN_CANCEL_REQUESTED' && !leaseFinalized) {
+    if (persistenceCancellationError) {
+      normalized = persistenceCancellationError;
+    } else if (heartbeatError?.code === 'RUN_CANCEL_REQUESTED' && !leaseFinalized) {
       normalized = cancellationFinalizationError();
-    } else if (heartbeatError) normalized = heartbeatError;
+    } else if (heartbeatError) {
+      normalized = heartbeatError.cancellationConfirmed || !leaseFinalized
+        ? heartbeatError
+        : new DossierApiError(
+          heartbeatError.status,
+          heartbeatError.code,
+          heartbeatError.message,
+          heartbeatError.stage,
+          heartbeatError.retryable,
+          true,
+        );
+    }
     else if (controller.signal.aborted) {
       normalized = new DossierApiError(499, 'REQUEST_ABORTED', 'Request cancelled', 'request', false);
+    } else if (error instanceof DossierPersistenceError) {
+      normalized = mapPersistenceError(error);
+      if (
+        normalized.code === 'RUN_CANCEL_REQUESTED' &&
+        user &&
+        leaseOwner &&
+        leaseAcquired &&
+        !cancellationDetected
+      ) {
+        cancellationDetected = true;
+        leaseFinalized = await finalizeRunCancellation(user, parsed.data.runId, leaseOwner, context);
+        if (!leaseFinalized) normalized = cancellationFinalizationError();
+        else {
+          normalized = new DossierApiError(
+            normalized.status,
+            normalized.code,
+            normalized.message,
+            normalized.stage,
+            normalized.retryable,
+            true,
+          );
+        }
+      }
     } else if (error instanceof DossierApiError) normalized = error;
     else if (error instanceof LiteLLMRequestError) normalized = mapGatewayError(error, false);
     else normalized = new DossierApiError(500, 'INTERNAL_ERROR', 'Internal dossier error', 'request', true);
+
+    if (
+      user &&
+      leaseOwner &&
+      leaseAcquired &&
+      !leaseFinalized &&
+      !cancellationDetected &&
+      normalized.code !== 'RUN_LEASE_UNAVAILABLE' &&
+      normalized.code !== 'RUN_CANCEL_REQUESTED' &&
+      normalized.code !== 'RUN_CANCELLATION_FINALIZATION_FAILED'
+    ) {
+      let failed: DossierRunRecord | null = null;
+      try {
+        failed = await callRunRpc(
+          user,
+          'fail_dossier_run',
+          {
+            p_run_id: parsed.data.runId,
+            p_lease_owner: leaseOwner,
+            p_error_code: normalized.code,
+            p_error_stage: normalized.stage,
+          },
+          AbortSignal.timeout(2_000),
+          'lease',
+        );
+      } catch {
+        logEvent('error', 'lifecycle:failure_finalization_failed', context, normalized.stage, normalized.code);
+      }
+      if (failed?.status === 'FAILED') {
+        leaseFinalized = true;
+      } else if (persistenceStarted && gatewayResult) {
+        const observedAfterFailure = failed ?? await readPersistenceLifecycle(user, parsed.data.runId);
+        const observedDossierAfterFailure =
+          parsed.data.action === 'generate' &&
+          observedAfterFailure?.status === 'COMPLETED' &&
+          observedAfterFailure.dossier_id === parsed.data.runId
+            ? await readPersistedGenerateDossier(user, observedAfterFailure, parsed.data.runId)
+            : null;
+        if (
+          parsed.data.action === 'generate' &&
+          observedAfterFailure?.status === 'COMPLETED' &&
+          observedAfterFailure.dossier_id === parsed.data.runId &&
+          observedDossierAfterFailure &&
+          matchesPersistedGenerateContent(
+            observedDossierAfterFailure,
+            observedAfterFailure,
+            parsed.data,
+            gatewayResult,
+            evidenceContract,
+          )
+        ) {
+          generatedDossierId = observedAfterFailure.dossier_id as string;
+          leaseFinalized = true;
+          logEvent('info', 'request:reconciled-completed-after-failure-finalization', context, 'persistence');
+          return res.status(200).json({
+            ok: true,
+            text: gatewayResult.text,
+            usage: mapGatewayUsage(gatewayResult.usage),
+            finishReason: gatewayResult.finishReason ?? 'unknown',
+            correlationId,
+            runId: parsed.data.runId,
+            dossierId: generatedDossierId,
+            status: 'COMPLETED',
+          });
+        }
+        if (
+          observedAfterFailure &&
+          (observedAfterFailure.status === 'CANCEL_REQUESTED' ||
+            observedAfterFailure.status === 'CANCELLED' ||
+            observedAfterFailure.cancel_requested_at)
+        ) {
+          cancellationDetected = true;
+          leaseFinalized = await finalizeRunCancellation(user, parsed.data.runId, leaseOwner, context);
+          normalized = leaseFinalized
+            ? new DossierApiError(
+              409,
+              'RUN_CANCEL_REQUESTED',
+              'Dossier run cancellation requested',
+              'lease',
+              false,
+              true,
+            )
+            : cancellationFinalizationError();
+        }
+      }
+    }
 
     logEvent('error', 'request:failed', context, normalized.stage, normalized.code);
     return sendError(res, correlationId, parsed.data.runId, normalized);

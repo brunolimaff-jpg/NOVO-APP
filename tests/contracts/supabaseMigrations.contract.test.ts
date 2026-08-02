@@ -30,9 +30,9 @@ describe('supabaseMigrations contract — estrutura', () => {
     expect(existsSync(MIGRATIONS_DIR)).toBe(true);
   });
 
-  it('contém exatamente 23 arquivos .sql', () => {
+  it('contém exatamente 24 arquivos .sql', () => {
     const files = readdirSync(MIGRATIONS_DIR).filter(f => f.endsWith('.sql'));
-    expect(files.length).toBe(23);
+    expect(files.length).toBe(24);
   });
 
   it('baseline é o primeiro arquivo e existe', () => {
@@ -186,6 +186,22 @@ describe('supabaseMigrations contract — auth remediation & least privilege', (
 
 describe('supabaseMigrations contract — dossier run lifecycle', () => {
   const allContent = getAllContent();
+
+  it('persist_and_complete_dossier_run fica executável somente por authenticated', () => {
+    const focal = readFileSync(
+      resolve(MIGRATIONS_DIR, '20260801130000_atomic_dossier_persistence_completion.sql'),
+      'utf-8',
+    );
+    expect(focal).toContain(
+      'REVOKE ALL ON FUNCTION public.persist_and_complete_dossier_run(\n  uuid, text, uuid, text, text, text, text, integer, text, jsonb\n) FROM PUBLIC, anon, authenticated, service_role;',
+    );
+    expect(focal).toContain(
+      'GRANT EXECUTE ON FUNCTION public.persist_and_complete_dossier_run(\n  uuid, text, uuid, text, text, text, text, integer, text, jsonb\n) TO authenticated;',
+    );
+    expect(focal).not.toMatch(
+      /GRANT\s+(?:ALL|EXECUTE).*persist_and_complete_dossier_run[\s\S]*TO\s+service_role/i,
+    );
+  });
 
   it('cancelamento aceita RUNNING e CANCEL_REQUESTED, limpa lease e registra timestamps', () => {
     expect(allContent).toContain("status IN ('RUNNING', 'CANCEL_REQUESTED')");

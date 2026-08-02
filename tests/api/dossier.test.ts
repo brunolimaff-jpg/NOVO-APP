@@ -180,7 +180,9 @@ describe('POST /api/dossier', () => {
     expect(res.body).toMatchObject({
       text: 'O principal risco é a concentração.',
       correlationId: 'req-dossier-1234',
+      usage: { promptTokens: 20, completionTokens: 10, totalTokens: 30 },
     });
+    expect(res.body).not.toHaveProperty('usage.promptTokenCount');
     expect(res.headers.get('x-request-id')).toBe('req-dossier-1234');
 
     const liteLlmCall = fetchMock.mock.calls[3];
@@ -198,6 +200,33 @@ describe('POST /api/dossier', () => {
     );
     expect(liteLlmCall?.[1]?.headers).toMatchObject({ 'X-Request-ID': 'req-dossier-1234' });
     expect(liteLlmCall?.[1]?.signal).toBeInstanceOf(AbortSignal);
+  });
+
+  it('normaliza finishReason ausente para o contrato de sucesso', async () => {
+    fetchMock
+      .mockResolvedValueOnce(successfulAuthResponse())
+      .mockResolvedValueOnce(successfulOwnershipResponse())
+      .mockResolvedValueOnce(successfulDossierContentResponse())
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        text: async () =>
+          JSON.stringify({
+            choices: [{ message: { content: 'Resposta sem motivo explícito.' } }],
+            usage: { prompt_tokens: 2, completion_tokens: 3, total_tokens: 5 },
+          }),
+      });
+    const req = new MockRequest();
+    const res = new MockResponse();
+
+    await handler(req as never, res as never);
+
+    expect(res.statusCode).toBe(200);
+    expect(res.body).toMatchObject({
+      status: 'COMPLETED',
+      finishReason: 'unknown',
+      usage: { promptTokens: 2, completionTokens: 3, totalTokens: 5 },
+    });
   });
 
   it('encadeia AbortSignal até o transporte LiteLLM', async () => {
@@ -296,6 +325,9 @@ describe('POST /api/dossier', () => {
         leaseHeld = false;
         return successfulRunResponse('RUNNING');
       }
+      if (rpc === 'persist_and_complete_dossier_run') {
+        return successfulRunResponse('COMPLETED', { dossier_id: RUN_ID });
+      }
       if (url === 'https://litellm.internal/chat/completions') {
         await gatewayPending;
         return successfulLiteLLMResponse('# Dossiê');
@@ -362,6 +394,9 @@ describe('POST /api/dossier', () => {
       if (rpc === 'release_dossier_run_lease') {
         expect(JSON.parse(String(init?.body)).p_lease_owner).toBe(acquiredOwner);
         return successfulRunResponse('RUNNING');
+      }
+      if (rpc === 'persist_and_complete_dossier_run') {
+        return successfulRunResponse('COMPLETED', { dossier_id: RUN_ID });
       }
       return successfulLiteLLMResponse('# Dossiê');
     });
@@ -579,6 +614,7 @@ describe('POST /api/dossier', () => {
 
     expect(res.statusCode).toBe(502);
     expect(res.body).toMatchObject({
+      status: 'FAILED',
       error: { code: 'RUN_CANCELLATION_FINALIZATION_FAILED', stage: 'lease', retryable: true },
     });
     expect(rpcOrder).toEqual(['mark_dossier_run_cancelled', 'mark_dossier_run_cancelled']);
@@ -604,6 +640,7 @@ describe('POST /api/dossier', () => {
       ok: false,
       correlationId: expect.any(String),
       runId: RUN_ID,
+      status: 'FAILED',
       error: { code: 'REQUEST_ABORTED', message: expect.any(String), stage: 'request', retryable: false },
     });
   });
@@ -692,7 +729,7 @@ describe('POST /api/dossier', () => {
     await handler(req as never, res as never);
 
     expect(res.statusCode).toBe(409);
-    expect(res.body).toMatchObject({ error: { code: 'RUN_CANCEL_REQUESTED', stage: 'lease' } });
+    expect(res.body).toMatchObject({ status: 'FAILED', error: { code: 'RUN_CANCEL_REQUESTED', stage: 'lease' } });
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
@@ -729,7 +766,7 @@ describe('POST /api/dossier', () => {
     await handler(req as never, res as never);
 
     expect(res.statusCode).toBe(409);
-    expect(res.body).toMatchObject({ error: { code: 'RUN_CANCEL_REQUESTED', stage: 'lease' } });
+    expect(res.body).toMatchObject({ status: 'CANCELLED', error: { code: 'RUN_CANCEL_REQUESTED', stage: 'lease' } });
     expect(finalizedOwner).toBe(serverOwner);
     expect(rpcOrder).toEqual(['get_own_dossier_run', 'mark_dossier_run_cancelled']);
     expect(JSON.stringify(res.body)).not.toContain(serverOwner);
@@ -762,6 +799,7 @@ describe('POST /api/dossier', () => {
       ok: false,
       correlationId: expect.any(String),
       runId: RUN_ID,
+      status: 'FAILED',
       error: {
         code: 'AUTH_REQUIRED',
         message: expect.any(String),
