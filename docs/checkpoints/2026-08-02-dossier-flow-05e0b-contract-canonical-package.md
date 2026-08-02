@@ -1,0 +1,41 @@
+# Pacote canônico — DOSSIER-FLOW 05E.0B — bloqueio de contrato
+
+```text
+TASK_ID=DOSSIER-FLOW-05E.0B-LOCAL-IMPLEMENTATION-01
+SOURCE_HEAD=a65f425b579ae429d9dd3823b0721a1a1d7d52bf
+WORKTREE=/private/tmp/novo-app-dossier-flow-05a
+BRANCH=codex/dossier-flow-server-owned-05a
+GATE_ZERO=PASS
+RUNTIME_IMPLEMENTATION=NOT_STARTED
+FINAL_DECISION=BLOCKED_BY_EXISTING_DATABASE_CONTRACT
+BLOCKER_TYPE=DATABASE_CONTRACT
+```
+
+## Decisão do Planner
+
+`05E_0B_GATE_ZERO=PASS` e `BLOCKER_ACCEPTED=YES`.
+`05E_0B_LOCAL_IMPLEMENTATION_COMPLETE=NO`.
+`RUNTIME_READINESS=NOT_PROVEN`.
+
+O Planner determinou que o próximo cartão deve ser
+`DOSSIER-FLOW-05E.0C-CHECKPOINT-CONTRACT-01`, com objetivo de criar e provar a
+fundação persistente mínima para tentativa, checkpoint, fencing e resume.
+
+## Evidência de duração
+
+```text
+SOURCE_MAX_DURATION_MS=300000
+LOCAL_BUILT_FUNCTION_MAX_DURATION_MS=300000
+REFERENCE_DEPLOYMENT_MAX_DURATION_MS=300000
+DURATION_SINGLE_SOURCE_OF_TRUTH=PASS
+FUNCTION_IDENTITY_MATCHED_TO_API_DOSSIER=PASS
+NEW_DEPLOYABLE_FUNCTION_CREATED=NO
+SOURCE_SHA256=fcc9469690188d563479da743172e6d60c10b004c8a685c3605b91ea4c04266d
+BUILT_CONFIG_SHA256=f8ef1738148cc0edf832457ecfee5a14e4e4c8f081d2f3c98722767450652626
+BUILT_HANDLER_SHA256=a2a064d9239e42e794e964309d83cba715280267fc2bce54da44cb42a87c71bf
+```
+
+## Limite de publicação
+
+Nenhuma ação remota está autorizada: provider real, Supabase remoto, Preview,
+deploy, configuração Vercel remota, commit, push, CI, Produção ou merge.

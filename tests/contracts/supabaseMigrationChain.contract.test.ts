@@ -30,8 +30,9 @@ describe('supabaseMigrationChain contract', () => {
     expect(files[0]).toBe('20260501000000_production_schema_baseline.sql');
   });
 
-  it('devem existir exatamente 24 arquivos de migration ativos no total', () => {
-    expect(files.length).toBe(24);
+  it('devem existir exatamente 25 arquivos de migration ativos no total', () => {
+    expect(files.length).toBe(25);
+    expect(files).toContain('20260802111500_dossier_checkpoint_attempt_contract.sql');
   });
 
   it('todos os 18 marcadores de producao devem conter apenas comentarios e whitespace (no-op)', () => {
@@ -42,7 +43,8 @@ describe('supabaseMigrationChain contract', () => {
         !f.includes('harden_legacy_operator_linking') &&
         !f.includes('scout_diagnostics_opportunistic_retention') &&
         !f.includes('remove_duplicate_scout_diagnostics_indexes') &&
-        !f.includes('atomic_dossier_persistence_completion'),
+        !f.includes('atomic_dossier_persistence_completion') &&
+        !f.includes('dossier_checkpoint_attempt_contract'),
     );
     expect(markers.length).toBe(18);
 

@@ -7,6 +7,7 @@ export interface DossierGatewayInput {
   userContent: string;
   dossierContext?: string;
   history?: Array<{ role: 'user' | 'assistant'; content: string }>;
+  timeoutMs?: number;
   signal: AbortSignal;
   correlationId: string;
   runId: string;
@@ -64,7 +65,7 @@ export async function runDossierGateway(input: DossierGatewayInput): Promise<Lit
     runId: input.runId,
     action: input.mode,
     temperature: input.mode === 'chat' ? 0.2 : 0.1,
-    timeoutMs: resolveDossierGatewayTimeoutMs(),
+    timeoutMs: input.timeoutMs ?? resolveDossierGatewayTimeoutMs(),
     maxRetries: 0,
   });
 }

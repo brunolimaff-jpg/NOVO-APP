@@ -30,9 +30,10 @@ describe('supabaseMigrations contract — estrutura', () => {
     expect(existsSync(MIGRATIONS_DIR)).toBe(true);
   });
 
-  it('contém exatamente 24 arquivos .sql', () => {
+  it('contém exatamente 25 arquivos .sql após o contrato 05E.0C', () => {
     const files = readdirSync(MIGRATIONS_DIR).filter(f => f.endsWith('.sql'));
-    expect(files.length).toBe(24);
+    expect(files.length).toBe(25);
+    expect(files).toContain('20260802111500_dossier_checkpoint_attempt_contract.sql');
   });
 
   it('baseline é o primeiro arquivo e existe', () => {

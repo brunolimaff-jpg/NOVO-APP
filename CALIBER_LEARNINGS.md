@@ -523,3 +523,30 @@ _Atualizado automaticamente pelo Caliber apos sessoes de agente._
 
 - **ESM no runtime Vercel exige `.js` extension em imports locais** [vercel, esm, deploy, runtime]
   O runtime serverless da Vercel para funcoes TypeScript usa resolucao ESM estrita. Imports de arquivos locais sem extensao `.js` (ex: `from './utils'` em vez de `from './utils.js'`) falham em producao — `ERR_MODULE_NOT_FOUND`. O tipo do erro nao deixa claro que a extensao esta faltando. Sempre adicionar `.js` em imports de arquivos locais em `api/*.ts`.
+
+## Sessão 2026-08-02 — 05E.0A runtime target freeze
+
+- **Alvo híbrido não serve para aprovar um cutover** [dossier, server-owned, planejamento]
+  Quando o produto atual é client-owned e existem helpers server-owned não conectados, o estado do repositório pode ser híbrido, mas a prova precisa de um único alvo. O Planner congelou `SERVER_OWNED_END_TO_END_MULTI_CALL`; o waterfall atual ficou apenas como baseline.
+
+- **Exercitar helper com adapters não prova capacidade de recovery ou produção** [dossier, server-owned, teste, budget]
+  O helper canônico pode ser exercitado sem rede com relógio virtual, mas a prova deve expor quando retry, reconciliação PORTA ou persistência terminal não existem. `READY_FOR_05E_0B` permanece `NO` até essas capacidades e o deployment serem comprovados.
+
+- **Envelope 50s/60s não pode ser chamado de envelope Hobby 300s** [vercel, runtime, timeout]
+  Se o helper de envelope existente rejeita budget acima de 50s e não está conectado à rota, o modelo 300s deve ficar marcado como `BUDGET_MODEL_ONLY`; Fluid Compute efetivo e contagem de functions precisam de prova de deployment.
+
+## Sessão 2026-08-02 — 05E.0B runtime integration local
+
+- **RPC timeout precisa cobrir body e não apenas headers** [api, supabase, timeout, abort]
+  `fetch` pode resolver após headers enquanto `response.text()` permanece pendente. O cliente RPC deve manter um deadline único, abortar o `AbortController` real no timeout e só fazer `JSON.parse` depois da leitura limitada.
+- **Generate deve ter um único call graph server-owned** [api, dossier, runtime, arquitetura]
+  Manter implementação legacy ao lado do orquestrador canônico permite bypass silencioso de attempt/fence/checkpoint. O caminho generate deve ser estático e testado contra RPCs legados; compatibilidade antiga fica explicitamente fora dele.
+- Evidência: `tests/api/dossier-run-rpc.test.ts`, `tests/api/dossier-runtime-orchestrator.test.ts`, `tests/proofs/dossier-runtime-integration/dossier-runtime-integration.test.ts` e Vault `2026-08-02T14-22-00-dossier-flow-05e0b-runtime-integration.md`.
+
+## Sessão 2026-08-02 — 05E.0C contrato de checkpoint
+
+- **Replay e concorrência são provas distintas para um contrato durável** [supabase, postgresql, concorrência, dossier]
+  Replay completo em dois bancos prova reprodutibilidade da cadeia; somente conexões independentes simultâneas exercitam vencedor único, idempotência equivalente e rejeição divergente. Exigir ambas antes de adjudicar migration remota ou integração server-owned. Lição canônica: Vault `02 - Meus Projetos/NOVO-APP/Lições/supabase/dossier-checkpoint-replay-e-concorrencia-local.md`.
+
+- **Baseline global deve separar testes físicos de identidades** [testing, baseline, vitest, dossier]
+  Um `Map<identidade, status>` colapsa parametrizações ou nomes repetidos e pode fabricar uma redução de testes. Normalizar caminhos, preservar a multiplicidade por identidade, comparar falhas como multiconjunto e reportar `suites`, `tests`, `identities` e `failed` separadamente. Lição canônica: Vault `02 - Meus Projetos/NOVO-APP/Lições/testing/baseline-por-identidade-preserva-multiplicidade.md`.

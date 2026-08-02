@@ -2,12 +2,19 @@ import { EventEmitter } from 'node:events';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const fetchMock = vi.hoisted(() => vi.fn());
+const runtimeMock = vi.hoisted(() => vi.fn());
 const RUN_ID = '11111111-1111-4111-8111-111111111111';
 const DOSSIER_ID = '22222222-2222-4222-8222-222222222222';
 const OPERATOR_ID = 'operator-123';
 const OTHER_OPERATOR_ID = 'operator-other';
 
+vi.mock('../../api/_dossier-runtime-orchestrator.js', async () => ({
+  ...(await vi.importActual<typeof import('../../api/_dossier-runtime-orchestrator.js')>('../../api/_dossier-runtime-orchestrator.js')),
+  runDossierRuntime: runtimeMock,
+}));
+
 import handler from '../../api/dossier.js';
+import { DossierRuntimeError } from '../../api/_dossier-runtime-orchestrator.js';
 
 class MockRequest extends EventEmitter {
   method = 'POST';
@@ -110,14 +117,11 @@ function successfulRunResponse(status: string, extra: Record<string, unknown> = 
   };
 }
 
-function rpcName(url: unknown): string | undefined {
-  return String(url).match(/\/rpc\/([^?]+)/)?.[1];
-}
-
 describe('POST /api/dossier', () => {
   beforeEach(() => {
     vi.stubGlobal('fetch', fetchMock);
     fetchMock.mockReset();
+    runtimeMock.mockReset();
     process.env.SUPABASE_URL = 'https://project.supabase.co';
     process.env.SUPABASE_ANON_KEY = 'anon-key';
     process.env.LITELLM_BASE_URL = 'https://litellm.internal';
@@ -295,333 +299,82 @@ describe('POST /api/dossier', () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
-  it('bloqueia duas gerações concorrentes do mesmo run antes do segundo gateway', async () => {
-    let leaseHeld = false;
-    let finishGateway!: () => void;
-    const gatewayPending = new Promise<void>(resolve => {
-      finishGateway = resolve;
+  it('encaminha generate autenticado ao runtime server-owned e não aceita autoridade do cliente', async () => {
+    runtimeMock.mockResolvedValueOnce({
+      runId: RUN_ID,
+      dossierId: RUN_ID,
+      text: 'Dossiê concluído no servidor.',
+      usage: { promptTokens: 2, completionTokens: 3, totalTokens: 5 },
+      finishReason: 'stop',
+      status: 'COMPLETED',
+      attemptNo: 1,
+      pipelineVersion: 'dossier-server-pipeline.v1',
     });
-    fetchMock.mockImplementation(async (url: string, init?: Parameters<typeof fetch>[1]) => {
-      if (url.endsWith('/auth/v1/user')) return successfulAuthResponse();
-      const rpc = rpcName(url);
-      if (rpc === 'get_own_dossier_run') return successfulRunResponse('PENDING');
-      if (rpc === 'acquire_dossier_run_lease') {
-        const body = JSON.parse(String(init?.body));
-        if (leaseHeld) return { ok: true, status: 200, json: async () => null };
-        leaseHeld = true;
-        return successfulRunResponse('RUNNING', {
-          lease_owner: body.p_lease_owner,
-          lease_expires_at: new Date(Date.now() + 60_000).toISOString(),
-        });
-      }
-      if (rpc === 'renew_dossier_run_lease') {
-        const body = JSON.parse(String(init?.body));
-        return successfulRunResponse('RUNNING', {
-          lease_owner: body.p_lease_owner,
-          lease_expires_at: new Date(Date.now() + 60_000).toISOString(),
-        });
-      }
-      if (rpc === 'release_dossier_run_lease') {
-        leaseHeld = false;
-        return successfulRunResponse('RUNNING');
-      }
-      if (rpc === 'persist_and_complete_dossier_run') {
-        return successfulRunResponse('COMPLETED', { dossier_id: RUN_ID });
-      }
-      if (url === 'https://litellm.internal/chat/completions') {
-        await gatewayPending;
-        return successfulLiteLLMResponse('# Dossiê');
-      }
-      throw new Error(`Unexpected fetch: ${url}`);
-    });
-
-    const firstReq = new MockRequest();
-    firstReq.body = generateBody();
-    const firstRes = new MockResponse();
-    const first = handler(firstReq as never, firstRes as never);
-    await vi.waitFor(() =>
-      expect(fetchMock.mock.calls.filter(([url]) => url === 'https://litellm.internal/chat/completions')).toHaveLength(1),
-    );
-
-    const secondReq = new MockRequest();
-    secondReq.body = generateBody();
-    const secondRes = new MockResponse();
-    await handler(secondReq as never, secondRes as never);
-    finishGateway();
-    await first;
-
-    expect(firstRes.statusCode).toBe(200);
-    expect(secondRes.statusCode).toBe(409);
-    expect(secondRes.body).toMatchObject({ error: { code: 'RUN_LEASE_UNAVAILABLE' } });
-    expect(fetchMock.mock.calls.filter(([url]) => url === 'https://litellm.internal/chat/completions')).toHaveLength(1);
-  });
-
-  it('lease indisponível impede chamada ao LiteLLM', async () => {
-    fetchMock
-      .mockResolvedValueOnce(successfulAuthResponse())
-      .mockResolvedValueOnce(successfulRunResponse('PENDING'))
-      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => null });
+    fetchMock.mockResolvedValueOnce(successfulAuthResponse());
     const req = new MockRequest();
-    req.body = generateBody();
-    const res = new MockResponse();
-
-    await handler(req as never, res as never);
-
-    expect(res.statusCode).toBe(409);
-    expect(res.body).toMatchObject({ error: { code: 'RUN_LEASE_UNAVAILABLE' } });
-    expect(fetchMock).toHaveBeenCalledTimes(3);
-  });
-
-  it('gera leaseOwner server-side e ignora valor enviado pelo cliente', async () => {
-    let acquiredOwner = '';
-    fetchMock.mockImplementation(async (url: string, init?: Parameters<typeof fetch>[1]) => {
-      if (url.endsWith('/auth/v1/user')) return successfulAuthResponse();
-      const rpc = rpcName(url);
-      if (rpc === 'get_own_dossier_run') return successfulRunResponse('PENDING');
-      if (rpc === 'acquire_dossier_run_lease') {
-        acquiredOwner = JSON.parse(String(init?.body)).p_lease_owner;
-        return successfulRunResponse('RUNNING', {
-          lease_owner: acquiredOwner,
-          lease_expires_at: new Date(Date.now() + 60_000).toISOString(),
-        });
-      }
-      if (rpc === 'renew_dossier_run_lease') {
-        return successfulRunResponse('RUNNING', {
-          lease_owner: acquiredOwner,
-          lease_expires_at: new Date(Date.now() + 60_000).toISOString(),
-        });
-      }
-      if (rpc === 'release_dossier_run_lease') {
-        expect(JSON.parse(String(init?.body)).p_lease_owner).toBe(acquiredOwner);
-        return successfulRunResponse('RUNNING');
-      }
-      if (rpc === 'persist_and_complete_dossier_run') {
-        return successfulRunResponse('COMPLETED', { dossier_id: RUN_ID });
-      }
-      return successfulLiteLLMResponse('# Dossiê');
-    });
-    const req = new MockRequest();
-    req.body = generateBody({ leaseOwner: 'client-controlled' });
+    req.body = generateBody({ operatorId: 'client-operator', leaseOwner: 'client-owner', model: 'client-model' });
     const res = new MockResponse();
 
     await handler(req as never, res as never);
 
     expect(res.statusCode).toBe(200);
-    expect(acquiredOwner).toMatch(/^[0-9a-f-]{36}$/);
-    expect(acquiredOwner).not.toBe('client-controlled');
+    expect(res.body).toMatchObject({ ok: true, status: 'COMPLETED', text: 'Dossiê concluído no servidor.' });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(runtimeMock).toHaveBeenCalledOnce();
+    const [auth, input] = runtimeMock.mock.calls[0];
+    expect(auth).toMatchObject({ url: 'https://project.supabase.co', anonKey: 'anon-key', token: 'user-token' });
+    expect(input).toMatchObject({ runId: RUN_ID, companyName: 'Empresa Teste', context: 'Contexto comercial permitido.' });
+    expect(input).not.toHaveProperty('operatorId');
+    expect(input).not.toHaveProperty('leaseOwner');
+    expect(input).not.toHaveProperty('model');
+    expect(input.signal).toBeInstanceOf(AbortSignal);
   });
 
-  it('generate sem alias de modelo falha fechado antes do LiteLLM', async () => {
-    delete process.env.LITELLM_DOSSIER_MODEL;
-    let leaseOwner = '';
-    fetchMock.mockImplementation(async (url: string, init?: Parameters<typeof fetch>[1]) => {
-      if (url.endsWith('/auth/v1/user')) return successfulAuthResponse();
-      const rpc = rpcName(url);
-      if (rpc === 'get_own_dossier_run') return successfulRunResponse('PENDING');
-      if (rpc === 'acquire_dossier_run_lease') {
-        leaseOwner = JSON.parse(String(init?.body)).p_lease_owner;
-        return successfulRunResponse('RUNNING', {
-          lease_owner: leaseOwner,
-          lease_expires_at: new Date(Date.now() + 60_000).toISOString(),
-        });
-      }
-      if (rpc === 'release_dossier_run_lease') return successfulRunResponse('RUNNING');
-      throw new Error(`Unexpected fetch: ${url}`);
-    });
+  it('mapeia cancelamento terminal confirmado para status CANCELLED', async () => {
+    runtimeMock.mockRejectedValueOnce(new DossierRuntimeError('RUN_CANCEL_REQUESTED', 'cancelado', 409, 'cancel', false, true));
+    fetchMock.mockResolvedValueOnce(successfulAuthResponse());
     const req = new MockRequest();
     req.body = generateBody();
     const res = new MockResponse();
 
     await handler(req as never, res as never);
 
-    expect(res.statusCode).toBe(503);
-    expect(res.body).toMatchObject({
-      error: { code: 'GATEWAY_NOT_CONFIGURED', stage: 'gateway', retryable: false },
-    });
-    expect(fetchMock.mock.calls.some(([url]) => url === 'https://litellm.internal/chat/completions')).toBe(false);
+    expect(res.statusCode).toBe(409);
+    expect(res.body).toMatchObject({ status: 'CANCELLED', error: { code: 'RUN_CANCEL_REQUESTED', stage: 'request', retryable: false } });
   });
 
-  it('heartbeat com cancelamento aborta o gateway, marca CANCELLED e não libera novamente', async () => {
-    vi.useFakeTimers();
-    let leaseOwner = '';
-    let gatewayAborted = false;
-    const rpcOrder: string[] = [];
-    fetchMock.mockImplementation(async (url: string, init?: Parameters<typeof fetch>[1]) => {
-      if (url.endsWith('/auth/v1/user')) return successfulAuthResponse();
-      const rpc = rpcName(url);
-      if (rpc === 'get_own_dossier_run') return successfulRunResponse('PENDING');
-      if (rpc === 'acquire_dossier_run_lease') {
-        leaseOwner = JSON.parse(String(init?.body)).p_lease_owner;
-        return successfulRunResponse('RUNNING', {
-          lease_owner: leaseOwner,
-          lease_expires_at: new Date(Date.now() + 60_000).toISOString(),
-        });
-      }
-      if (rpc === 'renew_dossier_run_lease') {
-        rpcOrder.push(rpc);
-        return successfulRunResponse('CANCEL_REQUESTED', {
-          lease_owner: leaseOwner,
-          lease_expires_at: new Date(Date.now() + 60_000).toISOString(),
-          cancel_requested_at: new Date().toISOString(),
-        });
-      }
-      if (rpc === 'mark_dossier_run_cancelled') {
-        rpcOrder.push(rpc);
-        return successfulRunResponse('CANCELLED', { lease_owner: null, lease_expires_at: null });
-      }
-      if (rpc === 'release_dossier_run_lease') {
-        rpcOrder.push(rpc);
-        return successfulRunResponse('CANCELLED');
-      }
-      if (url === 'https://litellm.internal/chat/completions') {
-        return new Promise<Response>((_resolve, reject) => {
-          const signal = init?.signal as AbortSignal;
-          signal.addEventListener('abort', () => {
-            gatewayAborted = true;
-            const error = new Error('aborted');
-            error.name = 'AbortError';
-            reject(error);
-          }, { once: true });
-        });
-      }
-      throw new Error(`Unexpected fetch: ${url}`);
-    });
+  it('propaga abort da conexão para o runtime sem iniciar gateway client-side', async () => {
+    runtimeMock.mockImplementationOnce((_auth: unknown, input: { signal: AbortSignal }) => new Promise((_resolve, reject) => {
+      input.signal.addEventListener('abort', () => reject(new DossierRuntimeError('REQUEST_ABORTED', 'Request cancelled', 499, 'request', false)), { once: true });
+    }));
+    fetchMock.mockResolvedValueOnce(successfulAuthResponse());
     const req = new MockRequest();
     req.body = generateBody();
     const res = new MockResponse();
 
     const pending = handler(req as never, res as never);
-    await vi.advanceTimersByTimeAsync(20_000);
+    await vi.waitFor(() => expect(runtimeMock).toHaveBeenCalledOnce());
+    req.emit('aborted');
     await pending;
 
-    expect(gatewayAborted).toBe(true);
-    expect(res.statusCode).toBe(409);
-    expect(res.body).toMatchObject({ error: { code: 'RUN_CANCEL_REQUESTED' } });
-    expect(rpcOrder).toEqual(['renew_dossier_run_lease', 'mark_dossier_run_cancelled']);
-    expect(vi.getTimerCount()).toBe(0);
+    expect(res.statusCode).toBe(499);
+    expect(res.body).toMatchObject({ status: 'FAILED', error: { code: 'REQUEST_ABORTED', stage: 'request', retryable: false } });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
-  it('cancelamento tardio descarta resposta, marca antes de qualquer liberação e não libera após sucesso', async () => {
-    let leaseOwner = '';
-    const rpcOrder: string[] = [];
-    fetchMock.mockImplementation(async (url: string, init?: Parameters<typeof fetch>[1]) => {
-      if (url.endsWith('/auth/v1/user')) return successfulAuthResponse();
-      const rpc = rpcName(url);
-      if (rpc === 'get_own_dossier_run') return successfulRunResponse('PENDING');
-      if (rpc === 'acquire_dossier_run_lease') {
-        leaseOwner = JSON.parse(String(init?.body)).p_lease_owner;
-        return successfulRunResponse('RUNNING', {
-          lease_owner: leaseOwner,
-          lease_expires_at: new Date(Date.now() + 60_000).toISOString(),
-        });
-      }
-      if (rpc === 'renew_dossier_run_lease') {
-        rpcOrder.push(rpc);
-        return successfulRunResponse('CANCEL_REQUESTED', {
-          lease_owner: leaseOwner,
-          lease_expires_at: new Date(Date.now() + 60_000).toISOString(),
-          cancel_requested_at: new Date().toISOString(),
-        });
-      }
-      if (rpc === 'mark_dossier_run_cancelled') {
-        rpcOrder.push(rpc);
-        return successfulRunResponse('CANCELLED', { lease_owner: null, lease_expires_at: null });
-      }
-      if (rpc === 'release_dossier_run_lease') {
-        rpcOrder.push(rpc);
-        return successfulRunResponse('CANCELLED');
-      }
-      if (url === 'https://litellm.internal/chat/completions') return successfulLiteLLMResponse('conteúdo descartado');
-      throw new Error(`Unexpected fetch: ${url}`);
-    });
+  it('rejeita evidence inválida antes de autenticar e antes do runtime', async () => {
     const req = new MockRequest();
-    req.body = generateBody();
+    req.body = generateBody({ evidence: { version: 'invalid' } });
     const res = new MockResponse();
 
     await handler(req as never, res as never);
 
-    expect(res.statusCode).toBe(409);
-    expect(JSON.stringify(res.body)).not.toContain('conteúdo descartado');
-    expect(rpcOrder).toEqual(['renew_dossier_run_lease', 'mark_dossier_run_cancelled']);
+    expect(res.statusCode).toBe(400);
+    expect(res.body).toMatchObject({ error: { code: 'INVALID_REQUEST', stage: 'validation', retryable: false } });
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(runtimeMock).not.toHaveBeenCalled();
   });
 
-  it('perda tardia da lease descarta resposta do modelo', async () => {
-    let leaseOwner = '';
-    fetchMock.mockImplementation(async (url: string, init?: Parameters<typeof fetch>[1]) => {
-      if (url.endsWith('/auth/v1/user')) return successfulAuthResponse();
-      const rpc = rpcName(url);
-      if (rpc === 'get_own_dossier_run') return successfulRunResponse('PENDING');
-      if (rpc === 'acquire_dossier_run_lease') {
-        leaseOwner = JSON.parse(String(init?.body)).p_lease_owner;
-        return successfulRunResponse('RUNNING', {
-          lease_owner: leaseOwner,
-          lease_expires_at: new Date(Date.now() + 60_000).toISOString(),
-        });
-      }
-      if (rpc === 'renew_dossier_run_lease') return { ok: true, status: 200, json: async () => null };
-      if (url === 'https://litellm.internal/chat/completions') return successfulLiteLLMResponse('conteúdo sem lease');
-      throw new Error(`Unexpected fetch: ${url}`);
-    });
-    const req = new MockRequest();
-    req.body = generateBody();
-    const res = new MockResponse();
-
-    await handler(req as never, res as never);
-
-    expect(res.statusCode).toBe(409);
-    expect(res.body).toMatchObject({ error: { code: 'RUN_LEASE_UNAVAILABLE' } });
-    expect(JSON.stringify(res.body)).not.toContain('conteúdo sem lease');
-  });
-
-  it('se as duas finalizações de cancelamento falharem, preserva a lease para recuperação', async () => {
-    let leaseOwner = '';
-    const rpcOrder: string[] = [];
-    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
-    fetchMock.mockImplementation(async (url: string, init?: Parameters<typeof fetch>[1]) => {
-      if (url.endsWith('/auth/v1/user')) return successfulAuthResponse();
-      const rpc = rpcName(url);
-      if (rpc === 'get_own_dossier_run') return successfulRunResponse('PENDING');
-      if (rpc === 'acquire_dossier_run_lease') {
-        leaseOwner = JSON.parse(String(init?.body)).p_lease_owner;
-        return successfulRunResponse('RUNNING', {
-          lease_owner: leaseOwner,
-          lease_expires_at: new Date(Date.now() + 60_000).toISOString(),
-        });
-      }
-      if (rpc === 'renew_dossier_run_lease') {
-        return successfulRunResponse('CANCEL_REQUESTED', {
-          lease_owner: leaseOwner,
-          lease_expires_at: new Date(Date.now() + 60_000).toISOString(),
-          cancel_requested_at: new Date().toISOString(),
-        });
-      }
-      if (rpc === 'mark_dossier_run_cancelled') {
-        rpcOrder.push(rpc);
-        return { ok: true, status: 200, json: async () => null };
-      }
-      if (rpc === 'release_dossier_run_lease') {
-        rpcOrder.push(rpc);
-        return successfulRunResponse('CANCEL_REQUESTED');
-      }
-      if (url === 'https://litellm.internal/chat/completions') return successfulLiteLLMResponse('conteúdo descartado');
-      throw new Error(`Unexpected fetch: ${url}`);
-    });
-    const req = new MockRequest();
-    req.body = generateBody();
-    const res = new MockResponse();
-
-    await handler(req as never, res as never);
-
-    expect(res.statusCode).toBe(502);
-    expect(res.body).toMatchObject({
-      status: 'FAILED',
-      error: { code: 'RUN_CANCELLATION_FINALIZATION_FAILED', stage: 'lease', retryable: true },
-    });
-    expect(rpcOrder).toEqual(['mark_dossier_run_cancelled', 'mark_dossier_run_cancelled']);
-    expect(rpcOrder).not.toContain('release_dossier_run_lease');
-    expect(JSON.stringify(res.body)).not.toContain(leaseOwner);
-    expect(JSON.stringify(errorSpy.mock.calls)).not.toContain(leaseOwner);
-  });
 
   it('retorna contrato estável para abort externo da requisição', async () => {
     fetchMock.mockResolvedValueOnce(successfulAuthResponse()).mockResolvedValueOnce(successfulOwnershipResponse()).mockResolvedValueOnce(successfulDossierContentResponse()).mockImplementationOnce(
@@ -718,60 +471,6 @@ describe('POST /api/dossier', () => {
     expect(JSON.stringify(res.body)).not.toContain('database unavailable');
   });
 
-  it('cancelamento solicitado não adquire lease nem chama LiteLLM', async () => {
-    fetchMock.mockResolvedValueOnce(successfulAuthResponse()).mockResolvedValueOnce(
-      successfulRunResponse('CANCEL_REQUESTED', { cancel_requested_at: new Date().toISOString() }),
-    );
-    const req = new MockRequest();
-    req.body = generateBody();
-    const res = new MockResponse();
-
-    await handler(req as never, res as never);
-
-    expect(res.statusCode).toBe(409);
-    expect(res.body).toMatchObject({ status: 'FAILED', error: { code: 'RUN_CANCEL_REQUESTED', stage: 'lease' } });
-    expect(fetchMock).toHaveBeenCalledTimes(2);
-  });
-
-  it('retoma finalização CANCEL_REQUESTED com owner lido do run e ignora owner do cliente', async () => {
-    const serverOwner = 'server-recovery-owner';
-    const rpcOrder: string[] = [];
-    let finalizedOwner = '';
-    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
-    fetchMock.mockImplementation(async (url: string, init?: Parameters<typeof fetch>[1]) => {
-      if (url.endsWith('/auth/v1/user')) return successfulAuthResponse();
-      const rpc = rpcName(url);
-      if (rpc === 'get_own_dossier_run') {
-        rpcOrder.push(rpc);
-        return successfulRunResponse('CANCEL_REQUESTED', {
-          lease_owner: serverOwner,
-          cancel_requested_at: new Date().toISOString(),
-        });
-      }
-      if (rpc === 'mark_dossier_run_cancelled') {
-        rpcOrder.push(rpc);
-        finalizedOwner = JSON.parse(String(init?.body)).p_lease_owner;
-        return successfulRunResponse('CANCELLED', { lease_owner: null, lease_expires_at: null });
-      }
-      if (rpc === 'acquire_dossier_run_lease' || rpc === 'release_dossier_run_lease') {
-        rpcOrder.push(rpc);
-        throw new Error(`Unexpected lifecycle mutation: ${rpc}`);
-      }
-      throw new Error(`Unexpected fetch: ${url}`);
-    });
-    const req = new MockRequest();
-    req.body = generateBody({ leaseOwner: 'client-controlled-owner' });
-    const res = new MockResponse();
-
-    await handler(req as never, res as never);
-
-    expect(res.statusCode).toBe(409);
-    expect(res.body).toMatchObject({ status: 'CANCELLED', error: { code: 'RUN_CANCEL_REQUESTED', stage: 'lease' } });
-    expect(finalizedOwner).toBe(serverOwner);
-    expect(rpcOrder).toEqual(['get_own_dossier_run', 'mark_dossier_run_cancelled']);
-    expect(JSON.stringify(res.body)).not.toContain(serverOwner);
-    expect(JSON.stringify(errorSpy.mock.calls)).not.toContain(serverOwner);
-  });
 
   it('remove listeners da requisição e da resposta ao encerrar', async () => {
     fetchMock

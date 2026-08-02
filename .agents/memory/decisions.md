@@ -1,5 +1,12 @@
 # decisions.md — NOVO-APP
 
+## DI-2026-08-02-03: Contrato 05E.0C comprovado localmente antes da integração
+
+- **Decisão:** aceitar `CHECKPOINT_CONTRACT_LOCALLY_PROVEN` para a migration `20260802111500_dossier_checkpoint_attempt_contract.sql`, com exatamente duas tabelas e oito RPCs, após replay duplo PG 17.10, funcionalidade SQL e concorrência em conexões independentes.
+- **Limite:** o aceite é somente local. API, frontend, runtime server-owned, provider, migration remota, Preview, Produção, commit, push e merge permanecem bloqueados até cartão novo do Planner.
+- **Regra:** replay isolado e concorrência real são provas complementares; nenhum deles substitui o outro.
+- **Referência:** Vault `2026-08-02T12-15-00-dossier-flow-05e0c-contract-proven.md`, decisão `DECISAO-DOSSIER-FLOW-05E0C-CONTRATO-CHECKPOINT-2026-08-02.md`.
+
 ## DI-2026-07-28-01: Baseline de Produção em dump nativo PG 17 e paridade exata de catálogo (37/37 constraints)
 
 - **Decisão:** O baseline canônico de migrações do schema `public` deve ser extraído via `pg_dump` 17.10 nativo a partir do servidor PostgreSQL 17.6 de Produção (`vmqfcaoirjcfucvlnpig`), sem modificar ou criar objetos no schema `auth` (`auth.users`, `auth.uid()`). A paridade de catálogo deve ser validada contra Produção em 15 categorias distintas (incluindo `pg_get_constraintdef` para todas as 37 constraints de Produção, `pg_get_functiondef`, RLS, views, triggers e grants), exigindo `PRODUCTION_BASELINE_CATALOG_DIFF: ZERO`. Migrações subsequentes de hardening (`harden_dossier_grants` e `harden_legacy_operator_linking`) aplicam o menor privilégio e proteções estritas de identidade via `SECURITY DEFINER` e validações de `auth.uid()`.
@@ -475,6 +482,34 @@
 - **Decisão:** A IA gestora Z.ai (sessão web-2804fbf2) produz documentos de alta qualidade (ADRs, planos, validações) mas não executa nenhuma ação — não commita, não cria diretórios, não roda comandos. Toda entrega dela requer um "materializador" externo.
 - **Contexto:** Z.ai fez levantamento de 7 arquivos (5 ADRs + resumo + plano) mas salvou tudo em `~/Downloads/` sem commitar. A documentação era precisa (82% claims confirmadas), mas a execução foi zero.
 - **Impacto:** Sessões futuras com Z.ai devem incluir etapa explícita de "materialização" — copiar arquivos, commitar, validar.
+
+### DI-2026-08-02-01: Prova 300s deve mirar helper server-owned único
+
+- **Decisão:** O alvo da prova 05E.0A é `SERVER_OWNED_END_TO_END_MULTI_CALL`, usando `api/_dossier-server-pipeline.ts` como helper canônico e `api/dossier.ts` apenas como envelope futuro. O waterfall client-owned é baseline; a rota single-call não representa o dossiê completo.
+- **Evidência:** Planner adjudicou `DECISION=D`; exercício local contou 8 chamadas LLM, 12 buscas e 1 benchmark com adapters injetados; 17/17 harness e 67/67 testes focados passaram.
+- **Impacto:** Não executar 05E.0B até que retry, reconciliação PORTA e persistência terminal estejam representados no caminho server-owned; `READY_FOR_05E_0B_PREVIEW_REAL_PROVIDER_PROOF=NO`.
+- **Restrições:** Nenhum arquivo sob `api/` foi alterado neste lote; nenhum provider, Preview, Supabase remoto, Produção, commit, push ou merge.
+
+### DI-2026-08-02-02: Bloquear 05E até contrato durável de checkpoint
+
+- **Decisão:** Não conectar o pipeline server-owned multi-call a `api/dossier.ts` enquanto o contrato versionado não suportar tentativa, checkpoint/resume, fencing por step e terminalização idempotente; a RPC atual permanece apenas a finalização atômica.
+- **Contexto:** O Gate Zero de duração passou no artefato local (`maxDuration=300`), mas a auditoria do schema encontrou somente lease/terminalização em `dossier_runs`, sem `attempt`, `step_key`, digest/payload de checkpoint ou RPC de recuperação.
+- **Impacto:** `05E.0B` está `BLOCKED_BY_EXISTING_DATABASE_CONTRACT`; o próximo cartão é `DOSSIER-FLOW-05E.0C-CHECKPOINT-CONTRACT-01`. Retry em memória, migration/RPC remota, Preview, Produção e merge continuam proibidos nesta onda.
+- **Evidência:** `docs/checkpoints/2026-08-02-dossier-flow-05e0b-contract-canonical-package.md`, `docs/handoffs/2026-08-02-dossier-flow-05e0b-contract-blocked.md` e adjudicação CODEXX do Planner no chat `6a6f1260-ba18-83e9-bba3-423756350522`.
+
+### DI-2026-08-02-03: Aceitar 05E.0C-R1 sem autorizar integração
+
+- **Decisão:** Aceitar `CHECKPOINT_CONTRACT_LOCALLY_PROVEN` após fechar resume, concorrência terminal e baseline por identidade; exigir novo cartão antes de integrar 05E.0B.
+- **Evidência:** `/tmp/dossier-flow-05e0c-r1.bILGP4`; `SOURCE_HEAD` 461 suítes/1.589 testes/0 falhas; alvo 481/1.670/0; `BASELINE_COMPARISON_BY_IDENTITY=PASS`; migration SHA preservada.
+- **Limite:** `RUNTIME_INTEGRATION_AUTHORIZED=NO`; sem API/frontend, migration remota, Preview, Produção, commit, push, CI remoto, deploy, merge ou encerramento do goal. Drive foi consultado apenas como base histórica complementar.
+- **Referências:** `docs/checkpoints/2026-08-02-dossier-flow-05e0c-r1-canonical-package.md`, `docs/handoffs/2026-08-02-dossier-flow-05e0c-r1-evidence-handoff.md` e Vault `DECISAO-DOSSIER-FLOW-05E0C-R1-EVIDENCE-2026-08-02.md`.
+
+### DI-2026-08-02-04: Integrar 05E.0B localmente com call graph server-owned único
+
+- **Decisão:** O `generate` usa exclusivamente `runDossierRuntime`, o cliente RPC de attempts/checkpoints e `persist_and_complete_dossier_run_attempt`; lifecycle legado permanece somente no chat quando aplicável.
+- **Controle:** RPCs e finalização usam auth.uid/attempt/fence; `response.text()` fica sob o deadline restante e o abort é real. Não aceitar owner/operator do cliente.
+- **Limite:** Cartão Planner autoriza somente código e validação local. Commit, push, PR, CI remoto, Supabase, migration, Preview, provider real, Produção, deploy e merge aguardam adjudicação posterior.
+- **Evidência:** `docs/checkpoints/2026-08-02-dossier-flow-05e0b-runtime-integration-local.md`, `docs/handoffs/2026-08-02-dossier-flow-05e0b-runtime-integration-local.md` e Vault `2026-08-02T14-22-00-dossier-flow-05e0b-runtime-integration.md`.
 
 ## Decisoes Historicas
 

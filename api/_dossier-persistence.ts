@@ -1,193 +1,150 @@
-import {
-  sanitizeDossierEvidenceContract,
-  type DossierEvidenceContract,
-  type DossierUsage,
-} from '../shared/dossierGatewayContracts.js';
+import { createDossierRunRpcClient, DossierRunRpcError, type DossierRunRpcAuth, type DossierRunRpcCaller } from './_dossier-run-rpc.js';
+import type { DossierServerPipelineOutput } from './_dossier-server-pipeline.js';
+import { sanitizeDossierEvidenceContract, type DossierEvidenceContract } from '../shared/dossierGatewayContracts.js';
 
-export interface DossierPersistenceAuth {
-  url: string;
-  token: string;
-  anonKey: string;
-}
+export type DossierPersistenceAuth = DossierRunRpcAuth;
 
-export interface PersistAndCompleteDossierInput {
+export interface PersistAndCompleteDossierAttemptInput {
   runId: string;
-  leaseOwner: string;
+  attemptId: string;
+  fenceToken: string;
+  pipelineVersion: string;
   dossierId: string;
   companyName: string;
   cnpj?: string;
-  generatedText: string;
-  usage: DossierUsage;
-  finishReason: string;
+  pipelineOutput: DossierServerPipelineOutput;
   evidence?: DossierEvidenceContract;
 }
 
 export type DossierPersistenceErrorCode =
+  | 'REQUEST_ABORTED'
+  | 'RPC_TIMEOUT'
+  | 'RPC_INVALID_RESPONSE'
   | 'PERSISTENCE_FAILED'
   | 'RUN_CANCEL_REQUESTED'
   | 'RUN_LEASE_UNAVAILABLE'
   | 'RUN_NOT_FOUND'
-  | 'DOSSIER_CONFLICT';
-
-const KNOWN_RPC_ERROR_CODES: DossierPersistenceErrorCode[] = [
-  'PERSISTENCE_FAILED',
-  'RUN_CANCEL_REQUESTED',
-  'RUN_LEASE_UNAVAILABLE',
-  'RUN_NOT_FOUND',
-  'DOSSIER_CONFLICT',
-];
-
-export interface PersistAndCompleteDossierResult {
-  runId: string;
-  dossierId: string;
-  status: 'COMPLETED';
-}
+  | 'DOSSIER_CONFLICT'
+  | 'ATTEMPT_FENCE_MISMATCH'
+  | 'ATTEMPT_LEASE_EXPIRED'
+  | 'PIPELINE_VERSION_MISMATCH';
 
 export class DossierPersistenceError extends Error {
   constructor(
     readonly code: DossierPersistenceErrorCode,
     message: string,
     readonly retryable: boolean,
+    readonly status = 502,
   ) {
     super(message);
     this.name = 'DossierPersistenceError';
   }
 }
 
-function normalizeRequiredText(value: string, field: string): string {
+export interface PersistAndCompleteDossierAttemptResult {
+  runId: string;
+  dossierId: string;
+  status: 'COMPLETED';
+}
+
+function required(value: string, field: string): string {
   const normalized = value.trim();
-  if (!normalized) {
-    throw new DossierPersistenceError('PERSISTENCE_FAILED', `Missing ${field}`, false);
-  }
+  if (!normalized) throw new DossierPersistenceError('PERSISTENCE_FAILED', `${field} ausente`, false, 400);
   return normalized;
 }
 
-function normalizeUsage(usage: DossierUsage): DossierUsage {
-  const promptTokens = Number.isFinite(usage.promptTokens) && usage.promptTokens >= 0
-    ? Math.floor(usage.promptTokens)
-    : 0;
-  const completionTokens = Number.isFinite(usage.completionTokens) && usage.completionTokens >= 0
-    ? Math.floor(usage.completionTokens)
-    : 0;
-  const totalTokens = Number.isFinite(usage.totalTokens) && usage.totalTokens >= 0
-    ? Math.floor(usage.totalTokens)
-    : promptTokens + completionTokens;
-  return { promptTokens, completionTokens, totalTokens };
-}
-
-function buildPersistedContent(input: {
-  runId: string;
-  companyName: string;
-  cnpj?: string;
-  generatedText: string;
-  usage: DossierUsage;
-  finishReason: string;
-  timestamp: string;
-  evidence?: DossierEvidenceContract;
-}): Record<string, unknown> {
+function buildPersistedContent(input: PersistAndCompleteDossierAttemptInput, timestamp: string): Record<string, unknown> {
   const companyPrompt = `Gere o dossiê de ${input.companyName}${input.cnpj ? `, CNPJ ${input.cnpj}` : ''}.`;
+  const output = input.pipelineOutput;
   return {
-    id: input.runId,
+    id: input.dossierId,
     title: input.companyName,
     empresaAlvo: input.companyName,
     cnpj: input.cnpj ?? null,
     modoPrincipal: 'investigacao',
     scoreOportunidade: null,
     resumoDossie: null,
-    createdAt: input.timestamp,
-    updatedAt: input.timestamp,
+    createdAt: timestamp,
+    updatedAt: timestamp,
     messages: [
       {
-        id: `${input.runId}:user`,
+        id: `${input.dossierId}:user`,
         sender: 'user',
         text: companyPrompt,
-        timestamp: input.timestamp,
+        timestamp,
       },
       {
-        id: `${input.runId}:bot`,
+        id: `${input.dossierId}:bot`,
         sender: 'bot',
-        text: input.generatedText,
-        timestamp: input.timestamp,
+        text: output.text,
+        timestamp,
         isThinking: false,
         isError: false,
       },
     ],
     gateway: {
       runId: input.runId,
-      usage: input.usage,
-      finishReason: input.finishReason,
+      usage: output.usage,
+      finishReason: output.finishReason,
+    },
+    serverPipeline: {
+      version: output.version,
+      categoryStatuses: output.categoryStatuses,
+      evidencePackStatus: output.evidencePackStatus,
+      benchmarkStatus: output.benchmarkStatus,
+      fontes: output.fontes,
+      runtimeBudget: output.runtimeBudget,
     },
     ...(input.evidence ? { evidence: input.evidence } : {}),
   };
 }
 
-function extractRpcErrorCode(body: unknown): DossierPersistenceErrorCode | undefined {
-  if (!body || typeof body !== 'object') return undefined;
-  const candidate = body as Record<string, unknown>;
-  const values = [candidate.code, candidate.message, candidate.details, candidate.hint];
-  for (const value of values) {
-    if (typeof value !== 'string') continue;
-    const found = KNOWN_RPC_ERROR_CODES.find(code => value.includes(code));
-    if (found) return found;
-  }
-  return undefined;
+function mapRpcError(error: DossierRunRpcError): DossierPersistenceError {
+  const code: DossierPersistenceErrorCode =
+    error.code === 'REQUEST_ABORTED' ? 'REQUEST_ABORTED' :
+      error.code === 'RPC_TIMEOUT' ? 'RPC_TIMEOUT' :
+        error.code === 'RPC_INVALID_RESPONSE' ? 'RPC_INVALID_RESPONSE' :
+          error.code === 'RUN_CANCEL_REQUESTED' ? 'RUN_CANCEL_REQUESTED' :
+            error.code === 'RUN_LEASE_UNAVAILABLE' ? 'RUN_LEASE_UNAVAILABLE' :
+              error.code === 'RUN_NOT_FOUND' ? 'RUN_NOT_FOUND' :
+                error.code === 'DOSSIER_CONFLICT' ? 'DOSSIER_CONFLICT' :
+                  error.code === 'ATTEMPT_FENCE_MISMATCH' ? 'ATTEMPT_FENCE_MISMATCH' :
+                    error.code === 'ATTEMPT_LEASE_EXPIRED' ? 'ATTEMPT_LEASE_EXPIRED' :
+                      error.code === 'PIPELINE_VERSION_MISMATCH' ? 'PIPELINE_VERSION_MISMATCH' :
+                        'PERSISTENCE_FAILED';
+  return new DossierPersistenceError(code, 'Persistência terminal não confirmada', error.retryable, error.status);
 }
 
-function isRetryableCode(code: DossierPersistenceErrorCode, status: number): boolean {
-  return code === 'PERSISTENCE_FAILED' && (status === 408 || status === 429 || status >= 500);
-}
-
-async function readResponseBody(response: Response): Promise<unknown> {
-  try {
-    return await response.json();
-  } catch {
-    return null;
-  }
-}
-
-function responseRecord(body: unknown): Record<string, unknown> | null {
-  const candidate = Array.isArray(body) ? body[0] : body;
-  return candidate && typeof candidate === 'object' ? candidate as Record<string, unknown> : null;
-}
-
-export async function persistAndCompleteDossierRun(
+export async function persistAndCompleteDossierRunAttempt(
   auth: DossierPersistenceAuth,
-  input: PersistAndCompleteDossierInput,
+  input: PersistAndCompleteDossierAttemptInput,
   signal: AbortSignal,
-): Promise<PersistAndCompleteDossierResult> {
-  const runId = normalizeRequiredText(input.runId, 'runId');
-  const leaseOwner = normalizeRequiredText(input.leaseOwner, 'leaseOwner');
-  const dossierId = normalizeRequiredText(input.dossierId, 'dossierId');
-  const companyName = normalizeRequiredText(input.companyName, 'companyName');
-  const generatedText = normalizeRequiredText(input.generatedText, 'generatedText');
-  const finishReason = normalizeRequiredText(input.finishReason, 'finishReason');
-  const usage = normalizeUsage(input.usage);
+  rpc?: DossierRunRpcCaller,
+): Promise<PersistAndCompleteDossierAttemptResult> {
+  const runId = required(input.runId, 'runId');
+  const attemptId = required(input.attemptId, 'attemptId');
+  const fenceToken = required(input.fenceToken, 'fenceToken');
+  const pipelineVersion = required(input.pipelineVersion, 'pipelineVersion');
+  const dossierId = required(input.dossierId, 'dossierId');
+  const companyName = required(input.companyName, 'companyName');
+  required(input.pipelineOutput.text, 'generatedText');
+  if (input.pipelineOutput.version !== pipelineVersion) {
+    throw new DossierPersistenceError('PIPELINE_VERSION_MISMATCH', 'Versão do pipeline divergente', false, 409);
+  }
   const evidence = input.evidence === undefined ? undefined : sanitizeDossierEvidenceContract(input.evidence);
-  const timestamp = new Date().toISOString();
-  const content = buildPersistedContent({
-    runId,
-    companyName,
-    cnpj: input.cnpj,
-    generatedText,
-    usage,
-    finishReason,
-    timestamp,
-    evidence,
-  });
-  const url = auth.url.replace(/\/+$/, '');
+  const content = buildPersistedContent({ ...input, runId, attemptId, fenceToken, pipelineVersion, dossierId, companyName, evidence }, new Date().toISOString());
+  if (signal.aborted) throw new DossierPersistenceError('REQUEST_ABORTED', 'Persistência cancelada', false, 499);
 
-  let response: Response;
+  const callRpc = rpc ?? createDossierRunRpcClient(auth);
+  let result: unknown;
   try {
-    response = await fetch(`${url}/rest/v1/rpc/persist_and_complete_dossier_run`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${auth.token}`,
-        apikey: auth.anonKey,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
+    result = await callRpc(
+      'persist_and_complete_dossier_run_attempt',
+      {
         p_run_id: runId,
-        p_lease_owner: leaseOwner,
+        p_attempt_id: attemptId,
+        p_fence_token: fenceToken,
+        p_pipeline_version: pipelineVersion,
         p_dossier_id: dossierId,
         p_title: companyName,
         p_empresa_alvo: companyName,
@@ -196,28 +153,23 @@ export async function persistAndCompleteDossierRun(
         p_score_oportunidade: null,
         p_resumo_dossie: null,
         p_content: content,
-      }),
+      },
       signal,
-    });
+      { stage: 'persistence', timeoutMs: 10_000 },
+    );
   } catch (error) {
-    if (signal.aborted || (error instanceof Error && error.name === 'AbortError')) throw error;
-    throw new DossierPersistenceError('PERSISTENCE_FAILED', 'Dossier persistence request failed', true);
+    if (error instanceof DossierRunRpcError) throw mapRpcError(error);
+    if (signal.aborted) throw new DossierPersistenceError('REQUEST_ABORTED', 'Persistência cancelada', false, 499);
+    throw new DossierPersistenceError('PERSISTENCE_FAILED', 'Falha de transporte na persistência terminal', true);
   }
 
-  const body = await readResponseBody(response);
-  if (!response.ok) {
-    const code = extractRpcErrorCode(body) ?? 'PERSISTENCE_FAILED';
-    throw new DossierPersistenceError(code, 'Dossier persistence failed', isRetryableCode(code, response.status));
+  const record = result && typeof result === 'object' ? result as Record<string, unknown> : null;
+  if (
+    record?.status !== 'COMPLETED' ||
+    record.run_id !== runId ||
+    record.dossier_id !== dossierId
+  ) {
+    throw new DossierPersistenceError('PERSISTENCE_FAILED', 'Persistência terminal não foi confirmada', true);
   }
-
-  const record = responseRecord(body);
-  const returnedStatus = record?.status;
-  if (returnedStatus === 'CANCEL_REQUESTED' || returnedStatus === 'CANCELLED') {
-    throw new DossierPersistenceError('RUN_CANCEL_REQUESTED', 'Dossier run cancellation requested', false);
-  }
-  if (returnedStatus !== 'COMPLETED' || record?.run_id !== runId || record?.dossier_id !== dossierId) {
-    throw new DossierPersistenceError('PERSISTENCE_FAILED', 'Dossier persistence was not confirmed', true);
-  }
-
   return { runId, dossierId, status: 'COMPLETED' };
 }

@@ -77,3 +77,50 @@
 - Preview final `dpl_AMQkRove9o47UHrVwt1pB8okXE9d` ficou READY, comprovou Build Output e 13 Functions Node; sem deploy manual ou produção.
 - Sentry runtime não mudou; o plugin de build só envia sourcemaps com opt-in explícito e token.
 - Typecheck, Tests, Golden e E2E continuam com falhas preexistentes comparadas à baseline.
+
+## 2026-08-02 — 05E.0A runtime target freeze + harness local
+
+- Planner resolveu a ambiguidade: `RUNTIME_PROOF_TARGET=SERVER_OWNED_END_TO_END_MULTI_CALL`; caminho client-owned é baseline-only.
+- Criado harness local/injetável fora do runtime, com modelo 300s/270s/30s, cenários de body-read, retry agregado, abort, persistência, reconciliação e lease.
+- Exercício direto do helper canônico: 8 provider calls sintéticas, 12 buscas sintéticas, 1 benchmark sintético; nenhuma dependência client-side.
+- 17/17 harness e 67/67 API/contrato focados passaram; typecheck, lint focado, build e diff-check passaram; `api/` preservado.
+- Bloqueio para 05E.0B: helper não implementa retry/reconciliação PORTA/persistência terminal; Vercel deployable count e Fluid Compute efetivo não verificados.
+- Artefatos: checkpoint e pacote em `docs/checkpoints/2026-08-02-dossier-flow-05e0a-*`; handoff em `docs/handoffs/2026-08-02-dossier-flow-05e0a-runtime-handoff.md`.
+
+## 2026-08-02 — 05E.0B Gate Zero e bloqueio de contrato
+
+- Worktree de execução: `/private/tmp/novo-app-dossier-flow-05a`; branch `codex/dossier-flow-server-owned-05a`; source head `a65f425b579ae429d9dd3823b0721a1a1d7d52bf`.
+- Gate Zero comprovado localmente: `api/dossier.ts` declara `maxDuration: 300` dentro de `config`; Vercel Build Output materializou `runtime=nodejs24.x` e `maxDuration=300`, sem nova Function (9 API + middleware, igual ao baseline).
+- Planner adjudicou `05E.0B_GATE_ZERO=PASS` e depois `FINAL_DECISION=BLOCKED_BY_EXISTING_DATABASE_CONTRACT`.
+- O schema versionado não possui tentativa, step/checkpoint, digest/payload de checkpoint ou versão de pipeline; a RPC existente cobre apenas finalização idempotente e conflito divergente. Não iniciar retry/resume server-owned em memória.
+- Runtime server-owned e readiness continuam `NOT_PROVEN`; nenhum provider, Preview, Produção, migration remota, commit, push ou merge foi executado.
+- Checkpoint/pacote/handoff: `docs/checkpoints/2026-08-02-dossier-flow-05e0b-contract-blocked.md`, `docs/checkpoints/2026-08-02-dossier-flow-05e0b-contract-canonical-package.md`, `docs/handoffs/2026-08-02-dossier-flow-05e0b-contract-blocked.md`.
+- Próxima etapa condicionada ao cartão Planner `DOSSIER-FLOW-05E.0C-CHECKPOINT-CONTRACT-01`: migration/RPC/tabela local, replay PostgreSQL e novos gates; Node 24.x obrigatório antes do veredito final.
+
+## 2026-08-02 — 05E.0C contrato de checkpoint comprovado localmente
+
+- Implementada em uma única migration a fundação autorizada para attempts, checkpoints, fencing, retry, resume e terminalização; exatamente duas tabelas e oito RPCs, sem alteração em `dossier_runs` ou na RPC legada.
+- Runner local executou replay completo da cadeia em dois bancos PostgreSQL 17.10 e provas concorrentes em conexões independentes: `CONCURRENCY_EQUIVALENT=PASS`, `CONCURRENCY_DIVERGENT=PASS`, `CONCURRENCY_BEGIN_SINGLE_WINNER=PASS`.
+- Gates Node 24: typecheck, lint (0 erros/61 avisos), build, diff-check, contratos 136/136 e suíte global 1.668/1.668; Vercel build local materializou `nodejs24.x`/`maxDuration=300`.
+- Resultado canônico: `CHECKPOINT_CONTRACT_LOCALLY_PROVEN`; runtime/readiness `NOT_PROVEN`. Nenhuma migration remota, Preview, Produção, commit, push ou merge.
+- Evidência: `/tmp/dossier-flow-05e0c-proof.pGMvJY`; checkpoint/pacote/handoff repo em `docs/checkpoints/2026-08-02-dossier-flow-05e0c-*` e `docs/handoffs/2026-08-02-dossier-flow-05e0c-contract-handoff.md`; Vault `2026-08-02T12-15-00-dossier-flow-05e0c-contract-proven.md`.
+- Próximo passo: adjudicação do Planner para a integração server-owned 05E.0B; reler `licoes` antes da próxima etapa.
+
+## 2026-08-02 — 05E.0C-R1 evidence closure
+
+- Fechada a prova corretiva: resume base/condicional sem duplicação, conclusão terminal equivalente idempotente e conclusão divergente com `DOSSIER_CONFLICT`/vencedor único.
+- Baseline global Node 24.18.1/npm 11.11.0: `SOURCE_HEAD` 461 suítes/1.589 testes/0 falhas; alvo 481/1.670/0; comparação por identidade PASS, nenhuma falha nova.
+- Comparador passou a preservar multiplicidade e separar `tests` de `identities`; lição registrada no Vault `testing/baseline-por-identidade-preserva-multiplicidade.md`.
+- Planner final: `05E_0C_R1_RESULT=APPROVED`, `CHECKPOINT_CONTRACT_LOCALLY_PROVEN`; evidência `SUPPORTED_NOT_INDEPENDENTLY_REPRODUCED`.
+- Drive complementar concluído, sem divergência; worktree é fonte atual. Novo cartão é obrigatório para 05E.0B; sem integração/publicação/merge/encerramento.
+- Checkpoint/pacote/handoff: `docs/checkpoints/2026-08-02-dossier-flow-05e0c-r1-*`, `docs/handoffs/2026-08-02-dossier-flow-05e0c-r1-evidence-handoff.md`; evidência `/tmp/dossier-flow-05e0c-r1.bILGP4`.
+
+## 2026-08-02 — 05E.0B runtime integration local
+
+- Implementado o runtime server-owned autorizado pelo Planner em `/private/tmp/novo-app-dossier-flow-05a`, sem commit ou ação remota.
+- Generate agora percorre begin → resume → helper canônico → checkpoints ordenados → retry/resume quando permitido → finalização/cancelamento/falha → persistência terminal atômica.
+- RPC client cobre timeout da leitura do body e abort real; handler não aceita owner/operator do cliente; chat legado permanece separado.
+- Gates: typecheck, build, lint focado, contratos 136/136 e 51 testes focados PASS; global 1668 PASS + 1 prova PG `NAO VALIDADO` por ausência de `R1_PG_*`; diff-check PASS.
+- Checkpoint/handoff: `docs/checkpoints/2026-08-02-dossier-flow-05e0b-runtime-integration-local.md` e `docs/handoffs/2026-08-02-dossier-flow-05e0b-runtime-integration-local.md`.
+- Vault: `Sessões/2026-08/2026-08-02T14-22-00-dossier-flow-05e0b-runtime-integration.md`.
+- Próximo passo: adjudicação do Planner; nenhuma publicação remota antes de decisão nova.
