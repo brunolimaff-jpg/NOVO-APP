@@ -92,8 +92,8 @@ describe('AuthGate — antes do prazo de migracao', () => {
     const modal = screen.getByTestId('auth-modal');
     expect(modal).toBeInTheDocument();
     expect(modal).toHaveAttribute('data-guest-option', 'false');
-    // Conteudo protegido esta visivel (modal e overlay, nao substitui children)
-    expect(screen.getByTestId('protected-content')).toBeInTheDocument();
+    // Auth obrigatorio substitui children para nao montar onboarding pre-auth.
+    expect(screen.queryByTestId('protected-content')).not.toBeInTheDocument();
     // Botao continuar sem login NAO deve existir
     expect(screen.queryByTestId('continue-as-guest')).not.toBeInTheDocument();
   });
@@ -182,7 +182,7 @@ describe('AuthGate — apos o prazo de migracao', () => {
     expect(screen.getByTestId('auth-modal')).toHaveAttribute('data-guest-option', 'false');
     expect(screen.queryByTestId('migration-banner')).not.toBeInTheDocument();
     expect(screen.queryByText('Acesso temporariamente bloqueado')).not.toBeInTheDocument();
-    expect(screen.getByTestId('protected-content')).toBeInTheDocument();
+    expect(screen.queryByTestId('protected-content')).not.toBeInTheDocument();
   });
 
   it('guest com email apos deadline — reutiliza modal de login com email preenchido', () => {
@@ -194,7 +194,7 @@ describe('AuthGate — apos o prazo de migracao', () => {
     expect(screen.getByTestId('auth-modal')).toHaveAttribute('data-guest-option', 'false');
     expect(screen.queryByTestId('migration-banner')).not.toBeInTheDocument();
     expect(screen.queryByText('Recuperação de acesso')).not.toBeInTheDocument();
-    expect(screen.getByTestId('protected-content')).toBeInTheDocument();
+    expect(screen.queryByTestId('protected-content')).not.toBeInTheDocument();
   });
 
   it('skip futuro apos deadline — ignorado, modal obrigatorio', () => {
@@ -206,7 +206,7 @@ describe('AuthGate — apos o prazo de migracao', () => {
 
     expect(screen.getByTestId('auth-modal')).toHaveAttribute('data-active-tab', 'entrar');
     expect(screen.queryByText('Recuperação de acesso')).not.toBeInTheDocument();
-    expect(screen.getByTestId('protected-content')).toBeInTheDocument();
+    expect(screen.queryByTestId('protected-content')).not.toBeInTheDocument();
   });
 
   it('novo guest sem email — não mostra landing legada nem opção guest', () => {
@@ -216,6 +216,7 @@ describe('AuthGate — apos o prazo de migracao', () => {
     expect(screen.getByTestId('auth-modal')).toHaveAttribute('data-guest-option', 'false');
     expect(screen.queryByText('Acesso temporariamente bloqueado')).not.toBeInTheDocument();
     expect(screen.queryByTestId('continue-as-guest')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('protected-content')).not.toBeInTheDocument();
   });
 });
 
