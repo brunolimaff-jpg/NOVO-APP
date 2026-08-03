@@ -11,7 +11,7 @@ import {
   SHARED_PARSER_GUARD_BLOCK,
   SHARED_RECENCY_POLICY_BLOCK,
   MASTER_INVESTIGATION_ORCHESTRATOR_V5,
-} from './foundation';
+} from './foundation.js';
 import {
   PROMPT_MAPEAMENTO_DECISORES_GOD_MODE,
   PROMPT_ORCAMENTO_JANELA_GOD_MODE,
@@ -21,7 +21,7 @@ import {
   PROMPT_RISCOS_COMPLIANCE_GOD_MODE,
   PROMPT_TECH_STACK_GOD_MODE_ATAQUE,
   PROMPT_CAMINHO_DE_VENDA,
-} from './specialist-prompts';
+} from './specialist-prompts.js';
 
 const safe = (value?: string) => (value && value.trim() ? value.trim() : 'N/D');
 

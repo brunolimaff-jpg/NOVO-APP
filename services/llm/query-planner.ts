@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { scoutDiag } from '../../utils/diagnosticLog';
+import { scoutDiag } from '../../utils/diagnosticLog.js';
 
 // === TIPOS INLINE (Principio 17) ===
 
