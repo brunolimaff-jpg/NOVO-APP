@@ -30,12 +30,8 @@ function renderModal(showGuestOption = true) {
 }
 
 async function fillSignupForm(email: string, password: string, confirmPw: string, name: string) {
-  // Muda para aba "Criar Conta" (se ja estiver, nao precisa re-clicar)
-  const criarContaButtons = screen.getAllByText('Criar Conta');
-  // O primeiro é o tab, o segundo é o submit
-  if (criarContaButtons.length > 1) {
-    fireEvent.click(criarContaButtons[0]);
-  }
+  // O modal inicia em "Entrar"; a conta continua sendo uma opção secundária explícita.
+  fireEvent.click(screen.getByRole('button', { name: 'Criar Conta' }));
 
   const nameInput = screen.getByPlaceholderText('Seu nome');
   const emailInput = screen.getByPlaceholderText('seu@email.com');
@@ -76,12 +72,17 @@ describe('AuthModal', () => {
     signUpMock.mockResolvedValue({ error: null });
     signInMock.mockResolvedValue({ error: null });
     resetPasswordMock.mockResolvedValue({ error: null });
+  });
 
-    // Por padrao storage vazio — modal abre em "criar-conta"
+  it('inicia na aba Entrar mesmo sem email armazenado', () => {
+    renderModal(true);
+
+    expect(screen.getByPlaceholderText('Sua senha')).toBeInTheDocument();
+    expect(screen.queryByPlaceholderText('Seu nome')).not.toBeInTheDocument();
   });
 
   it('signup com sucesso e sem confirmacao — chama signUp com params corretos', async () => {
-    const { onClose } = renderModal(false);
+    renderModal(false);
 
     await fillSignupForm('novo@agro.com', 'Senha1234', 'Senha1234', 'Novo Usuario');
     clickCriarContaSubmit();

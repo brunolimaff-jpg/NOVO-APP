@@ -13,7 +13,7 @@ vi.mock('../../services/storage', () => ({
   },
 }));
 
-import { useSessionStorage } from '../../hooks/useSessionStorage';
+import { SESSION_LOAD_TIMEOUT_MS, useSessionStorage } from '../../hooks/useSessionStorage';
 import { ChatSession, Sender } from '../../types';
 
 function makeSession(id: string, title: string, messages: ChatSession['messages'] = []): ChatSession {
@@ -78,6 +78,50 @@ describe('useSessionStorage', () => {
     expect(sessions).toEqual([]);
     // localStorage NÃO foi usado
     expect(localStorage.getItem('scout360_sessions_v1')).toBeNull();
+  });
+
+  it('libera o bootstrap quando a hidratação Supabase nunca resolve', async () => {
+    vi.useFakeTimers();
+    getDossiersMock.mockImplementation(() => new Promise<ChatSession[]>(() => {}));
+
+    const { result } = renderHook(() => useSessionStorage());
+    expect(result.current.isInitialized).toBe(false);
+
+    await act(async () => {
+      vi.advanceTimersByTime(SESSION_LOAD_TIMEOUT_MS);
+      await Promise.resolve();
+    });
+
+    expect(result.current.isInitialized).toBe(true);
+    expect(result.current.sessions).toEqual([]);
+    expect(saveAllDossiersMock).not.toHaveBeenCalled();
+  });
+
+  it('ignora resposta tardia após o fallback de timeout', async () => {
+    vi.useFakeTimers();
+    let resolveDossiers!: (sessions: ChatSession[]) => void;
+    const pending = new Promise<ChatSession[]>(resolve => {
+      resolveDossiers = resolve;
+    });
+    getDossiersMock.mockReturnValue(pending);
+
+    const { result } = renderHook(() => useSessionStorage());
+
+    await act(async () => {
+      vi.advanceTimersByTime(SESSION_LOAD_TIMEOUT_MS);
+      await Promise.resolve();
+    });
+
+    const lateSession = makeSession('late', 'Resposta tardia', [
+      { id: 'm1', sender: Sender.Bot, text: 'Conteúdo', timestamp: new Date() },
+    ]);
+    await act(async () => {
+      resolveDossiers([lateSession]);
+      await Promise.resolve();
+    });
+
+    expect(result.current.isInitialized).toBe(true);
+    expect(result.current.sessions).toEqual([]);
   });
 
   it('loadSessions stripa marcadores internos dos textos das mensagens', async () => {

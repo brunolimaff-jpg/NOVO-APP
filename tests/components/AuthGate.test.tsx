@@ -14,8 +14,16 @@ vi.mock('../../contexts/AuthContext', () => ({
 }));
 
 vi.mock('../../components/AuthModal', () => ({
-  AuthModal: ({ showGuestOption, onClose }: { showGuestOption: boolean; onClose: () => void }) => (
-    <div data-testid="auth-modal" data-guest-option={String(showGuestOption)}>
+  AuthModal: ({
+    showGuestOption,
+    onClose,
+    initialTab,
+  }: {
+    showGuestOption: boolean;
+    onClose: () => void;
+    initialTab?: string;
+  }) => (
+    <div data-testid="auth-modal" data-guest-option={String(showGuestOption)} data-active-tab={initialTab ?? 'entrar'}>
       <span>AuthModal</span>
       <button onClick={onClose} data-testid="modal-close-btn">
         Fechar
@@ -57,6 +65,8 @@ function renderGate() {
 
 describe('AuthGate — antes do prazo de migracao', () => {
   beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-06-17T12:00:00-03:00'));
     vi.clearAllMocks();
     window.localStorage.clear();
     mockUseMaybeAuth.mockReturnValue(GUEST_STATE);
@@ -165,28 +175,26 @@ describe('AuthGate — apos o prazo de migracao', () => {
     window.localStorage.clear();
   });
 
-  it('guest sem email apos deadline — tela de cadastro obrigatorio', () => {
+  it('guest sem email apos deadline — modal obrigatorio inicia em Entrar', () => {
     renderGate();
 
-    expect(screen.queryByTestId('auth-modal')).not.toBeInTheDocument();
+    expect(screen.getByTestId('auth-modal')).toHaveAttribute('data-active-tab', 'entrar');
+    expect(screen.getByTestId('auth-modal')).toHaveAttribute('data-guest-option', 'false');
     expect(screen.queryByTestId('migration-banner')).not.toBeInTheDocument();
-    expect(screen.getByText('Acesso temporariamente bloqueado')).toBeInTheDocument();
-    expect(screen.getByText(/crie sua conta com e-mail e senha/)).toBeInTheDocument();
-    expect(screen.getByText('Criar minha conta agora')).toBeInTheDocument();
-    expect(screen.queryByTestId('protected-content')).not.toBeInTheDocument();
+    expect(screen.queryByText('Acesso temporariamente bloqueado')).not.toBeInTheDocument();
+    expect(screen.getByTestId('protected-content')).toBeInTheDocument();
   });
 
-  it('guest com email apos deadline — tela de recuperacao assistida', () => {
+  it('guest com email apos deadline — reutiliza modal de login com email preenchido', () => {
     window.localStorage.setItem('scout360:operator_email', 'bruno@agro.com');
 
     renderGate();
 
-    expect(screen.queryByTestId('auth-modal')).not.toBeInTheDocument();
+    expect(screen.getByTestId('auth-modal')).toHaveAttribute('data-active-tab', 'entrar');
+    expect(screen.getByTestId('auth-modal')).toHaveAttribute('data-guest-option', 'false');
     expect(screen.queryByTestId('migration-banner')).not.toBeInTheDocument();
-    expect(screen.getByText('Recuperação de acesso')).toBeInTheDocument();
-    expect(screen.getByText(/crie uma senha para sua conta/)).toBeInTheDocument();
-    expect(screen.getByText('Criar minha senha')).toBeInTheDocument();
-    expect(screen.queryByTestId('protected-content')).not.toBeInTheDocument();
+    expect(screen.queryByText('Recuperação de acesso')).not.toBeInTheDocument();
+    expect(screen.getByTestId('protected-content')).toBeInTheDocument();
   });
 
   it('skip futuro apos deadline — ignorado, modal obrigatorio', () => {
@@ -196,33 +204,18 @@ describe('AuthGate — apos o prazo de migracao', () => {
 
     renderGate();
 
-    // Com email, mostra recuperacao assistida (nao modal, pois sobe tela full)
-    expect(screen.getByText('Recuperação de acesso')).toBeInTheDocument();
-    expect(screen.queryByTestId('protected-content')).not.toBeInTheDocument();
+    expect(screen.getByTestId('auth-modal')).toHaveAttribute('data-active-tab', 'entrar');
+    expect(screen.queryByText('Recuperação de acesso')).not.toBeInTheDocument();
+    expect(screen.getByTestId('protected-content')).toBeInTheDocument();
   });
 
-  it('novo guest sem email — clicar em criar conta abre modal obrigatório', () => {
+  it('novo guest sem email — não mostra landing legada nem opção guest', () => {
     renderGate();
-
-    expect(screen.getByText('Acesso temporariamente bloqueado')).toBeInTheDocument();
-    expect(screen.getByText('Criar minha conta agora')).toBeInTheDocument();
-
-    fireEvent.click(screen.getByText('Criar minha conta agora'));
 
     expect(screen.getByTestId('auth-modal')).toBeInTheDocument();
     expect(screen.getByTestId('auth-modal')).toHaveAttribute('data-guest-option', 'false');
-    expect(screen.getByText('Acesso temporariamente bloqueado')).toBeInTheDocument();
-  });
-
-  it('guest com email apos deadline — clicar em criar senha abre modal obrigatório', () => {
-    window.localStorage.setItem('scout360:operator_email', 'bruno@agro.com');
-
-    renderGate();
-
-    fireEvent.click(screen.getByText('Criar minha senha'));
-
-    expect(screen.getByTestId('auth-modal')).toBeInTheDocument();
-    expect(screen.getByTestId('auth-modal')).toHaveAttribute('data-guest-option', 'false');
+    expect(screen.queryByText('Acesso temporariamente bloqueado')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('continue-as-guest')).not.toBeInTheDocument();
   });
 });
 

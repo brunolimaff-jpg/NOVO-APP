@@ -2,11 +2,46 @@ import { useState, useEffect, useRef, useCallback, type Dispatch, type SetStateA
 import { storage } from '../services/storage';
 import { ChatSession, Sender } from '../types';
 import { stripInternalMarkers } from '../utils/textCleaners';
+import { scoutDiag } from '../utils/diagnosticLog';
+
+// Hidratação de sessões é auxiliar ao bootstrap de autenticação. O valor segue
+// o timeout já adotado pelo armazenamento remoto legado (10s), mas é explícito
+// e testável para impedir que uma requisição Supabase pendente bloqueie o login.
+export const SESSION_LOAD_TIMEOUT_MS = 10_000;
 
 function hasPersistableContent(session: ChatSession): boolean {
   return (session.messages || []).some(
     m => m.sender === Sender.Bot && !m.isError && !m.isThinking && (m.text || '').trim().length > 0,
   );
+}
+
+function loadDossiersWithTimeout(): Promise<ChatSession[]> {
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    const timeoutId = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      scoutDiag.warn('SessionStorage', 'Hidratação de sessões excedeu o limite; continuando sem histórico', {
+        timeoutMs: SESSION_LOAD_TIMEOUT_MS,
+      });
+      resolve([]);
+    }, SESSION_LOAD_TIMEOUT_MS);
+
+    storage
+      .getDossiers()
+      .then(sessions => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timeoutId);
+        resolve(sessions);
+      })
+      .catch(error => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timeoutId);
+        reject(error);
+      });
+  });
 }
 
 export function useSessionStorage() {
@@ -58,7 +93,7 @@ export function useSessionStorage() {
     }
 
     try {
-      const supabaseSessions = await storage.getDossiers();
+      const supabaseSessions = await loadDossiersWithTimeout();
       if (supabaseSessions && supabaseSessions.length > 0) {
         return sanitizeLoadedSessions(supabaseSessions).filter(hasPersistableContent);
       }
