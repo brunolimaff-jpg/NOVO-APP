@@ -48,6 +48,7 @@ import {
   type DossierSourceRef,
 } from '../../utils/dossierSourcePool';
 import { finalizeDossierMarkdown } from '../../utils/dossierFinalize';
+import { applyDossierEnxuto } from '../../utils/dossierEnxuto';
 import type { MutableRefObject } from 'react';
 import type { RunMegaPromptWaterfallArgs } from '../../types';
 import { isAbortLikeError } from '../../utils/abortHelpers';
@@ -1239,7 +1240,20 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
           resultLength: finalized.text?.length ?? 0,
           auditableSourcesCount: finalized.auditableSources?.length ?? 0,
         });
+        // Dossiê executivo enxuto (padrão): limita a 1 mermaid, rebaixa
+        // headers "DOSSIÊ SCOUT 360" repetidos e remove linhas duplicadas.
+        const enxuto = applyDossierEnxuto(finalized.text || '');
+        if (enxuto.removedMermaidBlocks > 0 || enxuto.demotedHeaders > 0 || enxuto.removedDuplicateLines > 0) {
+          scoutDiag.info('WaterfallLifecycle', 'dossier-enxuto-applied', {
+            sessionId,
+            waterfallRunId,
+            removedMermaidBlocks: enxuto.removedMermaidBlocks,
+            demotedHeaders: enxuto.demotedHeaders,
+            removedDuplicateLines: enxuto.removedDuplicateLines,
+          });
+        }
         const waterfallFinalText =
+          enxuto.text ||
           finalized.text ||
           accumulatedText ||
           `Dossiê de ${resolvedMegaCompany || 'empresa'} não pôde ser gerado. Tente novamente.`;
