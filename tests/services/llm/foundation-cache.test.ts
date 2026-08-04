@@ -6,7 +6,7 @@ import {
   joinDossierExtraContext,
 } from '../../../services/llm/foundation-cache';
 
-describe('foundation-cache (helpers de contexto — cache Gemini removido)', () => {
+describe('foundation-cache (helpers de contexto — cache legado removido)', () => {
   it('monta contexto estático do dossiê na ordem esperada', () => {
     const result = buildStaticDossierContext({
       dossierSeedContext: 'seed',

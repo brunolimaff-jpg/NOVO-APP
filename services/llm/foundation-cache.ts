@@ -1,7 +1,7 @@
 /**
  * Contexto estático do dossiê (helpers puros).
  *
- * O foundation cache (createCachedContent/deleteCachedContent) foi removido
+ * O foundation cache de contexto foi removido integralmente
  * integralmente — era otimização exclusiva do SDK antigo e o LiteLLM não
  * suporta cachedContent. O contexto estático agora é sempre embutido inline
  * em cada chamada de módulo.

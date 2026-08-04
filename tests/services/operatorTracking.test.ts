@@ -146,7 +146,7 @@ describe('operatorTracking', () => {
         operatorId: 'op_test123',
         metadata: {
           prompt: 'conteudo sensivel',
-          geminiResponse: 'resposta confidencial',
+          llmResponse: 'resposta confidencial',
           errorMessage: 'timeout',
           retryCount: 3,
         },
@@ -158,7 +158,7 @@ describe('operatorTracking', () => {
       const meta = inserted?.metadata as Record<string, unknown> | undefined;
 
       expect(meta?.prompt).toBeUndefined();
-      expect(meta?.geminiResponse).toBeUndefined();
+      expect(meta?.llmResponse).toBeUndefined();
       expect(meta?.errorMessage).toBe('timeout');
       expect(meta?.retryCount).toBe(3);
     });

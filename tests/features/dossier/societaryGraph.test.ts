@@ -446,7 +446,7 @@ describe('societaryGraph', () => {
     expect(graph.companies[0].badges).toContain('internacional');
   });
 
-  it('conecta empresas vindas apenas do Gemini ao sócio correspondente', () => {
+  it('conecta empresas vindas apenas do LLM ao sócio correspondente', () => {
     const graph = buildSocietaryGraph(
       {
         root,
@@ -458,7 +458,7 @@ describe('societaryGraph', () => {
           name: 'Agropecuaria Scheffer Ltda',
           cnpj: '00.111.222/0001-81',
           partnerName: 'Guilherme M. Scheffer',
-          sourceTitle: 'Gemini — Tabela Mestre',
+          sourceTitle: 'LLM — Tabela Mestre',
           confidence: 'strong',
           evidenceType: 'qsa',
           rootContext: true,
@@ -474,7 +474,7 @@ describe('societaryGraph', () => {
     expect(mermaid).toContain('guilherme --> company_00111222000181');
   });
 
-  it('preserva escopo e confianca de outros CNPJs vindos do Gemini', () => {
+  it('preserva escopo e confianca de outros CNPJs vindos do LLM', () => {
     const graph = buildSocietaryGraph(
       {
         root,
@@ -486,7 +486,7 @@ describe('societaryGraph', () => {
           name: 'Fazenda Independente LTDA',
           cnpj: '12.345.678/0001-95',
           partnerName: 'Guilherme M. Scheffer',
-          sourceTitle: 'Gemini — Outros CNPJs do sócio',
+          sourceTitle: 'LLM — Outros CNPJs do sócio',
           confidence: 'medium',
           evidenceType: 'registry',
           relationshipScope: 'partner_other_cnpj',
@@ -507,7 +507,7 @@ describe('societaryGraph', () => {
     expect(graph.companies[0].badges).not.toContain('oficial');
   });
 
-  it('nao deixa Gemini rebaixar evidencia oficial ja confirmada pela API', () => {
+  it('nao deixa LLM rebaixar evidencia oficial ja confirmada pela API', () => {
     const graph = buildSocietaryGraph(
       {
         root,
@@ -534,7 +534,7 @@ describe('societaryGraph', () => {
           name: 'Agropecuaria Scheffer Ltda',
           cnpj: '00.111.222/0001-81',
           partnerName: 'Guilherme M. Scheffer',
-          sourceTitle: 'Gemini — Outros CNPJs do sócio',
+          sourceTitle: 'LLM — Outros CNPJs do sócio',
           confidence: 'medium',
           evidenceType: 'registry',
           relationshipScope: 'partner_other_cnpj',
@@ -555,7 +555,7 @@ describe('societaryGraph', () => {
     expect(graph.companies[0].badges).not.toContain('CNPJ lateral');
   });
 
-  it('rejeita empresas Gemini sem CNPJ valido para nao criar no visual por inferencia textual', () => {
+  it('rejeita empresas LLM sem CNPJ valido para nao criar no visual por inferencia textual', () => {
     const graph = buildSocietaryGraph(
       {
         root,
@@ -567,7 +567,7 @@ describe('societaryGraph', () => {
           name: 'Scheffer Colombia S.A.S.',
           country: 'CO',
           partnerName: '',
-          sourceTitle: 'Gemini — Internacional',
+          sourceTitle: 'LLM — Internacional',
           confidence: 'strong',
           evidenceType: 'web',
           rootContext: true,
@@ -631,7 +631,7 @@ describe('societaryGraph', () => {
           id: 'inferido',
           name: 'Luciano R. Scheffer',
           role: 'Sócio',
-          sourceTitle: 'Gemini — inferência',
+          sourceTitle: 'LLM — inferência',
           confidence: 'strong',
         },
       ],
@@ -1060,7 +1060,7 @@ describe('societaryGraph', () => {
     expect(mermaid).not.toContain('04.733.767/0014-03');
   });
 
-  it('rejeita Gemini que tenta recriar a propria raiz como outro CNPJ do socio', () => {
+  it('rejeita LLM que tenta recriar a propria raiz como outro CNPJ do socio', () => {
     const graph = buildSocietaryGraph(
       {
         root,
@@ -1072,7 +1072,7 @@ describe('societaryGraph', () => {
           name: 'Scheffer & Cia LTDA',
           cnpj: '04.733.767/0001-80',
           partnerName: 'Guilherme M. Scheffer',
-          sourceTitle: 'Gemini — Outros CNPJs do sócio',
+          sourceTitle: 'LLM — Outros CNPJs do sócio',
           confidence: 'medium',
           evidenceType: 'registry',
           relationshipScope: 'partner_other_cnpj',

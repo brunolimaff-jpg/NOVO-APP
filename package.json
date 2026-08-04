@@ -35,7 +35,8 @@
     "analyze:deadcode": "ts-prune",
     "format": "prettier --write '**/*.{ts,tsx,json,css}' --ignore-path .gitignore",
     "typecheck": "tsc --noEmit",
-    "ingest:pdfdocs": "node --experimental-strip-types scripts/ingestPdfDocs.ts"
+    "ingest:pdfdocs": "node --experimental-strip-types scripts/ingestPdfDocs.ts",
+    "validate:no-gemini": "ruby scripts/validate-no-gemini.rb"
   },
   "engines": {
     "node": "24.x"

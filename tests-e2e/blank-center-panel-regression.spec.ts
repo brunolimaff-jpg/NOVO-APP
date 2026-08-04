@@ -1,7 +1,7 @@
 // tests-e2e/blank-center-panel-regression.spec.ts
 import { expect, test } from '@playwright/test';
 import { setupE2EAuth } from './helpers/auth';
-import { E2E_DOSSIER_MIN_CHARS, E2E_DOSSIER_SENTINEL, installFastGeminiStubs } from './helpers/gemini';
+import { E2E_DOSSIER_MIN_CHARS, E2E_DOSSIER_SENTINEL, installFastLlmStubs } from './helpers/llm';
 import {
   completeOnboarding,
   dismissMigrationNotice,
@@ -21,7 +21,7 @@ test.describe('Anti-Regressão: Painel Central Branco', () => {
     consoleErrors.length = 0;
     pageErrors.length = 0;
     await setupE2EAuth(page);
-    await installFastGeminiStubs(page);
+    await installFastLlmStubs(page);
 
     page.on('console', msg => {
       if (msg.type() === 'error') consoleErrors.push(msg.text());

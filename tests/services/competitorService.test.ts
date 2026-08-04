@@ -17,13 +17,13 @@ describe('detectCompetitorFromContext', () => {
   });
 
   it('detecta TOTVS a partir de resposta do LLM', async () => {
-    const mockGemini = vi
+    const mockLlm = vi
       .fn()
       .mockResolvedValue(
         'SISTEMA_DETECTADO: TOTVS Protheus\nFABRICANTE: TOTVS\nREVENDA_LOCAL: TOTVS Direto\nNIVEL_AMEACA: alto\nCONFIANCA: alta\nFONTES: linkedin.com/vaga-totvs\nEVIDENCIA: Vaga de analista Protheus no LinkedIn',
       );
 
-    const result = await detectCompetitorFromContext('Agroindústria Alpha', 'SP', mockGemini);
+    const result = await detectCompetitorFromContext('Agroindústria Alpha', 'SP', mockLlm);
     expect(result.encontrado).toBe(true);
     expect(result.nomeERP).toBe('TOTVS Protheus');
     expect(result.nivelAmeaca).toBe('alto');
@@ -32,36 +32,36 @@ describe('detectCompetitorFromContext', () => {
   });
 
   it('retorna encontrado=false quando sistema é DESCONHECIDO', async () => {
-    const mockGemini = vi.fn().mockResolvedValue('SISTEMA_DETECTADO: DESCONHECIDO\nCONFIANCA: baixa\nFONTES: nenhuma');
+    const mockLlm = vi.fn().mockResolvedValue('SISTEMA_DETECTADO: DESCONHECIDO\nCONFIANCA: baixa\nFONTES: nenhuma');
 
-    const result = await detectCompetitorFromContext('Fazenda Mistério', undefined, mockGemini);
+    const result = await detectCompetitorFromContext('Fazenda Mistério', undefined, mockLlm);
     expect(result.encontrado).toBe(false);
     expect(result.raw).toBeDefined();
   });
 
-  it('retorna encontrado=false em caso de erro do Gemini', async () => {
-    const mockGemini = vi.fn().mockRejectedValue(new Error('Gemini unavailable'));
-    const result = await detectCompetitorFromContext('Empresa X', undefined, mockGemini);
+  it('retorna encontrado=false em caso de erro do LLM', async () => {
+    const mockLlm = vi.fn().mockRejectedValue(new Error('LLM unavailable'));
+    const result = await detectCompetitorFromContext('Empresa X', undefined, mockLlm);
     expect(result.encontrado).toBe(false);
   });
 
   it('detecta SAP a partir de resposta do LLM', async () => {
-    const mockGemini = vi
+    const mockLlm = vi
       .fn()
       .mockResolvedValue(
         'SISTEMA_DETECTADO: SAP S/4HANA\nFABRICANTE: SAP\nREVENDA_LOCAL: Accenture SP\nNIVEL_AMEACA: alto\nCONFIANCA: media\nFONTES: site-empresa.com.br\nEVIDENCIA: Menção a SAP no site',
       );
 
-    const result = await detectCompetitorFromContext('Grupo XYZ', 'MG', mockGemini);
+    const result = await detectCompetitorFromContext('Grupo XYZ', 'MG', mockLlm);
     expect(result.encontrado).toBe(true);
     expect(result.nomeERP).toContain('SAP');
   });
 
   it('passa o estado para o prompt de busca', async () => {
-    const mockGemini = vi.fn().mockResolvedValue('SISTEMA_DETECTADO: DESCONHECIDO\nCONFIANCA: baixa\nFONTES: nenhuma');
+    const mockLlm = vi.fn().mockResolvedValue('SISTEMA_DETECTADO: DESCONHECIDO\nCONFIANCA: baixa\nFONTES: nenhuma');
 
-    await detectCompetitorFromContext('Empresa MT', 'MT', mockGemini);
-    const calledPrompt = mockGemini.mock.calls[0][0] as string;
+    await detectCompetitorFromContext('Empresa MT', 'MT', mockLlm);
+    const calledPrompt = mockLlm.mock.calls[0][0] as string;
     // Prompt deve mencionar o estado MT ou revendas locais
     expect(calledPrompt.length).toBeGreaterThan(100);
   });
@@ -74,13 +74,13 @@ describe('pullCompetitorProfile', () => {
   });
 
   it('retorna null para competitorId inexistente', async () => {
-    const mockGemini = vi.fn().mockResolvedValue('{}');
-    const result = await pullCompetitorProfile('concorrente-inexistente', mockGemini);
+    const mockLlm = vi.fn().mockResolvedValue('{}');
+    const result = await pullCompetitorProfile('concorrente-inexistente', mockLlm);
     expect(result).toBeNull();
   });
 
   it('parseia JSON de perfil corretamente', async () => {
-    const mockGemini = vi.fn().mockResolvedValue(
+    const mockLlm = vi.fn().mockResolvedValue(
       JSON.stringify({
         playStoreRating: 3.8,
         playStoreReviews: 1200,
@@ -94,7 +94,7 @@ describe('pullCompetitorProfile', () => {
     );
 
     // totvs é um ID conhecido no CONCORRENTES array
-    const result = await pullCompetitorProfile('totvs', mockGemini);
+    const result = await pullCompetitorProfile('totvs', mockLlm);
     // Se totvs não estiver no array, retornará null
     if (result) {
       expect(result.playStoreRating).toBe(3.8);
@@ -104,15 +104,15 @@ describe('pullCompetitorProfile', () => {
   });
 
   it('retorna perfil com raw mesmo quando JSON é inválido', async () => {
-    const mockGemini = vi.fn().mockResolvedValue('Texto corrido sem JSON válido aqui');
-    const result = await pullCompetitorProfile('totvs', mockGemini);
+    const mockLlm = vi.fn().mockResolvedValue('Texto corrido sem JSON válido aqui');
+    const result = await pullCompetitorProfile('totvs', mockLlm);
     if (result) {
       expect(result.raw).toContain('Texto corrido');
     }
   });
 
   it('extrai o primeiro JSON completo sem regex gulosa', async () => {
-    const mockGemini = vi
+    const mockLlm = vi
       .fn()
       .mockResolvedValue(
         `Trecho inicial [ 'a' ] e texto ]\n` +
@@ -120,7 +120,7 @@ describe('pullCompetitorProfile', () => {
           `{"playStoreRating":1.1,"pontosFracos":["Ignorar"]}`,
       );
 
-    const result = await pullCompetitorProfile('totvs', mockGemini);
+    const result = await pullCompetitorProfile('totvs', mockLlm);
     if (result) {
       expect(result.playStoreRating).toBe(4.1);
       expect(result.pontosFracos).toContain('Lentidão');
@@ -136,13 +136,13 @@ describe('generatePricingIntel', () => {
   });
 
   it('retorna null para competitorId inexistente', async () => {
-    const mockGemini = vi.fn().mockResolvedValue('{}');
-    const result = await generatePricingIntel('concorrente-xyz', 'grande', mockGemini);
+    const mockLlm = vi.fn().mockResolvedValue('{}');
+    const result = await generatePricingIntel('concorrente-xyz', 'grande', mockLlm);
     expect(result).toBeNull();
   });
 
   it('parseia estimativa de preço do JSON', async () => {
-    const mockGemini = vi.fn().mockResolvedValue(
+    const mockLlm = vi.fn().mockResolvedValue(
       JSON.stringify({
         faixaPrecoUsuario: 'R$ 500-1.200/usuário/mês',
         modeloLicenca: 'SaaS',
@@ -154,7 +154,7 @@ describe('generatePricingIntel', () => {
       }),
     );
 
-    const result = await generatePricingIntel('totvs', 'medio', mockGemini);
+    const result = await generatePricingIntel('totvs', 'medio', mockLlm);
     if (result) {
       expect(result.modeloLicenca).toBe('SaaS');
       expect(result.confianca).toBe('media');
@@ -163,21 +163,21 @@ describe('generatePricingIntel', () => {
   });
 
   it('retorna confianca baixa para JSON inválido', async () => {
-    const mockGemini = vi.fn().mockResolvedValue('Não encontrei dados de preço');
-    const result = await generatePricingIntel('totvs', 'pequeno', mockGemini);
+    const mockLlm = vi.fn().mockResolvedValue('Não encontrei dados de preço');
+    const result = await generatePricingIntel('totvs', 'pequeno', mockLlm);
     if (result) {
       expect(result.confianca).toBe('baixa');
     }
   });
 
   it('aceita array JSON e usa o primeiro objeto válido', async () => {
-    const mockGemini = vi
+    const mockLlm = vi
       .fn()
       .mockResolvedValue(
         `Resposta:\n` +
           `[{"faixaPrecoUsuario":"R$ 900-1.500","modeloLicenca":"SaaS","confianca":"alta","fontes":["fonte-a"]}]`,
       );
-    const result = await generatePricingIntel('totvs', 'medio', mockGemini);
+    const result = await generatePricingIntel('totvs', 'medio', mockLlm);
     if (result) {
       expect(result.faixaPrecoUsuario).toBe('R$ 900-1.500');
       expect(result.modeloLicenca).toBe('SaaS');

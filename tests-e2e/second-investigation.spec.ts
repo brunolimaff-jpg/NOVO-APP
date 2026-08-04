@@ -1,7 +1,7 @@
 // tests-e2e/second-investigation.spec.ts
 import { expect, test } from '@playwright/test';
 import { setupE2EAuth } from './helpers/auth';
-import { E2E_DOSSIER_SENTINEL, installFastGeminiStubs } from './helpers/gemini';
+import { E2E_DOSSIER_SENTINEL, installFastLlmStubs } from './helpers/llm';
 import {
   completeOnboarding,
   dismissDuplicateDossierModal,
@@ -42,7 +42,7 @@ test.describe('Segunda investigação — anti-regressão P0', () => {
 
   test.beforeEach(async ({ page }) => {
     await setupE2EAuth(page, { uniqueOperator: true });
-    await installFastGeminiStubs(page);
+    await installFastLlmStubs(page);
   });
 
   test('investigação A completa → nova investigação → investigação B sem Refinando sinais', async ({ page }) => {

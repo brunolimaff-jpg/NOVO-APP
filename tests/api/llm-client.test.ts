@@ -129,7 +129,7 @@ describe('feature flags', () => {
 
     expect(
       isLiteLLMEnabled({
-        LLM_PROVIDER: 'gemini',
+        LLM_PROVIDER: 'outro',
         LITELLM_API_KEY: 'sk-test',
         LITELLM_BASE_URL: 'https://litellm.example',
       }),
@@ -196,7 +196,7 @@ describe('callLiteLLM', () => {
     });
   });
 
-  it('preserva timeout e defaults do caminho legado usado por api/gemini', async () => {
+  it('preserva timeout e defaults do caminho legado usado por api/llm', async () => {
     expect(resolveLiteLLMClientTimeoutMs()).toBe(120_000);
     expect(resolveLiteLLMClientTimeoutMs('150000')).toBe(150_000);
     expect(resolveLiteLLMClientTimeoutMs('999999')).toBe(180_000);

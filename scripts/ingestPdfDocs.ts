@@ -93,9 +93,9 @@ async function extractPdfNative(buffer: Buffer): Promise<string> {
   }
 }
 
-async function extractPdfWithGeminiOcr(_buffer: Buffer, _title: string): Promise<string> {
+export async function extractPdfOcrFailClosed(_buffer: Buffer, _title: string): Promise<string> {
   // Fail-closed: OCR via modelo legado foi removido (LiteLLM-only) e o gateway
-  // não expõe modelo de visão. Nunca mais chama provedor Gemini.
+  // não expõe modelo de visão. Nunca mais chama provedor legado.
   throw new Error(
     'OCR_PROVIDER_UNAVAILABLE: OCR de PDF descontinuado — gateway LiteLLM sem modelo de visão. ' +
       'Integrar provedor OCR dedicado antes de reativar esta rota.',
@@ -218,7 +218,16 @@ async function run(): Promise<void> {
   console.log(`Namespace: ${PINECONE_NAMESPACE}`);
 }
 
-run().catch(err => {
-  console.error('[ingestPdfDocs] Falha geral:', err?.message || err);
-  process.exit(1);
-});
+// Auto-run apenas quando executado diretamente (node scripts/ingestPdfDocs.ts).
+// Quando importado por testes, o módulo apenas expõe as funções.
+const isMainModule =
+  typeof process !== 'undefined' &&
+  process.argv[1] &&
+  import.meta.url === new URL(`file://${process.argv[1]}`).href;
+
+if (isMainModule) {
+  run().catch(err => {
+    console.error('[ingestPdfDocs] Falha geral:', err?.message || err);
+    process.exit(1);
+  });
+}

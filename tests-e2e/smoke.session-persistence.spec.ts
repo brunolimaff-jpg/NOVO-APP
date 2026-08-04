@@ -17,7 +17,7 @@ const KEYVAL_STORE_NAME = 'keyval';
 const SESSIONS_STORAGE_KEY = 'scout360_sessions_v2';
 const EXPECTED_SESSION_TITLE = 'Fazenda Modelo';
 
-interface GeminiRequestBody {
+interface LlmRequestBody {
   action?: string;
   config?: {
     responseMimeType?: string;
@@ -36,8 +36,8 @@ interface PersistedSessionState {
   hasBotReply: boolean;
 }
 
-async function stubGeminiApi(route: Route) {
-  const payload = route.request().postDataJSON() as GeminiRequestBody;
+async function stubLlmApi(route: Route) {
+  const payload = route.request().postDataJSON() as LlmRequestBody;
 
   if (payload.action === 'chatSendMessage') {
     await new Promise(resolve => setTimeout(resolve, 150));
@@ -74,7 +74,7 @@ async function stubGeminiApi(route: Route) {
   await route.fulfill({
     status: 400,
     contentType: 'application/json',
-    body: JSON.stringify({ error: 'Unsupported Gemini action in smoke test' }),
+    body: JSON.stringify({ error: 'Unsupported LLM action in smoke test' }),
   });
 }
 
@@ -160,7 +160,7 @@ async function stubAppsScript(route: Route) {
 }
 
 async function installNetworkStubs(page: Page) {
-  await page.route('**/api/llm', stubGeminiApi);
+  await page.route('**/api/llm', stubLlmApi);
   await page.route('**/macros/s/*/exec*', stubAppsScript);
 }
 

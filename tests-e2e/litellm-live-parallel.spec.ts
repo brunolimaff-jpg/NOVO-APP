@@ -1,6 +1,6 @@
 /**
  * LiteLLM live — 5 waterfalls em paralelo no preview Vercel.
- * SEM stubs em /api/llm — chama LiteLLM/Gemini real conforme env do preview.
+ * SEM stubs em /api/llm — chama LiteLLM real conforme env do preview.
  *
  * Uso:
  *   BASE_URL=https://...preview.vercel.app \

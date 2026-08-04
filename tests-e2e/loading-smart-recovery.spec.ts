@@ -1,7 +1,7 @@
 // tests-e2e/loading-smart-recovery.spec.ts
 import { expect, test } from '@playwright/test';
 import { setupE2EAuth } from './helpers/auth';
-import { E2E_DOSSIER_MIN_CHARS, E2E_DOSSIER_SENTINEL, installFastGeminiStubs } from './helpers/gemini';
+import { E2E_DOSSIER_MIN_CHARS, E2E_DOSSIER_SENTINEL, installFastLlmStubs } from './helpers/llm';
 import { completeOnboarding, e2eCompanyName } from './helpers/onboarding';
 
 const ALLOWED_CONSOLE_ERRORS = ['Failed to load resource', 'net::ERR_', 'ResizeObserver', '429', '503'];
@@ -59,7 +59,7 @@ test.describe('Anti-Regressão: LoadingSmart — Recuperação', () => {
 
   test.beforeEach(async ({ page }) => {
     await setupE2EAuth(page);
-    await installFastGeminiStubs(page);
+    await installFastLlmStubs(page);
   });
 
   test('LoadingSmart aparece e desaparece — estado final é válido', async ({ page }) => {

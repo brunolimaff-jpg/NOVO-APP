@@ -143,7 +143,7 @@ describe('deduplicateSourcesBlock', () => {
 
   it('remove fontes repetidas mesmo com parametros de tracking', () => {
     const text = [
-      'A evidencia aparece inline em [Fonte A](https://example.com/relatorio?utm_source=gemini).',
+      'A evidencia aparece inline em [Fonte A](https://example.com/relatorio?utm_source=llm).',
       '',
       'Fontes:',
       '- Fonte A https://example.com/relatorio/',

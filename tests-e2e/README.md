@@ -9,7 +9,7 @@
 | **golden-dossier-live** | `npm run test:e2e:golden-live`  | Live + qualidade | Comparação golden Scheffer — gate separado, blocking CI      |
 | **scheffer-research**   | spec manual                     | Live + pesquisa  | R1/R2/R3 qualidade — fora do loop automático                 |
 
-Specs em `critical-ux` usam **stubs** (`helpers/gemini.ts`, `helpers/cnpj-stub.ts`) — não chamam Gemini nem BrasilAPI real.
+Specs em `critical-ux` usam **stubs** (`helpers/llm.ts`, `helpers/cnpj-stub.ts`) — não chamam LLM nem BrasilAPI real.
 
 ## report-ready (gate funcional Fase 6)
 

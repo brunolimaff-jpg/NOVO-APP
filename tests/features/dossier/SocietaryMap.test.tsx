@@ -754,7 +754,7 @@ describe('SocietaryMap', () => {
     expect(fetch).not.toHaveBeenCalled();
   });
 
-  it('usa empresas extraídas do Gemini como fonte visual quando QSA oficial está ausente', async () => {
+  it('usa empresas extraídas do LLM como fonte visual quando QSA oficial está ausente', async () => {
     fetchCompanyByCnpjMock.mockResolvedValueOnce({
       cnpj: '04733767000180',
       companyName: 'Scheffer & Cia Ltda',
@@ -772,7 +772,7 @@ describe('SocietaryMap', () => {
             name: 'Agropecuaria Scheffer Ltda',
             cnpj: '00.111.222/0001-81',
             partnerName: 'Guilherme M. Scheffer',
-            sourceTitle: 'Gemini — Tabela Mestre',
+            sourceTitle: 'LLM — Tabela Mestre',
             confidence: 'strong',
             evidenceType: 'qsa',
             rootContext: true,
@@ -784,7 +784,7 @@ describe('SocietaryMap', () => {
     await waitFor(() => expect(screen.getByText('00.111.222/0001-81')).toBeInTheDocument());
     expect(screen.queryByTestId('societary-evidence-list')).not.toBeInTheDocument();
     fireEvent.click(screen.getByTestId('societary-evidence-toggle'));
-    expect(screen.getByTestId('societary-evidence-list')).toHaveTextContent('Gemini — Tabela Mestre');
+    expect(screen.getByTestId('societary-evidence-list')).toHaveTextContent('LLM — Tabela Mestre');
     expect(screen.getByTestId('societary-evidence-list')).toHaveTextContent('CNPJ 00.111.222/0001-81');
     // CNAE enrichment now uses fetchCompanyByCnpj (mocked) not fetch directly;
     // only the /api/socio-search call for the partner remains in fetch

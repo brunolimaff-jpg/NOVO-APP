@@ -20,7 +20,7 @@ const DETERMINISTIC_WATERFALL_TEXT = [
 
 const DETERMINISTIC_CHAT_REPLY = 'Resposta deterministica de teste.';
 
-interface GeminiRequestBody {
+interface LlmRequestBody {
   action?: string;
   config?: {
     responseMimeType?: string;
@@ -36,10 +36,10 @@ async function fulfillJson(route: Route, body: unknown, status = 200) {
   });
 }
 
-async function stubGeminiApi(route: Route) {
-  let payload: GeminiRequestBody;
+async function stubLlmApi(route: Route) {
+  let payload: LlmRequestBody;
   try {
-    payload = route.request().postDataJSON() as GeminiRequestBody;
+    payload = route.request().postDataJSON() as LlmRequestBody;
   } catch {
     payload = {};
   }
@@ -51,19 +51,9 @@ async function stubGeminiApi(route: Route) {
     case 'health':
       await fulfillJson(route, { ok: true, text: 'ok' });
       return;
-    case 'createCachedContent':
-      await fulfillJson(route, {
-        name: 'cachedContents/e2e-waterfall',
-        expireTime: new Date(Date.now() + 60_000).toISOString(),
-      });
-      return;
-    case 'deleteCachedContent':
-      await fulfillJson(route, { ok: true });
-      return;
     case 'chatSendMessage':
       await fulfillJson(route, {
         text: DETERMINISTIC_CHAT_REPLY,
-        groundingUsed: false,
         webVerificationStatus: 'not_applicable',
       });
       return;
@@ -82,10 +72,10 @@ async function stubGeminiApi(route: Route) {
       return;
     }
     default:
-      await fulfillJson(route, { error: `Unsupported Gemini action: ${payload.action || 'unknown'}` }, 400);
+      await fulfillJson(route, { error: `Unsupported LLM action: ${payload.action || 'unknown'}` }, 400);
   }
 }
 
-export async function installFastGeminiStubs(page: Page) {
-  await page.route('**/api/llm**', stubGeminiApi);
+export async function installFastLlmStubs(page: Page) {
+  await page.route('**/api/llm**', stubLlmApi);
 }

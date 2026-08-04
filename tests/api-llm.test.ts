@@ -87,7 +87,7 @@ describe('api/llm handler (LiteLLM-only)', () => {
   it('rejeita action desconhecida com 400 sem chamar o gateway', async () => {
     const { default: handler } = await import('../api/llm');
     const res = makeRes();
-    await handler(makeReq({ action: 'createCachedContent', model: 'x', systemInstruction: 'y' }), res);
+    await handler(makeReq({ action: 'unknownAction', model: 'x', systemInstruction: 'y' }), res);
     expect(res.status).toHaveBeenCalledWith(400);
     expect(callLiteLLMMock).not.toHaveBeenCalled();
   });
@@ -112,7 +112,7 @@ describe('api/llm handler (LiteLLM-only)', () => {
     await handler(
       makeReq({
         action: 'generateContent',
-        model: 'gemini-3-flash-preview', // ID concreto — deve ser ignorado
+        model: 'algum-id-concreto-de-provedor', // ID concreto — deve ser ignorado
         contents: [{ text: 'tarefa' }],
         config: { systemInstruction: 'sys', temperature: 0.3, maxOutputTokens: 4096 },
       }),
@@ -159,6 +159,23 @@ describe('api/llm handler (LiteLLM-only)', () => {
     const res = makeRes();
     await handler(makeReq({ action: 'generateContent', contents: 'oi' }), res);
     expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith({
+      text: '',
+      error: expect.objectContaining({ code: 'LLM_GATEWAY_HTTP', retryable: true }),
+    });
+  });
+
+  it('retry seletivo: 429 chega ao cliente como retryable e o handler não retenta por conta própria', async () => {
+    callLiteLLMMock.mockRejectedValueOnce(
+      new LiteLLMRequestErrorMock('GATEWAY_HTTP_ERROR', 'LiteLLM HTTP 429', true, 429),
+    );
+    const { default: handler } = await import('../api/llm');
+    const res = makeRes();
+    await handler(makeReq({ action: 'generateContent', contents: 'oi' }), res);
+    // O retry é responsabilidade interna do callLiteLLM (orçamento/backoff);
+    // o handler nunca duplica a chamada nem faz fallback.
+    expect(callLiteLLMMock).toHaveBeenCalledTimes(1);
+    expect(res.status).toHaveBeenCalledWith(429);
     expect(res.json).toHaveBeenCalledWith({
       text: '',
       error: expect.objectContaining({ code: 'LLM_GATEWAY_HTTP', retryable: true }),

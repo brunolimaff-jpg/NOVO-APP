@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 import { setupE2EAuth } from './helpers/auth';
 
 const TEST_CNPJ_FORMATTED = '04.733.767/0001-80'; // Scheffer (047333767000180)
-const GEMINI_TIMEOUT = 120_000; // 2 min — Gemini + RAG + Grounding pode demorar
+const LLM_TIMEOUT = 120_000; // 2 min — LLM + RAG pode demorar
 
 test.describe('Fluxo CNPJ → Investigação completa', () => {
   test('deve buscar CNPJ, iniciar investigação e receber dossiê da IA', async ({ page }) => {
@@ -41,9 +41,9 @@ test.describe('Fluxo CNPJ → Investigação completa', () => {
     await expect(submitBtn).toBeEnabled();
     await submitBtn.click({ force: true });
 
-    // 8. Espera a resposta do Gemini aparecer no chat (.prose = markdown renderizado)
+    // 8. Espera a resposta do LLM aparecer no chat (.prose = markdown renderizado)
     const botResponse = page.locator('.prose').first();
-    await expect(botResponse).toBeVisible({ timeout: GEMINI_TIMEOUT });
+    await expect(botResponse).toBeVisible({ timeout: LLM_TIMEOUT });
 
     // 9. Valida que o conteúdo não está vazio
     const responseText = await botResponse.innerText();

@@ -14,7 +14,7 @@ type Environment = Record<string, string | undefined>;
 export const EMBEDDINGS_MODEL_ID = 'bedrock/amazon.titan-embed-text-v1';
 
 export function resolveLiteLLMEmbeddingsUrl(baseUrl: string): string {
-  const trimmed = (baseUrl || '').replace(/\/+$/, '');
+  const trimmed = (baseUrl || '').trim().replace(/\/+$/, '');
   if (!trimmed) throw new Error('LITELLM_BASE_URL é obrigatório para embeddings');
   const root = /\/v1$/i.test(trimmed) ? trimmed : `${trimmed}/v1`;
   return `${root}/embeddings`;

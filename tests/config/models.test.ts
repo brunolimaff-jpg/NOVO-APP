@@ -57,7 +57,7 @@ describe('MODEL_IDS', () => {
     expect(MODEL_IDS.deepResearch).toBe('scout-deep-research');
     const values = Object.values(MODEL_IDS);
     for (const value of values) {
-      expect(value).not.toMatch(/gemini|bedrock|openrouter|huawei|oracle|amazon/i);
+      expect(value).toMatch(/^scout-/);
     }
   });
 });

@@ -6,7 +6,7 @@ import { completeOnboarding, e2eCompanyName } from './helpers/onboarding';
 test.describe('Anti-Regressão: Erro Controlado', () => {
   test.describe.configure({ timeout: 120_000 });
 
-  function interceptGeminiApi(page: import('@playwright/test').Page) {
+  function interceptLlmApi(page: import('@playwright/test').Page) {
     return page.route('**/api/llm**', route => {
       route.fulfill({
         status: 500,
@@ -30,7 +30,7 @@ test.describe('Anti-Regressão: Erro Controlado', () => {
   test('falha de API não gera tela branca', async ({ page }) => {
     await setupE2EAuth(page);
     await completeOnboarding(page);
-    await interceptGeminiApi(page);
+    await interceptLlmApi(page);
 
     await startFailingInvestigation(page);
 
@@ -50,7 +50,7 @@ test.describe('Anti-Regressão: Erro Controlado', () => {
   test('LoadingSmart não fica infinito após falha', async ({ page }) => {
     await setupE2EAuth(page);
     await completeOnboarding(page);
-    await interceptGeminiApi(page);
+    await interceptLlmApi(page);
 
     await startFailingInvestigation(page);
   });
@@ -58,7 +58,7 @@ test.describe('Anti-Regressão: Erro Controlado', () => {
   test('usuário consegue interagir após falha', async ({ page }) => {
     await setupE2EAuth(page);
     await completeOnboarding(page);
-    await interceptGeminiApi(page);
+    await interceptLlmApi(page);
 
     await startFailingInvestigation(page);
 

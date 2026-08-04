@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { setupE2EAuth } from './helpers/auth';
-import { E2E_DOSSIER_MIN_CHARS, E2E_DOSSIER_SENTINEL, installFastGeminiStubs } from './helpers/gemini';
+import { E2E_DOSSIER_MIN_CHARS, E2E_DOSSIER_SENTINEL, installFastLlmStubs } from './helpers/llm';
 import { completeOnboarding, dismissMigrationNotice, preventMigrationNotice } from './helpers/onboarding';
 
 const SCHEFFER_CNPJ = '04.733.767/0001-80';
@@ -12,7 +12,7 @@ test.describe('Scheffer CNPJ — painel após waterfall (stub)', () => {
 
   test.beforeEach(async ({ page }) => {
     await setupE2EAuth(page);
-    await installFastGeminiStubs(page);
+    await installFastLlmStubs(page);
     await preventMigrationNotice(page);
   });
 
