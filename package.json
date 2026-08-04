@@ -41,7 +41,6 @@
     "node": "24.x"
   },
   "dependencies": {
-    "@google/genai": "^1.49.0",
     "@langchain/core": "^1.1.39",
     "@mozilla/readability": "^0.6.0",
     "@pinecone-database/pinecone": "^2.2.2",

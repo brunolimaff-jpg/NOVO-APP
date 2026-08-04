@@ -13,8 +13,8 @@ if [[ -z "${PINECONE_DOCS_INDEX:-}" ]]; then
   exit 1
 fi
 
-if [[ -z "${GEMINI_API_KEY:-}" ]]; then
-  echo "WARN: GEMINI_API_KEY is not exported. Continuing (not required for local validation pipeline)."
+if [[ -z "${LITELLM_API_KEY:-}" ]]; then
+  echo "WARN: LITELLM_API_KEY is not exported. Continuing (not required for local validation pipeline)."
 fi
 
 if [[ -z "${BRAVE_SEARCH_API_KEY:-}" ]]; then

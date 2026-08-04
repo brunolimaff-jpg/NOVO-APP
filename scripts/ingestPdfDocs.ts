@@ -2,8 +2,8 @@ import { createHash } from 'crypto';
 import fs from 'fs/promises';
 import path from 'path';
 import { PDFParse } from 'pdf-parse';
-import { GoogleGenAI } from '@google/genai';
 import { Pinecone } from '@pinecone-database/pinecone';
+import { embedViaLiteLLM, EMBEDDINGS_MODEL_ID } from '../utils/llm/embeddings.ts';
 import dotenv from 'dotenv';
 
 dotenv.config();
@@ -13,7 +13,7 @@ type PdfDoc = {
   title: string;
   content: string;
   ocrUsed: boolean;
-  extraction: 'native' | 'gemini_ocr' | 'failed';
+  extraction: 'native' | 'failed';
 };
 
 type ChunkRecord = {
@@ -22,7 +22,6 @@ type ChunkRecord = {
   metadata: Record<string, string | number | boolean>;
 };
 
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY || process.env.VITE_API_KEY;
 const PINECONE_API_KEY = process.env.PINECONE_DOCS_KEY || process.env.PINECONE_API_KEY || process.env.VITE_PINECONE_KEY;
 const DEFAULT_INDEX = 'scout-arsenal';
 const DEFAULT_NAMESPACE = 'competitor-pdfs';
@@ -37,11 +36,13 @@ const CHUNK_OVERLAP = Number(process.argv[6] || 220);
 const INDEX_OVERRIDE = process.argv[7];
 const NAMESPACE_OVERRIDE = process.argv[8];
 const NATIVE_MIN_CHARS = 350;
-const GEMINI_OCR_MAX_BYTES = 18 * 1024 * 1024;
-const GEMINI_OCR_MODEL = process.env.GEMINI_OCR_MODEL || 'gemini-3-flash-preview';
 
-if (!GEMINI_API_KEY || !PINECONE_API_KEY) {
-  console.error('ERRO: faltam variaveis GEMINI_API_KEY e/ou PINECONE_DOCS_KEY/PINECONE_API_KEY.');
+// OCR de PDF descontinuado: o gateway LiteLLM não expõe modelo de visão.
+// A migração futura deve integrar um provedor OCR dedicado (legado
+// GEMINI_OCR_MODEL documentado apenas no git history).
+
+if (!PINECONE_API_KEY) {
+  console.error('ERRO: faltam variaveis PINECONE_DOCS_KEY/PINECONE_API_KEY e as vars LiteLLM (LITELLM_BASE_URL/LITELLM_API_KEY).');
   process.exit(1);
 }
 
@@ -58,7 +59,6 @@ const PINECONE_INDEX_NAME = resolveIndexName(
 );
 const PINECONE_NAMESPACE = (NAMESPACE_OVERRIDE || process.env.PINECONE_DOCS_NAMESPACE || DEFAULT_NAMESPACE).trim();
 
-const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
 const pinecone = new Pinecone({ apiKey: PINECONE_API_KEY });
 const index = pinecone.index(PINECONE_INDEX_NAME);
 
@@ -93,47 +93,13 @@ async function extractPdfNative(buffer: Buffer): Promise<string> {
   }
 }
 
-async function extractPdfWithGeminiOcr(buffer: Buffer, title: string): Promise<string> {
-  const base64 = buffer.toString('base64');
-  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_OCR_MODEL}:generateContent?key=${GEMINI_API_KEY}`;
-  const prompt =
-    `Extraia o texto deste PDF com foco em legibilidade e fidelidade. ` +
-    `Mantenha estrutura em secoes/listas quando possivel. Nao resuma. ` +
-    `Documento: ${title}`;
-
-  const body = {
-    contents: [
-      {
-        parts: [
-          { text: prompt },
-          {
-            inline_data: {
-              mime_type: 'application/pdf',
-              data: base64,
-            },
-          },
-        ],
-      },
-    ],
-    generationConfig: {
-      temperature: 0.1,
-      maxOutputTokens: 8192,
-    },
-  };
-
-  const response = await fetch(endpoint, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-  if (!response.ok) {
-    throw new Error(`Gemini OCR HTTP ${response.status}`);
-  }
-  const data = (await response.json()) as {
-    candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
-  };
-  const text = data.candidates?.[0]?.content?.parts?.map(p => p.text || '').join('\n') || '';
-  return normalizeText(text);
+async function extractPdfWithGeminiOcr(_buffer: Buffer, _title: string): Promise<string> {
+  // Fail-closed: OCR via modelo legado foi removido (LiteLLM-only) e o gateway
+  // não expõe modelo de visão. Nunca mais chama provedor Gemini.
+  throw new Error(
+    'OCR_PROVIDER_UNAVAILABLE: OCR de PDF descontinuado — gateway LiteLLM sem modelo de visão. ' +
+      'Integrar provedor OCR dedicado antes de reativar esta rota.',
+  );
 }
 
 function makeChunks(text: string, chunkSize: number, overlap: number): string[] {
@@ -152,12 +118,8 @@ function makeChunks(text: string, chunkSize: number, overlap: number): string[] 
 }
 
 async function embedBatch(texts: string[]): Promise<number[][]> {
-  const result = await ai.models.embedContent({
-    model: 'gemini-embedding-001',
-    contents: texts,
-    config: { taskType: 'RETRIEVAL_DOCUMENT' },
-  });
-  return (result.embeddings || []).map(e => e.values || []);
+  const result = await embedViaLiteLLM(texts, { model: EMBEDDINGS_MODEL_ID });
+  return result.vectors;
 }
 
 function recordId(filePath: string, chunkIdx: number): string {
@@ -178,19 +140,8 @@ async function extractDoc(filePath: string): Promise<PdfDoc> {
     // Continua para fallback OCR.
   }
 
-  if (buffer.byteLength > GEMINI_OCR_MAX_BYTES) {
-    return { filePath, title, content: '', ocrUsed: false, extraction: 'failed' };
-  }
-
-  try {
-    const ocrText = await extractPdfWithGeminiOcr(buffer, title);
-    if (ocrText.length >= NATIVE_MIN_CHARS) {
-      return { filePath, title, content: ocrText, ocrUsed: true, extraction: 'gemini_ocr' };
-    }
-  } catch {
-    // Sem texto util.
-  }
-
+  // OCR descontinuado (fail-closed): PDF sem extração nativa é registrado
+  // como falha explícita — nunca usa modelo legado.
   return { filePath, title, content: '', ocrUsed: false, extraction: 'failed' };
 }
 
@@ -226,14 +177,12 @@ async function run(): Promise<void> {
 
   const docs: PdfDoc[] = [];
   let nativeCount = 0;
-  let ocrCount = 0;
   let failedCount = 0;
 
   for (const [i, pdf] of pdfs.entries()) {
     const doc = await extractDoc(pdf);
     docs.push(doc);
     if (doc.extraction === 'native') nativeCount += 1;
-    else if (doc.extraction === 'gemini_ocr') ocrCount += 1;
     else failedCount += 1;
     console.log(`[${i + 1}/${pdfs.length}] ${path.basename(pdf)} -> ${doc.extraction} (${doc.content.length} chars)`);
   }
@@ -262,7 +211,7 @@ async function run(): Promise<void> {
   console.log('\n===== RESUMO =====');
   console.log(`PDFs: ${pdfs.length}`);
   console.log(`Extraidos nativamente: ${nativeCount}`);
-  console.log(`Extraidos com OCR Gemini: ${ocrCount}`);
+  console.log(`Extraidos com OCR: 0 (OCR descontinuado — fail-closed)`);
   console.log(`Falhas sem texto: ${failedCount}`);
   console.log(`Chunks indexados: ${inserted}`);
   console.log(`Indice: ${PINECONE_INDEX_NAME}`);

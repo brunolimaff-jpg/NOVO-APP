@@ -1,8 +1,8 @@
-import { GoogleGenAI } from '@google/genai';
 import * as dotenv from 'dotenv';
+import { callLiteLLM } from '../api/_llm-client.ts';
 dotenv.config();
 
-const DEFAULT_MODEL = process.env.GEMINI_MODEL || 'gemini-3-flash-preview';
+const DEFAULT_MODEL = 'bedrock/deepseek.v3.2';
 const CONCORRENTES_NOMES = [
   'SAP',
   'TOTVS',
@@ -36,26 +36,17 @@ Empresas: ${CONCORRENTES_NOMES.join(', ')}.
 Foco: lançamentos, investimentos IA, aquisições, parcerias.`;
 
 async function main() {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) throw new Error('Missing GEMINI_API_KEY');
-  const ai = new GoogleGenAI({ apiKey });
-
-  const chat = ai.chats.create({
-    model: DEFAULT_MODEL,
-    config: {
+  try {
+    const response = await callLiteLLM({
+      model: DEFAULT_MODEL,
+      userContent: prompt,
       temperature: 0.6,
       maxOutputTokens: 4096,
-      tools: [{ googleSearch: {} }],
-      responseMimeType: 'application/json',
-    },
-  });
-
-  try {
-    const response = await chat.sendMessage({ message: prompt });
+    });
     console.log('Raw Response:');
     console.log(response.text);
   } catch (e) {
-    console.error('Error calling Gemini API:', e);
+    console.error('Error calling LLM via LiteLLM:', e);
   }
 }
 
