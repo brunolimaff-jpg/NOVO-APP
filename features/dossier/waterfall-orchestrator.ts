@@ -1169,9 +1169,11 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
         assertNotAborted();
 
         if (optionalStepFailures.size > 0) {
-          appendWaterfallChunk(
-            `⚠️ Nota operacional: algumas frentes não puderam ser concluídas nesta rodada (${Array.from(optionalStepFailures).join(', ')}). O dossiê abaixo foi consolidado com o material validado disponível.`,
-          );
+          scoutDiag.warn('WaterfallLifecycle', 'optional-steps-failed', {
+            sessionId,
+            waterfallRunId,
+            failedSteps: Array.from(optionalStepFailures),
+          });
         } else {
           setFailureCount(0);
         }
@@ -1215,7 +1217,12 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
         appendGroundingSources(promotedInlineSources, 'Promoção inline');
 
         if (sessionSourcePool.length === 0 && waterfallGroundingSources.length === 0) {
-          waterfallPrepared = `${waterfallPrepared}\n\n> ⚠️ **Busca web/grounding indisponível nesta rodada.** Citações limitadas — links inventados foram removidos na consolidação.`;
+          scoutDiag.warn('WaterfallLifecycle', 'grounding-unavailable', {
+            sessionId,
+            waterfallRunId,
+            poolSize: 0,
+            groundingSourcesCount: 0,
+          });
         }
 
         scoutDiag.info('FreezeDiag', 'pre-finalize-markdown', {

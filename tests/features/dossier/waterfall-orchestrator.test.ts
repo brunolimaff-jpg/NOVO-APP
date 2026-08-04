@@ -1093,10 +1093,15 @@ describe('useDossierWaterfallOrchestrator', () => {
     expect(harness.resetLoadingProgress).toHaveBeenCalledWith(MODULAR_DOSSIER_STAGES[0], 7);
     expect(harness.replaceLoadingProgressStage).toHaveBeenCalledWith(MODULAR_DOSSIER_STAGES[3], 7);
     expect(harness.setFailureCount.mock.calls.some(([arg]) => typeof arg === 'function')).toBe(true);
-    expect(finalBotMessage.text).toContain('Nota operacional');
-    expect(finalBotMessage.text).toContain('Bordas de Controle');
+    expect(finalBotMessage.text).not.toContain('Nota operacional');
+    expect(finalBotMessage.text).not.toContain('Bordas de Controle');
     expect(finalBotMessage.scorePorta?.score).toBe(68);
     expect(harness.completeLoadingProgress).toHaveBeenCalled();
+    expect(scoutDiagMock.warn).toHaveBeenCalledWith('WaterfallLifecycle', 'optional-steps-failed', {
+      sessionId: expect.any(String),
+      waterfallRunId: expect.any(String),
+      failedSteps: expect.arrayContaining(['Bordas de Controle']),
+    });
   });
 
   it('preserva a continuidade quando o benchmark falha como etapa opcional', async () => {
@@ -1129,10 +1134,15 @@ describe('useDossierWaterfallOrchestrator', () => {
     const finalBotMessage = getBotMessage(harness);
 
     expect(harness.replaceLoadingProgressStage).toHaveBeenCalledWith(MODULAR_DOSSIER_STAGES[6], 7);
-    expect(finalBotMessage.text).toContain('Nota operacional');
-    expect(finalBotMessage.text).toContain('Benchmark de mercado');
+    expect(finalBotMessage.text).not.toContain('Nota operacional');
+    expect(finalBotMessage.text).not.toContain('Benchmark de mercado');
     expect(getSession(harness).scoreOportunidade).toBe(65);
     expect(harness.completeLoadingProgress).toHaveBeenCalled();
+    expect(scoutDiagMock.warn).toHaveBeenCalledWith('WaterfallLifecycle', 'optional-steps-failed', {
+      sessionId: expect.any(String),
+      waterfallRunId: expect.any(String),
+      failedSteps: expect.arrayContaining(['Benchmark de mercado']),
+    });
   });
 
   it('mantém scoreOportunidade intacto quando a integridade PORTA entra em hold', async () => {
