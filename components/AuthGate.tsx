@@ -48,6 +48,14 @@ export const AuthGate: React.FC<AuthGateProps> = ({ children }) => {
     />
   ) : null;
 
+  // Quando a autenticacao e obrigatoria, o modal precisa ser a tela inteira.
+  // Montar children em paralelo deixa o onboarding do operador ativo por baixo
+  // e permite consultas/persistencias pre-auth antes de auth.uid() existir.
+  const mandatoryAuth = showAuthModal && !canSkip;
+  if (mandatoryAuth) {
+    return <>{authModal}</>;
+  }
+
   // Apos prazo: bloquear acesso para usuarios nao autenticados
   if (pastDeadline && isGuest) {
     if (!hasStoredEmail) {

@@ -57,6 +57,8 @@ function renderGate() {
 
 describe('AuthGate — antes do prazo de migracao', () => {
   beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-06-17T12:00:00-03:00'));
     vi.clearAllMocks();
     window.localStorage.clear();
     mockUseMaybeAuth.mockReturnValue(GUEST_STATE);
@@ -82,8 +84,8 @@ describe('AuthGate — antes do prazo de migracao', () => {
     const modal = screen.getByTestId('auth-modal');
     expect(modal).toBeInTheDocument();
     expect(modal).toHaveAttribute('data-guest-option', 'false');
-    // Conteudo protegido esta visivel (modal e overlay, nao substitui children)
-    expect(screen.getByTestId('protected-content')).toBeInTheDocument();
+    // Auth obrigatorio substitui children para nao montar onboarding pre-auth.
+    expect(screen.queryByTestId('protected-content')).not.toBeInTheDocument();
     // Botao continuar sem login NAO deve existir
     expect(screen.queryByTestId('continue-as-guest')).not.toBeInTheDocument();
   });
@@ -211,7 +213,7 @@ describe('AuthGate — apos o prazo de migracao', () => {
 
     expect(screen.getByTestId('auth-modal')).toBeInTheDocument();
     expect(screen.getByTestId('auth-modal')).toHaveAttribute('data-guest-option', 'false');
-    expect(screen.getByText('Acesso temporariamente bloqueado')).toBeInTheDocument();
+    expect(screen.queryByText('Acesso temporariamente bloqueado')).not.toBeInTheDocument();
   });
 
   it('guest com email apos deadline — clicar em criar senha abre modal obrigatório', () => {

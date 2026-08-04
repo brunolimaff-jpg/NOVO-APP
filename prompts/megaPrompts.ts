@@ -11,7 +11,7 @@ export {
   SHARED_FOUNDATION_BLOCK_V5,
   SHARED_PARSER_GUARD_BLOCK,
   SHARED_RECENCY_POLICY_BLOCK,
-} from './mega/foundation';
+} from './mega/foundation.js';
 export {
   PROMPT_CAMINHO_DE_VENDA,
   PROMPT_MAPEAMENTO_DECISORES_GOD_MODE,
@@ -21,9 +21,9 @@ export {
   PROMPT_RH_SINDICATOS_GOD_MODE,
   PROMPT_RISCOS_COMPLIANCE_GOD_MODE,
   PROMPT_TECH_STACK_GOD_MODE_ATAQUE,
-} from './mega/specialist-prompts';
-export { PROMPT_TEIA_IDENTITY_MODULE } from './mega/teia-identity';
-export { PROMPT_TEIA_DEEP_MODULE } from './mega/teia-deep';
+} from './mega/specialist-prompts.js';
+export { PROMPT_TEIA_IDENTITY_MODULE } from './mega/teia-identity.js';
+export { PROMPT_TEIA_DEEP_MODULE } from './mega/teia-deep.js';
 export {
   ALL_SPECIALIST_PROMPTS,
   INVESTIGATION_MODE_BLOCKS,
@@ -32,5 +32,5 @@ export {
   SHARED_FOUNDATION_BLOCK,
   buildInvestigationHiddenPrompt,
   buildLegacyCompatibleHiddenPrompt,
-} from './mega/builders';
-export { default } from './mega/builders';
+} from './mega/builders.js';
+export { default } from './mega/builders.js';
