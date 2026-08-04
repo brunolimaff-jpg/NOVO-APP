@@ -1,13 +1,13 @@
 import React, { useState, type FormEvent } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { storageGet } from '../utils/localStorage';
-import { SUPPORT_CONTACT_URL, SUPPORT_CONTACT_LABEL, PASSWORD_RECOVERY_SUPPORT_TEXT } from '../constants/support';
 
 type Tab = 'entrar' | 'criar-conta';
 
 interface AuthModalProps {
   showGuestOption: boolean;
   onClose: () => void;
+  initialTab?: Tab;
 }
 
 function validateEmail(email: string): string | null {
@@ -23,12 +23,10 @@ function validatePassword(password: string): string | null {
   return null;
 }
 
-export const AuthModal: React.FC<AuthModalProps> = ({ showGuestOption, onClose }) => {
-  const { signIn, signUp, loading: authLoading, error: authError, clearError } = useAuth();
+export const AuthModal: React.FC<AuthModalProps> = ({ showGuestOption, onClose, initialTab = 'entrar' }) => {
+  const { signIn, signUp, resetPassword, loading: authLoading, error: authError, clearError } = useAuth();
 
-  const hasStoredEmail = Boolean(storageGet('operator_email')?.trim());
-
-  const [activeTab, setActiveTab] = useState<Tab>(hasStoredEmail ? 'entrar' : 'criar-conta');
+  const [activeTab, setActiveTab] = useState<Tab>(initialTab);
   const [email, setEmail] = useState(() => storageGet('operator_email')?.trim() || '');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -42,6 +40,23 @@ export const AuthModal: React.FC<AuthModalProps> = ({ showGuestOption, onClose }
     e.preventDefault();
     setFieldError(null);
     clearError();
+
+    if (resetMode) {
+      const emailErr = validateEmail(email);
+      if (emailErr) {
+        setFieldError(emailErr);
+        return;
+      }
+      setSubmitting(true);
+      const { error } = await resetPassword(email);
+      setSubmitting(false);
+      if (error) {
+        setFieldError(error.message);
+      } else {
+        setSuccessMessage('Email de recuperação enviado. Verifique sua caixa de entrada.');
+      }
+      return;
+    }
 
     const emailErr = validateEmail(email);
     if (emailErr) {
@@ -108,15 +123,25 @@ export const AuthModal: React.FC<AuthModalProps> = ({ showGuestOption, onClose }
           {resetMode ? (
             <>
               <h3 className="text-lg font-bold text-white mb-1">Recuperar Senha</h3>
-              <p className="text-sm text-gray-400 mb-4">{PASSWORD_RECOVERY_SUPPORT_TEXT}</p>
-              <a
-                href={SUPPORT_CONTACT_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="block w-full px-4 py-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-sm text-center transition-colors"
-              >
-                Falar com {SUPPORT_CONTACT_LABEL}
-              </a>
+              <p className="text-sm text-gray-400 mb-4">Digite seu email para receber o link de recuperação.</p>
+              <form onSubmit={handleSubmit} className="space-y-3">
+                <input
+                  type="email"
+                  value={email}
+                  onChange={e => setEmail(e.target.value)}
+                  placeholder="seu@email.com"
+                  className="w-full px-3 py-2.5 rounded-lg bg-gray-900 border border-gray-700/50 text-white text-sm focus:outline-none focus:border-emerald-500"
+                  autoFocus
+                  disabled={isBusy}
+                />
+                <button
+                  type="submit"
+                  disabled={isBusy}
+                  className="w-full px-4 py-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {submitting ? 'Enviando...' : 'Enviar Link de Recuperação'}
+                </button>
+              </form>
               <button
                 onClick={() => {
                   setResetMode(false);
