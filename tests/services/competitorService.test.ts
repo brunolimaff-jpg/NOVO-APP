@@ -11,12 +11,12 @@ import {
 } from '../../services/competitorService';
 
 describe('detectCompetitorFromContext', () => {
-  it('retorna encontrado=false quando callGeminiDeepSearch não é fornecido', async () => {
+  it('retorna encontrado=false quando callLlmDeepSearch não é fornecido', async () => {
     const result = await detectCompetitorFromContext('Fazenda São Paulo');
     expect(result.encontrado).toBe(false);
   });
 
-  it('detecta TOTVS a partir de resposta do Gemini', async () => {
+  it('detecta TOTVS a partir de resposta do LLM', async () => {
     const mockGemini = vi
       .fn()
       .mockResolvedValue(
@@ -45,7 +45,7 @@ describe('detectCompetitorFromContext', () => {
     expect(result.encontrado).toBe(false);
   });
 
-  it('detecta SAP a partir de resposta do Gemini', async () => {
+  it('detecta SAP a partir de resposta do LLM', async () => {
     const mockGemini = vi
       .fn()
       .mockResolvedValue(
@@ -68,7 +68,7 @@ describe('detectCompetitorFromContext', () => {
 });
 
 describe('pullCompetitorProfile', () => {
-  it('retorna null quando callGeminiDeepSearch não é fornecido', async () => {
+  it('retorna null quando callLlmDeepSearch não é fornecido', async () => {
     const result = await pullCompetitorProfile('totvs');
     expect(result).toBeNull();
   });
@@ -130,7 +130,7 @@ describe('pullCompetitorProfile', () => {
 });
 
 describe('generatePricingIntel', () => {
-  it('retorna null quando callGeminiDeepSearch não é fornecido', async () => {
+  it('retorna null quando callLlmDeepSearch não é fornecido', async () => {
     const result = await generatePricingIntel('totvs', 'medio');
     expect(result).toBeNull();
   });

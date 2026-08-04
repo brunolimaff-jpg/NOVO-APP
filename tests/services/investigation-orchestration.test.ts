@@ -82,7 +82,7 @@ vi.mock('../../utils/textCleaners', async () => {
   };
 });
 
-import { generateDossierModule, sendMessageToGemini } from '../../services/llmService';
+import { generateDossierModule, sendMessageToLlm } from '../../services/llmService';
 import { Sender } from '../../types';
 
 describe('investigation-orchestration', () => {
@@ -208,7 +208,7 @@ describe('investigation-orchestration', () => {
   });
 
   it('não consulta Pinecone quando o dossiê segue pela trilha mega prompt', async () => {
-    await sendMessageToGemini(
+    await sendMessageToLlm(
       'Dossiê completo de [SCHEFFER & CIA LTDA]. Contexto cadastral obrigatório: CNPJ 04.733.767/0001-80.',
       [{ id: 'user-1', sender: Sender.User, text: 'Investigue Scheffer', timestamp: new Date() }],
       'system',

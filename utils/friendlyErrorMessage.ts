@@ -3,7 +3,7 @@
  * Traduz erros técnicos em linguagem de campo.
  */
 
-export type ErrorContext = 'gemini' | 'rag' | 'network' | 'export' | 'generic';
+export type ErrorContext = 'llm' | 'rag' | 'network' | 'export' | 'generic';
 
 interface FriendlyError {
   title: string;
@@ -77,7 +77,7 @@ export function getFriendlyErrorMessage(error: unknown, context: ErrorContext = 
         detail: 'Não consegui buscar contexto adicional. A resposta pode ser menos detalhada.',
         canRetry: true,
       };
-    case 'gemini':
+    case 'llm':
       return {
         title: 'IA temporariamente indisponível',
         detail: 'Não foi possível processar sua mensagem agora. Tente novamente em instantes.',

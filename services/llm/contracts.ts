@@ -2,7 +2,7 @@ import type { ClienteSeniorData, ScorePortaData, WebVerificationStatus } from '.
 import type { CompetitorDetection } from '../competitorService';
 import type { VerifiedSource } from '../../utils/webVerification';
 
-export interface GeminiRequestOptions {
+export interface LlmRequestOptions {
   thinkingLevel?: 'low' | 'medium' | 'high';
   thinkingMode?: boolean;
   signal?: AbortSignal;
@@ -40,7 +40,7 @@ export interface SpotterExtractedData {
   summary?: string;
 }
 
-export interface SendMessageToGeminiResult {
+export interface SendMessageToLlmResult {
   text: string;
   sources?: Array<{ title: string; url: string }>;
   webVerificationStatus?: WebVerificationStatus;

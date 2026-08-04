@@ -133,7 +133,7 @@ export function stripPortaMarkers(content: string): string {
   let cleaned = normalizePortaContent(content).replace(PORTA_MARKER_ANY_REGEX, '');
   cleaned = stripVisiblePortaFeedSections(cleaned);
 
-  // Limpa o bloco de texto onde o Gemini explica as notas para n poluir o layout, já q vao no hover agora.
+  // Limpa o bloco de texto onde o LLM explica as notas para n poluir o layout, já q vao no hover agora.
   // Pode vir como "**SCORE PORTA**" ou "### SCORE PORTA" etc.
   cleaned = cleaned.replace(/(?:\*\*|###\s*)SCORE PORTA(?:\*\*|:)?[\s\S]*?(?=\n\n|\n*$)/gi, '');
 

@@ -70,7 +70,7 @@ const InlineLoadingBubble: React.FC<InlineLoadingBubbleProps> = ({
 
   // Se a store já liberou o loading mas o componente ainda está montado,
   // é um stale mount — auto-destrói após grace period. useEffect garante
-  // re-render mesmo sem re-render do pai (Gemini code review feedback).
+  // re-render mesmo sem re-render do pai (LLM code review feedback).
   const storeSaysDone = chatStore && !chatStore.isLoading;
   const [graceExpired, setGraceExpired] = useState(false);
   React.useEffect(() => {

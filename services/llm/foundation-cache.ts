@@ -1,10 +1,10 @@
 /**
  * Contexto estático do dossiê (helpers puros).
  *
- * O foundation cache Gemini (createCachedContent/deleteCachedContent) foi
- * removido integralmente — era otimização exclusiva do SDK Gemini e o LiteLLM
- * não suporta cachedContent. O contexto estático agora é sempre embutido
- * inline em cada chamada de módulo.
+ * O foundation cache (createCachedContent/deleteCachedContent) foi removido
+ * integralmente — era otimização exclusiva do SDK antigo e o LiteLLM não
+ * suporta cachedContent. O contexto estático agora é sempre embutido inline
+ * em cada chamada de módulo.
  */
 
 export interface StaticDossierContextInput {

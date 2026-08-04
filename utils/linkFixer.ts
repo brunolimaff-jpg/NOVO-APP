@@ -1,5 +1,5 @@
 /**
- * linkFixer.ts - Intercepta e corrige links falsos gerados pelo Gemini
+ * linkFixer.ts - Intercepta e corrige links falsos gerados pelo LLM
  * VERSÃO MELHORADA: Menos agressivo, preserva mais fontes
  */
 

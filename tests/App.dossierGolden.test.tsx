@@ -13,7 +13,7 @@ const fixtureRoot = resolve(process.cwd(), 'tests', 'fixtures', 'dossier', 'sche
 const {
   sessionStateRef,
   downloadFileMock,
-  sendMessageToGeminiMock,
+  sendMessageToLlmMock,
   generateDossierModuleMock,
   generateContinuityQuestionMock,
   getIsolatedBenchmarkMock,
@@ -22,7 +22,7 @@ const {
 } = vi.hoisted(() => ({
   sessionStateRef: { current: [] as unknown[] },
   downloadFileMock: vi.fn(),
-  sendMessageToGeminiMock: vi.fn(),
+  sendMessageToLlmMock: vi.fn(),
   generateDossierModuleMock: vi.fn(),
   generateContinuityQuestionMock: vi.fn(),
   getIsolatedBenchmarkMock: vi.fn(),
@@ -221,7 +221,7 @@ vi.mock('../services/clientLookupService', () => ({
 }));
 
 vi.mock('../services/llmService', () => ({
-  sendMessageToGemini: sendMessageToGeminiMock,
+  sendMessageToLlm: sendMessageToLlmMock,
   generateContinuityQuestion: generateContinuityQuestionMock,
   generateDossierModule: generateDossierModuleMock,
   getIsolatedBenchmark: getIsolatedBenchmarkMock,
@@ -265,7 +265,7 @@ describe('App dossier markdown golden flow', () => {
     formatarParaPromptMock.mockReturnValue('Contexto CRM interno Senior para Scheffer.');
     generateContinuityQuestionMock.mockResolvedValue(suggestionsFixture);
     getIsolatedBenchmarkMock.mockResolvedValue(benchmarkFixture);
-    sendMessageToGeminiMock.mockRejectedValue(new Error('sendMessageToGemini should not be called for dossier flow'));
+    sendMessageToLlmMock.mockRejectedValue(new Error('sendMessageToLlm should not be called for dossier flow'));
     generateDossierModuleMock.mockImplementation(async (moduleName: string) => {
       if (!(moduleName in moduleFixtures)) {
         throw new Error(`Unexpected dossier module request in golden test: ${moduleName}`);
@@ -292,7 +292,7 @@ describe('App dossier markdown golden flow', () => {
       expect(downloadFileMock).toHaveBeenCalledTimes(1);
     });
 
-    expect(sendMessageToGeminiMock).not.toHaveBeenCalled();
+    expect(sendMessageToLlmMock).not.toHaveBeenCalled();
     expect(lookupClienteMock).toHaveBeenCalledWith('Scheffer & CIA LTDA');
     expect(downloadFileMock).toHaveBeenCalledWith(
       expect.stringMatching(/\.md$/),

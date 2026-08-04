@@ -32,7 +32,7 @@ import {
 } from '../portaStateService';
 import { TACTICAL_MODEL_ID, selectMainChatModelId } from './config';
 import { STABLE_RESEARCH_MODEL_ID } from '../../config/models';
-import type { DossierModuleOptions, GeminiRequestOptions, SendMessageToGeminiResult } from './contracts';
+import type { DossierModuleOptions, LlmRequestOptions, SendMessageToLlmResult } from './contracts';
 import { parsePortaFeeds } from './porta';
 import { debugRecovery, looksLikeMissedOpenQuestionAnswer, trackOpenQuestionRecoveryAttempt } from './recovery';
 import {
@@ -148,13 +148,13 @@ function processPortaFeeds(params: {
   return null;
 }
 
-export async function sendMessageToGemini(
+export async function sendMessageToLlm(
   userMessage: string,
   conversationHistory: Message[],
   systemPrompt: string,
-  options: GeminiRequestOptions = {},
+  options: LlmRequestOptions = {},
   canUseLookup: boolean = true,
-): Promise<SendMessageToGeminiResult> {
+): Promise<SendMessageToLlmResult> {
   const {
     thinkingLevel,
     thinkingMode,
@@ -373,10 +373,10 @@ export async function sendMessageToGemini(
   promptBudget.modelToUse = modelToUse;
 
   if (isMegaPromptMessage || isDeepDive) {
-    scoutDiag.info?.('GeminiBudget', 'iniciando investigação com orçamento de contexto', promptBudget);
+    scoutDiag.info?.('LlmBudget', 'iniciando investigação com orçamento de contexto', promptBudget);
     const totalChars = promptBudget.userChars + promptBudget.systemChars + promptBudget.historyChars;
     if (totalChars > 120000) {
-      scoutDiag.warn('GeminiBudget', 'payload elevado para investigação', {
+      scoutDiag.warn('LlmBudget', 'payload elevado para investigação', {
         ...promptBudget,
         totalChars,
       });
@@ -390,7 +390,7 @@ export async function sendMessageToGemini(
   let response;
   const requestStartedAt = Date.now();
   response = await withAutoRetry(
-    'Gemini:sendMessage',
+    'Llm:sendMessage',
     () =>
       proxyChatSendMessage(
         {
@@ -426,7 +426,7 @@ export async function sendMessageToGemini(
   }
 
   if (isMegaPromptMessage || isDeepDive) {
-    scoutDiag.info?.('GeminiTiming', 'investigação concluída', {
+    scoutDiag.info?.('LlmTiming', 'investigação concluída', {
       sessionId: sessionId ?? null,
       resolvedCompany: empresaAlvo ?? null,
       modelToUse,

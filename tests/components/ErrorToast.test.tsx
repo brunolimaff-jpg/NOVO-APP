@@ -23,8 +23,8 @@ describe('ErrorToast', () => {
   });
 
   // Cenário 2 — Render correto: título e detalhe amigável aparecem
-  it('renderiza título e detalhe traduzidos para o contexto gemini', () => {
-    render(<ErrorToast error={new Error('gemini unavailable')} context="gemini" onClose={vi.fn()} />);
+  it('renderiza título e detalhe traduzidos para o contexto llm', () => {
+    render(<ErrorToast error={new Error('llm unavailable')} context="llm" onClose={vi.fn()} />);
     expect(screen.getByRole('status')).toBeInTheDocument();
     // Deve conter algum texto de título (não expõe mensagem técnica raw)
     expect(screen.getByText(/IA temporariamente indisponível/i)).toBeInTheDocument();

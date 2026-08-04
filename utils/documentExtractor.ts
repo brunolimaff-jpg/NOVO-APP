@@ -85,7 +85,7 @@ export async function extractDocx(buffer: Buffer): Promise<string> {
 
 /**
  * Realiza busca web via DuckDuckGo Lite (POST). A busca por APIs/coletores
- * (Brave + DDG) é o único meio de pesquisa pública — Gemini Search Grounding
+ * (Brave + DDG) é o único meio de pesquisa pública — LLM Search Grounding
  * foi removido.
  */
 export async function performWebSearch(query: string, _options: { count?: number } = {}): Promise<string | null> {

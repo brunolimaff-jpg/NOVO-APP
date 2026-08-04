@@ -4,7 +4,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { DEFAULT_MODE } from '../../constants';
 import { useMaybeMode } from '../../contexts/ModeContext';
 import { BACKEND_URL } from '../../services/apiConfig';
-import { sendMessageToGemini } from '../../services/llmService';
+import { sendMessageToLlm } from '../../services/llmService';
 import { withAutoRetry } from '../../utils/retry';
 import { useMaybeChatStore } from '../../stores/chatStore';
 import { findReusableEmptySession } from './session-reuse';
@@ -629,9 +629,9 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
           ghostReason,
           webVerificationStatus,
         } = await withAutoRetry(
-          'sendMessageToGemini',
+          'sendMessageToLlm',
           () =>
-            sendMessageToGemini(
+            sendMessageToLlm(
               text,
               historyToPass,
               systemInstruction,
@@ -660,12 +660,12 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
           contextText: responseText,
         });
 
-        // Guard: resposta vazia do Gemini não deve gerar card invisível
+        // Guard: resposta vazia do LLM não deve gerar card invisível
         const fallbackText = '*Sem resposta do assistente.*';
         const finalResponseText = responseText && responseText.trim().length > 0 ? responseText : fallbackText;
 
         if (finalResponseText === fallbackText) {
-          scoutDiag.warn('MessageOrchestrator', 'Gemini retornou texto vazio — usando fallback', {
+          scoutDiag.warn('MessageOrchestrator', 'LLM retornou texto vazio — usando fallback', {
             sessionId,
             company: normalizedCompany || hintedCompany || null,
           });

@@ -1,6 +1,6 @@
 /**
  * Testes para llmService.ts
- * Foco nas funções exportadas: parsePortaFeeds, cleanPortaFeedMarkers, parseMarkers, sendMessageToGemini
+ * Foco nas funções exportadas: parsePortaFeeds, cleanPortaFeedMarkers, parseMarkers, sendMessageToLlm
  *
  * NOTA: resetChatSession e generateNewSuggestions não existem no módulo
  * (dívida técnica — useChat.ts referencia exports inexistentes).
@@ -63,7 +63,7 @@ import {
   parsePortaFeeds,
   cleanPortaFeedMarkers,
   parseMarkers,
-  sendMessageToGemini,
+  sendMessageToLlm,
   generateContinuityQuestion,
 } from '../../services/llmService';
 import { Sender } from '../../types';
@@ -388,7 +388,7 @@ describe('generateContinuityQuestion', () => {
   });
 });
 
-describe('sendMessageToGemini — cenários de erro', () => {
+describe('sendMessageToLlm — cenários de erro', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     buscarContextoPineconeMock.mockResolvedValue('');
@@ -404,7 +404,7 @@ describe('sendMessageToGemini — cenários de erro', () => {
 
     // llmService lança DOMException com name='AbortError'
     await expect(
-      sendMessageToGemini('Analise a Fazenda X', [], 'system instruction', {
+      sendMessageToLlm('Analise a Fazenda X', [], 'system instruction', {
         signal: controller.signal,
         onText: vi.fn(),
         onStatus: vi.fn(),
@@ -420,7 +420,7 @@ describe('sendMessageToGemini — cenários de erro', () => {
     proxyGenerateContentMock.mockRejectedValue(networkError);
 
     await expect(
-      sendMessageToGemini('Pergunta', [], 'system', {
+      sendMessageToLlm('Pergunta', [], 'system', {
         onText: vi.fn(),
         onStatus: vi.fn(),
       }),
@@ -434,7 +434,7 @@ describe('sendMessageToGemini — cenários de erro', () => {
     proxyGenerateContentMock.mockRejectedValue(rateLimitError);
 
     await expect(
-      sendMessageToGemini('Pergunta', [], 'system', {
+      sendMessageToLlm('Pergunta', [], 'system', {
         onText: vi.fn(),
         onStatus: vi.fn(),
       }),
@@ -444,7 +444,7 @@ describe('sendMessageToGemini — cenários de erro', () => {
   it('em deep dive envia apenas histórico recente do vendedor para evitar repetição do dossiê anterior', async () => {
     proxyChatSendMessageMock.mockResolvedValue({ text: 'ok' });
 
-    await sendMessageToGemini(
+    await sendMessageToLlm(
       'Dossiê completo de [Acme Agro]. Protocolo de investigação forense especializada:\n\nARQUITETURA DE TI',
       [
         { id: '1', sender: 'user' as any, text: 'Investigue Acme Agro', timestamp: new Date() } as any,
@@ -481,7 +481,7 @@ describe('sendMessageToGemini — cenários de erro', () => {
       'Fechar com ERP + GAtec.',
     ].join('\n');
 
-    await sendMessageToGemini(
+    await sendMessageToLlm(
       'qual frase eu mando pro Edinaldo agora?',
       [
         {
@@ -522,7 +522,7 @@ describe('sendMessageToGemini — cenários de erro', () => {
     proxyChatSendMessageMock.mockResolvedValue({ text: 'Resposta curta.' });
     const firstDossier = `Dossiê inicial com tese da conta.\n${'A'.repeat(8500)}`;
 
-    await sendMessageToGemini(
+    await sendMessageToLlm(
       'qual é a próxima pergunta?',
       [
         {
@@ -570,7 +570,7 @@ describe('sendMessageToGemini — cenários de erro', () => {
   it('envia thinkingLevel=high por padrão quando não há configuração explícita', async () => {
     proxyChatSendMessageMock.mockResolvedValue({ text: 'ok' });
 
-    await sendMessageToGemini('Pergunta simples', [], 'system', {
+    await sendMessageToLlm('Pergunta simples', [], 'system', {
       onText: vi.fn(),
       onStatus: vi.fn(),
     });
@@ -584,7 +584,7 @@ describe('sendMessageToGemini — cenários de erro', () => {
   it('mapeia thinkingMode=false legado para thinkingLevel=low', async () => {
     proxyChatSendMessageMock.mockResolvedValue({ text: 'ok' });
 
-    await sendMessageToGemini('Pergunta simples', [], 'system', {
+    await sendMessageToLlm('Pergunta simples', [], 'system', {
       thinkingMode: false,
       onText: vi.fn(),
       onStatus: vi.fn(),
@@ -599,7 +599,7 @@ describe('sendMessageToGemini — cenários de erro', () => {
   it('prioriza thinkingLevel explícito sobre thinkingMode legado', async () => {
     proxyChatSendMessageMock.mockResolvedValue({ text: 'ok' });
 
-    await sendMessageToGemini('Pergunta simples', [], 'system', {
+    await sendMessageToLlm('Pergunta simples', [], 'system', {
       thinkingLevel: 'medium',
       thinkingMode: true,
       onText: vi.fn(),

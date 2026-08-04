@@ -5,11 +5,11 @@ import App from '../App';
 import { ChatStoreProvider } from '../stores/chatStore';
 import { DossierStoreProvider } from '../stores/dossierStore';
 
-const { deepDiveErrorRef, deepDiveAccessRef, sendMessageToGeminiMock, generateDossierModuleMock, setSessionsMock } =
+const { deepDiveErrorRef, deepDiveAccessRef, sendMessageToLlmMock, generateDossierModuleMock, setSessionsMock } =
   vi.hoisted(() => ({
     deepDiveErrorRef: { current: null as unknown },
     deepDiveAccessRef: { current: true },
-    sendMessageToGeminiMock: vi.fn(async () => ({
+    sendMessageToLlmMock: vi.fn(async () => ({
       text: 'Resposta consolidada',
       sources: [],
       suggestions: [],
@@ -220,7 +220,7 @@ vi.mock('../utils/featureAccess', () => ({
 }));
 
 vi.mock('../services/llmService', () => ({
-  sendMessageToGemini: sendMessageToGeminiMock,
+  sendMessageToLlm: sendMessageToLlmMock,
   generateContinuityQuestion: vi.fn(),
   generateDossierModule: generateDossierModuleMock,
   getIsolatedBenchmark: vi.fn(),
@@ -241,7 +241,7 @@ describe('App loading variant regression', () => {
   });
 
   it('mantém a primeira investigação em hero e mostra o LoadingSmart global', async () => {
-    sendMessageToGeminiMock.mockImplementationOnce(() => new Promise(() => {}));
+    sendMessageToLlmMock.mockImplementationOnce(() => new Promise(() => {}));
 
     renderApp();
 
@@ -257,7 +257,7 @@ describe('App loading variant regression', () => {
   });
 
   it('executa deep dive sem quebrar por requestKind ou fixedLoadingLine indefinidos', async () => {
-    sendMessageToGeminiMock.mockImplementationOnce(() => new Promise(() => {}));
+    sendMessageToLlmMock.mockImplementationOnce(() => new Promise(() => {}));
 
     renderApp();
 

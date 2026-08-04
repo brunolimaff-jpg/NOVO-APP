@@ -1,7 +1,7 @@
 /**
  * RAG (Pinecone) — DESATIVADO até reindexação autorizada.
  *
- * O índice atual foi populado com `gemini-embedding-001` (3072 dimensões).
+ * O índice atual foi populado com um modelo de embedding legado (3072 dimensões).
  * A migração para embeddings via LiteLLM usa `bedrock/amazon.titan-embed-text-v1`
  * (1536 dimensões) — vetores incompatíveis exigem reindexação completa antes
  * de reativar. Enquanto RAG_ENABLED !== 'true', responde 503 antes de qualquer

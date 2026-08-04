@@ -4,10 +4,10 @@
 export { getPortaState, resetPortaState, initPortaState } from './portaStateService';
 export { parsePortaMarkerV2 } from '../utils/porta';
 
-export type { GeminiRequestOptions, SendMessageToGeminiResult, SpotterExtractedData } from './llm/contracts';
+export type { LlmRequestOptions, SendMessageToLlmResult, SpotterExtractedData } from './llm/contracts';
 export type { ParsedPortaFeeds } from './llm/porta';
 
 export { cleanPortaFeedMarkers, parseMarkers, parsePortaFeeds } from './llm/porta';
 export { generateContinuityQuestion } from './llm/auxiliary';
-export { generateDossierModule, getIsolatedBenchmark, sendMessageToGemini } from './llm/investigation-orchestration';
+export { generateDossierModule, getIsolatedBenchmark, sendMessageToLlm } from './llm/investigation-orchestration';
 export { isMegaPromptRequest } from './llm/runtime';

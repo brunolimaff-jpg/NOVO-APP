@@ -50,10 +50,14 @@ describe('selectMainChatModelId', () => {
 });
 
 describe('MODEL_IDS', () => {
-  it('keeps same model id across roles', () => {
-    expect(MODEL_IDS.router).toBe('gemini-3-flash-preview');
-    expect(MODEL_IDS.tactical).toBe(MODEL_IDS.router);
-    expect(MODEL_IDS.deepChat).toBe(MODEL_IDS.router);
-    expect(MODEL_IDS.deepResearch).toBe(MODEL_IDS.router);
+  it('expõe apenas intenções neutras — sem nome de provedor ou modelo concreto', () => {
+    expect(MODEL_IDS.router).toBe('scout-router');
+    expect(MODEL_IDS.tactical).toBe('scout-tactical');
+    expect(MODEL_IDS.deepChat).toBe('scout-deep-chat');
+    expect(MODEL_IDS.deepResearch).toBe('scout-deep-research');
+    const values = Object.values(MODEL_IDS);
+    for (const value of values) {
+      expect(value).not.toMatch(/gemini|bedrock|openrouter|huawei|oracle|amazon/i);
+    }
   });
 });

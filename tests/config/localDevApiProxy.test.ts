@@ -6,7 +6,7 @@ describe('local dev API proxy', () => {
     expect(LOCAL_DEV_API_PROXY_TARGET).toBe('https://scoutagro.vercel.app');
     expect(LOCAL_DEV_API_PROXY_PATHS).toEqual(
       expect.arrayContaining([
-        '/api/gemini',
+        '/api/llm',
         '/api/open-web-search',
         '/api/link-status',
         '/api/extract-content',

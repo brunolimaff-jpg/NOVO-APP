@@ -36,8 +36,8 @@ export function normalizeAppError(
   const rawMessage = typeof errorLike.message === 'string' ? errorLike.message : String(error);
   const explicitStatus =
     typeof errorLike.status === 'number' ? errorLike.status : typeof errorLike.code === 'number' ? errorLike.code : 0;
-  // Extrai status HTTP do formato "Gemini proxy failed (XXX): ..." (llmProxy.ts)
-  const proxyStatusMatch = rawMessage.match(/Gemini proxy failed \((\d{3})\)/);
+  // Extrai status HTTP do formato "LLM proxy failed (XXX): ..." (llmProxy.ts)
+  const proxyStatusMatch = rawMessage.match(/LLM proxy failed \((\d{3})\)/);
   // Extrai status HTTP de JSON inline: {"code":"500"} ou "code": 500
   const jsonStatusMatch = rawMessage.match(/"code"\s*:\s*"?(\d{3})"?/);
   const status =

@@ -964,8 +964,8 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
             });
 
             const callLLM = async (prompt: string): Promise<string> => {
-              const { sendMessageToGemini } = await import('../../services/llmService');
-              const result = await sendMessageToGemini(
+              const { sendMessageToLlm } = await import('../../services/llmService');
+              const result = await sendMessageToLlm(
                 prompt,
                 [],
                 'Você é um planejador de investigação. Retorne APENAS JSON válido.',

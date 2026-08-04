@@ -38,10 +38,10 @@ export async function generateContinuityQuestion(
     .map(message => `${message.sender === Sender.User ? 'Vendedor' : 'Scout'}: ${message.text?.slice(0, 300) || ''}`)
     .join('\n');
 
-  // BYPASS 2026-06-09: generateContinuityQuestion pula Gemini.
+  // BYPASS 2026-06-09: generateContinuityQuestion pula LLM.
   // 100% das tentativas caíam no fallback (~20s latência sem retorno).
   // O fallback ensureContinuitySuggestions tem 23 templates em 6 temas — qualidade equivalente.
-  // Código Gemini completo preservado no git history (removido em refatoração god-component).
+  // Código LLM completo preservado no git history (removido em refatoração god-component).
   return ensureContinuitySuggestions([], normalizedCompany, {
     contextText: recentMessages,
     avoidSuggestions: normalizedExcludedSuggestions,

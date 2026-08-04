@@ -60,8 +60,6 @@ describe('api/llm handler (LiteLLM-only)', () => {
     vi.clearAllMocks();
     vi.resetModules();
     isLiteLLMEnabledMock.mockReturnValue(true);
-    delete process.env.GEMINI_API_KEY;
-    delete process.env.GEMINI_API_KEY_FALLBACK;
   });
 
   it('rejeita método não-POST com 405', async () => {
