@@ -12,7 +12,7 @@
  *
  * DIAGNÓSTICO PERSISTENTE (Supabase):
  *   Ativar: VITE_SCOUT_DIAGNOSTICS_ENABLED=true ou localStorage.SCOUT_DIAG_ENABLED='1'
- *   Cada evento do scoutDiag é enviado em batch para /api/gemini endpoint (action: recordDiagnostics) → Supabase scout_diagnostics.
+ *   Cada evento do scoutDiag é enviado em batch para /api/llm endpoint (action: recordDiagnostics) → Supabase scout_diagnostics.
  *   Se a API falhar, eventos são salvos em localStorage para retry.
  */
 
@@ -203,7 +203,7 @@ async function flushToServer(_reason: string, force = false): Promise<void> {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), DIAG_FLUSH_TIMEOUT_MS);
 
-    const response = await fetch('/api/gemini', {
+    const response = await fetch('/api/llm', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

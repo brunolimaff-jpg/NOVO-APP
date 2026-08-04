@@ -143,7 +143,7 @@ describe('investigation-orchestration', () => {
     expect(result).toContain('[[PORTA_FEED_O:7:ELOS:Plantio,Armazenagem]]');
   });
 
-  it('marca como unverified quando grounding nao retorna fontes (sem fallback web)', async () => {
+  it('marca como not_applicable quando não há grounding (sem fallback web)', async () => {
     const onGroundingSources = vi.fn();
     const onVerificationStatus = vi.fn();
 
@@ -153,15 +153,15 @@ describe('investigation-orchestration', () => {
       'foundation block',
       'specialist block',
       'Sócio: João Piccini',
-      { useGrounding: true, onGroundingSources, onVerificationStatus },
+      { onGroundingSources, onVerificationStatus },
     );
 
     expect(result).toContain('Conclusão parcial');
     expect(executeOpenWebSearchToolMock).not.toHaveBeenCalled();
-    expect(onVerificationStatus).toHaveBeenCalledWith('unverified', 'Riscos & Compliance');
+    expect(onVerificationStatus).toHaveBeenCalledWith('not_applicable', 'Riscos & Compliance');
   });
 
-  it('preserva módulo como não verificado quando grounding e fallback não retornam fontes', async () => {
+  it('preserva módulo sem grounding — verificação não aplicável', async () => {
     const onVerificationStatus = vi.fn();
 
     const result = await generateDossierModule(
@@ -170,18 +170,18 @@ describe('investigation-orchestration', () => {
       'foundation block',
       'specialist block',
       '',
-      { useGrounding: true, onVerificationStatus },
+      { onVerificationStatus },
     );
 
     expect(result).toContain('Conclusão parcial');
     expect(result).not.toContain('Módulo retido');
-    expect(onVerificationStatus).toHaveBeenCalledWith('unverified', 'Tech Stack');
+    expect(onVerificationStatus).toHaveBeenCalledWith('not_applicable', 'Tech Stack');
   });
 
-  it('usa cachedContent e dynamic prompt quando foundationCacheName está definido', async () => {
+  it('envia foundation e prompt do especialista como systemInstruction (sem cachedContent)', async () => {
     proxyGenerateContentMock.mockResolvedValueOnce({
-      text: 'Módulo cacheado',
-      usageMetadata: { cachedContentTokenCount: 12000, promptTokenCount: 900 },
+      text: 'Módulo gerado',
+      usageMetadata: { promptTokenCount: 900 },
     });
 
     await generateDossierModule(
@@ -190,19 +190,20 @@ describe('investigation-orchestration', () => {
       'foundation block',
       'specialist block',
       'extra context',
-      { foundationCacheName: 'cachedContents/test-cache' },
     );
 
     expect(proxyGenerateContentMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        contents: expect.stringContaining('specialist block'),
+        contents: expect.stringContaining('Empresa alvo: SCHEFFER & CIA LTDA'),
         config: expect.objectContaining({
-          cachedContent: 'cachedContents/test-cache',
+          systemInstruction: expect.stringContaining('foundation block'),
+          temperature: 0.2,
+          maxOutputTokens: 8192,
         }),
       }),
       undefined,
     );
-    expect(proxyGenerateContentMock.mock.calls[0][0].config).not.toHaveProperty('systemInstruction');
+    expect(proxyGenerateContentMock.mock.calls[0][0].config).not.toHaveProperty('cachedContent');
     expect(proxyGenerateContentMock.mock.calls[0][0].config).not.toHaveProperty('tools');
   });
 

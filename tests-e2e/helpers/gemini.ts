@@ -87,5 +87,5 @@ async function stubGeminiApi(route: Route) {
 }
 
 export async function installFastGeminiStubs(page: Page) {
-  await page.route('**/api/gemini**', stubGeminiApi);
+  await page.route('**/api/llm**', stubGeminiApi);
 }

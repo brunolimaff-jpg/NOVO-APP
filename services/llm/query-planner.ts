@@ -53,7 +53,7 @@ export interface BraveSearchResult {
   url: string;
   title: string;
   snippet: string;
-  provider: 'gemini_grounding' | 'duckduckgo';
+  provider: 'web' | 'duckduckgo';
   retrievedAt: string;
 }
 
@@ -343,7 +343,7 @@ export async function executeQueryPlan(plan: QueryPlan): Promise<EvidencePack> {
                 url: urlMatch[1].trim(),
                 title: titleMatch?.[1].trim() || urlMatch[1].trim(),
                 snippet: resumoMatch?.[1].trim().slice(0, 1000) || '',
-                provider: 'gemini_grounding' as const,
+                provider: 'web' as const,
                 retrievedAt: new Date().toISOString(),
               } as BraveSearchResult;
             })

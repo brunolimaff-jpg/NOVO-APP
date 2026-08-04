@@ -84,110 +84,11 @@ export async function extractDocx(buffer: Buffer): Promise<string> {
 }
 
 /**
- * Usa Gemini Search Grounding APENAS para encontrar URLs relevantes.
- * Os CNPJs sao extraidos diretamente do scraping dessas URLs — zero alucinacao.
- * Retorna no formato Título/URL/Resumo/--- compatível com splitSearchBlocks().
- */
-export async function performGeminiSearch(query: string, apiKey: string): Promise<string | null> {
-  scoutDiag.info('DocumentExtractor', `Buscando URLs via Gemini Search Grounding: ${query}`);
-
-  try {
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [
-            {
-              parts: [
-                {
-                  text: `Find web pages listing Brazilian companies where "${query}" appears as a partner, shareholder, or administrator. Focus on consultasocio.com, econodata.com.br, cnpj.ws, casadosdados.com.br, and similar Brazilian corporate registry sites.`,
-                },
-              ],
-            },
-          ],
-          tools: [{ google_search: {} }],
-          generationConfig: { temperature: 0, maxOutputTokens: 256 },
-        }),
-        signal: AbortSignal.timeout(30000),
-      },
-    );
-
-    if (!response.ok) {
-      scoutDiag.warn('DocumentExtractor', `Gemini API error: ${response.status}`);
-      return null;
-    }
-
-    const data = (await response.json()) as {
-      candidates?: Array<{
-        groundingMetadata?: {
-          groundingChunks?: Array<{ web?: { uri?: string; title?: string } }>;
-        };
-      }>;
-    };
-    const groundingMetadata = data?.candidates?.[0]?.groundingMetadata;
-    const groundingChunks: Array<{ web?: { uri?: string; title?: string } }> = groundingMetadata?.groundingChunks || [];
-
-    if (groundingChunks.length === 0) {
-      scoutDiag.warn('DocumentExtractor', 'Gemini Search: sem URLs de grounding');
-      return null;
-    }
-
-    const cheerio = await import('cheerio');
-    const results: string[] = [];
-    const urlSet = new Set<string>();
-
-    for (const chunk of groundingChunks) {
-      const url = chunk?.web?.uri || '';
-      const title = chunk?.web?.title || '';
-      if (!url || urlSet.has(url) || !isValidPublicUrl(url)) continue;
-      urlSet.add(url);
-
-      try {
-        const pageResponse = await fetch(url, {
-          headers: { 'User-Agent': 'Mozilla/5.0 ScoutAgro/1.0' },
-          signal: AbortSignal.timeout(8000),
-        });
-
-        if (!pageResponse.ok) continue;
-
-        const html = await pageResponse.text();
-        const $ = cheerio.load(html);
-        const pageText = $('body').text().replace(/\s+/g, ' ').trim().slice(0, 6000);
-
-        if (!pageText) continue;
-
-        results.push(`Título: ${title}\nURL: ${url}\nResumo: ${pageText}\n---`);
-      } catch {
-        continue;
-      }
-    }
-
-    scoutDiag.info('DocumentExtractor', `Gemini Search: ${results.length} paginas extraidas`);
-    return results.length > 0 ? results.join('\n') : null;
-  } catch (error) {
-    scoutDiag.warn('DocumentExtractor', 'Erro na busca Gemini Search', {
-      message: error instanceof Error ? error.message : String(error),
-    });
-    return null;
-  }
-}
-
-/**
- * Realiza busca web via Gemini Search Grounding (se API key disponivel)
- * ou fallback para DuckDuckGo Lite (POST).
+ * Realiza busca web via DuckDuckGo Lite (POST). A busca por APIs/coletores
+ * (Brave + DDG) é o único meio de pesquisa pública — Gemini Search Grounding
+ * foi removido.
  */
 export async function performWebSearch(query: string, _options: { count?: number } = {}): Promise<string | null> {
-  // Tenta Gemini com grounding primeiro (mais preciso, com fontes verificadas)
-  const apiKey =
-    typeof process !== 'undefined' && process.env ? process.env.LLM_API_KEY || process.env.GEMINI_API_KEY : undefined;
-  if (apiKey) {
-    const result = await performGeminiSearch(query, apiKey);
-    if (result) return result;
-    scoutDiag.info('DocumentExtractor', 'Gemini indisponivel, fallback para DuckDuckGo');
-  }
-  // Fallback para DuckDuckGo
   return performDuckDuckGoSearch(query);
 }
 

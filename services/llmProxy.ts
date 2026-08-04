@@ -1,6 +1,6 @@
 import { scoutDiag } from '../utils/diagnosticLog';
 
-type GeminiApiAction = 'generateContent' | 'chatSendMessage' | 'createCachedContent' | 'deleteCachedContent';
+type GeminiApiAction = 'generateContent' | 'chatSendMessage';
 
 interface GeminiApiBaseRequest {
   action: GeminiApiAction;
@@ -27,10 +27,8 @@ interface GeminiChatRequest extends GeminiApiBaseRequest {
   systemInstruction: string;
   history: Array<{ role: 'user' | 'model'; text: string }>;
   message: string;
-  useGrounding?: boolean;
   thinkingLevel?: 'low' | 'medium' | 'high';
   thinkingMode?: boolean;
-  useOpenWebSearch?: boolean;
   temperature?: number;
   stopSequences?: string[];
   // Cost tracking fields (all optional)
@@ -49,41 +47,8 @@ interface GeminiGenerateResponse {
   usageMetadata?: Record<string, unknown>;
 }
 
-interface GeminiCreateCachedContentRequest extends GeminiApiBaseRequest {
-  action: 'createCachedContent';
-  model: string;
-  systemInstruction: string;
-  ttl?: string;
-  displayName?: string;
-  tools?: unknown[];
-}
-
-interface GeminiCreateCachedContentResponse {
-  name?: string;
-  expireTime?: string;
-  usageMetadata?: Record<string, unknown>;
-}
-
-interface GeminiDeleteCachedContentRequest extends GeminiApiBaseRequest {
-  action: 'deleteCachedContent';
-  name: string;
-}
-
-interface GeminiDeleteCachedContentResponse {
-  ok: boolean;
-}
-
 export interface GeminiChatResponse {
   text: string;
-  groundingChunks?: unknown[];
-  /**
-   * true  = grounding ativo e retornou chunks concretos.
-   * false = fallback silencioso foi acionado (grounding falhou) OU grounding
-   *         ativo mas sem chunks relevantes. Ambos os casos exigem aviso visual.
-   * Ausente (undefined) quando o campo nao foi retornado pela API (compatibilidade
-   * com versoes antigas — tratar como undefined, nao como false).
-   */
-  groundingUsed?: boolean;
   webVerificationStatus?: 'verified' | 'fallback_verified' | 'unverified' | 'not_applicable';
 }
 
@@ -109,8 +74,8 @@ export function resolveGeminiApiEndpoint(
   isDev: boolean = import.meta.env.DEV,
 ): string {
   const isLocalDevHost = hostname === 'localhost' || hostname === '127.0.0.1';
-  if (!(isDev && isLocalDevHost)) return '/api/gemini';
-  return CUSTOM_LLM_PROXY_BASE_URL ? `${CUSTOM_LLM_PROXY_BASE_URL}/api/gemini` : '/api/gemini';
+  if (!(isDev && isLocalDevHost)) return '/api/llm';
+  return CUSTOM_LLM_PROXY_BASE_URL ? `${CUSTOM_LLM_PROXY_BASE_URL}/api/llm` : '/api/llm';
 }
 
 function buildAbortError(): Error {
@@ -144,8 +109,6 @@ async function callGeminiApi<TResponse>(
   payload:
     | GeminiGenerateRequest
     | GeminiChatRequest
-    | GeminiCreateCachedContentRequest
-    | GeminiDeleteCachedContentRequest
     | Record<string, unknown>,
   signal?: AbortSignal,
 ): Promise<TResponse> {
@@ -268,33 +231,17 @@ export async function proxyGenerateContent(
   signal?: AbortSignal,
 ): Promise<GeminiGenerateResponse> {
   // endpoint resolvido lazy — sem const de módulo
-  return callGeminiApi<GeminiGenerateResponse>(
+  const response = await callGeminiApi<GeminiGenerateResponse & { usage?: Record<string, unknown> }>(
     resolveGeminiApiEndpoint(),
     { action: 'generateContent', ...params },
     signal,
   );
-}
-
-export async function proxyCreateCachedContent(
-  params: Omit<GeminiCreateCachedContentRequest, 'action'>,
-  signal?: AbortSignal,
-): Promise<GeminiCreateCachedContentResponse> {
-  return callGeminiApi<GeminiCreateCachedContentResponse>(
-    resolveGeminiApiEndpoint(),
-    { action: 'createCachedContent', ...params },
-    signal,
-  );
-}
-
-export async function proxyDeleteCachedContent(
-  params: Omit<GeminiDeleteCachedContentRequest, 'action'>,
-  signal?: AbortSignal,
-): Promise<GeminiDeleteCachedContentResponse> {
-  return callGeminiApi<GeminiDeleteCachedContentResponse>(
-    resolveGeminiApiEndpoint(),
-    { action: 'deleteCachedContent', ...params },
-    signal,
-  );
+  // O endpoint /api/llm retorna `usage` (contrato LiteLLM); o consumidor
+  // espera `usageMetadata` — normaliza sem expor o restante da resposta.
+  if (response.usage && !response.usageMetadata) {
+    return { ...response, usageMetadata: response.usage };
+  }
+  return response;
 }
 
 export async function proxyChatSendMessage(

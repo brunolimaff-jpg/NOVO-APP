@@ -160,7 +160,7 @@ async function stubAppsScript(route: Route) {
 }
 
 async function installNetworkStubs(page: Page) {
-  await page.route('**/api/gemini', stubGeminiApi);
+  await page.route('**/api/llm', stubGeminiApi);
   await page.route('**/macros/s/*/exec*', stubAppsScript);
 }
 

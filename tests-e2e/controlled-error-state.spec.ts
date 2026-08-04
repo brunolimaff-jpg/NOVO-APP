@@ -7,7 +7,7 @@ test.describe('Anti-Regressão: Erro Controlado', () => {
   test.describe.configure({ timeout: 120_000 });
 
   function interceptGeminiApi(page: import('@playwright/test').Page) {
-    return page.route('**/api/gemini**', route => {
+    return page.route('**/api/llm**', route => {
       route.fulfill({
         status: 500,
         contentType: 'application/json',

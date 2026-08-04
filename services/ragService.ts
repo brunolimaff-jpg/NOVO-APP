@@ -7,6 +7,8 @@ const RAG_QUERY_MAX_CHARS = 9500;
 export interface RagResult {
   context: string;
   failed: boolean;
+  /** true quando o RAG está desabilitado por reindexação pendente (503 esperado). */
+  disabled?: boolean;
 }
 
 function normalizeRagQuery(query: string): string {
@@ -30,6 +32,15 @@ async function fetchRagContext(endpoint: string, label: string, query: string, n
       });
 
       if (!response.ok) {
+        // 503 RAG_DISABLED_PENDING_REINDEX é estado esperado (reindexação
+        // pendente): degrada sem retry e sem log de falha inesperada.
+        if (response.status === 503) {
+          const body = await response.json().catch(() => null);
+          if (body?.error === 'RAG_DISABLED_PENDING_REINDEX' || body?.code === 'RAG_DISABLED_PENDING_REINDEX') {
+            scoutDiag.info(label, 'RAG desabilitado (reindexação pendente) — modo degradado', { endpoint });
+            return { context: '', failed: true, disabled: true };
+          }
+        }
         scoutDiag.warn(label, 'servidor retornou status não OK', {
           status: response.status,
           endpoint,
