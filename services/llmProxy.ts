@@ -45,6 +45,7 @@ interface GeminiChatRequest extends GeminiApiBaseRequest {
 
 interface GeminiGenerateResponse {
   text: string;
+  fallbackUsed: boolean;
   candidates?: unknown[];
   usageMetadata?: Record<string, unknown>;
 }
@@ -75,14 +76,9 @@ interface GeminiDeleteCachedContentResponse {
 
 export interface GeminiChatResponse {
   text: string;
+  /** true when key rotation or grounding recovery was needed before a 200 response. */
+  fallbackUsed: boolean;
   groundingChunks?: unknown[];
-  /**
-   * true  = grounding ativo e retornou chunks concretos.
-   * false = fallback silencioso foi acionado (grounding falhou) OU grounding
-   *         ativo mas sem chunks relevantes. Ambos os casos exigem aviso visual.
-   * Ausente (undefined) quando o campo nao foi retornado pela API (compatibilidade
-   * com versoes antigas — tratar como undefined, nao como false).
-   */
   groundingUsed?: boolean;
   webVerificationStatus?: 'verified' | 'fallback_verified' | 'unverified' | 'not_applicable';
 }

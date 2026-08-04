@@ -2,8 +2,20 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
 const sendMessageMock = vi.hoisted(() => vi.fn());
+type ChatCreateFn = (param: {
+  model: unknown;
+  history: unknown;
+  config: {
+    systemInstruction: unknown;
+    temperature: number;
+    maxOutputTokens: number;
+    thinkingConfig: { thinkingLevel: unknown };
+    tools: Array<Record<string, unknown>> | undefined;
+  };
+}) => { sendMessage: typeof sendMessageMock };
+
 const createChatMock = vi.hoisted(() =>
-  vi.fn(() => ({
+  vi.fn<ChatCreateFn>((_param) => ({
     sendMessage: sendMessageMock,
   })),
 );
@@ -38,6 +50,11 @@ describe('api/gemini handler', () => {
     vi.clearAllMocks();
     vi.resetModules();
     process.env.GEMINI_API_KEY = 'test-key';
+    delete process.env.GEMINI_API_KEY_FALLBACK;
+    delete process.env.GEMINI_FOUNDATION_CACHE_ENABLED;
+    delete process.env.LLM_PROVIDER;
+    delete process.env.LITELLM_API_KEY;
+    delete process.env.LITELLM_BASE_URL;
   });
 
   it('rejeita health antes de qualquer chamada ao provedor', async () => {
@@ -295,6 +312,40 @@ describe('api/gemini handler', () => {
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({
         text: 'OK_GEMINI_35_FLASH',
+        fallbackUsed: false,
+      }),
+    );
+  });
+
+  it('marca fallbackUsed=true quando a rotação de chave recupera uma geração 200', async () => {
+    process.env.GEMINI_API_KEY_FALLBACK = 'fallback-key';
+    generateContentMock
+      .mockRejectedValueOnce(new Error('RESOURCE_EXHAUSTED'))
+      .mockResolvedValueOnce({ text: 'recuperado pela segunda chave' });
+
+    const { default: handler } = await import('../api/gemini');
+    const req = {
+      method: 'POST',
+      body: {
+        action: 'generateContent',
+        model: 'gemini-test',
+        contents: 'Responda OK',
+      },
+    } as VercelRequest;
+
+    const res = {
+      setHeader: vi.fn(),
+      status: vi.fn().mockReturnThis(),
+      json: vi.fn().mockReturnThis(),
+    } as unknown as VercelResponse;
+
+    await handler(req, res);
+
+    expect(generateContentMock).toHaveBeenCalledTimes(2);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        text: 'recuperado pela segunda chave',
+        fallbackUsed: true,
       }),
     );
   });
@@ -335,6 +386,77 @@ describe('api/gemini handler', () => {
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({
         text: 'Dossiê gerado com sucesso.',
+        fallbackUsed: false,
+      }),
+    );
+  });
+
+  it('marca fallbackUsed=true quando grounding falha e o chat recupera sem grounding', async () => {
+    sendMessageMock
+      .mockRejectedValueOnce(new Error('grounding tool timeout'))
+      .mockResolvedValueOnce({
+        text: 'recuperado sem grounding',
+        candidates: [{ groundingMetadata: { groundingChunks: [] } }],
+      });
+
+    const { default: handler } = await import('../api/gemini');
+    const req = {
+      method: 'POST',
+      body: {
+        action: 'chatSendMessage',
+        message: 'analise a conta',
+        useGrounding: true,
+      },
+    } as VercelRequest;
+
+    const res = {
+      setHeader: vi.fn(),
+      status: vi.fn().mockReturnThis(),
+      json: vi.fn().mockReturnThis(),
+    } as unknown as VercelResponse;
+
+    await handler(req, res);
+
+    expect(createChatMock).toHaveBeenCalledTimes(2);
+    expect(createChatMock.mock.calls[0][0].config.tools).toEqual([{ googleSearch: {} }]);
+    expect(createChatMock.mock.calls[1][0].config.tools).toBeUndefined();
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        text: 'recuperado sem grounding',
+        groundingUsed: false,
+        fallbackUsed: true,
+      }),
+    );
+  });
+
+  it('mantém fallbackUsed=false quando grounding responde 200 sem chunks', async () => {
+    sendMessageMock.mockResolvedValueOnce({
+      text: 'resposta sem fontes',
+      candidates: [{ groundingMetadata: { groundingChunks: [] } }],
+    });
+
+    const { default: handler } = await import('../api/gemini');
+    const req = {
+      method: 'POST',
+      body: {
+        action: 'chatSendMessage',
+        message: 'analise a conta',
+        useGrounding: true,
+      },
+    } as VercelRequest;
+
+    const res = {
+      setHeader: vi.fn(),
+      status: vi.fn().mockReturnThis(),
+      json: vi.fn().mockReturnThis(),
+    } as unknown as VercelResponse;
+
+    await handler(req, res);
+
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        groundingUsed: false,
+        fallbackUsed: false,
       }),
     );
   });

@@ -20,14 +20,37 @@ const fixtureRoot = resolve(process.cwd(), 'tests/fixtures/dossier/scheffer-0473
 const expectedMarkdown = loadTextFixture(resolve(fixtureRoot, 'expected-dossier.md'));
 const dossierCase = withSchefferGoldenRubric(loadJsonFixture<DossierGoldenCase>(resolve(fixtureRoot, 'case.json')));
 
-interface ExperimentCapture {
-  action?: string;
-  id?: string;
+const LIFECYCLE_RPC_NAMES = new Set([
+  'create_or_get_dossier_run',
+  'get_own_dossier_run',
+  'acquire_dossier_run_lease',
+  'renew_dossier_run_lease',
+  'release_dossier_run_lease',
+  'complete_dossier_run',
+]);
+
+interface LifecycleCapture {
+  rpc: string;
   ok: boolean;
-  fallbackUsed?: boolean;
-  status?: string;
-  authorization?: string;
+  statusCode: number;
+  runId?: string;
+  dossierId?: string;
+  lifecycleStatus?: string;
+  leaseExpiresAt?: string;
+  completedAt?: string;
 }
+
+interface GenerationCapture {
+  ok: boolean;
+  statusCode: number;
+  fallbackUsed?: boolean;
+}
+
+const REMOVED_PERSISTENCE_INVARIANTS = {
+  REPORT_CHARS: 'SUPERSEDED_BY_REPORT_AND_RUBRIC',
+  STRUCTURAL_SCORE: 'SUPERSEDED_BY_RUBRIC',
+  COMPLETED_AT: 'OBSERVED_FROM_COMPLETE_DOSSIER_RUN',
+} as const;
 
 interface WebSearchCapture {
   ok: boolean;
@@ -55,6 +78,46 @@ function requireLiveEnvironment(testInfo: TestInfo) {
     throw new Error('golden-dossier-live proíbe auth simulada: defina E2E_REAL_AUTH=1');
   }
   return { baseURL, deploymentSha };
+}
+
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function safeUuid(value: unknown) {
+  return typeof value === 'string' && UUID_PATTERN.test(value) ? value : undefined;
+}
+
+function safeIso(value: unknown) {
+  if (typeof value !== 'string') return undefined;
+  const timestamp = Date.parse(value);
+  return Number.isNaN(timestamp) ? undefined : new Date(timestamp).toISOString();
+}
+
+function lifecycleRow(payload: unknown): Record<string, unknown> {
+  if (Array.isArray(payload)) return (payload[0] ?? {}) as Record<string, unknown>;
+  return payload && typeof payload === 'object' ? (payload as Record<string, unknown>) : {};
+}
+
+async function captureLifecycleResponse(response: import('@playwright/test').Response): Promise<LifecycleCapture | null> {
+  const pathname = new URL(response.url()).pathname;
+  const rpc = pathname.match(/\/rest\/v1\/rpc\/([^/]+)$/)?.[1];
+  if (!rpc || !LIFECYCLE_RPC_NAMES.has(rpc) || response.request().method() !== 'POST') return null;
+  let row: Record<string, unknown> = {};
+  try {
+    row = lifecycleRow(await response.json());
+  } catch {
+    // A failed or empty response is still represented by statusCode/ok only.
+  }
+  const lifecycleStatus = typeof row.status === 'string' ? row.status.toUpperCase() : undefined;
+  return {
+    rpc,
+    ok: response.ok(),
+    statusCode: response.status(),
+    runId: safeUuid(row.run_id ?? row.id),
+    dossierId: safeUuid(row.dossier_id),
+    lifecycleStatus,
+    leaseExpiresAt: safeIso(row.lease_expires_at),
+    completedAt: safeIso(row.completed_at),
+  };
 }
 
 async function assertServedDeploymentSha(
@@ -109,32 +172,29 @@ async function runGoldenRound(browser: Browser, testInfo: TestInfo, round: numbe
     : undefined;
   const context = await browser.newContext({ baseURL, extraHTTPHeaders, acceptDownloads: true });
   const page = await context.newPage();
-  const experimentCaptures: ExperimentCapture[] = [];
+  const lifecycleCaptures: LifecycleCapture[] = [];
+  const generationCaptures: GenerationCapture[] = [];
   const webSearchCaptures: WebSearchCapture[] = [];
   const socioSearchCaptures: SocioSearchCapture[] = [];
 
   page.on('response', async response => {
-    if (!response.url().includes('/api/llm-experiment') || response.request().method() !== 'POST') return;
-    let requestBody: { action?: string; id?: string; fallbackUsed?: boolean; status?: string } = {};
-    let responseBody: { id?: string } = {};
-    try {
-      requestBody = JSON.parse(response.request().postData() ?? '{}') as typeof requestBody;
-    } catch {
-      // A asserção abaixo reprovará a captura sem action.
+    const capture = await captureLifecycleResponse(response);
+    if (capture) lifecycleCaptures.push(capture);
+    const pathname = new URL(response.url()).pathname;
+    if (pathname === '/api/gemini' && response.request().method() === 'POST') {
+      let fallbackUsed: boolean | undefined;
+      try {
+        const body = (await response.json()) as unknown;
+        const fallbackValue =
+          body && typeof body === 'object' && 'fallbackUsed' in body
+            ? (body as { fallbackUsed?: unknown }).fallbackUsed
+            : undefined;
+        if (typeof fallbackValue === 'boolean') fallbackUsed = fallbackValue;
+      } catch {
+        // A non-JSON response remains observable as status-only and is blocked below.
+      }
+      generationCaptures.push({ ok: response.ok(), statusCode: response.status(), fallbackUsed });
     }
-    try {
-      responseBody = (await response.json()) as typeof responseBody;
-    } catch {
-      // Respostas de erro podem não ser JSON.
-    }
-    experimentCaptures.push({
-      action: requestBody.action,
-      id: requestBody.id ?? responseBody.id,
-      ok: response.ok(),
-      fallbackUsed: requestBody.fallbackUsed,
-      status: requestBody.status,
-      authorization: (await response.request().allHeaders()).authorization,
-    });
   });
 
   page.on('response', async response => {
@@ -241,74 +301,86 @@ async function runGoldenRound(browser: Browser, testInfo: TestInfo, round: numbe
     await expect
       .poll(
         () =>
-          experimentCaptures.some(
-            capture => capture.action === 'finalizeRun' && capture.ok && capture.status === 'completed',
+          lifecycleCaptures.some(
+            capture =>
+              capture.rpc === 'complete_dossier_run' &&
+              capture.ok &&
+              capture.lifecycleStatus === 'COMPLETED' &&
+              Boolean(capture.runId) &&
+              Boolean(capture.dossierId),
           ),
         {
-          message: 'a tentativa final de finalizeRun precisa responder completed',
+          message: 'complete_dossier_run precisa responder COMPLETED com run_id e dossier_id',
           timeout: 60_000,
         },
       )
       .toBe(true);
-    const create = experimentCaptures.find(capture => capture.action === 'createRun');
-    const finalizations = experimentCaptures.filter(capture => capture.action === 'finalizeRun');
-    const finalize = finalizations.at(-1);
-    expect(create?.ok, 'createRun precisa responder com sucesso').toBe(true);
-    expect(finalize?.ok, 'finalizeRun precisa responder com sucesso').toBe(true);
-    expect(finalize?.id, 'finalizeRun deve persistir o mesmo id criado').toBe(create?.id);
-    expect(finalize?.fallbackUsed, 'fallback Gemini reprova o golden live').toBe(false);
-    expect(finalize?.status, 'a tentativa final de finalizeRun precisa concluir como completed').toBe('completed');
-    expect(finalize?.authorization, 'Bearer autenticado precisa estar disponível para consultar persistência').toMatch(
-      /^Bearer\s+\S+$/,
-    );
 
-    type PersistedRun = {
-      run?: {
-        id?: string;
-        status?: string;
-        fallbackUsed?: boolean;
-        reportChars?: number;
-        structuralScore?: number;
-        completedAt?: string;
-      };
-    };
-    let persisted: PersistedRun | null = null;
-    await expect
-      .poll(
-        async () => {
-          const response = await context.request.get(`/api/llm-experiment?id=${encodeURIComponent(finalize!.id!)}`, {
-            headers: { Authorization: finalize!.authorization! },
-            failOnStatusCode: false,
-          });
-          if (!response.ok()) return null;
-          persisted = (await response.json()) as PersistedRun;
-          return persisted.run?.status;
-        },
-        { message: 'run persistida precisa sair de running', timeout: 30_000 },
-      )
-      .toBe('completed');
-    expect(persisted).toMatchObject({
-      run: {
-        id: finalize!.id,
-        status: 'completed',
-        fallbackUsed: false,
-        reportChars: expect.any(Number),
-        structuralScore: expect.any(Number),
-        completedAt: expect.any(String),
-      },
-    });
-    expect(persisted!.run!.reportChars).toBeGreaterThan(1_000);
-    expect(persisted!.run!.structuralScore).toBeGreaterThan(0);
-    expect(Number.isNaN(Date.parse(persisted!.run!.completedAt!))).toBe(false);
+    expect(
+      generationCaptures.some(capture => capture.ok),
+      `a geração real precisa observar ao menos uma resposta 2xx de /api/gemini: ${JSON.stringify(generationCaptures)}`,
+    ).toBe(true);
+    const completion = [...lifecycleCaptures].reverse().find(
+      capture =>
+        capture.rpc === 'complete_dossier_run' &&
+        capture.ok &&
+        capture.lifecycleStatus === 'COMPLETED' &&
+        capture.runId &&
+        capture.dossierId,
+    );
+    expect(completion?.runId, 'complete_dossier_run deve retornar run_id').toMatch(UUID_PATTERN);
+    const completedRunId = completion?.runId;
+    const createOrRetrieve = [...lifecycleCaptures].reverse().find(
+      capture =>
+        capture.rpc === 'create_or_get_dossier_run' &&
+        capture.ok &&
+        capture.runId === completedRunId,
+    );
+    const lease = lifecycleCaptures.find(
+      capture =>
+        capture.rpc === 'acquire_dossier_run_lease' &&
+        capture.ok &&
+        capture.runId === completedRunId &&
+        capture.lifecycleStatus === 'RUNNING' &&
+        Boolean(capture.leaseExpiresAt),
+    );
+    expect(createOrRetrieve?.runId, 'criação/recuperação deve retornar o mesmo run_id concluído').toBe(completedRunId);
+    expect(lease?.runId, 'lease RUNNING deve usar o mesmo run_id concluído').toBe(completedRunId);
+    expect(lease?.leaseExpiresAt, 'lease RUNNING deve retornar expiração ISO válida').toMatch(
+      /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/,
+    );
+    expect(completion?.dossierId, 'complete_dossier_run deve retornar dossier_id').toMatch(UUID_PATTERN);
+    expect(
+      completion?.completedAt,
+      'complete_dossier_run deve retornar completed_at observável e parseável',
+    ).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/);
 
     await testInfo.attach(`golden-round-${round}-live-captures`, {
       body: Buffer.from(
-        JSON.stringify({ persisted, experimentCaptures, webSearchCaptures, socioSearchCaptures }, null, 2),
+        JSON.stringify(
+          {
+            lifecycleCaptures,
+            generationCaptures,
+            webSearchCaptures,
+            socioSearchCaptures,
+            persistenceInvariants: REMOVED_PERSISTENCE_INVARIANTS,
+          },
+          null,
+          2,
+        ),
       ),
       contentType: 'application/json',
     });
 
-    return { rubric, experimentCaptures, runId: finalize!.id! };
+    const fallbackCapture = generationCaptures.find(capture => typeof capture.fallbackUsed === 'boolean');
+    if (!fallbackCapture) {
+      throw new Error(
+        'BLOCKED_OBSERVABILITY_GAP: /api/gemini não expõe fallbackUsed de forma segura; o Golden não pode inferir ausência de fallback',
+      );
+    }
+    expect(fallbackCapture.fallbackUsed, 'fallback do provedor reprova o golden live').toBe(false);
+
+    return { rubric, lifecycleCaptures, runId: completion!.runId! };
   } finally {
     await page.waitForLoadState('networkidle', { timeout: 5_000 }).catch(() => {});
     await context.close();

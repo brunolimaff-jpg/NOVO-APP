@@ -204,6 +204,9 @@ function extractGeminiHttpStatus(error: unknown): number {
 
 type ParsedBody = z.infer<typeof GeminiRequestSchema>;
 type ThinkingLevelInput = z.infer<typeof ThinkingLevelSchema>;
+type GeminiExecutionMetadata = {
+  fallbackUsed: boolean;
+};
 
 function resolveThinkingLevel(thinkingLevel?: ThinkingLevelInput, thinkingMode?: boolean): ThinkingLevelInput {
   if (thinkingLevel) return thinkingLevel;
@@ -218,7 +221,12 @@ function toSdkThinkingLevel(thinkingLevel: ThinkingLevelInput): GeminiSdkThinkin
   return GeminiSdkThinkingLevel.HIGH;
 }
 
-async function executeGeminiAction(ai: GoogleGenAI, body: ParsedBody, res: VercelResponse): Promise<VercelResponse> {
+async function executeGeminiAction(
+  ai: GoogleGenAI,
+  body: ParsedBody,
+  res: VercelResponse,
+  executionMetadata: GeminiExecutionMetadata,
+): Promise<VercelResponse> {
   switch (body.action) {
     case 'generateContent': {
       const modelFromClient = typeof body.model === 'string' ? body.model : undefined;
@@ -290,7 +298,7 @@ async function executeGeminiAction(ai: GoogleGenAI, body: ParsedBody, res: Verce
             temperature: temperature,
             maxTokens: maxTokens,
           });
-          return res.status(200).json({ text, _model: resolvedModel });
+          return res.status(200).json({ text, _model: resolvedModel, fallbackUsed: false });
         } catch (err) {
           console.error('LiteLLM call failed:', err);
           return res
@@ -382,6 +390,7 @@ async function executeGeminiAction(ai: GoogleGenAI, body: ParsedBody, res: Verce
         _model: model,
         candidates: response.candidates || [],
         usageMetadata: extractUsageMetadata(response),
+        fallbackUsed: executionMetadata.fallbackUsed,
       });
     }
 
@@ -479,6 +488,7 @@ async function executeGeminiAction(ai: GoogleGenAI, body: ParsedBody, res: Verce
       let response: Awaited<ReturnType<typeof runChat>>['response'];
       let chatSession: Awaited<ReturnType<typeof runChat>>['chat'];
       let groundingActivated = useGrounding;
+      let groundingRecoveryUsed = false;
 
       try {
         const chatData = await runChat(useGrounding);
@@ -556,6 +566,7 @@ async function executeGeminiAction(ai: GoogleGenAI, body: ParsedBody, res: Verce
         if (!useGrounding) throw primaryError;
         console.warn('[LlmProxy] Falha no Grounding/Tool, acionando fallback:', primaryError);
         groundingActivated = false;
+        groundingRecoveryUsed = true;
         const fallbackData = await runChat(false);
         response = fallbackData.response;
       }
@@ -577,6 +588,7 @@ async function executeGeminiAction(ai: GoogleGenAI, body: ParsedBody, res: Verce
         _model: model,
         groundingChunks,
         groundingUsed,
+        fallbackUsed: executionMetadata.fallbackUsed || groundingRecoveryUsed,
       });
     }
 
@@ -642,16 +654,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const body = parsed.data;
     const keys = getApiKeys();
     let lastError: unknown;
+    let fallbackUsed = false;
 
     for (let i = 0; i < keys.length; i++) {
       try {
         const ai = new GoogleGenAI({ apiKey: keys[i] });
-        return await executeGeminiAction(ai, body, res);
+        return await executeGeminiAction(ai, body, res, { fallbackUsed });
       } catch (error: unknown) {
         const hasNextKey = i < keys.length - 1;
         if ((isQuotaExhausted(error) || isBillingOrPermissionDenied(error)) && hasNextKey) {
           console.warn(`[LlmProxy] Chave ${i + 1} com erro (quota/billing), tentando fallback...`);
           lastError = error;
+          fallbackUsed = true;
           continue;
         }
         throw error;
