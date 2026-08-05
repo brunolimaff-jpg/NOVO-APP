@@ -14,8 +14,11 @@ import { createClient } from '@supabase/supabase-js';
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL!;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
-// Janela de atraso do lease para considerar um run obsoleto (15 min, como no RCA).
-const STALE_AFTER_SECONDS = 900;
+// Janela de atraso do lease para considerar um run obsoleto (1h, alinhada ao
+// teste original do RCA — decisão registrada no parecer CHANGES_REQUIRED).
+const STALE_AFTER_SECONDS = 3600;
+// Lote por execução (padrão da RPC; teto validado no SQL).
+const BATCH_LIMIT = 50;
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Vercel Cron usa GET; mantemos POST para compatibilidade
@@ -48,6 +51,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const { data: closed, error: rpcError } = await supabase.rpc('close_stale_dossier_runs', {
     p_stale_after_seconds: STALE_AFTER_SECONDS,
+    p_batch_limit: BATCH_LIMIT,
     p_dry_run: !cleanupEnabled,
   });
 

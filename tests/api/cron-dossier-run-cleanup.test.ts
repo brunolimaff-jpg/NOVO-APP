@@ -99,13 +99,14 @@ describe('cron-dossier-run-cleanup', () => {
     await handler(makeMockReq(), res);
 
     expect(rpcMock).toHaveBeenCalledWith('close_stale_dossier_runs', {
-      p_stale_after_seconds: 900,
+      p_stale_after_seconds: 3600,
+      p_batch_limit: 50,
       p_dry_run: true,
     });
     expect(state.statusCode).toBe(200);
     expect(state.body).toEqual({
       dryRun: true,
-      staleAfterSeconds: 900,
+      staleAfterSeconds: 3600,
       closed: 3,
     });
   });
@@ -118,13 +119,14 @@ describe('cron-dossier-run-cleanup', () => {
     await handler(makeMockReq({ method: 'POST' }), res);
 
     expect(rpcMock).toHaveBeenCalledWith('close_stale_dossier_runs', {
-      p_stale_after_seconds: 900,
+      p_stale_after_seconds: 3600,
+      p_batch_limit: 50,
       p_dry_run: false,
     });
     expect(state.statusCode).toBe(200);
     expect(state.body).toEqual({
       dryRun: false,
-      staleAfterSeconds: 900,
+      staleAfterSeconds: 3600,
       closed: 2,
     });
   });

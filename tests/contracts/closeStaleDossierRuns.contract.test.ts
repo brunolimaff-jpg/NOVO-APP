@@ -38,6 +38,14 @@ describe('close_stale_dossier_runs contract', () => {
   it('deve suportar dry-run sem mutacao', () => {
     expect(sql).toContain('p_dry_run BOOLEAN DEFAULT FALSE');
     expect(sql).toContain('IF p_dry_run THEN');
+    expect(sql).toContain('RETURN result_count;');
+  });
+
+  it('deve ter janela padrao de 3600s (decisao registrada) e lote limitado', () => {
+    expect(sql).toContain('p_stale_after_seconds INT DEFAULT 3600');
+    expect(sql).toContain('p_batch_limit INT DEFAULT 50');
+    expect(sql).toContain('p_batch_limit > 1000');
+    expect(sql).toContain('FOR UPDATE SKIP LOCKED');
   });
 
   it('deve criar indice parcial para a busca de runs obsoletos', () => {
@@ -46,10 +54,10 @@ describe('close_stale_dossier_runs contract', () => {
   });
 
   it('deve liberar execucao apenas para service_role', () => {
-    expect(sql).toContain('REVOKE EXECUTE ON FUNCTION public.close_stale_dossier_runs(INT, BOOLEAN) FROM PUBLIC;');
-    expect(sql).toContain('REVOKE EXECUTE ON FUNCTION public.close_stale_dossier_runs(INT, BOOLEAN) FROM authenticated;');
-    expect(sql).toContain('REVOKE EXECUTE ON FUNCTION public.close_stale_dossier_runs(INT, BOOLEAN) FROM anon;');
-    expect(sql).toContain('GRANT EXECUTE ON FUNCTION public.close_stale_dossier_runs(INT, BOOLEAN) TO service_role;');
-    expect(sql).not.toMatch(/GRANT EXECUTE ON FUNCTION public\.close_stale_dossier_runs\(INT, BOOLEAN\) TO (authenticated|anon|PUBLIC)/i);
+    expect(sql).toContain('REVOKE EXECUTE ON FUNCTION public.close_stale_dossier_runs(INT, INT, BOOLEAN) FROM PUBLIC;');
+    expect(sql).toContain('REVOKE EXECUTE ON FUNCTION public.close_stale_dossier_runs(INT, INT, BOOLEAN) FROM authenticated;');
+    expect(sql).toContain('REVOKE EXECUTE ON FUNCTION public.close_stale_dossier_runs(INT, INT, BOOLEAN) FROM anon;');
+    expect(sql).toContain('GRANT EXECUTE ON FUNCTION public.close_stale_dossier_runs(INT, INT, BOOLEAN) TO service_role;');
+    expect(sql).not.toMatch(/GRANT EXECUTE ON FUNCTION public\.close_stale_dossier_runs\(INT, INT, BOOLEAN\) TO (authenticated|anon|PUBLIC)/i);
   });
 });
