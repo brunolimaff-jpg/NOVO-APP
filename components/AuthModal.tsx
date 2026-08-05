@@ -8,6 +8,7 @@ type Tab = 'entrar' | 'criar-conta';
 interface AuthModalProps {
   showGuestOption: boolean;
   onClose: () => void;
+  initialTab?: Tab;
 }
 
 function validateEmail(email: string): string | null {
@@ -23,12 +24,10 @@ function validatePassword(password: string): string | null {
   return null;
 }
 
-export const AuthModal: React.FC<AuthModalProps> = ({ showGuestOption, onClose }) => {
+export const AuthModal: React.FC<AuthModalProps> = ({ showGuestOption, onClose, initialTab = 'entrar' }) => {
   const { signIn, signUp, loading: authLoading, error: authError, clearError } = useAuth();
 
-  const hasStoredEmail = Boolean(storageGet('operator_email')?.trim());
-
-  const [activeTab, setActiveTab] = useState<Tab>(hasStoredEmail ? 'entrar' : 'criar-conta');
+  const [activeTab, setActiveTab] = useState<Tab>(initialTab);
   const [email, setEmail] = useState(() => storageGet('operator_email')?.trim() || '');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
