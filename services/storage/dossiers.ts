@@ -20,9 +20,25 @@ function stripTransientState(session: ChatSession): ChatSession {
   };
 }
 
+/**
+ * Gate de identidade: sem sessão autenticada válida o storage não consulta nem
+ * persiste (evita GET/POST com operator_id guest e 401 evitável antes do login).
+ * Não altera RLS — apenas evita requests desnecessários.
+ */
+async function hasValidAuthSession(): Promise<boolean> {
+  if (!isSupabaseAvailable()) return false;
+  try {
+    const { data } = await supabase!.auth.getSession();
+    return Boolean(data.session);
+  } catch {
+    return false;
+  }
+}
+
 export const dossiers = {
   async getDossiers(): Promise<ChatSession[]> {
     if (!isSupabaseAvailable()) return [];
+    if (!(await hasValidAuthSession())) return [];
 
     const operatorId = getOperatorId();
     if (!operatorId) return [];
@@ -48,6 +64,7 @@ export const dossiers = {
 
   async getDossier(id: string): Promise<ChatSession | null> {
     if (!isSupabaseAvailable()) return null;
+    if (!(await hasValidAuthSession())) return null;
 
     const operatorId = getOperatorId();
     if (!operatorId) return null;
@@ -72,6 +89,7 @@ export const dossiers = {
   async saveDossier(session: ChatSession): Promise<void> {
     const operatorId = getOperatorId();
     if (!isSupabaseAvailable() || !operatorId) return;
+    if (!(await hasValidAuthSession())) return;
 
     const cleanSession = stripTransientState(session);
 
@@ -99,6 +117,7 @@ export const dossiers = {
     const operatorId = getOperatorId();
     if (!isSupabaseAvailable()) throw new Error('Supabase indisponível para persistência estrita');
     if (!operatorId) throw new Error('operatorId obrigatório para persistência estrita');
+    if (!(await hasValidAuthSession())) throw new Error('Sessão autenticada ausente para persistência estrita');
     const cleanSession = stripTransientState(session);
     const { data, error } = await supabase!
       .from('dossies')
@@ -130,6 +149,7 @@ export const dossiers = {
   async saveAllDossiers(sessions: ChatSession[]): Promise<void> {
     const operatorId = getOperatorId();
     if (!isSupabaseAvailable() || !operatorId || sessions.length === 0) return;
+    if (!(await hasValidAuthSession())) return;
 
     const payloads = sessions.map(session => {
       const clean = stripTransientState(session);
@@ -157,6 +177,7 @@ export const dossiers = {
   async deleteDossier(id: string): Promise<void> {
     const operatorId = getOperatorId();
     if (!isSupabaseAvailable() || !operatorId) return;
+    if (!(await hasValidAuthSession())) return;
 
     const { error } = await supabase!
       .from('dossies')
