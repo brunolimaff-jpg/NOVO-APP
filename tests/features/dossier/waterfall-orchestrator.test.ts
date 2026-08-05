@@ -33,7 +33,7 @@ const scoutDiagMock = vi.hoisted(() => ({
   info: vi.fn(),
 }));
 const saveDossierMock = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
-const runControlMocks = vi.hoisted(() => ({ assertCanContinue: vi.fn() }));
+const runControlMocks = vi.hoisted(() => ({ assertCanContinue: vi.fn(), assertCanContinueWithRenewal: vi.fn() }));
 const lifecycleRpcMocks = vi.hoisted(() => ({ complete: vi.fn(), failed: vi.fn(), release: vi.fn(), cancelled: vi.fn() }));
 const evidencePipelineMock = vi.hoisted(() => vi.fn(() => false));
 const queryPlannerMocks = vi.hoisted(() => ({ plan: vi.fn(), collect: vi.fn() }));
@@ -49,7 +49,14 @@ vi.mock('../../../services/llmService', () => ({
 
 vi.mock('../../../features/dossier/dossier-run-control', async importOriginal => {
   const actual = await importOriginal<typeof import('../../../features/dossier/dossier-run-control')>();
-  return { ...actual, assertDossierRunCanContinue: runControlMocks.assertCanContinue };
+  return {
+    ...actual,
+    assertDossierRunCanContinue: runControlMocks.assertCanContinue,
+    // Liveness com renovação preventiva: delega ao mesmo contrato do assert no
+    // orquestrador; o comportamento do control em si é coberto por
+    // dossier-run-control.test.ts.
+    assertDossierRunCanContinueWithRenewal: (...args: unknown[]) => runControlMocks.assertCanContinue(...args),
+  };
 });
 
 vi.mock('../../../lib/supabase/dossierRuns', () => ({

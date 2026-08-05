@@ -1,10 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const get = vi.hoisted(() => vi.fn());
-vi.mock('../../../lib/supabase/dossierRuns', () => ({ getDossierRun: get }));
+const renew = vi.hoisted(() => vi.fn());
+vi.mock('../../../lib/supabase/dossierRuns', () => ({ getDossierRun: get, renewDossierRunLease: renew }));
 
 import {
   assertDossierRunCanContinue,
+  assertDossierRunCanContinueWithRenewal,
   DossierRunCancelledError,
   DossierRunLeaseLostError,
   DossierRunReadError,
@@ -19,6 +21,8 @@ const assert = (input: Partial<Parameters<typeof assertDossierRunCanContinue>[0]
 beforeEach(() => {
   get.mockReset();
   get.mockResolvedValue(valid);
+  renew.mockReset();
+  renew.mockResolvedValue(valid);
 });
 
 describe('dossier run control', () => {
@@ -80,5 +84,45 @@ describe('dossier run control', () => {
     expect(isDossierRunControlError(new DossierRunLeaseLostError())).toBe(true);
     expect(isDossierRunControlError(new DossierRunReadError('rpc'))).toBe(true);
     expect(isDossierRunControlError(new Error('rpc'))).toBe(false);
+  });
+});
+
+describe('dossier run control — liveness com renovação preventiva', () => {
+  const assertRenewal = (input: Partial<Parameters<typeof assertDossierRunCanContinueWithRenewal>[0]> = {}) =>
+    assertDossierRunCanContinueWithRenewal({ runId: 'r', leaseOwner: 'l', signal: signal(), stage: 'after_porta_reconciliation', ...input });
+
+  it('lease válido longe de expirar: não renova preventivamente', async () => {
+    await expect(assertRenewal()).resolves.toBeUndefined();
+    expect(renew).not.toHaveBeenCalled();
+  });
+
+  it('lease perto de expirar: renova preventivamente e segue', async () => {
+    get.mockResolvedValue({ ...valid, lease_expires_at: new Date(Date.now() + 20_000).toISOString() });
+    await expect(assertRenewal()).resolves.toBeUndefined();
+    expect(renew).toHaveBeenCalledWith('r', 'l', expect.objectContaining({ timeoutMs: expect.any(Number) }));
+  });
+
+  it('lease perto de expirar com renew null: fail-closed sem reacquire', async () => {
+    get.mockResolvedValue({ ...valid, lease_expires_at: new Date(Date.now() + 20_000).toISOString() });
+    renew.mockResolvedValueOnce(null);
+    await expect(assertRenewal()).rejects.toBeInstanceOf(DossierRunLeaseLostError);
+  });
+
+  it('lease expirado: falha fail-closed SEM tentar renovar (nunca reacquire)', async () => {
+    get.mockResolvedValue({ ...valid, lease_expires_at: new Date(Date.now() - 1).toISOString() });
+    await expect(assertRenewal()).rejects.toBeInstanceOf(DossierRunLeaseLostError);
+    expect(renew).not.toHaveBeenCalled();
+  });
+
+  it('falha transitória do renew preventivo: lease ainda válido → segue', async () => {
+    get.mockResolvedValue({ ...valid, lease_expires_at: new Date(Date.now() + 20_000).toISOString() });
+    renew.mockRejectedValueOnce(new Error('rede'));
+    await expect(assertRenewal()).resolves.toBeUndefined();
+  });
+
+  it('cancel remoto: encerra sem renovar', async () => {
+    get.mockResolvedValue({ ...valid, status: 'CANCEL_REQUESTED' as const });
+    await expect(assertRenewal()).rejects.toBeInstanceOf(DossierRunCancelledError);
+    expect(renew).not.toHaveBeenCalled();
   });
 });

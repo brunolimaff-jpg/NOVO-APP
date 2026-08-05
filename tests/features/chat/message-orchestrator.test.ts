@@ -1,7 +1,7 @@
 import { act, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useChatMessageOrchestrator } from '../../../features/chat/message-orchestrator';
-import { Sender, type ChatSession, type LastAction, type Message } from '../../../types';
+import { Sender, type ChatSession, type DossierWaterfallResult, type LastAction, type Message } from '../../../types';
 import type { LoadingVariant, RequestKind } from '../../../utils/loadingVariant';
 
 const uuidv4Mock = vi.hoisted(() => vi.fn());
@@ -296,7 +296,7 @@ describe('useChatMessageOrchestrator', () => {
     sendMessageToLlmMock.mockReturnValue(deferred.promise);
     const harness = makeHarness();
 
-    let pendingSend!: Promise<void>;
+    let pendingSend!: Promise<DossierWaterfallResult | null | undefined>;
     act(() => {
       pendingSend = harness.result.current.handleSendMessage('Investigar Acme Agro');
     });
@@ -559,7 +559,7 @@ describe('useChatMessageOrchestrator', () => {
     const harness = makeHarness();
     harness.runMegaPromptWaterfall.mockImplementationOnce(() => deferred.promise);
 
-    let firstSend!: Promise<void>;
+    let firstSend!: Promise<DossierWaterfallResult | null | undefined>;
     act(() => {
       firstSend = harness.result.current.handleSendMessage(
         'DOSSIÊ COMPLETO de Grupo Scheffer',
@@ -600,7 +600,7 @@ describe('useChatMessageOrchestrator', () => {
     sendMessageToLlmMock.mockReturnValue(deferred.promise);
     const harness = makeHarness();
 
-    let pendingSend!: Promise<void>;
+    let pendingSend!: Promise<DossierWaterfallResult | null | undefined>;
     act(() => {
       pendingSend = harness.result.current.handleSendMessage(
         'Dossiê completo de [Acme Agro]. Protocolo oculto',
