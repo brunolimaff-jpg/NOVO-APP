@@ -169,9 +169,12 @@ describe('api/_safe-public-request', () => {
   });
 
   it('resolve e valida uma lista própria para cada destino de redirect', async () => {
-    const resolve = vi.fn(async (hostname: string) => {
+    const resolve = vi.fn(async (hostname: string): Promise<SafePublicAddress[]> => {
       if (hostname === 'origin.test') return [PUBLIC_IPV4];
-      return [{ address: '1.1.1.1', family: 4 }, { address: '8.8.8.8', family: 4 }];
+      return [
+        { address: '1.1.1.1', family: 4 as const },
+        { address: '8.8.8.8', family: 4 as const },
+      ];
     });
     const transport = vi
       .fn<SafePublicRequestTransport>()

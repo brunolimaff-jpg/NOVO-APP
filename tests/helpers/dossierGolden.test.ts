@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { evaluateDossierGolden, type DossierGoldenCase } from './dossierGolden';
+import { validateDossierGolden, type DossierGoldenCase } from './dossierGolden';
+
+// Contrato atual (main 5a984148): validateDossierGolden(actual, expected, case)
+// retorna string[] de erros (vazio = aprovado). O contrato histórico
+// evaluateDossierGolden (rubric com errors/identidade/fontes/evidências e parsing
+// Mermaid avançado) foi substituído no Patch A do Golden (8ed72230) e não tem
+// produtor/consumidor atual — funcionalidades históricas não foram restauradas
+// (decisão do cartão MAIN-TYPECHECK-11-LOCAL-01). Este teste cobre as regras que
+// o helper realmente implementa.
 
 const expected = `# Resumo
 Conteúdo de referência suficientemente longo.
@@ -15,22 +23,12 @@ const baseCase: DossierGoldenCase = {
   requiredPhrases: ['Empresa Exemplo'],
   forbiddenPhrases: ['Falha técnica'],
   minimumMermaidBlocks: 1,
-  minimumSources: 1,
-  minimumSourceDomains: 1,
-  primarySourceDomains: ['empresa.example'],
-  requiredEvidenceLabels: [
-    { label: 'fato', aliases: ['confirmado'] },
-    { label: 'inferência', aliases: ['provável'] },
-    { label: 'estimativa', aliases: ['estimativa'] },
-  ],
-  semanticFacts: [{ label: 'entidade', aliases: ['Empresa Exemplo'] }],
 };
 
 const valid = `# Resumo
 > **CNPJ analisado:** 00.000.000/0001-00
 
 Empresa Exemplo: fato confirmado. É provável que haja expansão; a estimativa é conservadora.
-[Fonte primária](https://empresa.example/fato)
 
 \`\`\`mermaid
 graph LR
@@ -41,79 +39,40 @@ graph LR
 Plano comercial acionável.
 `;
 
-describe('dossierGolden rubric', () => {
-  it('aprova aliases de evidência e fonte primária sem exigir redação literal', async () => {
-    expect((await evaluateDossierGolden(valid, expected, baseCase)).errors).toEqual([]);
+describe('validateDossierGolden', () => {
+  it('aprova markdown válido com todas as regras satisfeitas', () => {
+    expect(validateDossierGolden(valid, expected, baseCase)).toEqual([]);
   });
 
-  it('reprova placeholder, mermaid inválido e ausência de fonte', async () => {
-    const rubric = await evaluateDossierGolden(
-      valid
-        .replace('[Fonte primária](https://empresa.example/fato)', '[preencher fonte]')
-        .replace('graph LR', 'A --> B'),
-      expected,
-      baseCase,
-    );
-    expect(rubric.errors).toEqual(
-      expect.arrayContaining([
-        expect.stringContaining('fontes insuficientes'),
-        expect.stringContaining('fonte primária'),
-        expect.stringContaining('placeholder encontrado'),
-        expect.stringContaining('mermaid inválidos'),
-      ]),
-    );
+  it('reprova markdown vazio', () => {
+    const errors = validateDossierGolden('', expected, baseCase);
+    expect(errors).toEqual(expect.arrayContaining([expect.stringContaining('vazio')]));
   });
 
-  it('reprova afirmações mutuamente exclusivas presentes no mesmo relatório', async () => {
-    const rubric = await evaluateDossierGolden(
-      `${valid}\nA empresa possui 10 unidades e também possui 20 unidades.`,
-      expected,
-      {
-        ...baseCase,
-        mutuallyExclusiveClaims: [
-          {
-            label: 'quantidade de unidades',
-            claims: [
-              { value: '10', aliases: ['possui 10 unidades'] },
-              { value: '20', aliases: ['possui 20 unidades'] },
-            ],
-          },
-        ],
-      },
-    );
-    expect(rubric.errors).toContain('contradição em quantidade de unidades: 10 versus 20');
+  it('reprova seção obrigatória ausente', () => {
+    const errors = validateDossierGolden(valid.replace('# Próximos passos', '# Outra seção'), expected, baseCase);
+    expect(errors).toEqual(expect.arrayContaining([expect.stringContaining('faltou seção obrigatória')]));
   });
 
-  it('reprova identidade incorreta, CNPJ canônico inválido e seção vazia', async () => {
-    const rubric = await evaluateDossierGolden(
-      valid.replace('Empresa Exemplo', 'Outra Empresa').replace('Plano comercial acionável.', ''),
-      expected,
-      {
-        ...baseCase,
-        cnpj: '123',
-      },
-    );
-    expect(rubric.errors).toEqual(
-      expect.arrayContaining([
-        expect.stringContaining('identidade da empresa incorreta'),
-        expect.stringContaining('CNPJ canônico ausente ou inválido'),
-        expect.stringContaining('seções obrigatórias vazias'),
-      ]),
-    );
+  it('reprova trecho obrigatório ausente', () => {
+    const errors = validateDossierGolden(valid.replace('Empresa Exemplo', 'Outra Empresa'), expected, baseCase);
+    expect(errors).toEqual(expect.arrayContaining([expect.stringContaining('faltou trecho obrigatório')]));
   });
 
-  it('reprova fato crítico sem link associado no mesmo parágrafo', async () => {
-    const markdown = `${valid.replace('[Fonte primária](https://empresa.example/fato)', '')}\n\n[Outra fonte](https://empresa.example/fato)`;
-    const rubric = await evaluateDossierGolden(markdown, expected, {
-      ...baseCase,
-      semanticFacts: [{ label: 'empresa', aliases: ['Empresa Exemplo'], requiresSource: true }],
-    });
-    expect(rubric.errors).toContain('fato crítico sem fonte associada no mesmo parágrafo: empresa');
+  it('reprova trecho proibido presente', () => {
+    const errors = validateDossierGolden(`${valid}\nFalha técnica registrada.`, expected, baseCase);
+    expect(errors).toEqual(expect.arrayContaining([expect.stringContaining('trecho proibido')]));
   });
 
-  it('usa o parser real do Mermaid para reprovar sintaxe inválida', async () => {
-    const invalid = valid.replace('A --> B', 'A -->');
-    const rubric = await evaluateDossierGolden(invalid, expected, baseCase);
-    expect(rubric.errors).toContain('blocos mermaid inválidos: 1');
+  it('reprova blocos mermaid insuficientes', () => {
+    const semMermaid = valid.replace(/```mermaid[\s\S]*?```/g, '');
+    const errors = validateDossierGolden(semMermaid, expected, baseCase);
+    expect(errors).toEqual(expect.arrayContaining([expect.stringContaining('mermaid insuficientes')]));
+  });
+
+  it('reprova markdown curto demais quando há ratio mínimo', () => {
+    const curto = '# Resumo\nApenas um trecho curto.';
+    const errors = validateDossierGolden(curto, expected, { ...baseCase, minimumExpectedLengthRatio: 1 });
+    expect(errors).toEqual(expect.arrayContaining([expect.stringContaining('curto demais')]));
   });
 });

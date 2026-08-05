@@ -12,6 +12,12 @@ import {
 
 export type LoadState = 'idle' | 'loading' | 'ready' | 'empty' | 'error';
 
+// Batch de consultas por lote e timeout por cliente de busca societária.
+// Consumidos por features/dossier/waterfall-socio-search.ts (valores canônicos
+// históricos preservados — removidos acidentalmente no merge limpo 6b0987ec).
+export const SOCIO_SEARCH_BATCH_SIZE = 2;
+export const SOCIO_SEARCH_CLIENT_TIMEOUT_MS = 52_000;
+
 export interface SocioSearchResponse {
   companies?: SocietaryCompanyInput[];
   rejected?: RejectedSocioSearchResult[];
