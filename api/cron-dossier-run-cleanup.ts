@@ -1,5 +1,5 @@
 // Cron de limpeza de stale runs de dossiê (medida G do RCA de lease lifecycle).
-// Finaliza runs presos em RUNNING com lease expirado (padrão: 15 min de atraso),
+// Finaliza runs presos em RUNNING com lease expirado (padrão: 1h de atraso),
 // que nenhum cliente consegue finalizar porque fail/complete exigem lease_owner vivo.
 //
 // Fonte canônica: docs/bugs/rca-lease-lifecycle-2026-08-04.md (D3 + medida G).

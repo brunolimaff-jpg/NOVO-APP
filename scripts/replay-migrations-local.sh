@@ -17,6 +17,9 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 PSQL=${PSQL:-psql}
 DB_NAME="${1:-scout_migrations_replay_$$}"
 KEEP_DB="${KEEP_DB:-0}"
+if [[ "${2:-}" == "--keep" ]]; then
+  KEEP_DB=1
+fi
 
 MIGRATIONS_DIR="$ROOT/supabase/migrations"
 BOOTSTRAP="$ROOT/scripts/bootstrap_supabase_auth_for_migration_test.sql"
@@ -40,10 +43,10 @@ cleanup() {
 trap cleanup EXIT
 
 echo "==> Schema extensions (exigido pelo baseline)"
-psql -d "$DB_NAME" -v ON_ERROR_STOP=1 -q -c 'CREATE SCHEMA IF NOT EXISTS extensions;'
+$PSQL -d "$DB_NAME" -v ON_ERROR_STOP=1 -q -c 'CREATE SCHEMA IF NOT EXISTS extensions;'
 
 echo "==> Bootstrap de auth (roles anon/authenticated/service_role + auth.uid)"
-psql -d "$DB_NAME" -v ON_ERROR_STOP=1 -q -f "$BOOTSTRAP"
+$PSQL -d "$DB_NAME" -v ON_ERROR_STOP=1 -q -f "$BOOTSTRAP"
 
 total=0
 passed=0
@@ -51,7 +54,7 @@ failed=0
 for f in "$MIGRATIONS_DIR"/*.sql; do
   total=$((total + 1))
   name="$(basename "$f")"
-  if psql -d "$DB_NAME" -v ON_ERROR_STOP=1 -q -f "$f" >/dev/null 2>&1; then
+  if $PSQL -d "$DB_NAME" -v ON_ERROR_STOP=1 -q -f "$f" >/dev/null 2>&1; then
     echo "  PASS  $name"
     passed=$((passed + 1))
   else
