@@ -8,7 +8,7 @@ import React, {
   useState,
   type ReactNode,
 } from 'react';
-import { supabase, isSupabaseAvailable } from '../lib/supabaseClient';
+import { supabase } from '../lib/supabaseClient';
 import { AuthError, type Session, type User } from '@supabase/supabase-js';
 
 // Mensagens amigáveis e sanitizadas: detalhes técnicos do Supabase nunca chegam
@@ -97,18 +97,29 @@ export const SupabaseAuthProvider: React.FC<{ children: ReactNode }> = ({ childr
     }
 
     setError(null);
-    let data: Awaited<ReturnType<typeof supabase.auth.signUp>>['data'];
-    let signUpError: AuthError | null = null;
     try {
-      const result = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
           data: { name },
         },
       });
-      data = result.data;
-      signUpError = result.error;
+
+      if (error) {
+        setError(error);
+        return { error };
+      }
+
+      // Com confirmacao de email ativada, data.session vem null
+      const needsConfirmation = data.user !== null && data.session === null;
+
+      if (data.user && data.session) {
+        setSession(data.session);
+        setUser(data.user);
+      }
+
+      return { error: null, needsConfirmation };
     } catch (err) {
       const sanitized = toSanitizedAuthError(
         err,
@@ -117,21 +128,6 @@ export const SupabaseAuthProvider: React.FC<{ children: ReactNode }> = ({ childr
       setError(sanitized);
       return { error: sanitized };
     }
-
-    if (signUpError) {
-      setError(signUpError);
-      return { error: signUpError };
-    }
-
-    // Com confirmacao de email ativada, data.session vem null
-    const needsConfirmation = data.user !== null && data.session === null;
-
-    if (data.user && data.session) {
-      setSession(data.session);
-      setUser(data.user);
-    }
-
-    return { error: null, needsConfirmation };
   }, []);
 
   const signIn = useCallback(async (email: string, password: string) => {
@@ -142,15 +138,20 @@ export const SupabaseAuthProvider: React.FC<{ children: ReactNode }> = ({ childr
     }
 
     setError(null);
-    let data: Awaited<ReturnType<typeof supabase.auth.signInWithPassword>>['data'];
-    let signInError: AuthError | null = null;
     try {
-      const result = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
-      data = result.data;
-      signInError = result.error;
+
+      if (error) {
+        setError(error);
+        return { error };
+      }
+
+      setSession(data.session);
+      setUser(data.user);
+      return { error: null };
     } catch (err) {
       const sanitized = toSanitizedAuthError(
         err,
@@ -159,15 +160,6 @@ export const SupabaseAuthProvider: React.FC<{ children: ReactNode }> = ({ childr
       setError(sanitized);
       return { error: sanitized };
     }
-
-    if (signInError) {
-      setError(signInError);
-      return { error: signInError };
-    }
-
-    setSession(data.session);
-    setUser(data.user);
-    return { error: null };
   }, []);
 
   const signOut = useCallback(async () => {
