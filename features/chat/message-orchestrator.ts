@@ -376,7 +376,7 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
       visibleTextForUi?: string,
       hintedCompanyOverride?: string | null,
       options?: ProcessMessageOptions,
-    ) => {
+    ): Promise<DossierWaterfallResult | null | undefined> => {
       const sessionId = explicitSessionId || currentSessionId;
       if (!sessionId) return;
 
@@ -582,7 +582,7 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
               metadata: { runId: lifecycleRunId },
             });
             setSessions(prev => prev.map(session => session.id === sessionId ? { ...session, messages: session.messages.filter(message => message.id !== botMessageId || message.text.trim().length > 0) } : session));
-            return;
+            return waterfallResult;
           }
           if (waterfallResult.status === 'FAILED') {
             const generatedBotMessage = sessionsRef.current
@@ -608,7 +608,7 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
                     : message,
                 ),
               }));
-              return;
+              return waterfallResult;
             }
             throw waterfallResult.error;
           }
@@ -617,6 +617,7 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
             sessionId,
             runId: lifecycleRunId,
           });
+          return waterfallResult;
           return;
         }
 
@@ -899,7 +900,7 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
       displayText?: string,
       hintedCompanyOverride?: string | null,
       options?: HandleSendMessageOptions,
-    ) => {
+    ): Promise<DossierWaterfallResult | null | undefined> => {
       const resolvedDisplayText = displayText || text;
       let sessionId = currentSessionId;
       let currentHistory: Message[];
@@ -1015,7 +1016,7 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
       const previousUserMessages = currentHistory.filter(message => message.sender === Sender.User).length;
       const isDeepDive = resolvedRequestKind === 'deep_dive';
       try {
-        await processMessage(
+        const result = await processMessage(
           text,
           sessionId,
           currentHistory,
@@ -1029,6 +1030,7 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
             fixedLoadingLine: fixedLoadingLine ?? undefined,
           },
         );
+        return result;
       } finally {
         if (createdInitialSessionId) {
           const createdSession = sessionsRef.current.find(session => session.id === createdInitialSessionId);

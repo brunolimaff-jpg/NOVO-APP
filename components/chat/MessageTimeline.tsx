@@ -2,7 +2,7 @@ import { scoutDiag } from '../../utils/diagnosticLog';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Virtuoso, type VirtuosoHandle } from 'react-virtuoso';
 import { ChatMode } from '../../constants';
-import type { AppError, ChatSession, Feedback, FeedbackSubmissionOptions, Message } from '../../types';
+import type { AppError, ChatSession, DossierWaterfallResult, Feedback, FeedbackSubmissionOptions, Message } from '../../types';
 import { Sender } from '../../types';
 import EmptyStateHome from '../EmptyStateHome';
 import GreetingWelcomeScreen from '../GreetingWelcomeScreen';
@@ -37,7 +37,7 @@ interface MessageTimelineProps {
     options?: FeedbackSubmissionOptions,
   ) => void;
   onToggleMessageSources: (messageId: string) => void;
-  onDeepDive?: (displayMessage: string, hiddenPrompt: string) => Promise<void>;
+  onDeepDive?: (displayMessage: string, hiddenPrompt: string) => Promise<DossierWaterfallResult | null | undefined>;
   onRegenerateSuggestions: (messageId: string) => void;
   onPrefillComposer: (text: string) => void;
   operatorId?: string;

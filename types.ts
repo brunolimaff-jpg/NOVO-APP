@@ -229,7 +229,7 @@ export interface RunMegaPromptWaterfallArgs {
 }
 
 export type DossierWaterfallResult =
-  | { status: 'COMPLETED'; dossierRunId?: string }
+  | { status: 'COMPLETED'; dossierRunId?: string; dossierId?: string }
   | { status: 'CANCELLED'; dossierRunId?: string; terminalPersisted: boolean; reason: 'local_abort' | 'remote_cancel' }
   | { status: 'FAILED'; dossierRunId?: string; errorCode: string; errorStage: string; error: Error };
 
@@ -250,7 +250,7 @@ export interface ChatInterfaceProps {
     hiddenPrompt: string,
     forcedCompanyName?: string,
     cnpj?: string | null,
-  ) => Promise<void>;
+  ) => Promise<DossierWaterfallResult | null | undefined>;
   isSidebarOpen: boolean;
   onToggleSidebar: () => void;
   messages: Message[];
