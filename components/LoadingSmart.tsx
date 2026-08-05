@@ -22,6 +22,9 @@ const STEP_REVEAL_DELAY_MS = 1200;
 const STEP_REVEAL_MIN_MS = 800;
 const OVERLAY_STUCK_SAFETY_MS = 5_000;
 const MAX_LOADING_DURATION_MS = 180_000;
+// Extensão concedida quando o usuário opta por continuar aguardando após o stall.
+const STALL_EXTENSION_MS = 60_000;
+const MAX_STALL_EXTENSIONS = 3;
 const SOURCE_LINKS: Record<string, string> = {
   ibge: 'https://www.ibge.gov.br/',
   conab: 'https://www.conab.gov.br/',
@@ -168,6 +171,8 @@ const LoadingSmart: React.FC<LoadingSmartProps> = /*#__PURE__*/ React.memo(funct
   const [isFadingOut, setIsFadingOut] = useState(false);
   const [elapsedTime, setElapsedTime] = useState(0);
   const [confirmStop, setConfirmStop] = useState(false);
+  const [stalled, setStalled] = useState(false);
+  const [stallExtendedCount, setStallExtendedCount] = useState(0);
 
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const maxLoadingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -177,6 +182,7 @@ const LoadingSmart: React.FC<LoadingSmartProps> = /*#__PURE__*/ React.memo(funct
   const queueRef = useRef<string[]>([]);
   const revealTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastRevealTimeRef = useRef<number>(0);
+  const stallExtendedCountRef = useRef(0);
   const stageStartedAtRef = useRef<Record<string, number>>({});
   const stageDurationsRef = useRef<Record<string, number>>({});
   const displayedStageKeysRef = useRef<Set<string>>(new Set());
@@ -479,11 +485,23 @@ const LoadingSmart: React.FC<LoadingSmartProps> = /*#__PURE__*/ React.memo(funct
       setIsVisible(true);
       setIsFadingOut(false);
       setConfirmStop(false);
+      setStalled(false);
       timerRef.current = setTimeout(() => goToInsight(1), INSIGHT_CYCLE_MS);
 
+      // Stall observável: o overlay NUNCA some silenciosamente com a geração
+      // ainda ativa. Ao expirar o tempo máximo, entra em estado de stall com
+      // opção de continuar aguardando ou interromper (nunca sem feedback).
       maxLoadingTimerRef.current = setTimeout(() => {
-        setIsVisible(false);
+        setStalled(true);
+        setIsVisible(true);
         setIsFadingOut(false);
+        scoutDiag.warn('LoadingSmart', 'max-duration-stalled', {
+          loadingVariant,
+          totalStages: processing?.totalStages ?? null,
+          completedStages: processing?.completedStages?.length ?? 0,
+          failureCount: processing?.failureCount ?? 0,
+          stallExtendedCount: stallExtendedCountRef.current,
+        });
       }, MAX_LOADING_DURATION_MS);
     } else {
       clearInsightTimer();
@@ -515,6 +533,27 @@ const LoadingSmart: React.FC<LoadingSmartProps> = /*#__PURE__*/ React.memo(funct
 
   const handleRequestStop = useCallback(() => setConfirmStop(true), []);
   const handleCancelStop = useCallback(() => setConfirmStop(false), []);
+
+  const handleContinueWaiting = useCallback(() => {
+    stallExtendedCountRef.current += 1;
+    setStallExtendedCount(stallExtendedCountRef.current);
+    if (stallExtendedCountRef.current >= MAX_STALL_EXTENSIONS) {
+      // Sem mais extensões: interrompe de forma observável (nunca silencioso).
+      setStalled(false);
+      onStop?.();
+      return;
+    }
+    setStalled(false);
+    clearTimeout(maxLoadingTimerRef.current ?? undefined);
+    maxLoadingTimerRef.current = setTimeout(() => {
+      setStalled(true);
+      setIsVisible(true);
+      setIsFadingOut(false);
+      scoutDiag.warn('LoadingSmart', 'max-duration-stalled-extended', {
+        stallExtendedCount: stallExtendedCountRef.current,
+      });
+    }, STALL_EXTENSION_MS);
+  }, [onStop]);
   const handlePrev = useCallback(() => goToInsight(activeInsightIndex - 1), [goToInsight, activeInsightIndex]);
   const handleNext = useCallback(() => goToInsight(activeInsightIndex + 1), [goToInsight, activeInsightIndex]);
 
@@ -604,6 +643,48 @@ const LoadingSmart: React.FC<LoadingSmartProps> = /*#__PURE__*/ React.memo(funct
         onRequestStop={handleRequestStop}
         onCancelStop={handleCancelStop}
       />
+
+      {stalled && (
+        <div
+          data-testid="loading-stall-banner"
+          role="status"
+          className={`mx-auto mt-4 w-full max-w-xl rounded-xl border px-4 py-3 ${
+            isDarkMode ? 'border-amber-500/40 bg-amber-500/10' : 'border-amber-500/50 bg-amber-50'
+          }`}
+        >
+          <p className={`text-sm font-semibold ${isDarkMode ? 'text-amber-300' : 'text-amber-800'}`}>
+            A análise está demorando mais que o esperado.
+          </p>
+          <p className={`mt-1 text-xs ${isDarkMode ? 'text-slate-300' : 'text-slate-600'}`}>
+            Você pode continuar aguardando ou interromper a geração. Nada foi perdido: o progresso até aqui é
+            preservado.
+          </p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <button
+              type="button"
+              data-testid="stall-continue"
+              onClick={handleContinueWaiting}
+              className={`rounded-lg px-4 py-2 text-xs font-bold transition-colors ${
+                isDarkMode
+                  ? 'bg-amber-500 text-slate-950 hover:bg-amber-400'
+                  : 'bg-amber-600 text-white hover:bg-amber-500'
+              }`}
+            >
+              Continuar aguardando
+            </button>
+            <button
+              type="button"
+              data-testid="stall-stop"
+              onClick={onStop}
+              className={`rounded-lg px-4 py-2 text-xs font-bold transition-colors ${
+                isDarkMode ? 'bg-slate-700 text-slate-200 hover:bg-slate-600' : 'bg-slate-200 text-slate-800 hover:bg-slate-300'
+              }`}
+            >
+              Interromper geração
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* ── Centralized Progress Control ── */}
       <div className="flex-shrink-0 flex flex-col items-center justify-center px-4 md:px-8 py-3 md:py-6">

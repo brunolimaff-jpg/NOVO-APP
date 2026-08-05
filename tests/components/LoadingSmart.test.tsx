@@ -11,6 +11,8 @@ vi.mock('react-dom', () => ({
 }));
 
 
+import { fireEvent } from '@testing-library/react';
+
 describe('LoadingSmart (variante hero)', () => {
   beforeEach(() => {
     vi.useFakeTimers();
@@ -322,5 +324,114 @@ describe('LoadingSmart (variante hero)', () => {
     );
 
     expect(screen.getByText(/Prévia do dossiê da Grupo Scheffer: separando sinais públicos/i)).toBeInTheDocument();
+  });
+
+  it('após o tempo máximo, entra em stall observável em vez de sumir silenciosamente', async () => {
+    render(
+      <LoadingSmart
+        isLoading
+        mode="investigacao"
+        isDarkMode={false}
+        searchQuery="Acme Agro"
+        empresaAlvo="Acme Agro"
+      />,
+    );
+
+    await act(async () => {
+      vi.advanceTimersByTime(180_000);
+    });
+
+    // Overlay continua visível com banner de stall (nunca sem feedback)
+    expect(screen.getByTestId('loading-smart-overlay')).toHaveAttribute('data-visible', 'true');
+    expect(screen.getByTestId('loading-stall-banner')).toBeInTheDocument();
+    expect(screen.getByText(/demorando mais que o esperado/)).toBeInTheDocument();
+  });
+
+  it('Continuar aguardando sai do stall e reinicia o timer (com nova extensão)', async () => {
+    render(
+      <LoadingSmart
+        isLoading
+        mode="investigacao"
+        isDarkMode={false}
+        searchQuery="Acme Agro"
+        empresaAlvo="Acme Agro"
+      />,
+    );
+
+    await act(async () => {
+      vi.advanceTimersByTime(180_000);
+    });
+    expect(screen.getByTestId('loading-stall-banner')).toBeInTheDocument();
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('stall-continue'));
+    });
+
+    // Sai do stall; overlay permanece
+    expect(screen.queryByTestId('loading-stall-banner')).not.toBeInTheDocument();
+    expect(screen.getByTestId('loading-smart-overlay')).toHaveAttribute('data-visible', 'true');
+
+    // Nova extensão (60s) também entra em stall em vez de sumir
+    await act(async () => {
+      vi.advanceTimersByTime(60_000);
+    });
+    expect(screen.getByTestId('loading-stall-banner')).toBeInTheDocument();
+  });
+
+  it('Interromper geração chama onStop', async () => {
+    const onStop = vi.fn();
+    render(
+      <LoadingSmart
+        isLoading
+        mode="investigacao"
+        isDarkMode={false}
+        onStop={onStop}
+        searchQuery="Acme Agro"
+        empresaAlvo="Acme Agro"
+      />,
+    );
+
+    await act(async () => {
+      vi.advanceTimersByTime(180_000);
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('stall-stop'));
+    });
+
+    expect(onStop).toHaveBeenCalledTimes(1);
+  });
+
+  it('após o limite de extensões, interrompe de forma observável', async () => {
+    const onStop = vi.fn();
+    render(
+      <LoadingSmart
+        isLoading
+        mode="investigacao"
+        isDarkMode={false}
+        onStop={onStop}
+        searchQuery="Acme Agro"
+        empresaAlvo="Acme Agro"
+      />,
+    );
+
+    await act(async () => {
+      vi.advanceTimersByTime(180_000);
+    });
+
+    // 2 extensões concedidas normalmente (limite = 3)
+    for (let i = 0; i < 2; i += 1) {
+      await act(async () => {
+        fireEvent.click(screen.getByTestId('stall-continue'));
+        vi.advanceTimersByTime(60_000);
+      });
+    }
+    expect(onStop).not.toHaveBeenCalled();
+
+    // A 3ª extensão atinge o limite: interrompe de forma observável
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('stall-continue'));
+    });
+    expect(onStop).toHaveBeenCalledTimes(1);
   });
 });
