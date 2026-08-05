@@ -147,6 +147,39 @@ describe('SupabaseAuthProvider — contrato de erros (ONDA 2)', () => {
     await waitFor(() => expect(result.current.loading).toBe(false));
   });
 
+it('AuthError desconhecido é sanitizado — detalhe técnico não chega à interface', async () => {
+    signInMock.mockRejectedValue(new AuthError('detalhe técnico sensível: connection reset by 10.0.0.7', 500, 'unexpected_failure'));
+    const { result } = renderHook(() => useAuth(), { wrapper: ({ children }) => <SupabaseAuthProvider>{children}</SupabaseAuthProvider> });
+
+    let outcome: { error: AuthError | null } | undefined;
+    await act(async () => {
+      outcome = await result.current.signIn('bruno@senior.com.br', 'Senha1234');
+    });
+
+    expect(outcome?.error).not.toBeNull();
+    expect(outcome?.error?.message).toContain('Verifique sua conexão');
+    expect(outcome?.error?.message).not.toContain('connection reset');
+    expect(outcome?.error?.message).not.toContain('10.0.0.7');
+    // Código preservado para diagnóstico, mensagem sanitizada
+    expect(outcome?.error?.code).toBe('unexpected_failure');
+  });
+
+  it('AuthError com código seguro mantém a mensagem amigável do Supabase', async () => {
+    signInMock.mockResolvedValue({
+      data: { session: null },
+      error: new AuthError('Invalid login credentials', 400, 'invalid_credentials'),
+    });
+    const { result } = renderHook(() => useAuth(), { wrapper: ({ children }) => <SupabaseAuthProvider>{children}</SupabaseAuthProvider> });
+
+    let outcome: { error: AuthError | null } | undefined;
+    await act(async () => {
+      outcome = await result.current.signIn('bruno@senior.com.br', 'SenhaErrada');
+    });
+
+    expect(outcome?.error?.code).toBe('invalid_credentials');
+    expect(outcome?.error?.message).toContain('Invalid login credentials');
+  });
+
   it('resetPassword também não retorna falso { error: null } com cliente indisponível', async () => {
     supabaseRef.current = null;
     const { result } = renderHook(() => useAuth(), { wrapper: ({ children }) => <SupabaseAuthProvider>{children}</SupabaseAuthProvider> });

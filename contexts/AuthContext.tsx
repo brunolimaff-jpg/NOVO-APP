@@ -18,8 +18,24 @@ function authUnavailableError(): AuthError {
   return new AuthError('Cliente de autenticação indisponível. Verifique sua conexão e tente novamente.');
 }
 
+// Códigos do Supabase Auth cujas mensagens são seguras para exibir na UI.
+// Qualquer outro AuthError tem a mensagem substituída pelo fallback amigável
+// (o código/status são preservados para diagnóstico).
+const AUTH_SAFE_ERROR_CODES = new Set([
+  'invalid_credentials',
+  'user_already_exists',
+  'email_not_confirmed',
+  'weak_password',
+  'over_request_rate_limit',
+  'signup_disabled',
+  'same_password',
+]);
+
 function toSanitizedAuthError(err: unknown, fallbackMessage: string): AuthError {
-  if (err instanceof AuthError) return err;
+  if (err instanceof AuthError) {
+    if (err.code && AUTH_SAFE_ERROR_CODES.has(err.code)) return err;
+    return new AuthError(fallbackMessage, err.status, err.code);
+  }
   return new AuthError(fallbackMessage);
 }
 
