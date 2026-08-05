@@ -327,7 +327,9 @@ export async function executeQueryPlan(plan: QueryPlan): Promise<EvidencePack> {
           });
           if (!response.ok) return [];
           const data = await response.json();
-          const raw = data.content || '';
+          // /api/open-web-search responde { content: string } — tipar o raw evita
+          // inferir any[] (TS7006 em block/r) e preserva o parsing atual.
+          const raw: string = data.content || '';
           if (!raw) return [];
 
           const blocks = raw.split(/\n---\n/).filter(Boolean);
