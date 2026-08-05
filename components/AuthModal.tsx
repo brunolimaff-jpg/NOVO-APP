@@ -88,10 +88,17 @@ export const AuthModal: React.FC<AuthModalProps> = ({ showGuestOption, onClose, 
       } else {
         const { error } = await signIn(email.trim(), password);
         if (error) {
-          setFieldError('Email ou senha incorretos.');
+          // Credencial inválida tem mensagem específica; demais erros vêm
+          // sanitizados do AuthContext (cliente indisponível, rede, etc.).
+          const isInvalidCredential =
+            error.code === 'invalid_credentials' || error.message?.includes('Invalid login credentials');
+          setFieldError(isInvalidCredential ? 'Email ou senha incorretos.' : error.message);
         }
         // Se login bem-sucedido, AuthGate fecha o modal automaticamente
       }
+    } catch {
+      // Defensivo: qualquer exceção inesperada nunca fica silenciosa.
+      setFieldError('Ocorreu um erro inesperado. Tente novamente em instantes.');
     } finally {
       setSubmitting(false);
     }

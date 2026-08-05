@@ -155,6 +155,52 @@ describe('AuthModal', () => {
     });
   });
 
+it('signin com cliente indisponivel — mostra mensagem sanitizada (nao "Email ou senha incorretos")', async () => {
+    signInMock.mockResolvedValue({
+      error: { code: 'auth_unavailable', message: 'Cliente de autenticação indisponível. Verifique sua conexão e tente novamente.' },
+    });
+
+    renderModal(true);
+    await fillSigninForm('bruno@senior.com.br', 'Senha1234');
+
+    const entrarButtons = screen.getAllByText('Entrar');
+    fireEvent.click(entrarButtons[entrarButtons.length - 1]);
+
+    await waitFor(() => {
+      expect(screen.getByText(/Cliente de autenticação indisponível/)).toBeInTheDocument();
+    });
+    expect(screen.queryByText('Email ou senha incorretos.')).not.toBeInTheDocument();
+  });
+
+  it('signin com excecao inesperada — mostra mensagem de erro (nunca silencioso)', async () => {
+    signInMock.mockRejectedValue(new Error('connect ECONNREFUSED'));
+
+    renderModal(true);
+    await fillSigninForm('bruno@senior.com.br', 'Senha1234');
+
+    const entrarButtons = screen.getAllByText('Entrar');
+    fireEvent.click(entrarButtons[entrarButtons.length - 1]);
+
+    await waitFor(() => {
+      expect(screen.getByText(/Ocorreu um erro inesperado/)).toBeInTheDocument();
+    });
+  });
+
+  it('signup com cliente indisponivel — mostra erro em vez de falso sucesso', async () => {
+    signUpMock.mockResolvedValue({
+      error: { code: 'auth_unavailable', message: 'Cliente de autenticação indisponível. Verifique sua conexão e tente novamente.' },
+    });
+
+    renderModal(true);
+    await fillSignupForm('novo@agro.com', 'Senha1234', 'Senha1234', 'Novo Usuario');
+    clickCriarContaSubmit();
+
+    await waitFor(() => {
+      expect(screen.getByText(/Cliente de autenticação indisponível/)).toBeInTheDocument();
+    });
+    expect(screen.queryByText(/Conta criada/)).not.toBeInTheDocument();
+  });
+
   it('botao Continuar sem cadastro aparece quando showGuestOption=true', () => {
     renderModal(true);
 
