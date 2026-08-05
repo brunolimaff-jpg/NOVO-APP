@@ -49,7 +49,7 @@ import { applyDossierEnxuto } from '../../utils/dossierEnxuto';
 import type { MutableRefObject } from 'react';
 import type { RunMegaPromptWaterfallArgs } from '../../types';
 import { isAbortLikeError } from '../../utils/abortHelpers';
-import { DossierRunCancelledError, assertDossierRunCanContinue, isDossierRunControlError } from './dossier-run-control';
+import { DossierRunCancelledError, assertDossierRunCanContinue, assertDossierRunCanContinueWithRenewal as assertDossierRunCanContinueWithRenewalFn, isDossierRunControlError } from './dossier-run-control';
 import { markDossierRunCancelled, markDossierRunCompleted, markDossierRunFailed, releaseDossierRunLease } from '../../lib/supabase/dossierRuns';
 import { isEvidencePipelineV2 } from '../../utils/feature-flags';
 import { ensureContinuitySuggestions, pickCompanyLabel } from '../../utils/messageHelpers';
@@ -611,7 +611,14 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
         currentLifecycleStage = stage;
         await assertDossierRunCanContinue({ runId: dossierRunId, leaseOwner: dossierLeaseOwner, signal, stage });
       };
+      // Checkpoint de liveness para etapas longas: renovação preventiva quando o
+      // lease está perto de expirar (fail-closed preservado; nunca reacquire).
+      const assertRunCanContinueWithRenewal = async (stage: string) => {
+        currentLifecycleStage = stage;
+        await assertDossierRunCanContinueWithRenewalFn({ runId: dossierRunId, leaseOwner: dossierLeaseOwner, signal, stage });
+      };
       let sessionToPersist: ChatSession | null = null;
+      let completedDossierId: string | undefined;
 
       try {
         await assertRunCanContinue('waterfall_start');
@@ -1014,7 +1021,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
 
         for (let index = 0; index < modules.length; index += 1) {
           const module = modules[index];
-          await assertRunCanContinue(`before_module:${module.name}`);
+          await assertRunCanContinueWithRenewal(`before_module:${module.name}`);
           if (index > 0) {
             if (previousStageCompleted) {
               advanceLoadingProgress(module.stage, MODULAR_DOSSIER_TOTAL_STAGES);
@@ -1037,7 +1044,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
               }
             }
             appendWaterfallChunk(moduleResult);
-            await assertRunCanContinue(`after_module:${module.name}`);
+            await assertRunCanContinueWithRenewal(`after_module:${module.name}`);
             optionalStepFailures.delete(module.name);
             previousStageCompleted = true;
             setFailureCount(0);
@@ -1057,7 +1064,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
           }
         }
 
-        await assertRunCanContinue('before_benchmark');
+        await assertRunCanContinueWithRenewal('before_benchmark');
         if (previousStageCompleted) {
           advanceLoadingProgress(MODULAR_DOSSIER_STAGES[5], MODULAR_DOSSIER_TOTAL_STAGES);
         } else {
@@ -1073,7 +1080,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
           optionalStepFailures,
           setFailureCount,
         });
-        await assertRunCanContinue('after_benchmark');
+        await assertRunCanContinueWithRenewal('after_benchmark');
         scoutDiag.info('WaterfallLifecycle', 'pos-benchmark', { sessionId, waterfallRunId, benchmarkCompleted });
 
         if (benchmarkCompleted) {
@@ -1093,7 +1100,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
 
         scoutDiag.info('WaterfallLifecycle', 'pre-porta-reconciliation', { sessionId, waterfallRunId });
         try {
-          await assertRunCanContinue('before_porta_reconciliation');
+          await assertRunCanContinueWithRenewal('before_porta_reconciliation');
           const result = await Promise.race([
             reconcileWaterfallPorta({
               sessionId,
@@ -1137,7 +1144,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
         } finally {
           if (portaTimeoutId) clearTimeout(portaTimeoutId);
         }
-        await assertRunCanContinue('after_porta_reconciliation');
+        await assertRunCanContinueWithRenewal('after_porta_reconciliation');
         scoutDiag.info('WaterfallLifecycle', 'pos-porta-reconciliation', { sessionId, waterfallRunId });
         accumulatedText = reconciledText;
         assertNotAborted();
@@ -1561,7 +1568,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
 
         {
           const dossier = sessionToPersist;
-          await assertRunCanContinue('save_dossier');
+          await assertRunCanContinueWithRenewal('save_dossier');
           try { await storage.saveDossierStrict(dossier); }
           catch (error) {
             if (dossierRunId && dossierLeaseOwner) {
@@ -1574,7 +1581,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
             }
             return { status: 'FAILED', dossierRunId, errorCode: 'persist_failed', errorStage: 'save_dossier', error: error instanceof Error ? error : new Error(String(error)) } satisfies DossierWaterfallResult;
           }
-          await assertRunCanContinue('after_save_dossier_before_complete');
+          await assertRunCanContinueWithRenewal('after_save_dossier_before_complete');
           if (dossierRunId && dossierLeaseOwner) {
             try {
               await markDossierRunCompleted(dossierRunId, dossierLeaseOwner, dossier.id);
@@ -1590,11 +1597,12 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
               return { status: 'FAILED', dossierRunId, errorCode: 'lifecycle_completion_failed', errorStage: 'mark_completed', error: error instanceof Error ? error : new Error(String(error)) } satisfies DossierWaterfallResult;
             }
           }
+          completedDossierId = dossier.id;
           window.dispatchEvent(new CustomEvent('dossier:completed', { detail: { dossierId: dossier.id, companyName: resolvedMegaCompany || normalizedCompany || '', cnpj: dossier.cnpj } }));
         }
 
         waterfallEndStatus = 'completed';
-        return { status: 'COMPLETED', dossierRunId } satisfies DossierWaterfallResult;
+        return { status: 'COMPLETED', dossierRunId, dossierId: completedDossierId } satisfies DossierWaterfallResult;
       } catch (error) {
         if (signal.aborted || error instanceof DossierRunCancelledError || isAbortLikeError(error)) {
           waterfallEndStatus = 'aborted';
