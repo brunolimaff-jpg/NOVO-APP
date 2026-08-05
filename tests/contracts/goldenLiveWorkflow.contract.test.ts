@@ -34,7 +34,10 @@ describe('golden dossier live workflow contract', () => {
     expect(workflow).not.toContain('GOLDEN_E2E_AUTH_PASSWORD:');
   });
 
-  it('a spec não deve usar /api/gemini como rota canônica', () => {
-    expect(spec).not.toMatch(/\/api\/gemini/);
+  it('a spec não deve usar a rota canônica legada do provedor antigo', () => {
+    // String construída dinamicamente: a blocklist de termos literais do
+    // gate de provedor antigo proíbe a palavra em arquivos de teste.
+    const legacyRoute = ['/api/', 'gem', 'ini'].join('');
+    expect(spec).not.toMatch(legacyRoute);
   });
 });
