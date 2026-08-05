@@ -618,7 +618,6 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
             runId: lifecycleRunId,
           });
           return waterfallResult;
-          return;
         }
 
         const {
