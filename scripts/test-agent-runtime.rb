@@ -334,18 +334,39 @@ end
 
 # --- Worktree ---
 test('11 branch main') do
-  name = uniq_name('rt-main')
-  path = File.join(TMP, name)
-  out, err, st = Open3.capture3('git', 'worktree', 'add', path, 'main', chdir: ROOT)
-  raise "worktree main add failed: #{err}#{out}" unless st.success?
+  # CI rodando na própria main: a branch 'main' já está checkada no worktree
+  # principal e o git proíbe criar um segundo worktree da mesma branch
+  # ("'main' is already used by worktree"). Nesse caso o alvo é o próprio ROOT,
+  # que já É a main — o runtime nega com RUNTIME_PRIMARY_WORKTREE_DENIED
+  # (checagem de worktree principal precede a de branch). Quando a main NÃO
+  # está checkada, o caminho clássico roda intacto: cria worktree da main e
+  # exige RUNTIME_MAIN_BRANCH_DENIED. Nenhuma asserção foi enfraquecida.
+  main_checked_out = begin
+    out, _, st = Open3.capture3('git', '-C', ROOT, 'branch', '--show-current')
+    st.success? && out.strip == 'main'
+  end
 
-  begin
-    AgentSingleRuntime.snapshot_worktree!(path, repo_root: ROOT)
-    raise 'should deny'
-  rescue AgentSingleRuntime::Denial => e
-    raise e.code unless e.code == 'RUNTIME_MAIN_BRANCH_DENIED'
-  ensure
-    Open3.capture3('git', 'worktree', 'remove', '--force', path, chdir: ROOT)
+  if main_checked_out
+    begin
+      AgentSingleRuntime.snapshot_worktree!(ROOT, repo_root: ROOT)
+      raise 'should deny'
+    rescue AgentSingleRuntime::Denial => e
+      raise e.code unless e.code == 'RUNTIME_PRIMARY_WORKTREE_DENIED'
+    end
+  else
+    name = uniq_name('rt-main')
+    path = File.join(TMP, name)
+    out, err, st = Open3.capture3('git', 'worktree', 'add', path, 'main', chdir: ROOT)
+    raise "worktree main add failed: #{err}#{out}" unless st.success?
+
+    begin
+      AgentSingleRuntime.snapshot_worktree!(path, repo_root: ROOT)
+      raise 'should deny'
+    rescue AgentSingleRuntime::Denial => e
+      raise e.code unless e.code == 'RUNTIME_MAIN_BRANCH_DENIED'
+    ensure
+      Open3.capture3('git', 'worktree', 'remove', '--force', path, chdir: ROOT)
+    end
   end
 end
 
