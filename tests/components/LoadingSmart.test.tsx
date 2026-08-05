@@ -443,18 +443,17 @@ describe('LoadingSmart (variante hero)', () => {
 
   it('reseta o contador de extensões entre gerações', async () => {
     const onStop = vi.fn();
-    const { rerender } = render(
-      <LoadingSmart
-        isLoading
-        mode="investigacao"
-        isDarkMode={false}
-        onStop={onStop}
-        searchQuery="Acme Agro"
-        empresaAlvo="Acme Agro"
-      />,
-    );
+    const props = {
+      isLoading: true,
+      mode: 'investigacao' as const,
+      isDarkMode: false,
+      onStop,
+      searchQuery: 'Acme Agro',
+      empresaAlvo: 'Acme Agro',
+    };
 
     // 1ª geração: esgota as extensões
+    const first = render(<LoadingSmart {...props} />);
     await act(async () => {
       vi.advanceTimersByTime(180_000);
     });
@@ -465,32 +464,15 @@ describe('LoadingSmart (variante hero)', () => {
       });
     }
     expect(screen.queryByTestId('stall-continue')).not.toBeInTheDocument();
+    first.unmount();
 
-    // 2ª geração: loading reinicia → contador zerado, extensões disponíveis de novo
+    // 2ª geração: novo ciclo de loading → contador zerado, extensões disponíveis
+    render(<LoadingSmart {...props} />);
     await act(async () => {
-      rerender(
-        <LoadingSmart
-          isLoading={false}
-          mode="investigacao"
-          isDarkMode={false}
-          onStop={onStop}
-          searchQuery="Acme Agro"
-          empresaAlvo="Acme Agro"
-        />,
-      );
-      rerender(
-        <LoadingSmart
-          isLoading
-          mode="investigacao"
-          isDarkMode={false}
-          onStop={onStop}
-          searchQuery="Acme Agro"
-          empresaAlvo="Acme Agro"
-        />,
-      );
       vi.advanceTimersByTime(180_000);
     });
 
+    expect(screen.getByTestId('loading-stall-banner')).toBeInTheDocument();
     expect(screen.getByTestId('stall-continue')).toBeInTheDocument();
     expect(onStop).not.toHaveBeenCalled();
   });
