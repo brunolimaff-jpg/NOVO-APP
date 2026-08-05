@@ -486,6 +486,8 @@ const LoadingSmart: React.FC<LoadingSmartProps> = /*#__PURE__*/ React.memo(funct
       setIsFadingOut(false);
       setConfirmStop(false);
       setStalled(false);
+      stallExtendedCountRef.current = 0;
+      setStallExtendedCount(0);
       timerRef.current = setTimeout(() => goToInsight(1), INSIGHT_CYCLE_MS);
 
       // Stall observável: o overlay NUNCA some silenciosamente com a geração
@@ -535,14 +537,11 @@ const LoadingSmart: React.FC<LoadingSmartProps> = /*#__PURE__*/ React.memo(funct
   const handleCancelStop = useCallback(() => setConfirmStop(false), []);
 
   const handleContinueWaiting = useCallback(() => {
+    // Concede SEMPRE uma extensão completa: o limite apenas remove a opção de
+    // continuar aguardando (sobra só "Interromper"). Cancelamento da geração
+    // acontece SOMENTE por ação explícita do usuário (nunca automático).
     stallExtendedCountRef.current += 1;
     setStallExtendedCount(stallExtendedCountRef.current);
-    if (stallExtendedCountRef.current >= MAX_STALL_EXTENSIONS) {
-      // Sem mais extensões: interrompe de forma observável (nunca silencioso).
-      setStalled(false);
-      onStop?.();
-      return;
-    }
     setStalled(false);
     clearTimeout(maxLoadingTimerRef.current ?? undefined);
     maxLoadingTimerRef.current = setTimeout(() => {
@@ -551,9 +550,10 @@ const LoadingSmart: React.FC<LoadingSmartProps> = /*#__PURE__*/ React.memo(funct
       setIsFadingOut(false);
       scoutDiag.warn('LoadingSmart', 'max-duration-stalled-extended', {
         stallExtendedCount: stallExtendedCountRef.current,
+        extensionsExhausted: stallExtendedCountRef.current >= MAX_STALL_EXTENSIONS,
       });
     }, STALL_EXTENSION_MS);
-  }, [onStop]);
+  }, []);
   const handlePrev = useCallback(() => goToInsight(activeInsightIndex - 1), [goToInsight, activeInsightIndex]);
   const handleNext = useCallback(() => goToInsight(activeInsightIndex + 1), [goToInsight, activeInsightIndex]);
 
@@ -656,22 +656,23 @@ const LoadingSmart: React.FC<LoadingSmartProps> = /*#__PURE__*/ React.memo(funct
             A análise está demorando mais que o esperado.
           </p>
           <p className={`mt-1 text-xs ${isDarkMode ? 'text-slate-300' : 'text-slate-600'}`}>
-            Você pode continuar aguardando ou interromper a geração. Nada foi perdido: o progresso até aqui é
-            preservado.
+            Você pode continuar aguardando ou interromper a geração atual.
           </p>
           <div className="mt-3 flex flex-wrap gap-2">
-            <button
-              type="button"
-              data-testid="stall-continue"
-              onClick={handleContinueWaiting}
-              className={`rounded-lg px-4 py-2 text-xs font-bold transition-colors ${
-                isDarkMode
-                  ? 'bg-amber-500 text-slate-950 hover:bg-amber-400'
-                  : 'bg-amber-600 text-white hover:bg-amber-500'
-              }`}
-            >
-              Continuar aguardando
-            </button>
+            {stallExtendedCount < MAX_STALL_EXTENSIONS && (
+              <button
+                type="button"
+                data-testid="stall-continue"
+                onClick={handleContinueWaiting}
+                className={`rounded-lg px-4 py-2 text-xs font-bold transition-colors ${
+                  isDarkMode
+                    ? 'bg-amber-500 text-slate-950 hover:bg-amber-400'
+                    : 'bg-amber-600 text-white hover:bg-amber-500'
+                }`}
+              >
+                Continuar aguardando
+              </button>
+            )}
             <button
               type="button"
               data-testid="stall-stop"
