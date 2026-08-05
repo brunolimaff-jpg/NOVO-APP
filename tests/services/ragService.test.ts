@@ -44,4 +44,42 @@ describe('ragService', () => {
     expect(result.failed).toBe(true);
   });
 
+  it('não retenta e degrada quando o servidor responde 503 RAG_DISABLED_PENDING_REINDEX', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 503,
+      json: () =>
+        Promise.resolve({
+          context: '',
+          error: 'RAG_DISABLED_PENDING_REINDEX',
+          code: 'RAG_DISABLED_PENDING_REINDEX',
+          retryable: false,
+        }),
+    });
+    global.fetch = fetchMock;
+
+    const result = await buscarContextoPinecone('test query');
+    expect(result.context).toBe('');
+    expect(result.failed).toBe(true);
+    expect(result.disabled).toBe(true);
+    // Sem retry: exatamente uma chamada ao endpoint.
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('503 sem o código RAG_DISABLED segue a política de retry de 5xx', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 503,
+      json: () => Promise.resolve({ error: 'outra coisa' }),
+    });
+    global.fetch = fetchMock;
+
+    const result = await buscarContextoPinecone('test query');
+    expect(result.failed).toBe(true);
+    expect(result.disabled).toBeUndefined();
+    // Retry once em 5xx (política existente) — apenas o 503 com o código
+    // RAG_DISABLED_PENDING_REINDEX degrada sem retry.
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
 });

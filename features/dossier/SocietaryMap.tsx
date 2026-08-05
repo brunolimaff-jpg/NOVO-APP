@@ -128,17 +128,17 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({
           })),
         });
       } catch (error) {
-        trace('lookup da empresa raiz falhou; avaliando fallback Gemini', {
+        trace('lookup da empresa raiz falhou; avaliando fallback LLM', {
           cnpj: lookupCnpj,
           message: error instanceof Error ? error.message : String(error),
         });
       }
 
       if (partners.length === 0 && llmCnpjs && llmCnpjs.length > 0) {
-        const geminiPartners = new Map<string, SocietaryPartnerInput>();
+        const llmPartners = new Map<string, SocietaryPartnerInput>();
         for (const c of llmCnpjs) {
-          if (c.partnerName && !geminiPartners.has(c.partnerName)) {
-            geminiPartners.set(c.partnerName, {
+          if (c.partnerName && !llmPartners.has(c.partnerName)) {
+            llmPartners.set(c.partnerName, {
               name: c.partnerName,
               role: c.role,
               sourceTitle: c.sourceTitle,
@@ -146,32 +146,32 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({
             });
           }
         }
-        if (geminiPartners.size > 0) {
-          partners = [...geminiPartners.values()];
-          trace('fallback Gemini gerou socios para a teia', {
+        if (llmPartners.size > 0) {
+          partners = [...llmPartners.values()];
+          trace('fallback LLM gerou socios para a teia', {
             partnersCount: partners.length,
-            geminiCompaniesCount: llmCnpjs.length,
+            llmCompaniesCount: llmCnpjs.length,
           });
-          if (!cancelled) setNotice('Dados do Gemini utilizados para montar o mapa societario.');
+          if (!cancelled) setNotice('Dados do LLM utilizados para montar o mapa societario.');
         } else {
           partners = [
             {
-              name: 'Grupo Econômico (Gemini)',
-              sourceTitle: 'Gemini — Teia Societária',
+              name: 'Grupo Econômico (LLM)',
+              sourceTitle: 'LLM — Teia Societária',
               confidence: 'weak',
             },
           ];
-          trace('fallback Gemini sem socios explicitos; usando socio sintetico', {
-            geminiCompaniesCount: llmCnpjs.length,
+          trace('fallback LLM sem socios explicitos; usando socio sintetico', {
+            llmCompaniesCount: llmCnpjs.length,
           });
-          if (!cancelled) setNotice('Mapa montado com dados do Gemini. Validacao via QSA pendente.');
+          if (!cancelled) setNotice('Mapa montado com dados do LLM. Validacao via QSA pendente.');
         }
       }
 
       if (partners.length === 0) {
         trace('teia sem socios apos lookup e fallback', {
           cnpj: lookupCnpj,
-          geminiCompaniesCount: llmCnpjs?.length || 0,
+          llmCompaniesCount: llmCnpjs?.length || 0,
         });
         if (!cancelled) {
           setRootData(null);
@@ -378,10 +378,10 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({
   const graph = useMemo(() => {
     if (!rootData) return null;
     const isSyntheticFallback =
-      rootData.partners.length === 1 && rootData.partners[0].name === 'Grupo Econômico (Gemini)';
-    const enrichedGemini =
+      rootData.partners.length === 1 && rootData.partners[0].name === 'Grupo Econômico (LLM)';
+    const enrichedLlm =
       isSyntheticFallback && llmCnpjs
-        ? llmCnpjs.map(c => (c.partnerName ? c : { ...c, partnerName: 'Grupo Econômico (Gemini)' }))
+        ? llmCnpjs.map(c => (c.partnerName ? c : { ...c, partnerName: 'Grupo Econômico (LLM)' }))
         : llmCnpjs;
     return buildSocietaryGraph(
       {
@@ -392,7 +392,7 @@ const SocietaryMap: React.FC<SocietaryMapProps> = ({
         partners: rootData.partners,
         companies: collectPartnerCompanies(companiesByPartner),
       },
-      enrichedGemini,
+      enrichedLlm,
     );
   }, [rootData, companiesByPartner, llmCnpjs]);
 

@@ -252,7 +252,7 @@ export function parseTeiaText(markdown: string): ParsedTeiaData {
             partnerName,
             role: relation || undefined,
             branchCount,
-            sourceTitle: fonteCol >= 0 && cells[fonteCol]?.trim() ? cells[fonteCol].trim() : 'Gemini — Tabela CNPJs',
+            sourceTitle: fonteCol >= 0 && cells[fonteCol]?.trim() ? cells[fonteCol].trim() : 'LLM — Tabela CNPJs',
             confidence:
               parsedCnpj.validationStatus === 'pending'
                 ? 'weak'
@@ -313,7 +313,7 @@ export function parseTeiaText(markdown: string): ParsedTeiaData {
           name: qsaName.trim(),
           cnpj: null,
           partnerName: extractedPartnerName,
-          sourceTitle: 'Gemini — QSA inference',
+          sourceTitle: 'LLM — QSA inference',
           confidence: 'weak',
           evidenceType: 'web',
           relationshipScope: 'group_link',

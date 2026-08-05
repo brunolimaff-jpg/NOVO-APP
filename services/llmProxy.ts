@@ -1,12 +1,12 @@
 import { scoutDiag } from '../utils/diagnosticLog';
 
-type GeminiApiAction = 'generateContent' | 'chatSendMessage' | 'createCachedContent' | 'deleteCachedContent';
+type LlmApiAction = 'generateContent' | 'chatSendMessage';
 
-interface GeminiApiBaseRequest {
-  action: GeminiApiAction;
+interface LlmApiBaseRequest {
+  action: LlmApiAction;
 }
 
-interface GeminiGenerateRequest extends GeminiApiBaseRequest {
+interface LlmGenerateRequest extends LlmApiBaseRequest {
   action: 'generateContent';
   model: string;
   contents: unknown;
@@ -21,16 +21,14 @@ interface GeminiGenerateRequest extends GeminiApiBaseRequest {
   module?: string;
 }
 
-interface GeminiChatRequest extends GeminiApiBaseRequest {
+interface LlmChatRequest extends LlmApiBaseRequest {
   action: 'chatSendMessage';
   model: string;
   systemInstruction: string;
   history: Array<{ role: 'user' | 'model'; text: string }>;
   message: string;
-  useGrounding?: boolean;
   thinkingLevel?: 'low' | 'medium' | 'high';
   thinkingMode?: boolean;
-  useOpenWebSearch?: boolean;
   temperature?: number;
   stopSequences?: string[];
   // Cost tracking fields (all optional)
@@ -43,52 +41,19 @@ interface GeminiChatRequest extends GeminiApiBaseRequest {
   module?: string;
 }
 
-interface GeminiGenerateResponse {
+interface LlmGenerateResponse {
   text: string;
   candidates?: unknown[];
   usageMetadata?: Record<string, unknown>;
 }
 
-interface GeminiCreateCachedContentRequest extends GeminiApiBaseRequest {
-  action: 'createCachedContent';
-  model: string;
-  systemInstruction: string;
-  ttl?: string;
-  displayName?: string;
-  tools?: unknown[];
-}
-
-interface GeminiCreateCachedContentResponse {
-  name?: string;
-  expireTime?: string;
-  usageMetadata?: Record<string, unknown>;
-}
-
-interface GeminiDeleteCachedContentRequest extends GeminiApiBaseRequest {
-  action: 'deleteCachedContent';
-  name: string;
-}
-
-interface GeminiDeleteCachedContentResponse {
-  ok: boolean;
-}
-
-export interface GeminiChatResponse {
+export interface LlmChatResponse {
   text: string;
-  groundingChunks?: unknown[];
-  /**
-   * true  = grounding ativo e retornou chunks concretos.
-   * false = fallback silencioso foi acionado (grounding falhou) OU grounding
-   *         ativo mas sem chunks relevantes. Ambos os casos exigem aviso visual.
-   * Ausente (undefined) quando o campo nao foi retornado pela API (compatibilidade
-   * com versoes antigas — tratar como undefined, nao como false).
-   */
-  groundingUsed?: boolean;
   webVerificationStatus?: 'verified' | 'fallback_verified' | 'unverified' | 'not_applicable';
 }
 
-const CUSTOM_LLM_PROXY_BASE_URL = (import.meta.env.VITE_GEMINI_PROXY_URL || '')
-  .replace(/\/api\/gemini$/, '')
+const CUSTOM_LLM_PROXY_BASE_URL = (import.meta.env.VITE_LLM_PROXY_URL || '')
+  .replace(/\/api\/llm$/, '')
   .replace(/\/$/, '');
 // O serverless usa 55s para chat normal e ate 180s para investigacoes pesadas.
 // Frontend da margem de 210s para cobrir o cenario mais longo + overhead de rede.
@@ -104,13 +69,13 @@ function resolveEndpoint(path: string): string {
   return CUSTOM_LLM_PROXY_BASE_URL ? `${CUSTOM_LLM_PROXY_BASE_URL}${path}` : path;
 }
 
-export function resolveGeminiApiEndpoint(
+export function resolveLlmApiEndpoint(
   hostname: string = typeof window !== 'undefined' ? window.location.hostname : '',
   isDev: boolean = import.meta.env.DEV,
 ): string {
   const isLocalDevHost = hostname === 'localhost' || hostname === '127.0.0.1';
-  if (!(isDev && isLocalDevHost)) return '/api/gemini';
-  return CUSTOM_LLM_PROXY_BASE_URL ? `${CUSTOM_LLM_PROXY_BASE_URL}/api/gemini` : '/api/gemini';
+  if (!(isDev && isLocalDevHost)) return '/api/llm';
+  return CUSTOM_LLM_PROXY_BASE_URL ? `${CUSTOM_LLM_PROXY_BASE_URL}/api/llm` : '/api/llm';
 }
 
 function buildAbortError(): Error {
@@ -139,13 +104,11 @@ async function readResponseText(response: Response, signal: AbortSignal): Promis
   }
 }
 
-async function callGeminiApi<TResponse>(
+async function callLlmApi<TResponse>(
   endpoint: string,
   payload:
-    | GeminiGenerateRequest
-    | GeminiChatRequest
-    | GeminiCreateCachedContentRequest
-    | GeminiDeleteCachedContentRequest
+    | LlmGenerateRequest
+    | LlmChatRequest
     | Record<string, unknown>,
   signal?: AbortSignal,
 ): Promise<TResponse> {
@@ -199,8 +162,8 @@ async function callGeminiApi<TResponse>(
         });
         throw new Error(
           response
-            ? `Gemini proxy body read timeout after ${timeoutMs}ms`
-            : `Gemini proxy timeout after ${timeoutMs}ms`,
+            ? `LLM proxy body read timeout after ${timeoutMs}ms`
+            : `LLM proxy timeout after ${timeoutMs}ms`,
           { cause: error },
         );
       }
@@ -239,7 +202,7 @@ async function callGeminiApi<TResponse>(
         requestClass,
         bodyPreview: (responseText || '').slice(0, 200),
       });
-      throw new Error(`Gemini proxy failed (${response.status}): ${responseText || 'unknown error'}`);
+      throw new Error(`LLM proxy failed (${response.status}): ${responseText || 'unknown error'}`);
     }
 
     const trimmedBody = responseText.trim();
@@ -255,7 +218,7 @@ async function callGeminiApi<TResponse>(
         bodyPreview: trimmedBody.slice(0, 200),
         error: error instanceof Error ? error.message : String(error),
       });
-      throw new Error('Gemini proxy returned invalid JSON', { cause: error });
+      throw new Error('LLM proxy returned invalid JSON', { cause: error });
     }
   } finally {
     clearTimeout(timeoutId);
@@ -264,46 +227,30 @@ async function callGeminiApi<TResponse>(
 }
 
 export async function proxyGenerateContent(
-  params: Omit<GeminiGenerateRequest, 'action'>,
+  params: Omit<LlmGenerateRequest, 'action'>,
   signal?: AbortSignal,
-): Promise<GeminiGenerateResponse> {
+): Promise<LlmGenerateResponse> {
   // endpoint resolvido lazy — sem const de módulo
-  return callGeminiApi<GeminiGenerateResponse>(
-    resolveGeminiApiEndpoint(),
+  const response = await callLlmApi<LlmGenerateResponse & { usage?: Record<string, unknown> }>(
+    resolveLlmApiEndpoint(),
     { action: 'generateContent', ...params },
     signal,
   );
-}
-
-export async function proxyCreateCachedContent(
-  params: Omit<GeminiCreateCachedContentRequest, 'action'>,
-  signal?: AbortSignal,
-): Promise<GeminiCreateCachedContentResponse> {
-  return callGeminiApi<GeminiCreateCachedContentResponse>(
-    resolveGeminiApiEndpoint(),
-    { action: 'createCachedContent', ...params },
-    signal,
-  );
-}
-
-export async function proxyDeleteCachedContent(
-  params: Omit<GeminiDeleteCachedContentRequest, 'action'>,
-  signal?: AbortSignal,
-): Promise<GeminiDeleteCachedContentResponse> {
-  return callGeminiApi<GeminiDeleteCachedContentResponse>(
-    resolveGeminiApiEndpoint(),
-    { action: 'deleteCachedContent', ...params },
-    signal,
-  );
+  // O endpoint /api/llm retorna `usage` (contrato LiteLLM); o consumidor
+  // espera `usageMetadata` — normaliza sem expor o restante da resposta.
+  if (response.usage && !response.usageMetadata) {
+    return { ...response, usageMetadata: response.usage };
+  }
+  return response;
 }
 
 export async function proxyChatSendMessage(
-  params: Omit<GeminiChatRequest, 'action'>,
+  params: Omit<LlmChatRequest, 'action'>,
   signal?: AbortSignal,
-): Promise<GeminiChatResponse> {
+): Promise<LlmChatResponse> {
   // endpoint resolvido lazy — sem const de módulo
-  return callGeminiApi<GeminiChatResponse>(
-    resolveGeminiApiEndpoint(),
+  return callLlmApi<LlmChatResponse>(
+    resolveLlmApiEndpoint(),
     { action: 'chatSendMessage', ...params },
     signal,
   );

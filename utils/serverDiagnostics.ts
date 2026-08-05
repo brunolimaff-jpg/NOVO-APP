@@ -1,7 +1,7 @@
 /**
  * serverDiagnostics.ts — Lógica server-side de sanitização e insert no Supabase.
  *
- * IMPORTADO exclusivamente por api/gemini.ts (action 'recordDiagnostics').
+ * IMPORTADO exclusivamente por api/llm.ts (action 'recordDiagnostics').
  * NÃO importar no frontend — este módulo usa process.env diretamente.
  */
 

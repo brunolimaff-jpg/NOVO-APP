@@ -173,6 +173,24 @@ describe('PORTA mega prompts', () => {
     expect(SHARED_FOUNDATION_BLOCK).toContain(SELLER_BRIEF_MODULE_OUTPUT_CONTRACT);
   });
 
+  it('enforces the lean executive dossier contract as the default output (v3)', () => {
+    // Dossiê enxuto é o PADRÃO (decisão Bruno 2026-08-04): o contrato de output
+    // que o waterfall usa deve limitar estrutura, repetição e diagramas.
+    expect(SHARED_FOUNDATION_BLOCK).toContain('MÁXIMO 1 DIAGRAMA MERMAID POR DOSSIÊ');
+    expect(SHARED_FOUNDATION_BLOCK).toContain('CNPJ em tabela macro única');
+    expect(SHARED_FOUNDATION_BLOCK).toContain('Resumo executivo');
+    expect(SHARED_FOUNDATION_BLOCK).toContain('Estrutura operacional e força de trabalho');
+    expect(SHARED_FOUNDATION_BLOCK).toContain('Dores e sinais de compra');
+    expect(SHARED_FOUNDATION_BLOCK).toContain('Caminho da venda');
+    expect(SHARED_FOUNDATION_BLOCK).toContain('Perguntas de abordagem');
+    expect(SHARED_FOUNDATION_BLOCK).toContain('compliance');
+    // Não repetir CNPJ em seções soltas e não gerar compliance como relatório longo.
+    expect(SHARED_FOUNDATION_BLOCK).toContain('não repita o CNPJ');
+    expect(SHARED_FOUNDATION_BLOCK).toContain('não gere relatório longo de compliance');
+    // O contrato v3 limita mermaid por DOSSIÊ (global), não por módulo.
+    expect(SHARED_FOUNDATION_BLOCK).toContain('um único bloco mermaid em todo o dossiê');
+  });
+
   it('keeps the facade metadata and specialist prompt collection stable', () => {
     expect(PROMPT_VERSION).toBe('Scout360_v5.0_ExecutiveCommitteeGrade');
     expect(ALL_SPECIALIST_PROMPTS).toHaveLength(8);
@@ -260,9 +278,9 @@ describe('PORTA mega prompts', () => {
       [
         {
           "label": "shared-foundation",
-          "length": 43717,
-          "lines": 1037,
-          "sha256": "9a49b8acf031e31fea34e3ba1b6a5cf1daf7f9f9f76a6f1ac207fb9efab72c30",
+          "length": 45593,
+          "lines": 1063,
+          "sha256": "da27de1efb6d590745108a222e3e36160c1afc0b1c7e25cffe95985fd3d9e159",
         },
         {
           "label": "specialist-1",
@@ -314,21 +332,21 @@ describe('PORTA mega prompts', () => {
         },
         {
           "label": "legacy-compatible-hidden-prompt",
-          "length": 110574,
-          "lines": 2737,
-          "sha256": "11b5b33482575fec037901eacb7e1979cb6337397e2c682b8d61b4bb934195b6",
+          "length": 112450,
+          "lines": 2763,
+          "sha256": "3cb047b6e9686c01a345099bb1dd15afd6827861fd1b241eaf95c76eb0365b0d",
         },
         {
           "label": "executive-full-hidden-prompt",
-          "length": 119445,
-          "lines": 2996,
-          "sha256": "e5bc14e2b5a4f15e78bf97165ce32644350b6f6c6fe44c83982e8da102966886",
+          "length": 121321,
+          "lines": 3022,
+          "sha256": "4a13841c868e7c994f35f62e34a30680fe8a1feacec4fef57f6c70624fb24b65",
         },
         {
           "label": "war-mode-minimal-hidden-prompt",
-          "length": 111048,
-          "lines": 2757,
-          "sha256": "331788191b407e13c847f2a8c6bc2f0ea71d877f763d37699314986d63f68e79",
+          "length": 112924,
+          "lines": 2783,
+          "sha256": "0f924157e18d764fb6e13e191b55063fe6121bb780d280e1094bd85f6661cb32",
         },
       ]
     `);

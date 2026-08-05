@@ -315,7 +315,7 @@ const App: React.FC = () => {
       return;
     }
     const topicLabel = displayMessage.replace(/^Dossi[êe]\s+completo:\s*/i, '').trim();
-    await handleSendMessage(
+    return handleSendMessage(
       `Dossiê completo de [${empresaContext}]. Protocolo de investigação forense especializada:\n\n${hiddenPrompt}`,
       displayMessage,
       empresaContext,

@@ -8,7 +8,7 @@ import { scoutDiag } from '../utils/diagnosticLog';
 import { resolvePromptMode, shouldIncludeBudgetPrompt } from '../utils/promptResolvers';
 import { findExistingDossier, type ExistingDossier } from '../lib/supabase/dossierDuplicate';
 import { supabase } from '../lib/supabaseClient';
-import type { ChatSession } from '../types';
+import type { ChatSession, DossierWaterfallResult } from '../types';
 import type { StartInvestigationPayload } from '../components/chat/contracts';
 
 /** Telemetria best-effort — nunca bloqueia reopen/override. */
@@ -22,7 +22,12 @@ async function safeLogDossierAccess(dossierId: string, operatorId: string, cnpj?
 
 interface UseInvestigationParams {
   mode: unknown;
-  onDeepDive: (prompt: string, hiddenPrompt: string, companyName: string, cnpj?: string) => Promise<void>;
+  onDeepDive: (
+    prompt: string,
+    hiddenPrompt: string,
+    companyName: string,
+    cnpj?: string,
+  ) => Promise<DossierWaterfallResult | null | undefined>;
   operatorId: string;
   onSelectSession: (sessionId: string) => void;
 }
@@ -72,7 +77,7 @@ export function useInvestigation({
           promptVersion: PROMPT_VERSION,
         },
       );
-      await onDeepDive(prompt, hiddenPromptBase, payload.companyName, payload.cnpj ?? undefined);
+      return onDeepDive(prompt, hiddenPromptBase, payload.companyName, payload.cnpj ?? undefined);
     },
     [mode, onDeepDive],
   );
@@ -158,21 +163,34 @@ export function useInvestigation({
     pendingPayloadRef.current = null;
 
     try {
-      await executeInvestigation(payload);
+      const result = await executeInvestigation(payload);
 
-      if (oldDossierId) {
-        void safeLogDossierAccess(oldDossierId, operatorId, oldDossierCnpj);
-        await storage.deleteDossier(oldDossierId);
+      // Só substitui o dossiê anterior quando a nova investigação terminou
+      // COMPLETED, o novo dossiê foi persistido e o run foi marcado COMPLETED
+      // (o waterfall só retorna COMPLETED depois de markDossierRunCompleted).
+      let investigationSucceeded = false;
+      if (result?.status === 'COMPLETED' && result.dossierId) {
+        investigationSucceeded = (await storage.getDossier(result.dossierId)) !== null;
       }
 
-      trackOperatorEvent('dossier_override', {
-        operatorId: operatorId || '',
-        previousDossierId: oldDossierId,
-        entityType: 'dossier',
-        companyName: payload.companyName,
-      });
+      if (oldDossierId && investigationSucceeded) {
+        void safeLogDossierAccess(oldDossierId, operatorId, oldDossierCnpj);
+        await storage.deleteDossier(oldDossierId);
+
+        trackOperatorEvent('dossier_override', {
+          operatorId: operatorId || '',
+          previousDossierId: oldDossierId,
+          entityType: 'dossier',
+          companyName: payload.companyName,
+        });
+      } else {
+        scoutDiag.warn('ChatInterface', 'dossier-override-preserved-previous', {
+          previousDossierId: oldDossierId,
+          resultStatus: result?.status ?? 'rejected',
+        });
+      }
     } catch (error) {
-      scoutDiag.warn('ChatInterface', 'Falha ao sobrescrever dossiê', {
+      scoutDiag.warn('ChatInterface', 'Falha ao sobrescrever dossiê — dossiê anterior preservado', {
         previousDossierId: oldDossierId,
         error: error instanceof Error ? error.message : String(error),
       });

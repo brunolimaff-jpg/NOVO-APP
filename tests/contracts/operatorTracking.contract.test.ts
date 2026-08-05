@@ -65,11 +65,11 @@ describe('operatorTracking contract — eventos permitidos', () => {
 });
 
 describe('operatorTracking contract — sanitizeMetadata real', () => {
-  it('remove chaves sensíveis (regex: prompt|gemini|response|token|secret|key|password)', () => {
+  it('remove chaves sensíveis (regex: prompt|llm|response|token|secret|key|password)', () => {
     const result = sanitizeMetadata({
       userName: 'Bruno',
       apiKey: 'sk-secret-123',
-      gemini_response: 'dados confidenciais',
+      llm_response: 'dados confidenciais',
       promptText: 'solicitação',
       token: 'bearer-abc',
       company: 'Senior',
@@ -77,7 +77,7 @@ describe('operatorTracking contract — sanitizeMetadata real', () => {
     expect(result).toHaveProperty('userName');
     expect(result).toHaveProperty('company');
     expect(result).not.toHaveProperty('apiKey');
-    expect(result).not.toHaveProperty('gemini_response');
+    expect(result).not.toHaveProperty('llm_response');
     expect(result).not.toHaveProperty('promptText');
     expect(result).not.toHaveProperty('token');
   });

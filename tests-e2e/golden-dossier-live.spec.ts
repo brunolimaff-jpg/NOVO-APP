@@ -256,7 +256,7 @@ async function runGoldenRound(browser: Browser, testInfo: TestInfo, round: numbe
     expect(create?.ok, 'createRun precisa responder com sucesso').toBe(true);
     expect(finalize?.ok, 'finalizeRun precisa responder com sucesso').toBe(true);
     expect(finalize?.id, 'finalizeRun deve persistir o mesmo id criado').toBe(create?.id);
-    expect(finalize?.fallbackUsed, 'fallback Gemini reprova o golden live').toBe(false);
+    expect(finalize?.fallbackUsed, 'fallback LLM reprova o golden live').toBe(false);
     expect(finalize?.status, 'a tentativa final de finalizeRun precisa concluir como completed').toBe('completed');
     expect(finalize?.authorization, 'Bearer autenticado precisa estar disponível para consultar persistência').toMatch(
       /^Bearer\s+\S+$/,

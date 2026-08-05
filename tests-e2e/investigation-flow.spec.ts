@@ -29,7 +29,7 @@ test.describe('Fluxo Crítico: Investigação Sênior Scout', () => {
     await expect(loadingHero).toBeVisible({ timeout: 15000 });
 
     // 7. A parte MAIS CRÍTICA: Aguarda a resposta do Bot.
-    // Isso valida que a request foi para o Vercel/Gemini e voltou corretamente.
+    // Isso valida que a request foi para o Vercel/LLM e voltou corretamente.
     // Aumentamos o timeout porque a IA pode demorar alguns segundos.
     const botResponse = page.locator('.prose'); // A mensagem do bot renderiza markdown
     await expect(botResponse).toBeVisible({ timeout: 45000 });

@@ -15,6 +15,8 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
+const getSessionMock = vi.hoisted(() => vi.fn(() => Promise.resolve({ data: { session: { user: { id: 'u1' } } } })));
+
 const supabaseMock = vi.hoisted(() => ({
   from: vi.fn(),
   upsert: vi.fn(),
@@ -34,7 +36,7 @@ const supabaseMock = vi.hoisted(() => ({
 const isSupabaseAvailableMock = vi.hoisted(() => vi.fn(() => true));
 
 vi.mock('../../lib/supabaseClient', () => ({
-  supabase: { from: supabaseMock.from },
+  supabase: { from: supabaseMock.from, auth: { getSession: getSessionMock } },
   isSupabaseAvailable: isSupabaseAvailableMock,
 }));
 

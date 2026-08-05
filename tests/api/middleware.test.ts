@@ -31,7 +31,7 @@ describe('middleware', () => {
 
   it('responde 204 para OPTIONS com origem permitida', async () => {
     const req = createRequest({
-      pathname: '/api/gemini',
+      pathname: '/api/llm',
       method: 'OPTIONS',
       origin: 'http://localhost:5173',
     });
@@ -44,7 +44,7 @@ describe('middleware', () => {
 
   it('responde 204 para OPTIONS de preview Vercel', async () => {
     const req = createRequest({
-      pathname: '/api/gemini',
+      pathname: '/api/llm',
       method: 'OPTIONS',
       origin: 'https://scoutagro-git-feat-test-brunolimaff-3629s-projects.vercel.app',
     });
@@ -55,7 +55,7 @@ describe('middleware', () => {
 
   it('nao define Allow-Origin para OPTIONS de origem desconhecida', async () => {
     const req = createRequest({
-      pathname: '/api/gemini',
+      pathname: '/api/llm',
       method: 'OPTIONS',
       origin: 'https://evil.example.com',
     });
@@ -67,7 +67,7 @@ describe('middleware', () => {
 
   it('define headers CORS no OPTIONS via middleware', async () => {
     const req = createRequest({
-      pathname: '/api/gemini',
+      pathname: '/api/llm',
       method: 'OPTIONS',
       origin: 'http://localhost:5173',
     });

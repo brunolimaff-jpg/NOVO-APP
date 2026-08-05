@@ -1,10 +1,15 @@
-const DEFAULT_LLM_MODEL_ID = 'gemini-3-flash-preview';
+const DEFAULT_LLM_MODEL_ID = 'scout-router';
 
+/**
+ * Intenções neutras de modelo — NUNCA nomes concretos de provedor no cliente.
+ * A resolução para modelos concretos acontece exclusivamente no servidor
+ * (utils/llm/modelRouter.ts).
+ */
 export const MODEL_IDS = {
   router: DEFAULT_LLM_MODEL_ID,
-  tactical: DEFAULT_LLM_MODEL_ID,
-  deepChat: DEFAULT_LLM_MODEL_ID,
-  deepResearch: DEFAULT_LLM_MODEL_ID,
+  tactical: 'scout-tactical',
+  deepChat: 'scout-deep-chat',
+  deepResearch: 'scout-deep-research',
 } as const;
 
 export type LlmModelId = (typeof MODEL_IDS)[keyof typeof MODEL_IDS];

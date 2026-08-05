@@ -89,6 +89,14 @@ jobs:
       - run: npm ci
       - run: npm run build
 
+  no-gemini:
+    name: No-Gemini Gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate no-Gemini runtime
+        run: ruby scripts/validate-no-gemini.rb
+
   e2e-critical-browser:
     name: E2E Critical Browser
     runs-on: ubuntu-latest

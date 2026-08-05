@@ -24,9 +24,12 @@ vi.mock('idb-keyval', () => ({
   set: vi.fn(),
 }));
 
+const getSessionMock = vi.hoisted(() => vi.fn());
+
 vi.mock('../../lib/supabaseClient', () => ({
   supabase: {
     from: supabaseMock.from,
+    auth: { getSession: getSessionMock },
   },
   isSupabaseAvailable: vi.fn(() => true),
 }));
@@ -55,6 +58,7 @@ describe('storage (simplificado — Supabase direto)', () => {
     localStorage.clear();
     localStorage.setItem('scout360:operator_id', 'op_test123');
     vi.mocked(isSupabaseAvailable).mockReturnValue(true);
+    getSessionMock.mockResolvedValue({ data: { session: { user: { id: 'u1' } } } });
   });
 
   // ===================================================================
@@ -129,6 +133,24 @@ describe('storage (simplificado — Supabase direto)', () => {
       const result = await storage.getDossiers();
 
       expect(result).toEqual([]);
+    });
+
+    it('não consulta antes de sessão autenticada válida (sem 401 evitável com guest)', async () => {
+      getSessionMock.mockResolvedValue({ data: { session: null } });
+
+      const result = await storage.getDossiers();
+
+      expect(result).toEqual([]);
+      expect(supabaseMock.from).not.toHaveBeenCalled();
+    });
+
+    it('getSession falho também bloqueia a consulta (fail-safe)', async () => {
+      getSessionMock.mockRejectedValue(new Error('auth offline'));
+
+      const result = await storage.getDossiers();
+
+      expect(result).toEqual([]);
+      expect(supabaseMock.from).not.toHaveBeenCalled();
     });
 
     it('deve retornar array vazio se erro na consulta', async () => {

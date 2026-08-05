@@ -1,6 +1,6 @@
 import React, { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { scoutDiag } from '../utils/diagnosticLog';
-import { Message, Sender, AppError, Feedback, FeedbackSubmissionOptions } from '../types';
+import { Message, Sender, AppError, Feedback, FeedbackSubmissionOptions, type DossierWaterfallResult } from '../types';
 import { ChatMode } from '../constants';
 import GhostMessageBlock from './GhostMessageBlock';
 import ErrorMessageCard from './ErrorMessageCard';
@@ -34,7 +34,7 @@ export interface MessageRowData {
     options?: FeedbackSubmissionOptions,
   ) => void;
   onToggleMessageSources: (messageId: string) => void;
-  onDeepDive?: (display: string, hidden: string) => Promise<void>;
+  onDeepDive?: (display: string, hidden: string) => Promise<DossierWaterfallResult | null | undefined>;
   onRegenerateSuggestions: (messageId: string) => void;
   handleDeleteWithUndo: (msgId: string) => void;
   pendingDeleteId: string | null;

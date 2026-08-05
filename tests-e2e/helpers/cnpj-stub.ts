@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test';
-import { installFastGeminiStubs } from './gemini';
+import { installFastLlmStubs } from './llm';
 
 const STUB_COMPANY_DATA = {
   cnpj: '04733767000180',
@@ -19,6 +19,6 @@ export async function installCNPJStub(page: Page) {
 }
 
 export async function installAllE2EStubs(page: Page) {
-  await installFastGeminiStubs(page);
+  await installFastLlmStubs(page);
   await installCNPJStub(page);
 }

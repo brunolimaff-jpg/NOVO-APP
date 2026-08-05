@@ -1,11 +1,11 @@
 import { act, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useChatMessageOrchestrator } from '../../../features/chat/message-orchestrator';
-import { Sender, type ChatSession, type LastAction, type Message } from '../../../types';
+import { Sender, type ChatSession, type DossierWaterfallResult, type LastAction, type Message } from '../../../types';
 import type { LoadingVariant, RequestKind } from '../../../utils/loadingVariant';
 
 const uuidv4Mock = vi.hoisted(() => vi.fn());
-const sendMessageToGeminiMock = vi.hoisted(() => vi.fn());
+const sendMessageToLlmMock = vi.hoisted(() => vi.fn());
 const lifecycleMocks = vi.hoisted(() => ({ create: vi.fn(), acquire: vi.fn(), start: vi.fn(() => vi.fn()), set: vi.fn(), clear: vi.fn() }));
 const trackOperatorEventMock = vi.hoisted(() => vi.fn());
 
@@ -14,7 +14,7 @@ vi.mock('uuid', () => ({
 }));
 
 vi.mock('../../../services/llmService', () => ({
-  sendMessageToGemini: sendMessageToGeminiMock,
+  sendMessageToLlm: sendMessageToLlmMock,
 }));
 vi.mock('../../../lib/supabase/dossierRuns', () => ({
   DOSSIER_RUN_RPC_TIMEOUT_MS: 15_000,
@@ -71,7 +71,7 @@ function makeSession(overrides: Partial<ChatSession> = {}): ChatSession {
   };
 }
 
-function makeGeminiResult(overrides: Partial<Awaited<ReturnType<typeof sendMessageToGeminiMock>>> = {}) {
+function makeLlmResult(overrides: Partial<Awaited<ReturnType<typeof sendMessageToLlmMock>>> = {}) {
   return {
     text: 'Resposta consolidada',
     sources: [],
@@ -216,7 +216,7 @@ describe('useChatMessageOrchestrator', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     uuidv4Mock.mockReset();
-    sendMessageToGeminiMock.mockReset();
+    sendMessageToLlmMock.mockReset();
     lifecycleMocks.create.mockResolvedValue({ run_id: 'run-1' });
     lifecycleMocks.acquire.mockResolvedValue({ status: 'RUNNING', lease_expires_at: 'future' });
     global.fetch = vi.fn(async () => ({ ok: true }) as Response) as unknown as typeof fetch;
@@ -231,7 +231,7 @@ describe('useChatMessageOrchestrator', () => {
       .mockReturnValueOnce('session-new')
       .mockReturnValueOnce('message-user')
       .mockReturnValueOnce('message-bot');
-    sendMessageToGeminiMock.mockResolvedValue(makeGeminiResult());
+    sendMessageToLlmMock.mockResolvedValue(makeLlmResult());
     const harness = makeHarness();
 
     await act(async () => {
@@ -248,7 +248,7 @@ describe('useChatMessageOrchestrator', () => {
       text: 'Resposta consolidada',
       isThinking: false,
     });
-    expect(sendMessageToGeminiMock).toHaveBeenCalledWith(
+    expect(sendMessageToLlmMock).toHaveBeenCalledWith(
       'Investigar Acme Agro',
       [],
       'SYSTEM',
@@ -260,7 +260,7 @@ describe('useChatMessageOrchestrator', () => {
 
   it('usa histórico existente em follow-up e muda loadingVariant para inline', async () => {
     uuidv4Mock.mockReturnValueOnce('message-user').mockReturnValueOnce('message-bot');
-    sendMessageToGeminiMock.mockResolvedValue(makeGeminiResult());
+    sendMessageToLlmMock.mockResolvedValue(makeLlmResult());
     const harness = makeHarness({
       sessions: [
         makeSession({
@@ -277,7 +277,7 @@ describe('useChatMessageOrchestrator', () => {
       await harness.result.current.handleSendMessage('Qual o risco agora?');
     });
 
-    expect(sendMessageToGeminiMock).toHaveBeenCalledWith(
+    expect(sendMessageToLlmMock).toHaveBeenCalledWith(
       'Qual o risco agora?',
       expect.arrayContaining([expect.objectContaining({ id: 'user-1' }), expect.objectContaining({ id: 'bot-1' })]),
       'SYSTEM',
@@ -288,15 +288,15 @@ describe('useChatMessageOrchestrator', () => {
   });
 
   it('insere placeholder thinking antes da resposta padrão', async () => {
-    const deferred = createDeferred<Awaited<ReturnType<typeof sendMessageToGeminiMock>>>();
+    const deferred = createDeferred<Awaited<ReturnType<typeof sendMessageToLlmMock>>>();
     uuidv4Mock
       .mockReturnValueOnce('session-new')
       .mockReturnValueOnce('message-user')
       .mockReturnValueOnce('message-bot');
-    sendMessageToGeminiMock.mockReturnValue(deferred.promise);
+    sendMessageToLlmMock.mockReturnValue(deferred.promise);
     const harness = makeHarness();
 
-    let pendingSend!: Promise<void>;
+    let pendingSend!: Promise<DossierWaterfallResult | null | undefined>;
     act(() => {
       pendingSend = harness.result.current.handleSendMessage('Investigar Acme Agro');
     });
@@ -309,7 +309,7 @@ describe('useChatMessageOrchestrator', () => {
     });
 
     await act(async () => {
-      deferred.resolve(makeGeminiResult());
+      deferred.resolve(makeLlmResult());
       await pendingSend;
     });
   });
@@ -321,7 +321,7 @@ describe('useChatMessageOrchestrator', () => {
       .mockReturnValueOnce('message-bot');
     const abortError = new Error('aborted');
     abortError.name = 'AbortError';
-    sendMessageToGeminiMock.mockRejectedValue(abortError);
+    sendMessageToLlmMock.mockRejectedValue(abortError);
     const harness = makeHarness();
 
     await act(async () => {
@@ -339,7 +339,7 @@ describe('useChatMessageOrchestrator', () => {
       .mockReturnValueOnce('message-user')
       .mockReturnValueOnce('message-bot')
       .mockReturnValueOnce('message-error');
-    sendMessageToGeminiMock.mockRejectedValue(new Error('Failed to fetch'));
+    sendMessageToLlmMock.mockRejectedValue(new Error('Failed to fetch'));
     const harness = makeHarness();
 
     await act(async () => {
@@ -358,7 +358,7 @@ describe('useChatMessageOrchestrator', () => {
 
   it('retryLastSendMessage remove ghost/error final e reenfileira o último texto', async () => {
     uuidv4Mock.mockReturnValueOnce('message-bot');
-    sendMessageToGeminiMock.mockResolvedValue(makeGeminiResult({ text: 'Resposta reprocessada' }));
+    sendMessageToLlmMock.mockResolvedValue(makeLlmResult({ text: 'Resposta reprocessada' }));
     const harness = makeHarness({
       sessions: [
         makeSession({
@@ -379,7 +379,7 @@ describe('useChatMessageOrchestrator', () => {
       harness.result.current.retryLastSendMessage();
     });
 
-    expect(sendMessageToGeminiMock).toHaveBeenCalledWith(
+    expect(sendMessageToLlmMock).toHaveBeenCalledWith(
       'Texto original',
       [],
       'SYSTEM',
@@ -394,7 +394,7 @@ describe('useChatMessageOrchestrator', () => {
     });
   });
 
-  it('delega megaprompt para o callback de waterfall em vez do sendMessageToGemini', async () => {
+  it('delega megaprompt para o callback de waterfall em vez do sendMessageToLlm', async () => {
     uuidv4Mock
       .mockReturnValueOnce('session-new')
       .mockReturnValueOnce('message-user')
@@ -412,7 +412,7 @@ describe('useChatMessageOrchestrator', () => {
         botMessageId: 'message-bot',
       }),
     );
-    expect(sendMessageToGeminiMock).not.toHaveBeenCalled();
+    expect(sendMessageToLlmMock).not.toHaveBeenCalled();
   });
 
   it('mantém placeholder como erro visível quando a lease não é adquirida', async () => {
@@ -500,7 +500,7 @@ describe('useChatMessageOrchestrator', () => {
     const harness = makeHarness();
     harness.runMegaPromptWaterfall.mockImplementationOnce(async () => {
       delete harness.activeGenerationRef.current['session-new'];
-      return { status: 'FAILED', errorCode: 'api_unavailable', errorStage: 'waterfall', error: new Error('api gemini indisponivel') };
+      return { status: 'FAILED', errorCode: 'api_unavailable', errorStage: 'waterfall', error: new Error('api llm indisponivel') };
     });
 
     await act(async () => {
@@ -559,7 +559,7 @@ describe('useChatMessageOrchestrator', () => {
     const harness = makeHarness();
     harness.runMegaPromptWaterfall.mockImplementationOnce(() => deferred.promise);
 
-    let firstSend!: Promise<void>;
+    let firstSend!: Promise<DossierWaterfallResult | null | undefined>;
     act(() => {
       firstSend = harness.result.current.handleSendMessage(
         'DOSSIÊ COMPLETO de Grupo Scheffer',
@@ -592,15 +592,15 @@ describe('useChatMessageOrchestrator', () => {
   });
 
   it('mantém deep_dive no caminho padrão e preserva o pinned label durante o envio', async () => {
-    const deferred = createDeferred<Awaited<ReturnType<typeof sendMessageToGeminiMock>>>();
+    const deferred = createDeferred<Awaited<ReturnType<typeof sendMessageToLlmMock>>>();
     uuidv4Mock
       .mockReturnValueOnce('session-new')
       .mockReturnValueOnce('message-user')
       .mockReturnValueOnce('message-bot');
-    sendMessageToGeminiMock.mockReturnValue(deferred.promise);
+    sendMessageToLlmMock.mockReturnValue(deferred.promise);
     const harness = makeHarness();
 
-    let pendingSend!: Promise<void>;
+    let pendingSend!: Promise<DossierWaterfallResult | null | undefined>;
     act(() => {
       pendingSend = harness.result.current.handleSendMessage(
         'Dossiê completo de [Acme Agro]. Protocolo oculto',
@@ -616,10 +616,10 @@ describe('useChatMessageOrchestrator', () => {
     expect(harness.state.loadingVariant).toBe('inline');
     expect(harness.state.loadingPinnedLabel).toBe('Deep Dive em andamento: Tech Stack');
     expect(harness.runMegaPromptWaterfall).not.toHaveBeenCalled();
-    expect(sendMessageToGeminiMock).toHaveBeenCalledTimes(1);
+    expect(sendMessageToLlmMock).toHaveBeenCalledTimes(1);
 
     await act(async () => {
-      deferred.resolve(makeGeminiResult());
+      deferred.resolve(makeLlmResult());
       await pendingSend;
     });
   });
@@ -629,7 +629,7 @@ describe('useChatMessageOrchestrator', () => {
       .mockReturnValueOnce('session-new')
       .mockReturnValueOnce('message-user')
       .mockReturnValueOnce('message-bot');
-    sendMessageToGeminiMock.mockResolvedValue(makeGeminiResult({ text: 'A'.repeat(600) }));
+    sendMessageToLlmMock.mockResolvedValue(makeLlmResult({ text: 'A'.repeat(600) }));
     const harness = makeHarness();
 
     await act(async () => {

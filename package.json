@@ -35,15 +35,14 @@
     "analyze:deadcode": "ts-prune",
     "format": "prettier --write '**/*.{ts,tsx,json,css}' --ignore-path .gitignore",
     "typecheck": "tsc --noEmit",
-    "ingest:pdfdocs": "node --experimental-strip-types scripts/ingestPdfDocs.ts"
+    "ingest:pdfdocs": "node --experimental-strip-types scripts/ingestPdfDocs.ts",
+    "validate:no-gemini": "ruby scripts/validate-no-gemini.rb"
   },
   "engines": {
     "node": "24.x"
   },
   "dependencies": {
-    "@google/genai": "^1.49.0",
     "@langchain/core": "^1.1.39",
-    "@langchain/google-genai": "^2.1.26",
     "@mozilla/readability": "^0.6.0",
     "@pinecone-database/pinecone": "^2.2.2",
     "@sentry/react": "^10.55.0",

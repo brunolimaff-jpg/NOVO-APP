@@ -53,7 +53,7 @@ export interface BraveSearchResult {
   url: string;
   title: string;
   snippet: string;
-  provider: 'gemini_grounding' | 'duckduckgo';
+  provider: 'web' | 'duckduckgo';
   retrievedAt: string;
 }
 
@@ -224,7 +224,7 @@ export async function planQueries(
   // Corrige vírgula faltando entre objetos do array (erro comum de LLM)
   const repaired = cleaned
     .replace(/}(\s*)\{/g, '},$1{')
-    // Corrige array não fechado: } no final sem ] antes (Gemini esquece de fechar queries[])
+    // Corrige array não fechado: } no final sem ] antes (o modelo esquece de fechar queries[])
     .replace(/(\})\s*\}$/g, '$1\n  ]\n}');
 
   const extractJson = (text: string): string | null => {
@@ -264,7 +264,7 @@ export async function planQueries(
       }
     }
     if (!ok) {
-      // Tenta fechar JSON truncado (Gemini cortou resposta no meio)
+      // Tenta fechar JSON truncado (o modelo cortou resposta no meio)
       try {
         const ext = extractJson(repaired);
         if (ext && !ext.endsWith('}') && !ext.endsWith(']')) {
@@ -286,7 +286,7 @@ export async function planQueries(
     }
   }
 
-  // Normaliza campos que Gemini pode gerar com acento/maiúscula/string
+  // Normaliza campos que o modelo pode gerar com acento/maiúscula/string
   if (parsed && typeof parsed === 'object' && 'queries' in parsed) {
     const obj = parsed as { queries: Array<Record<string, unknown>> };
     for (const q of obj.queries) {
@@ -343,7 +343,7 @@ export async function executeQueryPlan(plan: QueryPlan): Promise<EvidencePack> {
                 url: urlMatch[1].trim(),
                 title: titleMatch?.[1].trim() || urlMatch[1].trim(),
                 snippet: resumoMatch?.[1].trim().slice(0, 1000) || '',
-                provider: 'gemini_grounding' as const,
+                provider: 'web' as const,
                 retrievedAt: new Date().toISOString(),
               } as BraveSearchResult;
             })

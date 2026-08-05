@@ -3,8 +3,8 @@ import path from 'path';
 import crypto from 'crypto';
 import { fileURLToPath } from 'url';
 import { parse } from 'csv-parse';
-import { GoogleGenAI } from '@google/genai';
 import { Pinecone } from '@pinecone-database/pinecone';
+import { embedViaLiteLLM, EMBEDDINGS_MODEL_ID } from '../utils/llm/embeddings.ts';
 import dotenv from 'dotenv';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -13,31 +13,23 @@ const __dirname = path.dirname(__filename);
 // Carrega variáveis do .env na raiz
 dotenv.config({ path: path.join(__dirname, '../.env') });
 
-const GEMINI_API_KEY = process.env.VITE_API_KEY || process.env.GEMINI_API_KEY;
 const PINECONE_API_KEY = process.env.PINECONE_DOCS_KEY || process.env.VITE_PINECONE_KEY || process.env.PINECONE_API_KEY;
 const PINECONE_INDEX_NAME = process.env.PINECONE_DOCS_INDEX || 'scout-arsenal';
 
-if (!GEMINI_API_KEY || !PINECONE_API_KEY) {
+if (!PINECONE_API_KEY) {
   console.error(
-    'ERRO: Variáveis de ambiente ausentes. Verifique GEMINI_API_KEY e PINECONE_API_KEY (ou PINECONE_DOCS_KEY).',
+    'ERRO: Variáveis de ambiente ausentes. Verifique PINECONE_API_KEY (ou PINECONE_DOCS_KEY) e as vars LiteLLM (LITELLM_BASE_URL/LITELLM_API_KEY).',
   );
   process.exit(1);
 }
-
-const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
 const pc = new Pinecone({ apiKey: PINECONE_API_KEY });
 const index = pc.index(PINECONE_INDEX_NAME);
 const NAMESPACE = 'senior-erp-docs';
 const BATCH_SIZE = 50;
 
 async function generateEmbeddingsBatch(texts: string[]): Promise<number[][]> {
-  const result = await ai.models.embedContent({
-    model: 'gemini-embedding-001',
-    contents: texts,
-    config: { taskType: 'RETRIEVAL_DOCUMENT' },
-  });
-  if (!result.embeddings) return [];
-  return result.embeddings.map(e => e.values || []);
+  const result = await embedViaLiteLLM(texts, { model: EMBEDDINGS_MODEL_ID });
+  return result.vectors;
 }
 
 async function processBatch(batch: any[]) {

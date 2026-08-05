@@ -2,11 +2,9 @@ import type { ClienteSeniorData, ScorePortaData, WebVerificationStatus } from '.
 import type { CompetitorDetection } from '../competitorService';
 import type { VerifiedSource } from '../../utils/webVerification';
 
-export interface GeminiRequestOptions {
-  useGrounding?: boolean;
+export interface LlmRequestOptions {
   thinkingLevel?: 'low' | 'medium' | 'high';
   thinkingMode?: boolean;
-  useOpenWebSearch?: boolean;
   signal?: AbortSignal;
   onText?: (text: string) => void;
   onStatus?: (status: string) => void;
@@ -25,11 +23,8 @@ export interface DossierModuleOptions {
   onText?: (text: string) => void;
   timeoutMs?: number;
   temperature?: number;
-  useGrounding?: boolean;
   onGroundingSources?: (sources: VerifiedSource[], moduleName: string) => void;
   onVerificationStatus?: (status: WebVerificationStatus, moduleName: string) => void;
-  /** Explicit Gemini context cache name for the waterfall foundation + static dossier context. */
-  foundationCacheName?: string;
 }
 
 export interface SpotterExtractedData {
@@ -45,7 +40,7 @@ export interface SpotterExtractedData {
   summary?: string;
 }
 
-export interface SendMessageToGeminiResult {
+export interface SendMessageToLlmResult {
   text: string;
   sources?: Array<{ title: string; url: string }>;
   webVerificationStatus?: WebVerificationStatus;

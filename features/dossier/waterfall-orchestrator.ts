@@ -17,9 +17,6 @@ import { generateContinuityQuestion, generateDossierModule } from '../../service
 import {
   buildDynamicDossierContext,
   buildStaticDossierContext,
-  createWaterfallFoundationCache,
-  deleteWaterfallFoundationCache,
-  isFoundationCacheEnabled,
   joinDossierExtraContext,
 } from '../../services/llm/foundation-cache';
 import { formatarParaPrompt, lookupCliente } from '../../services/clientLookupService';
@@ -48,10 +45,11 @@ import {
   type DossierSourceRef,
 } from '../../utils/dossierSourcePool';
 import { finalizeDossierMarkdown } from '../../utils/dossierFinalize';
+import { applyDossierEnxuto } from '../../utils/dossierEnxuto';
 import type { MutableRefObject } from 'react';
 import type { RunMegaPromptWaterfallArgs } from '../../types';
 import { isAbortLikeError } from '../../utils/abortHelpers';
-import { DossierRunCancelledError, assertDossierRunCanContinue, isDossierRunControlError } from './dossier-run-control';
+import { DossierRunCancelledError, assertDossierRunCanContinue, assertDossierRunCanContinueWithRenewal as assertDossierRunCanContinueWithRenewalFn, isDossierRunControlError } from './dossier-run-control';
 import { markDossierRunCancelled, markDossierRunCompleted, markDossierRunFailed, releaseDossierRunLease } from '../../lib/supabase/dossierRuns';
 import { isEvidencePipelineV2 } from '../../utils/feature-flags';
 import { ensureContinuitySuggestions, pickCompanyLabel } from '../../utils/messageHelpers';
@@ -613,8 +611,14 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
         currentLifecycleStage = stage;
         await assertDossierRunCanContinue({ runId: dossierRunId, leaseOwner: dossierLeaseOwner, signal, stage });
       };
-      let foundationCacheName: string | undefined;
+      // Checkpoint de liveness para etapas longas: renovação preventiva quando o
+      // lease está perto de expirar (fail-closed preservado; nunca reacquire).
+      const assertRunCanContinueWithRenewal = async (stage: string) => {
+        currentLifecycleStage = stage;
+        await assertDossierRunCanContinueWithRenewalFn({ runId: dossierRunId, leaseOwner: dossierLeaseOwner, signal, stage });
+      };
       let sessionToPersist: ChatSession | null = null;
+      let completedDossierId: string | undefined;
 
       try {
         await assertRunCanContinue('waterfall_start');
@@ -715,25 +719,6 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
           teiaResearchText: teiaResearchContext.text,
         });
 
-        if (isFoundationCacheEnabled()) {
-          try {
-            await assertRunCanContinue('before_foundation_cache');
-            foundationCacheName = await createWaterfallFoundationCache({
-              foundationBlock: SHARED_FOUNDATION_BLOCK,
-              staticContext: staticDossierContext,
-              signal,
-            });
-            await assertRunCanContinue('after_foundation_cache');
-          } catch (error) {
-            if (isAbortLikeError(error) || isDossierRunControlError(error)) throw error;
-            scoutDiag.warn('ModularDossier', 'falha ao criar foundation cache; continuando sem cache', {
-              sessionId,
-              company: resolvedMegaCompany || null,
-              error: error instanceof Error ? error.message : String(error),
-            });
-          }
-        }
-
         const buildModuleExtraContext = (accumulatedTextSnapshot: string, contextHint = '') => {
           const dynamicContext = buildDynamicDossierContext(
             contextHint,
@@ -741,15 +726,12 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
             WATERFALL_CONTEXT_WINDOW_CHARS,
           );
           const sourcesBlock = formatAvailableSourcesForPrompt(sessionSourcePool);
-          if (foundationCacheName) return `${dynamicContext}${sourcesBlock}`;
           return `${joinDossierExtraContext(staticDossierContext, dynamicContext)}${sourcesBlock}`;
         };
 
         const sharedDossierModuleOptions = {
-          useGrounding: false,
           onGroundingSources: appendGroundingSources,
           onVerificationStatus: rememberVerificationStatus,
-          ...(foundationCacheName ? { foundationCacheName } : {}),
           // Cost tracking (via message-orchestrator args + sessionStorage fallback)
           operatorId: waterfallOperatorId,
           operatorEmail: waterfallOperatorEmail,
@@ -989,12 +971,12 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
             });
 
             const callLLM = async (prompt: string): Promise<string> => {
-              const { sendMessageToGemini } = await import('../../services/llmService');
-              const result = await sendMessageToGemini(
+              const { sendMessageToLlm } = await import('../../services/llmService');
+              const result = await sendMessageToLlm(
                 prompt,
                 [],
                 'Você é um planejador de investigação. Retorne APENAS JSON válido.',
-                { useGrounding: false, useOpenWebSearch: false, maxOutputTokens: 16384 },
+                { maxOutputTokens: 16384 },
                 false,
               );
               return result.text || '';
@@ -1039,7 +1021,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
 
         for (let index = 0; index < modules.length; index += 1) {
           const module = modules[index];
-          await assertRunCanContinue(`before_module:${module.name}`);
+          await assertRunCanContinueWithRenewal(`before_module:${module.name}`);
           if (index > 0) {
             if (previousStageCompleted) {
               advanceLoadingProgress(module.stage, MODULAR_DOSSIER_TOTAL_STAGES);
@@ -1062,7 +1044,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
               }
             }
             appendWaterfallChunk(moduleResult);
-            await assertRunCanContinue(`after_module:${module.name}`);
+            await assertRunCanContinueWithRenewal(`after_module:${module.name}`);
             optionalStepFailures.delete(module.name);
             previousStageCompleted = true;
             setFailureCount(0);
@@ -1082,7 +1064,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
           }
         }
 
-        await assertRunCanContinue('before_benchmark');
+        await assertRunCanContinueWithRenewal('before_benchmark');
         if (previousStageCompleted) {
           advanceLoadingProgress(MODULAR_DOSSIER_STAGES[5], MODULAR_DOSSIER_TOTAL_STAGES);
         } else {
@@ -1098,7 +1080,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
           optionalStepFailures,
           setFailureCount,
         });
-        await assertRunCanContinue('after_benchmark');
+        await assertRunCanContinueWithRenewal('after_benchmark');
         scoutDiag.info('WaterfallLifecycle', 'pos-benchmark', { sessionId, waterfallRunId, benchmarkCompleted });
 
         if (benchmarkCompleted) {
@@ -1118,7 +1100,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
 
         scoutDiag.info('WaterfallLifecycle', 'pre-porta-reconciliation', { sessionId, waterfallRunId });
         try {
-          await assertRunCanContinue('before_porta_reconciliation');
+          await assertRunCanContinueWithRenewal('before_porta_reconciliation');
           const result = await Promise.race([
             reconcileWaterfallPorta({
               sessionId,
@@ -1129,7 +1111,6 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
               waterfallLookupContext,
               seniorEvidenceContext,
               staticDossierContext,
-              foundationCacheName,
               accumulatedText,
               modulesByName,
               runWaterfallModule,
@@ -1163,15 +1144,17 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
         } finally {
           if (portaTimeoutId) clearTimeout(portaTimeoutId);
         }
-        await assertRunCanContinue('after_porta_reconciliation');
+        await assertRunCanContinueWithRenewal('after_porta_reconciliation');
         scoutDiag.info('WaterfallLifecycle', 'pos-porta-reconciliation', { sessionId, waterfallRunId });
         accumulatedText = reconciledText;
         assertNotAborted();
 
         if (optionalStepFailures.size > 0) {
-          appendWaterfallChunk(
-            `⚠️ Nota operacional: algumas frentes não puderam ser concluídas nesta rodada (${Array.from(optionalStepFailures).join(', ')}). O dossiê abaixo foi consolidado com o material validado disponível.`,
-          );
+          scoutDiag.warn('WaterfallLifecycle', 'optional-steps-failed', {
+            sessionId,
+            waterfallRunId,
+            failedSteps: Array.from(optionalStepFailures),
+          });
         } else {
           setFailureCount(0);
         }
@@ -1215,7 +1198,12 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
         appendGroundingSources(promotedInlineSources, 'Promoção inline');
 
         if (sessionSourcePool.length === 0 && waterfallGroundingSources.length === 0) {
-          waterfallPrepared = `${waterfallPrepared}\n\n> ⚠️ **Busca web/grounding indisponível nesta rodada.** Citações limitadas — links inventados foram removidos na consolidação.`;
+          scoutDiag.warn('WaterfallLifecycle', 'grounding-unavailable', {
+            sessionId,
+            waterfallRunId,
+            poolSize: 0,
+            groundingSourcesCount: 0,
+          });
         }
 
         scoutDiag.info('FreezeDiag', 'pre-finalize-markdown', {
@@ -1232,7 +1220,20 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
           resultLength: finalized.text?.length ?? 0,
           auditableSourcesCount: finalized.auditableSources?.length ?? 0,
         });
+        // Dossiê executivo enxuto (padrão): limita a 1 mermaid, rebaixa
+        // headers "DOSSIÊ SCOUT 360" repetidos e remove linhas duplicadas.
+        const enxuto = applyDossierEnxuto(finalized.text || '');
+        if (enxuto.removedMermaidBlocks > 0 || enxuto.demotedHeaders > 0 || enxuto.removedDuplicateLines > 0) {
+          scoutDiag.info('WaterfallLifecycle', 'dossier-enxuto-applied', {
+            sessionId,
+            waterfallRunId,
+            removedMermaidBlocks: enxuto.removedMermaidBlocks,
+            demotedHeaders: enxuto.demotedHeaders,
+            removedDuplicateLines: enxuto.removedDuplicateLines,
+          });
+        }
         const waterfallFinalText =
+          enxuto.text ||
           finalized.text ||
           accumulatedText ||
           `Dossiê de ${resolvedMegaCompany || 'empresa'} não pôde ser gerado. Tente novamente.`;
@@ -1567,7 +1568,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
 
         {
           const dossier = sessionToPersist;
-          await assertRunCanContinue('save_dossier');
+          await assertRunCanContinueWithRenewal('save_dossier');
           try { await storage.saveDossierStrict(dossier); }
           catch (error) {
             if (dossierRunId && dossierLeaseOwner) {
@@ -1580,7 +1581,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
             }
             return { status: 'FAILED', dossierRunId, errorCode: 'persist_failed', errorStage: 'save_dossier', error: error instanceof Error ? error : new Error(String(error)) } satisfies DossierWaterfallResult;
           }
-          await assertRunCanContinue('after_save_dossier_before_complete');
+          await assertRunCanContinueWithRenewal('after_save_dossier_before_complete');
           if (dossierRunId && dossierLeaseOwner) {
             try {
               await markDossierRunCompleted(dossierRunId, dossierLeaseOwner, dossier.id);
@@ -1596,11 +1597,12 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
               return { status: 'FAILED', dossierRunId, errorCode: 'lifecycle_completion_failed', errorStage: 'mark_completed', error: error instanceof Error ? error : new Error(String(error)) } satisfies DossierWaterfallResult;
             }
           }
+          completedDossierId = dossier.id;
           window.dispatchEvent(new CustomEvent('dossier:completed', { detail: { dossierId: dossier.id, companyName: resolvedMegaCompany || normalizedCompany || '', cnpj: dossier.cnpj } }));
         }
 
         waterfallEndStatus = 'completed';
-        return { status: 'COMPLETED', dossierRunId } satisfies DossierWaterfallResult;
+        return { status: 'COMPLETED', dossierRunId, dossierId: completedDossierId } satisfies DossierWaterfallResult;
       } catch (error) {
         if (signal.aborted || error instanceof DossierRunCancelledError || isAbortLikeError(error)) {
           waterfallEndStatus = 'aborted';
@@ -1623,37 +1625,11 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
         return { status: 'FAILED', dossierRunId, errorCode: 'waterfall_failed', errorStage: currentLifecycleStage, error: normalized };
       } finally {
         if (dossierRunId && dossierLeaseOwner && !terminalLeaseReleased) await releaseDossierRunLease(dossierRunId, dossierLeaseOwner).catch(() => scoutDiag.warn('WaterfallLifecycle', 'lease-release-failed', { sessionId, dossierRunId }));
-        // Fire-and-forget: limpeza de cache não deve bloquear o retorno do waterfall.
-        // Timeout de 15s com warning se a promise não resolver.
-        if (foundationCacheName) {
-          let cacheResolved = false;
-          const cacheTimeoutId = setTimeout(() => {
-            if (!cacheResolved) {
-              scoutDiag.warn('ModularDossier', 'deleteWaterfallFoundationCache demorando mais de 15s', {
-                cacheName: foundationCacheName,
-              });
-            }
-          }, 15_000);
-
-          deleteWaterfallFoundationCache(foundationCacheName)
-            .then(() => {
-              cacheResolved = true;
-              clearTimeout(cacheTimeoutId);
-            })
-            .catch(() => {
-              cacheResolved = true;
-              clearTimeout(cacheTimeoutId);
-              scoutDiag.warn('ModularDossier', 'deleteWaterfallFoundationCache falhou (fire-and-forget)', {
-                cacheName: foundationCacheName,
-              });
-            });
-        }
 
         scoutDiag.info('WaterfallLifecycle', 'pre-register-end', {
           sessionId,
           waterfallRunId,
           waterfallEndStatus,
-          hasCacheName: Boolean(foundationCacheName),
         });
         registerWaterfallEnd(sessionId, waterfallRunId, waterfallEndStatus);
         scoutDiag.info('WaterfallLifecycle', 'pos-register-end', { sessionId, waterfallRunId });
@@ -1694,7 +1670,6 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
                 )?.disabled ?? false)
               : false,
           dossierWasPersisted: sessionToPersist !== null,
-          cacheWasCleaned: foundationCacheName !== null,
         });
 
         // ── Hard invariant: waterfall terminou → zera TODOS os estados de loading ──

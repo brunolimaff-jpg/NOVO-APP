@@ -27,16 +27,13 @@ const fetchCompanyByCnpjMock = vi.hoisted(() => vi.fn());
 const runDossierBenchmarkStageMock = vi.hoisted(() => vi.fn());
 const reconcileWaterfallPortaMock = vi.hoisted(() => vi.fn());
 const ensureWaterfallScorePortaMock = vi.hoisted(() => vi.fn());
-const createWaterfallFoundationCacheMock = vi.hoisted(() => vi.fn());
-const deleteWaterfallFoundationCacheMock = vi.hoisted(() => vi.fn());
-const isFoundationCacheEnabledMock = vi.hoisted(() => vi.fn(() => false));
 const scoutDiagMock = vi.hoisted(() => ({
   warn: vi.fn(),
   error: vi.fn(),
   info: vi.fn(),
 }));
 const saveDossierMock = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
-const runControlMocks = vi.hoisted(() => ({ assertCanContinue: vi.fn() }));
+const runControlMocks = vi.hoisted(() => ({ assertCanContinue: vi.fn(), assertCanContinueWithRenewal: vi.fn() }));
 const lifecycleRpcMocks = vi.hoisted(() => ({ complete: vi.fn(), failed: vi.fn(), release: vi.fn(), cancelled: vi.fn() }));
 const evidencePipelineMock = vi.hoisted(() => vi.fn(() => false));
 const queryPlannerMocks = vi.hoisted(() => ({ plan: vi.fn(), collect: vi.fn() }));
@@ -52,7 +49,14 @@ vi.mock('../../../services/llmService', () => ({
 
 vi.mock('../../../features/dossier/dossier-run-control', async importOriginal => {
   const actual = await importOriginal<typeof import('../../../features/dossier/dossier-run-control')>();
-  return { ...actual, assertDossierRunCanContinue: runControlMocks.assertCanContinue };
+  return {
+    ...actual,
+    assertDossierRunCanContinue: runControlMocks.assertCanContinue,
+    // Liveness com renovação preventiva: delega ao mesmo contrato do assert no
+    // orquestrador; o comportamento do control em si é coberto por
+    // dossier-run-control.test.ts.
+    assertDossierRunCanContinueWithRenewal: (...args: unknown[]) => runControlMocks.assertCanContinue(...args),
+  };
 });
 
 vi.mock('../../../lib/supabase/dossierRuns', () => ({
@@ -123,9 +127,6 @@ vi.mock('../../../services/llm/foundation-cache', async () => {
   );
   return {
     ...actual,
-    isFoundationCacheEnabled: isFoundationCacheEnabledMock,
-    createWaterfallFoundationCache: createWaterfallFoundationCacheMock,
-    deleteWaterfallFoundationCache: deleteWaterfallFoundationCacheMock,
   };
 });
 
@@ -374,9 +375,6 @@ describe('useDossierWaterfallOrchestrator', () => {
     fetchCompanyByCnpjMock.mockRejectedValue(new Error('CNPJ lookup not mocked'));
     generateDossierModuleMock.mockImplementation(async (moduleName: string) => `${moduleName} consolidado`);
     generateContinuityQuestionMock.mockResolvedValue(DEFAULT_SUGGESTIONS);
-    isFoundationCacheEnabledMock.mockReturnValue(false);
-    createWaterfallFoundationCacheMock.mockResolvedValue('cachedContents/test-cache');
-    deleteWaterfallFoundationCacheMock.mockResolvedValue(undefined);
     runDossierBenchmarkStageMock.mockImplementation(
       async ({ appendWaterfallChunk }: { appendWaterfallChunk: (chunk: string) => void }) => {
         appendWaterfallChunk('Benchmark consolidado');
@@ -433,7 +431,7 @@ describe('useDossierWaterfallOrchestrator', () => {
       expect.any(String),
       expect.any(String),
       expect.any(String),
-      expect.objectContaining({ useGrounding: false }),
+      expect.objectContaining({ companyName: 'Acme Agro' }),
     );
     expect(generateDossierModuleMock.mock.calls[0][2]).toContain('CONTRATO VISÍVEL V2');
     expect(generateDossierModuleMock.mock.calls[0][2]).toContain('Não gere seção "Brief de Reunião"');
@@ -595,19 +593,6 @@ describe('useDossierWaterfallOrchestrator', () => {
     dispatchSpy.mockRestore();
   });
 
-  it('falha fechada após foundation cache e limpa cache sem fallback', async () => {
-    isFoundationCacheEnabledMock.mockReturnValue(true);
-    failLifecycleAt('after_foundation_cache');
-    const harness = makeHarness();
-    const result = await harness.result.current.runMegaPromptWaterfall(makeRunArgs());
-    expect(result).toMatchObject({ status: 'FAILED', errorStage: 'after_foundation_cache' });
-    expect(createWaterfallFoundationCacheMock).toHaveBeenCalledOnce();
-    expect(deleteWaterfallFoundationCacheMock).toHaveBeenCalledWith('cachedContents/test-cache');
-    expect(generateDossierModuleMock).not.toHaveBeenCalled();
-    expect(runDossierBenchmarkStageMock).not.toHaveBeenCalled();
-    expect(saveDossierMock).not.toHaveBeenCalled();
-  });
-
   it('falha fechada no módulo opcional e não inicia próximos módulos ou benchmark', async () => {
     failLifecycleAt('after_module:Bordas de Controle');
     const harness = makeHarness();
@@ -720,49 +705,6 @@ describe('useDossierWaterfallOrchestrator', () => {
       makeRunArgs({ dossierRunId: 'run-1', dossierLeaseOwner: 'lease-1' }),
     );
     expect(lifecycleRpcMocks.release).toHaveBeenCalledTimes(1);
-  });
-
-  it('cria foundation cache uma vez, propaga cacheName aos módulos e remove no finally', async () => {
-    isFoundationCacheEnabledMock.mockReturnValue(true);
-    const score = makeScorePorta(74);
-    reconcileWaterfallPortaMock.mockResolvedValue({
-      accumulatedText: 'Texto consolidado\n\n---\n\n[[PORTA:74:P7:O7:R6:T8:A6:PRD:NONE]]',
-      resolution: makeResolution(score),
-      portaIntegrityHold: false,
-    });
-    ensureWaterfallScorePortaMock.mockReturnValue(score);
-
-    const harness = makeHarness();
-
-    await act(async () => {
-      await harness.result.current.runMegaPromptWaterfall(makeRunArgs());
-    });
-
-    expect(createWaterfallFoundationCacheMock).toHaveBeenCalledTimes(1);
-    expect(deleteWaterfallFoundationCacheMock).toHaveBeenCalledTimes(1);
-    expect(deleteWaterfallFoundationCacheMock).toHaveBeenCalledWith('cachedContents/test-cache');
-    expect(
-      generateDossierModuleMock.mock.calls.every(call => call[5]?.foundationCacheName === 'cachedContents/test-cache'),
-    ).toBe(true);
-    expect(reconcileWaterfallPortaMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        foundationCacheName: 'cachedContents/test-cache',
-      }),
-    );
-  });
-
-  it('propaga abort quando a criação do foundation cache é cancelada', async () => {
-    isFoundationCacheEnabledMock.mockReturnValue(true);
-    const abortError = createAbortError();
-    createWaterfallFoundationCacheMock.mockRejectedValueOnce(abortError);
-
-    const harness = makeHarness({ canUseLookup: false });
-
-    const result = await harness.result.current.runMegaPromptWaterfall(makeRunArgs());
-    expect(result).toMatchObject({ status: 'CANCELLED' });
-
-    expect(deleteWaterfallFoundationCacheMock).not.toHaveBeenCalled();
-    expect(runDossierBenchmarkStageMock).not.toHaveBeenCalled();
   });
 
   it('agrega fontes de grounding retornadas pelos módulos', async () => {
@@ -1093,10 +1035,15 @@ describe('useDossierWaterfallOrchestrator', () => {
     expect(harness.resetLoadingProgress).toHaveBeenCalledWith(MODULAR_DOSSIER_STAGES[0], 7);
     expect(harness.replaceLoadingProgressStage).toHaveBeenCalledWith(MODULAR_DOSSIER_STAGES[3], 7);
     expect(harness.setFailureCount.mock.calls.some(([arg]) => typeof arg === 'function')).toBe(true);
-    expect(finalBotMessage.text).toContain('Nota operacional');
-    expect(finalBotMessage.text).toContain('Bordas de Controle');
+    expect(finalBotMessage.text).not.toContain('Nota operacional');
+    expect(finalBotMessage.text).not.toContain('Bordas de Controle');
     expect(finalBotMessage.scorePorta?.score).toBe(68);
     expect(harness.completeLoadingProgress).toHaveBeenCalled();
+    expect(scoutDiagMock.warn).toHaveBeenCalledWith('WaterfallLifecycle', 'optional-steps-failed', {
+      sessionId: expect.any(String),
+      waterfallRunId: expect.any(String),
+      failedSteps: expect.arrayContaining(['Bordas de Controle']),
+    });
   });
 
   it('preserva a continuidade quando o benchmark falha como etapa opcional', async () => {
@@ -1129,10 +1076,15 @@ describe('useDossierWaterfallOrchestrator', () => {
     const finalBotMessage = getBotMessage(harness);
 
     expect(harness.replaceLoadingProgressStage).toHaveBeenCalledWith(MODULAR_DOSSIER_STAGES[6], 7);
-    expect(finalBotMessage.text).toContain('Nota operacional');
-    expect(finalBotMessage.text).toContain('Benchmark de mercado');
+    expect(finalBotMessage.text).not.toContain('Nota operacional');
+    expect(finalBotMessage.text).not.toContain('Benchmark de mercado');
     expect(getSession(harness).scoreOportunidade).toBe(65);
     expect(harness.completeLoadingProgress).toHaveBeenCalled();
+    expect(scoutDiagMock.warn).toHaveBeenCalledWith('WaterfallLifecycle', 'optional-steps-failed', {
+      sessionId: expect.any(String),
+      waterfallRunId: expect.any(String),
+      failedSteps: expect.arrayContaining(['Benchmark de mercado']),
+    });
   });
 
   it('mantém scoreOportunidade intacto quando a integridade PORTA entra em hold', async () => {

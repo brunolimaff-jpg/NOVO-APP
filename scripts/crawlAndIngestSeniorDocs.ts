@@ -4,8 +4,8 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { parse } from 'csv-parse';
 import * as cheerio from 'cheerio';
-import { GoogleGenAI } from '@google/genai';
 import { Pinecone } from '@pinecone-database/pinecone';
+import { embedViaLiteLLM, EMBEDDINGS_MODEL_ID } from '../utils/llm/embeddings.ts';
 import dotenv from 'dotenv';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -54,7 +54,6 @@ function isValidUrl(url: string): boolean {
 // Config
 // ---------------------------------------------------------------------------
 
-const GEMINI_API_KEY = process.env.VITE_API_KEY || process.env.GEMINI_API_KEY;
 const PINECONE_API_KEY = process.env.PINECONE_DOCS_KEY || process.env.VITE_PINECONE_KEY || process.env.PINECONE_API_KEY;
 const PINECONE_INDEX_NAME = process.env.PINECONE_DOCS_INDEX || 'scout-arsenal';
 const NAMESPACE = 'senior-erp-docs';
@@ -66,14 +65,12 @@ const CHUNK_OVERLAP = 220;
 const MAX_CONCURRENCY = 3;
 const USER_AGENT = 'SeniorScout360-Crawler/1.0';
 
-if (!GEMINI_API_KEY || !PINECONE_API_KEY) {
+if (!PINECONE_API_KEY) {
   console.error(
-    'ERRO: Variáveis de ambiente ausentes. Verifique GEMINI_API_KEY e PINECONE_API_KEY (ou PINECONE_DOCS_KEY).',
+    'ERRO: Variáveis de ambiente ausentes. Verifique PINECONE_API_KEY (ou PINECONE_DOCS_KEY) e as vars LiteLLM (LITELLM_BASE_URL/LITELLM_API_KEY).',
   );
   process.exit(1);
 }
-
-const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
 const pc = new Pinecone({ apiKey: PINECONE_API_KEY });
 const index = pc.index(PINECONE_INDEX_NAME);
 
@@ -185,13 +182,8 @@ function extractTitleFromHtml(html: string): string {
 // ---------------------------------------------------------------------------
 
 async function generateEmbeddingsBatch(texts: string[]): Promise<number[][]> {
-  const result = await ai.models.embedContent({
-    model: 'gemini-embedding-001',
-    contents: texts,
-    config: { taskType: 'RETRIEVAL_DOCUMENT' },
-  });
-  if (!result.embeddings) return [];
-  return result.embeddings.map(e => e.values || []);
+  const result = await embedViaLiteLLM(texts, { model: EMBEDDINGS_MODEL_ID });
+  return result.vectors;
 }
 
 // ---------------------------------------------------------------------------

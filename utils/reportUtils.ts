@@ -79,8 +79,6 @@ export function collectFullReportAuditableSources(messages: Message[]): Auditabl
   return buildAuditableSources(text, groundingSources);
 }
 
-const MERMAID_JSON_PATTERN = /\{"mermaid":"([\s\S]*?)"\}/g;
-
 function stripMarkdownFormatting(value: string): string {
   return value
     .replace(/\[\[PORTA[^\]]*\]\]/g, '')
@@ -250,9 +248,18 @@ function summarizePainPoint(rawText: string): string {
   if (/\b(decisor|cadeia de comando|orcamento|orçamento|janela)\b/.test(normalized)) {
     return 'uma frente decisória ainda aberta para captura comercial';
   }
+  if (/\b(holding|socio|socios|sócio|sócios|governanca|governança|controle|familiar|familia|família)\b/.test(normalized)) {
+    return 'uma estrutura de controle familiar com governança concentrada';
+  }
 
-  if (cleaned.length <= 110) return cleaned;
-  return cleaned.split(/,|;| — /)[0].trim();
+  if (cleaned.length <= 140) return cleaned;
+  // Corta na primeira quebra natural (vírgula, ponto e vírgula, travessão);
+  // se ainda assim for longa demais, trunca em limite de palavra.
+  const naturalBreak = cleaned.split(/,|;| — /)[0].trim();
+  if (naturalBreak.length <= 140) return naturalBreak;
+  const truncated = naturalBreak.slice(0, 140);
+  const lastSpace = truncated.lastIndexOf(' ');
+  return `${(lastSpace > 60 ? truncated.slice(0, lastSpace) : truncated).trim()}…`;
 }
 
 function collectEvidenceCandidates(modules: Array<{ title: string; content: string }>): EvidenceCandidate[] {
@@ -422,21 +429,6 @@ function normalizeComparableValue(value: string): string {
     .trim();
 }
 
-function pickExecutiveContext(section: string): string {
-  const candidates = section
-    .split('\n')
-    .map(line => line.trim())
-    .filter(line => {
-      if (!line) return false;
-      if (/^#{1,6}\s/.test(line)) return false;
-      if (/^```/.test(line)) return false;
-      if (/^[-*]\s+/.test(line)) return false;
-      if (/^\d+\.\s+/.test(line)) return false;
-      return line.length >= 40;
-    });
-  return candidates[0] || 'Relatório consolidado a partir do dossiê e dos aprofundamentos da conversa.';
-}
-
 function collectMetricValues(text: string, regex: RegExp): string[] {
   regex.lastIndex = 0;
   const values: string[] = [];
@@ -461,9 +453,6 @@ const buildInconsistencyNote = (hasInconsistencies: boolean) =>
 export function generateExecutiveSummary(fullText: string, sections: string[], inconsistenciesSection: string): string {
   const sourceText = normalizeMermaidBlocks(fullText);
   const mainSection = sections[0] || sourceText;
-  const context = pickExecutiveContext(mainSection);
-  const sectionCount = sections.length;
-  const aprofundamentos = Math.max(0, sectionCount - 1);
   const parsedSections = parseMarkdownSections(sourceText);
   const modules = parsedSections.filter(section => section.level === 1 && section.kind === 'module');
   const spine = buildExecutiveSummarySpine(sourceText, modules, {
@@ -493,9 +482,6 @@ export function generateExecutiveSummary(fullText: string, sections: string[], i
     .filter(Boolean)
     .join('\n');
 
-  const mermaidBlocks =
-    (sourceText.match(/```mermaid[\s\S]*?```/gi) || []).length + (fullText.match(MERMAID_JSON_PATTERN) || []).length;
-
   const inconsistencyNote = buildInconsistencyNote(Boolean(inconsistenciesSection));
 
   return [
@@ -506,11 +492,6 @@ export function generateExecutiveSummary(fullText: string, sections: string[], i
     `- **Risco de Inação:** ${spine.risk}`,
     `- **Direção Recomendada:** ${spine.direction}`,
     `- **Sinal de Confiança:** ${spine.confidence}`,
-    `- **Escopo compilado:** ${sectionCount} seção(ões), com ${aprofundamentos} aprofundamento(s).`,
-    `- **Síntese inicial:** ${context}`,
-    mermaidBlocks > 0
-      ? `- **Diagramas mermaid:** ${mermaidBlocks} bloco(s) incluído(s) no relatório para leitura visual dos fluxos.`
-      : '- **Diagramas mermaid:** nenhum bloco mermaid identificado no conteúdo consolidado.',
     inconsistencyNote,
     metricLines,
     '',

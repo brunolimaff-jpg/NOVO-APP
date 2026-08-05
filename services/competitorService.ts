@@ -1,12 +1,12 @@
 // services/competitorService.ts
-// Serviço de inteligência competitiva dinâmica — sempre busca em fontes vivas via Gemini.
+// Serviço de inteligência competitiva dinâmica — sempre busca em fontes vivas via LLM.
 // NÃO usa dados fixos de mercado. Tudo é pesquisado em tempo real.
 
 import { scoutDiag } from '../utils/diagnosticLog';
 import { CONCORRENTES, getConcorrente, getRevendasPorEstado, Concorrente } from './competitors';
 
 /**
- * Sanitiza e limita o nome da empresa para uso seguro em prompts Gemini.
+ * Sanitiza e limita o nome da empresa para uso seguro em prompts LLM.
  * Evita prompt injection via nomes de empresa maliciosos.
  */
 function safeCompanyName(name: string): string {
@@ -111,7 +111,7 @@ export interface CompetitorDetection {
   revendaLocal?: string;
   confianca?: 'alta' | 'media' | 'baixa';
   fontes?: string[];
-  raw?: string; // texto bruto retornado pelo Gemini
+  raw?: string; // texto bruto retornado pelo LLM
   detected?: boolean;
   names?: string[];
 }
@@ -119,7 +119,7 @@ export interface CompetitorDetection {
 export interface CompetitorProfile {
   competitorId: string;
   nomeERP: string;
-  // Dados dinâmicos buscados pelo Gemini
+  // Dados dinâmicos buscados pelo LLM
   playStoreRating?: number;
   playStoreReviews?: number;
   playStoreUltimaAtualizacao?: string;
@@ -146,7 +146,7 @@ export interface PricingIntel {
 }
 
 // ===================================================================
-// PROMPTS INTERNOS (usados para chamar o Gemini Deep Research)
+// PROMPTS INTERNOS (usados para chamar o LLM Deep Research)
 // ===================================================================
 
 function buildDetectPrompt(nomeEmpresa: string, estado?: string): string {
@@ -306,15 +306,15 @@ Se não encontrar dados confiáveis, retorne os campos como null e confianca com
 export async function detectCompetitorFromContext(
   nomeEmpresa: string,
   estado?: string,
-  callGeminiDeepSearch?: (prompt: string) => Promise<string>,
+  callLlmDeepSearch?: (prompt: string) => Promise<string>,
 ): Promise<CompetitorDetection> {
-  if (!callGeminiDeepSearch) {
+  if (!callLlmDeepSearch) {
     return { encontrado: false };
   }
 
   try {
     const prompt = buildDetectPrompt(nomeEmpresa, estado);
-    const raw = await callGeminiDeepSearch(prompt);
+    const raw = await callLlmDeepSearch(prompt);
 
     const lines = raw.split('\n');
     const get = (key: string) => {
@@ -361,14 +361,14 @@ export async function detectCompetitorFromContext(
  */
 export async function pullCompetitorProfile(
   competitorId: string,
-  callGeminiDeepSearch?: (prompt: string) => Promise<string>,
+  callLlmDeepSearch?: (prompt: string) => Promise<string>,
 ): Promise<CompetitorProfile | null> {
   const concorrente = getConcorrente(competitorId);
-  if (!concorrente || !callGeminiDeepSearch) return null;
+  if (!concorrente || !callLlmDeepSearch) return null;
 
   try {
     const prompt = buildProfilePrompt(concorrente);
-    const raw = await callGeminiDeepSearch(prompt);
+    const raw = await callLlmDeepSearch(prompt);
 
     const data = parseFirstJsonObject(raw);
     if (data) {
@@ -389,14 +389,14 @@ export async function pullCompetitorProfile(
 export async function generatePricingIntel(
   competitorId: string,
   porteEmpresa: 'pequeno' | 'medio' | 'grande' | 'enterprise',
-  callGeminiDeepSearch?: (prompt: string) => Promise<string>,
+  callLlmDeepSearch?: (prompt: string) => Promise<string>,
 ): Promise<PricingIntel | null> {
   const concorrente = getConcorrente(competitorId);
-  if (!concorrente || !callGeminiDeepSearch) return null;
+  if (!concorrente || !callLlmDeepSearch) return null;
 
   try {
     const prompt = buildPricingPrompt(concorrente, porteEmpresa);
-    const raw = await callGeminiDeepSearch(prompt);
+    const raw = await callLlmDeepSearch(prompt);
 
     const data = parseFirstJsonObject(raw);
     if (data) {

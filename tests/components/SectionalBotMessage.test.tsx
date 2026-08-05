@@ -25,7 +25,7 @@ vi.mock('../../features/dossier/SocietaryMap', () => ({
     llmCnpjs?: Array<{ name: string }>;
   }) => (
     <div data-testid="societary-map">
-      {cnpj}::{empresaAlvo}::{llmCnpjs?.map(company => company.name).join('|') || 'sem-gemini'}
+      {cnpj}::{empresaAlvo}::{llmCnpjs?.map(company => company.name).join('|') || 'sem-llm'}
     </div>
   ),
 }));

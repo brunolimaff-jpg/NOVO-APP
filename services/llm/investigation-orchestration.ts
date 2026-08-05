@@ -32,7 +32,7 @@ import {
 } from '../portaStateService';
 import { TACTICAL_MODEL_ID, selectMainChatModelId } from './config';
 import { STABLE_RESEARCH_MODEL_ID } from '../../config/models';
-import type { DossierModuleOptions, GeminiRequestOptions, SendMessageToGeminiResult } from './contracts';
+import type { DossierModuleOptions, LlmRequestOptions, SendMessageToLlmResult } from './contracts';
 import { parsePortaFeeds } from './porta';
 import { debugRecovery, looksLikeMissedOpenQuestionAnswer, trackOpenQuestionRecoveryAttempt } from './recovery';
 import {
@@ -148,18 +148,16 @@ function processPortaFeeds(params: {
   return null;
 }
 
-export async function sendMessageToGemini(
+export async function sendMessageToLlm(
   userMessage: string,
   conversationHistory: Message[],
   systemPrompt: string,
-  options: GeminiRequestOptions = {},
+  options: LlmRequestOptions = {},
   canUseLookup: boolean = true,
-): Promise<SendMessageToGeminiResult> {
+): Promise<SendMessageToLlmResult> {
   const {
-    useGrounding = true,
     thinkingLevel,
     thinkingMode,
-    useOpenWebSearch = false,
     signal,
     onText,
     onStatus,
@@ -357,7 +355,6 @@ export async function sendMessageToGemini(
     historyMessages: history.length,
     isMegaPromptMessage,
     isDeepDive,
-    shouldUseGrounding: false,
   };
 
   initializePortaState({
@@ -373,15 +370,13 @@ export async function sendMessageToGemini(
     isMegaPromptMessage,
     shouldForceDirectAnswer,
   });
-  const shouldUseGrounding = useGrounding;
   promptBudget.modelToUse = modelToUse;
-  promptBudget.shouldUseGrounding = shouldUseGrounding;
 
   if (isMegaPromptMessage || isDeepDive) {
-    scoutDiag.info?.('GeminiBudget', 'iniciando investigação com orçamento de contexto', promptBudget);
+    scoutDiag.info?.('LlmBudget', 'iniciando investigação com orçamento de contexto', promptBudget);
     const totalChars = promptBudget.userChars + promptBudget.systemChars + promptBudget.historyChars;
     if (totalChars > 120000) {
-      scoutDiag.warn('GeminiBudget', 'payload elevado para investigação', {
+      scoutDiag.warn('LlmBudget', 'payload elevado para investigação', {
         ...promptBudget,
         totalChars,
       });
@@ -394,55 +389,23 @@ export async function sendMessageToGemini(
 
   let response;
   const requestStartedAt = Date.now();
-  let usedGroundingFallback = false;
-  try {
-    response = await withAutoRetry(
-      'Gemini:sendMessage',
-      () =>
-        proxyChatSendMessage(
-          {
-            model: modelToUse,
-            systemInstruction: fullSystemPrompt,
-            history,
-            message: userMessage,
-            useGrounding: shouldUseGrounding,
-            thinkingLevel: resolvedThinkingLevel,
-            thinkingMode,
-            useOpenWebSearch,
-            temperature: 0.1,
-          },
-          signal,
-        ),
-      { maxRetries: 5, baseDelayMs: 2000, maxDelayMs: 30000, abortSignal: signal },
-    );
-  } catch (error) {
-    const appError = normalizeAppError(error);
-    const canFallbackWithoutGrounding =
-      shouldUseGrounding && ['TIMEOUT', 'NETWORK', 'MODEL_OVERLOADED', 'SERVER'].includes(appError.code);
-
-    if (!canFallbackWithoutGrounding) throw error;
-
-    onStatus?.('Entrando em contingência sem busca externa...');
-    usedGroundingFallback = true;
-    response = await withAutoRetry(
-      'Gemini:sendMessage:fallback-no-grounding',
-      () =>
-        proxyChatSendMessage(
-          {
-            model: TACTICAL_MODEL_ID,
-            systemInstruction: fullSystemPrompt,
-            history,
-            message: userMessage,
-            useGrounding: false,
-            thinkingLevel: resolvedThinkingLevel,
-            thinkingMode,
-            temperature: 0.1,
-          },
-          signal,
-        ),
-      { maxRetries: 4, baseDelayMs: 2000, maxDelayMs: 20000, abortSignal: signal },
-    );
-  }
+  response = await withAutoRetry(
+    'Llm:sendMessage',
+    () =>
+      proxyChatSendMessage(
+        {
+          model: modelToUse,
+          systemInstruction: fullSystemPrompt,
+          history,
+          message: userMessage,
+          thinkingLevel: resolvedThinkingLevel,
+          thinkingMode,
+          temperature: 0.1,
+        },
+        signal,
+      ),
+    { maxRetries: 5, baseDelayMs: 2000, maxDelayMs: 30000, abortSignal: signal },
+  );
 
   finalText = sanitizeSensitivePersonalData(sanitizeStreamText(response.text || ''));
   finalText = enforceSeniorEvidenceConstraints(finalText, empresaAlvo || hintedCompany || '', clienteSeniorData);
@@ -463,13 +426,12 @@ export async function sendMessageToGemini(
   }
 
   if (isMegaPromptMessage || isDeepDive) {
-    scoutDiag.info?.('GeminiTiming', 'investigação concluída', {
+    scoutDiag.info?.('LlmTiming', 'investigação concluída', {
       sessionId: sessionId ?? null,
       resolvedCompany: empresaAlvo ?? null,
       modelToUse,
       durationMs: Date.now() - requestStartedAt,
       responseChars: finalText.length,
-      usedGroundingFallback,
       isMegaPromptMessage,
       isDeepDive,
     });
@@ -526,9 +488,7 @@ export async function sendMessageToGemini(
   }
 
   const sources = leakShieldResult.blocked ? [] : normalizeGroundingSources(response);
-  const webVerificationStatus = leakShieldResult.blocked
-    ? 'not_applicable'
-    : deriveVerificationStatusFromSources(sources, false, shouldUseGrounding || Boolean(useOpenWebSearch));
+  const webVerificationStatus = leakShieldResult.blocked ? 'not_applicable' : deriveVerificationStatusFromSources(sources, false, false);
   const suggestions: string[] = [];
 
   return {
@@ -551,10 +511,9 @@ export async function generateDossierModule(
   options: DossierModuleOptions = {},
 ): Promise<string> {
   const socioRuralContext = buildSocioRuralInstructionContext(empresaAlvo, extraContext);
-  const usesFoundationCache = Boolean(options.foundationCacheName);
   const dynamicPrompt = `${specialistPrompt}\n\n${socioRuralContext}\n\n${extraContext}`.trim();
-  const finalPrompt = usesFoundationCache ? dynamicPrompt : `${foundationBlock}\n\n${dynamicPrompt}`;
-  const promptChars = usesFoundationCache ? dynamicPrompt.length : `${foundationBlock}\n\n${dynamicPrompt}`.length;
+  const finalPrompt = `${foundationBlock}\n\n${dynamicPrompt}`;
+  const promptChars = finalPrompt.length;
   const startedAt = Date.now();
 
   scoutDiag.info?.('DossierModule', 'iniciando módulo especializado', {
@@ -564,7 +523,6 @@ export async function generateDossierModule(
     specialistChars: specialistPrompt.length,
     extraContextChars: extraContext.length,
     promptChars,
-    foundationCacheName: options.foundationCacheName ?? null,
   });
   if (promptChars > 80000) {
     scoutDiag.warn('DossierModule', 'módulo especializado com prompt elevado', {
@@ -575,7 +533,6 @@ export async function generateDossierModule(
   }
 
   const userTask = `Empresa alvo: ${empresaAlvo}\nGere APENAS o bloco de ${moduleName} com extrema precisão e profundidade comercial.`;
-  const contents = usesFoundationCache ? `${userTask}\n\n${dynamicPrompt}` : userTask;
 
   const response = await runWithStepTimeout(
     `DossierModule:${moduleName}`,
@@ -583,19 +540,12 @@ export async function generateDossierModule(
       proxyGenerateContent(
         {
           model: STABLE_RESEARCH_MODEL_ID,
-          contents,
-          config: usesFoundationCache
-            ? {
-                cachedContent: options.foundationCacheName,
-                temperature: options.temperature ?? 0.2,
-                maxOutputTokens: 8192,
-              }
-            : {
-                systemInstruction: finalPrompt,
-                temperature: options.temperature ?? 0.2,
-                maxOutputTokens: 8192,
-                tools: options.useGrounding ? [{ googleSearch: {} }] : undefined,
-              },
+          contents: userTask,
+          config: {
+            systemInstruction: finalPrompt,
+            temperature: options.temperature ?? 0.2,
+            maxOutputTokens: 8192,
+          },
         },
         stepSignal,
       ),
@@ -617,19 +567,7 @@ export async function generateDossierModule(
   }
   let finalText = sanitizeSensitivePersonalData(shieldedResult.text);
   let groundingSources = normalizeGroundingSources(response);
-  let verificationStatus: WebVerificationStatus = deriveVerificationStatusFromSources(
-    groundingSources,
-    false,
-    Boolean(options.useGrounding),
-  );
-
-  if (groundingSources.length === 0 && options.useGrounding) {
-    scoutDiag.info?.('DossierModule', 'grounding sem fontes; marcando como unverified', {
-      moduleName,
-      empresaAlvo,
-    });
-    verificationStatus = 'unverified';
-  }
+  let verificationStatus: WebVerificationStatus = deriveVerificationStatusFromSources(groundingSources, false, false);
 
   if (groundingSources.length > 0) {
     options.onGroundingSources?.(groundingSources, moduleName);
@@ -639,7 +577,6 @@ export async function generateDossierModule(
     scoutDiag.info?.('DossierModule', 'usage metadata', {
       moduleName,
       empresaAlvo,
-      foundationCacheName: options.foundationCacheName ?? null,
       usageMetadata: response.usageMetadata,
     });
   }

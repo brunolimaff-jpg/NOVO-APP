@@ -1,7 +1,7 @@
 export const LOCAL_DEV_API_PROXY_TARGET = 'https://scoutagro.vercel.app';
 
 export const LOCAL_DEV_API_PROXY_PATHS = [
-  '/api/gemini',
+  '/api/llm',
   '/api/cnpj',
   '/api/open-web-search',
   '/api/link-status',

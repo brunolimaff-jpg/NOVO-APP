@@ -67,17 +67,17 @@ def response_for(path: str, author: str, body: str, pr: int) -> str:
             "Vitest modelRouter.test.ts verde."
         )
 
-    if path == "api/gemini.ts":
+    if path == "api/llm.ts":
         if "Truncamento" in body or "maxOutputTokens" in body:
-            return f"{prefix} Aceito para experimento (8192 intencional). Produção Gemini inalterada."
+            return f"{prefix} Aceito para experimento (8192 intencional). Produção LLM inalterada."
         if "leak" in body.lower() or "shield" in body.lower():
-            return f"{prefix} Corrigido (`67ff465c`): fallback Gemini em leak_shield_blocked."
+            return f"{prefix} Corrigido (`67ff465c`): fallback LLM em leak_shield_blocked."
         if "401" in body or "403" in body or "auth" in body.lower() or "fallback" in body.lower():
             return (
-                f"{prefix} Corrigido (`{COMMIT}`): auth 401/403 em LiteLLM path faz fallback Gemini "
-                "quando LLM_FALLBACK_ENABLED. api-gemini.test.ts cobre auth_401/auth_403."
+                f"{prefix} Corrigido (`{COMMIT}`): auth 401/403 em LiteLLM path faz fallback LLM "
+                "quando LLM_FALLBACK_ENABLED. api-llm.test.ts cobre auth_401/auth_403."
             )
-        return f"{prefix} Corrigido (`67ff465c`/`{COMMIT}`): LiteLLM só server-side. api-gemini.test.ts verde."
+        return f"{prefix} Corrigido (`67ff465c`/`{COMMIT}`): LiteLLM só server-side. api-llm.test.ts verde."
 
     if path == "api/_experiment-auth.ts":
         if "regex" in body.lower() or "redos" in body.lower() or "bearer" in body.lower():
@@ -133,7 +133,7 @@ def response_for(path: str, author: str, body: str, pr: int) -> str:
     if "investigation-orchestration" in path:
         if "heuristic" in body.lower():
             return f"{prefix} Heurística ok para catálogo fixo; follow-up se aliases."
-        return f"{prefix} Aceito: experimento LiteLLM sem grounding; path gemini inalterado."
+        return f"{prefix} Aceito: experimento LiteLLM sem grounding; path llm inalterado."
 
     if "loading-progress" in path or "loading-watchdog" in path or path == "App.tsx":
         return f"{prefix} Fora do escopo #386 (#385 mergeada)."

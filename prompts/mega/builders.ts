@@ -166,6 +166,39 @@ ${'```'}
 `;
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// CONTRATO V3 — DOSSIÊ EXECUTIVO ENXUTO (PADRÃO, decisão Bruno 2026-08-04)
+// Endurece o output do waterfall: 8 seções finais, CNPJ em tabela macro única,
+// compliance como insumo de risco (não relatório), e MÁXIMO 1 mermaid por dossiê.
+// Vale para o dossiê consolidado inteiro — não por módulo.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+export const EXECUTIVE_LEAN_DOSSIER_OUTPUT_CONTRACT_V3 = `
+<executive_lean_dossier_output_contract_v3>
+CONTRATO DE SAÍDA V3 — DOSSIÊ EXECUTIVO ENXUTO
+
+Este contrato prevalece sobre qualquer template anterior de dossiê longo.
+O dossiê final DEVE ter exatamente estas 8 seções, nesta ordem, sem duplicar conteúdo:
+
+1. Resumo executivo — leitura comercial direta, sem telemetria interna.
+2. CNPJ e grupo econômico — CNPJ em tabela macro única (grupo, empresas, papel, fonte, confiança); NÃO repita o CNPJ em seções soltas.
+3. Estrutura operacional e força de trabalho — unidades, escala, operação, headcount/HCM, SST, gestão e possíveis dores.
+4. Tecnologia e sistemas — aderência, stack atual, maturidade digital, lacunas e risco de troca.
+5. Dores e sinais de compra — problemas prováveis separados de fatos confirmados.
+6. Cliente Senior parecido — somente quando houver CRM/contexto confiável.
+7. Caminho da venda — nomes/grupos/personas, perguntas de abordagem, tese de valor, próximo passo.
+8. Perguntas de abordagem — perguntas prontas para reunião.
+
+REGRAS OBRIGATÓRIAS:
+- MÁXIMO 1 DIAGRAMA MERMAID POR DOSSIÊ: escolha o único bloco que mais ajuda a leitura e mantenha um único bloco mermaid em todo o dossiê; os demais viram tabela ou bullets.
+- CNPJ em tabela macro única: não repita o CNPJ; a matriz de CNPJs é o ÚNICO lugar do CNPJ, com total, fonte, confiança e aviso de parcialidade.
+- Compliance vira insumo de risco/urgência/pergunta, não gere relatório longo de compliance: cite o que muda a conversa (passivos ativos, reforma tributária, certificações) em até 3 bullets.
+- Fato vs inferência: marque inferência; nunca prometa mais empresas do que a evidência sustenta.
+- Refusal protocol e escopo de evidência continuam valendo.
+- Proibido: markers, prompt leak, JSON cru, blocos técnicos visíveis, "Nota operacional" interna, aviso de busca/grounding no corpo do dossiê.
+</executive_lean_dossier_output_contract_v3>
+`;
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // EXPORT DE COMPATIBILIDADE — SHARED_FOUNDATION_BLOCK
 // Mantém ChatInterface atual funcionando sem precisar trocar imports agora
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -183,6 +216,7 @@ export const SHARED_FOUNDATION_BLOCK = [
   SHARED_FINAL_RECONCILIATION_BLOCK,
   MASTER_INVESTIGATION_ORCHESTRATOR_V5,
   SELLER_BRIEF_MODULE_OUTPUT_CONTRACT,
+  EXECUTIVE_LEAN_DOSSIER_OUTPUT_CONTRACT_V3,
 ].join('\n\n');
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -317,6 +351,7 @@ export default {
   SHARED_PARSER_GUARD_BLOCK,
   SHARED_FINAL_RECONCILIATION_BLOCK,
   SELLER_BRIEF_MODULE_OUTPUT_CONTRACT,
+  EXECUTIVE_LEAN_DOSSIER_OUTPUT_CONTRACT_V3,
   PROMPT_RAIO_X_OPERACIONAL_ATAQUE,
   PROMPT_TECH_STACK_GOD_MODE_ATAQUE,
   PROMPT_RISCOS_COMPLIANCE_GOD_MODE,

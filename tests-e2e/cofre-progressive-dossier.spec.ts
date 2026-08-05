@@ -1,7 +1,7 @@
 // tests-e2e/cofre-progressive-dossier.spec.ts
 import { expect, test } from '@playwright/test';
 import { setupE2EAuth } from './helpers/auth';
-import { E2E_DOSSIER_MIN_CHARS, E2E_DOSSIER_SENTINEL, installFastGeminiStubs } from './helpers/gemini';
+import { E2E_DOSSIER_MIN_CHARS, E2E_DOSSIER_SENTINEL, installFastLlmStubs } from './helpers/llm';
 import { completeOnboarding, dismissMigrationNotice, e2eCompanyName } from './helpers/onboarding';
 
 test.use({ storageState: { cookies: [], origins: [] } });
@@ -72,7 +72,7 @@ test.describe('Cofre + dossiê progressivo — anti-regressão P0', () => {
 
   test.beforeEach(async ({ page }) => {
     await setupE2EAuth(page, { uniqueOperator: true });
-    await installFastGeminiStubs(page);
+    await installFastLlmStubs(page);
   });
 
   test('LoadingSmart aparece e desaparece — estado final é válido', async ({ page }) => {

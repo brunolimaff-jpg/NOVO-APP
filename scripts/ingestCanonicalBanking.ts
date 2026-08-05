@@ -1,10 +1,9 @@
-import { GoogleGenAI } from '@google/genai';
 import { Pinecone } from '@pinecone-database/pinecone';
+import { embedViaLiteLLM, EMBEDDINGS_MODEL_ID } from '../utils/llm/embeddings.ts';
 import dotenv from 'dotenv';
 
 dotenv.config();
 
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY || process.env.VITE_API_KEY;
 const PINECONE_INDEX_NAME = process.env.PINECONE_DOCS_INDEX || 'scout-arsenal';
 const PINECONE_API_KEY =
   process.env.PINECONE_DOCS_KEY || process.env.PINECONE_API_KEY || process.env.VITE_PINECONE_KEY || '';
@@ -82,10 +81,8 @@ function chunkText(input: string, max = 1200, overlap = 180): string[] {
 }
 
 async function run() {
-  if (!GEMINI_API_KEY) throw new Error('GEMINI_API_KEY ausente');
   if (!PINECONE_API_KEY) throw new Error('PINECONE_API_KEY ausente');
 
-  const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
   const pc = new Pinecone({ apiKey: PINECONE_API_KEY });
   const index = pc.index(PINECONE_INDEX_NAME).namespace(NAMESPACE);
 
@@ -94,16 +91,12 @@ async function run() {
     (c, i) => `Fonte Curada ERP Banking Senior (Mar/2026)\nTrecho ${i + 1}/${chunks.length}\n\n${c}`,
   );
 
-  const emb = await ai.models.embedContent({
-    model: 'gemini-embedding-001',
-    contents,
-    config: { taskType: 'RETRIEVAL_DOCUMENT' },
-  });
+  const embedding = await embedViaLiteLLM(contents, { model: EMBEDDINGS_MODEL_ID });
 
   const ts = Date.now();
-  const vectors = (emb.embeddings || []).map((e, i) => ({
+  const vectors = embedding.vectors.map((values, i) => ({
     id: `erp-banking-canonical-${ts}-${i + 1}`,
-    values: e.values || [],
+    values,
     metadata: {
       categoria: 'ERP Banking',
       titulo: `ERP Banking Senior - Base Curada ${i + 1}`,

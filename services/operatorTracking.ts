@@ -277,7 +277,7 @@ export function endOperatorSession(reason: 'pagehide' | 'visibility_hidden' | 'm
  * Dispara evento de tracking (fire-and-forget).
  *
  * Regras:
- * - NUNCA incluir prompt, resposta Gemini, conteudo de dossie ou texto longo
+ * - NUNCA incluir prompt, resposta do LLM, conteudo de dossie ou texto longo
  * - Metadata limitado a campos comerciais (CNPJ, nome empresa, contadores)
  * - Falha no Supabase = silencio absoluto
  */
@@ -334,7 +334,7 @@ export function sanitizeMetadata(meta?: Record<string, unknown>): Record<string,
   const safe: Record<string, unknown> = {};
 
   for (const [key, value] of Object.entries(meta)) {
-    if (/prompt|gemini|response|token|secret|key|password/i.test(key)) continue;
+    if (/prompt|llm|response|token|secret|key|password/i.test(key)) continue;
     if (value === null || value === undefined) continue;
 
     if (typeof value === 'string') {

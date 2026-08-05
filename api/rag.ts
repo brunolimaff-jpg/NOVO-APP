@@ -1,7 +1,17 @@
-import { GoogleGenAI } from '@google/genai';
+/**
+ * RAG (Pinecone) — DESATIVADO até reindexação autorizada.
+ *
+ * O índice atual foi populado com um modelo de embedding legado (3072 dimensões).
+ * A migração para embeddings via LiteLLM usa `bedrock/amazon.titan-embed-text-v1`
+ * (1536 dimensões) — vetores incompatíveis exigem reindexação completa antes
+ * de reativar. Enquanto RAG_ENABLED !== 'true', responde 503 antes de qualquer
+ * chamada externa (embeddings ou Pinecone).
+ */
 import { Pinecone } from '@pinecone-database/pinecone';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { z } from 'zod';
+
+import { embedViaLiteLLM } from '../utils/llm/embeddings.js';
 
 const RagRequestSchema = z.object({
   query: z.string().min(1).max(10000),
@@ -15,6 +25,7 @@ export const maxDuration = 60;
 const DEFAULT_PINECONE_INDEX = 'scout-arsenal';
 const PINECONE_INDEX_SECRET_PREFIX_RE = /^pcsk_/i;
 const PINECONE_INDEX_NAME_RE = /^[a-z0-9][a-z0-9-]{0,62}$/i;
+const RAG_DISABLED_CODE = 'RAG_DISABLED_PENDING_REINDEX';
 
 function getRequiredEnv(name: string): string {
   const value = process.env[name];
@@ -54,7 +65,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const { query } = parsed.data;
 
-    const ai = new GoogleGenAI({ apiKey: getRequiredEnv('GEMINI_API_KEY') });
+    // Gate de reindexação: sem RAG_ENABLED=true, nenhuma chamada externa.
+    if (process.env.RAG_ENABLED !== 'true') {
+      return res.status(503).json({
+        context: '',
+        error: RAG_DISABLED_CODE,
+        code: RAG_DISABLED_CODE,
+        retryable: false,
+      });
+    }
 
     const pineconeKey = process.env.PINECONE_API_KEY || process.env.PINECONE_DOCS_KEY;
     if (!pineconeKey) {
@@ -73,14 +92,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const index = pc.index(pineconeIndexName);
     const queryTarget = namespace ? index.namespace(namespace) : index;
 
-    const embeddingResponse = await ai.models.embedContent({
-      model: 'gemini-embedding-001',
-      contents: query,
-      config: { taskType: 'RETRIEVAL_QUERY' },
-    });
+    const embedding = await embedViaLiteLLM([query]);
 
-    const queryVector = embeddingResponse.embeddings?.[0]?.values;
-
+    const queryVector = embedding.vectors[0];
     if (!queryVector || queryVector.length === 0) {
       return res.status(200).json({ context: '' });
     }

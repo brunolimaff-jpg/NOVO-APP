@@ -81,11 +81,11 @@ describe('scoutDiag', () => {
 
   describe('error — sempre visível', () => {
     it('chama console.error com prefixo e scope', () => {
-      scoutDiag.error('GeminiService', 'falha crítica');
+      scoutDiag.error('LlmService', 'falha crítica');
       expect(consoleSpy.error).toHaveBeenCalledOnce();
       const msg = consoleSpy.error.mock.calls[0][0] as string;
       expect(msg).toContain('[Scout360]');
-      expect(msg).toContain('[GeminiService]');
+      expect(msg).toContain('[LlmService]');
       expect(msg).toContain('falha crítica');
       expect(msg).toContain('✖');
     });

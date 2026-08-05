@@ -50,7 +50,6 @@ export interface ReconcileWaterfallPortaArgs {
   waterfallLookupContext: string;
   seniorEvidenceContext: string;
   staticDossierContext: string;
-  foundationCacheName?: string;
   accumulatedText: string;
   modulesByName: Map<string, DossierWaterfallModule>;
   runWaterfallModule: RunWaterfallModule;
@@ -115,7 +114,6 @@ export async function reconcileWaterfallPorta({
   waterfallLookupContext,
   seniorEvidenceContext,
   staticDossierContext,
-  foundationCacheName,
   accumulatedText,
   modulesByName,
   runWaterfallModule,
@@ -205,7 +203,7 @@ export async function reconcileWaterfallPorta({
         SHARED_FOUNDATION_BLOCK,
         buildPortaReconciliationPrompt(waterfallPortaResolution.missingDimensions),
         joinDossierExtraContext(
-          foundationCacheName ? '' : staticDossierContext,
+          staticDossierContext,
           [
             `Contexto consolidado da rodada:\n${nextAccumulatedText.slice(-PORTA_RECONCILIATION_CONTEXT_WINDOW_CHARS)}`,
             `Dimensões pendentes para emissão de markers: ${waterfallPortaResolution.missingDimensions.join(', ')}`,
@@ -216,7 +214,6 @@ export async function reconcileWaterfallPorta({
         {
           signal,
           timeoutMs: MODULAR_OPTIONAL_STEP_TIMEOUT_MS,
-          ...(foundationCacheName ? { foundationCacheName } : {}),
         },
       );
 

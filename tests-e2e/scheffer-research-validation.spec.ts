@@ -1,6 +1,6 @@
 /**
  * Scheffer research validation — LiteLLM/Grok real no preview Vercel.
- * SEM installCNPJStub (stub não tem QSA) e SEM installFastGeminiStubs.
+ * SEM installCNPJStub (stub não tem QSA) e SEM installFastLlmStubs.
  *
  * Uso:
  *   BASE_URL=https://...preview.vercel.app \
@@ -216,7 +216,7 @@ test.describe('Scheffer — validação pesquisa live (preview)', () => {
       'createRun precisa passar',
     ).toBeTruthy();
     expect(finalize?.ok, 'finalizeRun precisa passar').toBeTruthy();
-    expect(finalize?.fallbackUsed, 'fallback Gemini não pode ser usado como sucesso').toBe(false);
+    expect(finalize?.fallbackUsed, 'fallback LLM não pode ser usado como sucesso').toBe(false);
 
     console.log(`\n✅ R3 OK — dossiê ${text.length} chars`);
   });

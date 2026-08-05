@@ -6,7 +6,10 @@ const select = vi.hoisted(() => vi.fn());
 const warn = vi.hoisted(() => vi.fn());
 
 vi.mock('../../../lib/supabaseClient', () => ({
-  supabase: { from: vi.fn(() => ({ upsert })) },
+  supabase: {
+    from: vi.fn(() => ({ upsert })),
+    auth: { getSession: () => Promise.resolve({ data: { session: { user: { id: 'u1' } } } }) },
+  },
   isSupabaseAvailable: () => true,
 }));
 vi.mock('../../../services/storage/_shared', () => ({ getOperatorId: () => 'operator-1' }));
