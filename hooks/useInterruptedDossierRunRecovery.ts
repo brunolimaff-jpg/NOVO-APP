@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { Sender, type ChatSession } from '../types';
-import { consumePersistedActiveDossierRuns } from '../features/dossier/active-run-registry';
+import { peekPersistedActiveDossierRuns, removePersistedActiveDossierRuns } from '../features/dossier/active-run-registry';
 import { scoutDiag } from '../utils/diagnosticLog';
 
 /**
@@ -10,34 +10,36 @@ import { scoutDiag } from '../utils/diagnosticLog';
  * perdido, mas o sessionStorage preserva o run persistido como ativo
  * (RUN_PERSISTED_AS_ACTIVE + LOCAL_ACTIVE_RUN_CONTEXT_MISSING).
  *
- * Este hook, executado uma vez no boot:
+ * Este hook, executado no boot APÓS isInitialized=true (sessões carregadas):
  * - NUNCA retoma o waterfall automaticamente;
  * - NUNCA classifica o run como COMPLETED;
- * - reseta qualquer estado de loading residual (isLoading=false);
- * - injeta uma mensagem explícita de interrupção na sessão afetada, com
- *   orientação de nova tentativa (o lease continua protegendo contra disputa
- *   via RPC; se expirado, o lifecycle permite nova tentativa);
+ * - injeta uma mensagem explícita de interrupção na sessão afetada;
+ * - remove o registro persistido SOMENTE quando a sessão existir e a
+ *   mensagem for aplicada (updateSessionById retorna sessão atualizada);
+ *   se a sessão ainda não existir, o registro é preservado para tentativa
+ *   posterior — evitando a corrida com o loadSessions() assíncrono;
  * - emite telemetria diagnóstica sem expor dados sensíveis;
- * - preserva o dossiê anterior (nenhuma escrita é feita aqui).
+ * - preserva o dossiê anterior (nenhuma escrita destrutiva é feita).
  */
 export function useInterruptedDossierRunRecovery(options: {
+  isInitialized: boolean;
   updateSessionById: (sessionId: string, updater: (session: ChatSession) => ChatSession) => ChatSession | null;
   setIsLoading: (loading: boolean) => void;
   resetLoadingProgress: () => void;
 }) {
-  const { updateSessionById, setIsLoading, resetLoadingProgress } = options;
+  const { isInitialized, updateSessionById, setIsLoading, resetLoadingProgress } = options;
 
   useEffect(() => {
-    const interruptedRuns = consumePersistedActiveDossierRuns();
+    // Só roda quando as sessões já foram carregadas (evita corrida com loadSessions).
+    if (!isInitialized) return;
+
+    const interruptedRuns = peekPersistedActiveDossierRuns();
     if (interruptedRuns.length === 0) return;
 
+    const appliedRunIds: string[] = [];
+    const pendingRunIds: string[] = [];
     for (const run of interruptedRuns) {
-      scoutDiag.warn('DossierRunLifecycle', 'reload_interrupted_run', {
-        sessionId: run.sessionId,
-        runId: run.runId,
-        // Sem conteúdo de mensagem, empresa ou qualquer dado sensível.
-      });
-      updateSessionById(run.sessionId, session => ({
+      const updated = updateSessionById(run.sessionId, session => ({
         ...session,
         messages: [
           ...(session.messages ?? []),
@@ -51,10 +53,33 @@ export function useInterruptedDossierRunRecovery(options: {
           },
         ],
       }));
+      if (updated) {
+        appliedRunIds.push(run.runId);
+        scoutDiag.warn('DossierRunLifecycle', 'reload_interrupted_run', {
+          sessionId: run.sessionId,
+          runId: run.runId,
+          // Sem conteúdo de mensagem, empresa ou qualquer dado sensível.
+        });
+      } else {
+        // Sessão ainda não carregada: preserva o registro para a próxima
+        // execução do effect (isInitialized=true já garante que loadSessions
+        // terminou; se ainda assim não existir, o registro permanece até a
+        // sessão ser criada — nunca é descartado sem aplicação).
+        pendingRunIds.push(run.runId);
+        scoutDiag.warn('DossierRunLifecycle', 'reload_interrupted_run_session_missing', {
+          sessionId: run.sessionId,
+          runId: run.runId,
+        });
+      }
     }
 
-    // Garante que nenhum estado de loading residual sobreviva ao reload.
-    setIsLoading(false);
-    resetLoadingProgress();
-  }, [updateSessionById, setIsLoading, resetLoadingProgress]);
+    // Remove apenas os runs cuja mensagem foi aplicada a uma sessão existente.
+    if (appliedRunIds.length > 0) removePersistedActiveDossierRuns(appliedRunIds);
+
+    if (pendingRunIds.length === 0) {
+      // Garante que nenhum estado de loading residual sobreviva ao reload.
+      setIsLoading(false);
+      resetLoadingProgress();
+    }
+  }, [isInitialized, updateSessionById, setIsLoading, resetLoadingProgress]);
 }

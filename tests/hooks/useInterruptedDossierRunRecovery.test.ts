@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi, afterEach } from 'vitest';
 import { renderHook } from '@testing-library/react';
 import type { ChatSession, Message } from '../../types';
-import { setActiveDossierRun, clearAllActiveDossierRunsForTest } from '../../features/dossier/active-run-registry';
+import { setActiveDossierRun, clearAllActiveDossierRunsForTest, peekPersistedActiveDossierRuns } from '../../features/dossier/active-run-registry';
 import { useInterruptedDossierRunRecovery } from '../../hooks/useInterruptedDossierRunRecovery';
 
 function mockSessionStorage(): Storage {
@@ -40,27 +40,71 @@ const makeSession = (id: string): ChatSession => ({
   messages: [] as Message[],
 });
 
+/** updateSessionById realista: retorna null se a sessão não existir no map. */
+function makeSessionStore(initial: Record<string, ChatSession>) {
+  const sessions = new Map(Object.entries(initial));
+  const updateSessionById = vi.fn((id: string, updater: (s: ChatSession) => ChatSession) => {
+    const current = sessions.get(id);
+    if (!current) return null;
+    const next = updater(current);
+    sessions.set(id, next);
+    return next;
+  });
+  return { sessions, updateSessionById };
+}
+
 describe('useInterruptedDossierRunRecovery', () => {
   it('não faz nada quando não há run persistido', () => {
-    const updateSessionById = vi.fn();
+    const { updateSessionById } = makeSessionStore({ s1: makeSession('s1') });
     const setIsLoading = vi.fn();
     const resetLoadingProgress = vi.fn();
 
-    renderHook(() => useInterruptedDossierRunRecovery({ updateSessionById, setIsLoading, resetLoadingProgress }));
+    renderHook(() => useInterruptedDossierRunRecovery({
+      isInitialized: true,
+      updateSessionById,
+      setIsLoading,
+      resetLoadingProgress,
+    }));
 
     expect(updateSessionById).not.toHaveBeenCalled();
     expect(setIsLoading).not.toHaveBeenCalled();
     expect(resetLoadingProgress).not.toHaveBeenCalled();
   });
 
-  it('injeta estado explícito de interrupção e reseta loading quando há run persistido', () => {
+  it('não roda antes de isInitialized (aguarda sessões carregadas)', () => {
     setActiveDossierRun({ sessionId: 's1', runId: 'run-1', leaseOwner: 'l', clientAttemptId: 'a' });
-
-    const updateSessionById = vi.fn((_id: string, updater: (s: ChatSession) => ChatSession) => updater(makeSession('s1')));
+    const { updateSessionById } = makeSessionStore({ s1: makeSession('s1') });
     const setIsLoading = vi.fn();
     const resetLoadingProgress = vi.fn();
 
-    renderHook(() => useInterruptedDossierRunRecovery({ updateSessionById, setIsLoading, resetLoadingProgress }));
+    const { rerender } = renderHook(({ init }: { init: boolean }) => useInterruptedDossierRunRecovery({
+      isInitialized: init,
+      updateSessionById,
+      setIsLoading,
+      resetLoadingProgress,
+    }), { initialProps: { init: false } });
+
+    expect(updateSessionById).not.toHaveBeenCalled();
+    expect(peekPersistedActiveDossierRuns().length).toBe(1);
+
+    // após isInitialized=true, o effect roda e aplica
+    rerender({ init: true });
+    expect(updateSessionById).toHaveBeenCalledTimes(1);
+    expect(peekPersistedActiveDossierRuns().length).toBe(0);
+  });
+
+  it('injeta estado explícito de interrupção e reseta loading quando há run persistido e sessão existe', () => {
+    setActiveDossierRun({ sessionId: 's1', runId: 'run-1', leaseOwner: 'l', clientAttemptId: 'a' });
+    const { updateSessionById } = makeSessionStore({ s1: makeSession('s1') });
+    const setIsLoading = vi.fn();
+    const resetLoadingProgress = vi.fn();
+
+    renderHook(() => useInterruptedDossierRunRecovery({
+      isInitialized: true,
+      updateSessionById,
+      setIsLoading,
+      resetLoadingProgress,
+    }));
 
     expect(updateSessionById).toHaveBeenCalledTimes(1);
     const [sessionId, updater] = updateSessionById.mock.calls[0];
@@ -73,20 +117,48 @@ describe('useInterruptedDossierRunRecovery', () => {
     expect(String(interruption?.text)).toContain('Nenhum dossiê foi marcado como concluído');
     expect(setIsLoading).toHaveBeenCalledWith(false);
     expect(resetLoadingProgress).toHaveBeenCalled();
+    // registro consumido apenas após aplicação
+    expect(peekPersistedActiveDossierRuns().length).toBe(0);
+  });
+
+  it('preserva o registro persistido quando a sessão ainda não existe (corrida com loadSessions)', () => {
+    setActiveDossierRun({ sessionId: 's1', runId: 'run-1', leaseOwner: 'l', clientAttemptId: 'a' });
+    // Nenhuma sessão carregada ainda
+    const { updateSessionById } = makeSessionStore({});
+    const setIsLoading = vi.fn();
+    const resetLoadingProgress = vi.fn();
+
+    renderHook(() => useInterruptedDossierRunRecovery({
+      isInitialized: true,
+      updateSessionById,
+      setIsLoading,
+      resetLoadingProgress,
+    }));
+
+    expect(updateSessionById).toHaveBeenCalledTimes(1);
+    expect(updateSessionById).toHaveReturnedWith(null);
+    // registro NÃO é removido — permanece para tentativa posterior
+    expect(peekPersistedActiveDossierRuns().length).toBe(1);
+    // loading não é resetado enquanto houver pendência
+    expect(setIsLoading).not.toHaveBeenCalled();
+    expect(resetLoadingProgress).not.toHaveBeenCalled();
   });
 
   it('não marca COMPLETED e não retoma waterfall (nenhuma chamada de lifecycle)', () => {
     setActiveDossierRun({ sessionId: 's1', runId: 'run-1', leaseOwner: 'l', clientAttemptId: 'a' });
-
-    const updateSessionById = vi.fn((_id: string, updater: (s: ChatSession) => ChatSession) => updater(makeSession('s1')));
+    const { updateSessionById } = makeSessionStore({ s1: makeSession('s1') });
     const setIsLoading = vi.fn();
     const resetLoadingProgress = vi.fn();
 
-    renderHook(() => useInterruptedDossierRunRecovery({ updateSessionById, setIsLoading, resetLoadingProgress }));
+    renderHook(() => useInterruptedDossierRunRecovery({
+      isInitialized: true,
+      updateSessionById,
+      setIsLoading,
+      resetLoadingProgress,
+    }));
 
     const [, updater] = updateSessionById.mock.calls[0];
     const updated = updater(makeSession('s1'));
-    // Nenhuma mensagem de sucesso/COMPLETED é injetada.
     const successLike = updated.messages.filter(m => /complet|sucesso|gerado/i.test(String(m.text || '')));
     expect(successLike).toHaveLength(0);
   });

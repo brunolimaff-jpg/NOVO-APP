@@ -75,14 +75,36 @@ export function clearActiveDossierRunsMemoryForTest(): void {
 }
 
 /**
- * Retorna os runs persistidos no sessionStorage (sobrevivem ao reload) e os
- * remove do registro persistido. Usado no boot para detectar execução
- * interrompida sem contexto local.
+ * Retorna os runs persistidos no sessionStorage (sobrevivem ao reload) SEM
+ * removê-los. Usado no boot para detectar execução interrompida; a remoção
+ * só deve ocorrer via removePersistedActiveDossierRuns após a mensagem ser
+ * efetivamente aplicada a uma sessão carregada.
+ */
+export function peekPersistedActiveDossierRuns(): DossierRunContext[] {
+  hydrate();
+  return Array.from(activeRuns.values());
+}
+
+/**
+ * Remove do registro persistido apenas os runIds informados (aplicados com
+ * sucesso a uma sessão existente). Runs não listados permanecem persistidos
+ * para tentativa posterior.
+ */
+export function removePersistedActiveDossierRuns(runIds: string[]): void {
+  hydrate();
+  const toRemove = new Set(runIds);
+  for (const [sessionId, context] of Array.from(activeRuns.entries())) {
+    if (toRemove.has(context.runId)) activeRuns.delete(sessionId);
+  }
+  persist();
+}
+
+/**
+ * Consome todos os runs persistidos (entrega e limpa). Uso reservado a
+ * caminhos onde a aplicação da mensagem é garantida ou para testes.
  */
 export function consumePersistedActiveDossierRuns(): DossierRunContext[] {
-  hydrate();
-  const entries = Array.from(activeRuns.entries());
-  activeRuns.clear();
-  persist();
-  return entries.map(([, context]) => context);
+  const entries = peekPersistedActiveDossierRuns();
+  removePersistedActiveDossierRuns(entries.map(run => run.runId));
+  return entries;
 }

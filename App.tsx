@@ -266,6 +266,7 @@ const App: React.FC = () => {
   });
 
   useInterruptedDossierRunRecovery({
+    isInitialized,
     updateSessionById,
     setIsLoading,
     resetLoadingProgress,
