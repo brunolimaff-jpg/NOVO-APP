@@ -264,6 +264,41 @@ BEGIN
   END IF;
   PERFORM public.auto_close_stale_sessions();
   RAISE NOTICE 'D1/D2 PASS: service_role pleno + função executável';
+
+  -- D3: extract_cache — service_role lê (backend socio-search server-side)
+  SELECT COUNT(*) INTO v_count FROM public.extract_cache;
+  IF v_count < 1 THEN
+    RAISE EXCEPTION 'D3 FALHA: service_role deveria ver o cache (viu %)', v_count;
+  END IF;
+  RAISE NOTICE 'D3 PASS: service_role lê extract_cache (backend)';
   RAISE NOTICE '== MATRIZ P0: TODOS OS ASSERTS PASSARAM ==';
+END $$;
+RESET ROLE;
+
+-- Bloco E: extract_cache — fluxo autenticado do navegador (storage/extractCache.ts)
+-- DECISÃO DOCUMENTADA: o baseline dá policy/grant de extract_cache SOMENTE a anon;
+-- authenticated não possui policy nem grant → o upsert do navegador JÁ é
+-- não-funcional em Produção (fail-closed pré-existente, não introduzido pelo P0).
+-- O caminho real de leitura/escrita é server-side com service_role
+-- (services/socio-search/cache.ts usa SERVICE_ROLE_KEY). O P0 mantém esse
+-- fail-closed autenticado e apenas remove o acesso anônimo indevido.
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-00000000000a"}', false);
+DO $$
+DECLARE
+  v_count integer;
+BEGIN
+  SET LOCAL row_security = on;
+
+  -- E1: authenticated NÃO consegue upsert em extract_cache (fail-closed pré-existente)
+  BEGIN
+    INSERT INTO public.extract_cache (id, operator_id, result, expires_at)
+    VALUES ('cache-a2', (SELECT operator_id FROM public.profiles WHERE id = '00000000-0000-0000-0000-00000000000a'), '{"x":1}'::jsonb, now() + interval '1 day')
+    ON CONFLICT (id) DO UPDATE SET result = '{"x":1}'::jsonb, expires_at = now() + interval '1 day';
+    RAISE EXCEPTION 'E1 FALHA: authenticated conseguiu upsert em extract_cache (comportamento não esperado)';
+  EXCEPTION WHEN OTHERS THEN
+    IF SQLERRM LIKE '%E1 FALHA%' THEN RAISE; END IF;
+  END;
+  RAISE NOTICE 'E1 PASS: authenticated sem upsert em extract_cache (fail-closed pré-existente — fluxo real é service_role)';
 END $$;
 RESET ROLE;
