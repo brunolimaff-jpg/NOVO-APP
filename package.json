@@ -36,7 +36,8 @@
     "format": "prettier --write '**/*.{ts,tsx,json,css}' --ignore-path .gitignore",
     "typecheck": "tsc --noEmit",
     "ingest:pdfdocs": "node --experimental-strip-types scripts/ingestPdfDocs.ts",
-    "validate:no-gemini": "ruby scripts/validate-no-gemini.rb"
+    "validate:no-gemini": "ruby scripts/validate-no-gemini.rb",
+    "test:e2e:golden-live": "playwright test tests-e2e/golden-dossier-live.spec.ts"
   },
   "engines": {
     "node": "24.x"

@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
 const performWebSearchMock = vi.hoisted(() => vi.fn());
@@ -42,11 +42,14 @@ describe('api/open-web-search', () => {
     vi.clearAllMocks();
     vi.resetModules();
     delete process.env.BRAVE_SEARCH_API_KEY;
-    vi.spyOn(globalThis, 'fetch').mockReset();
+    vi.stubGlobal('fetch', vi.fn());
   });
 
-  it('usa DuckDuckGo mesmo quando BRAVE_SEARCH_API_KEY está configurada', async () => {
-    process.env.BRAVE_SEARCH_API_KEY = 'brave-key';
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('usa DuckDuckGo quando BRAVE_SEARCH_API_KEY não está configurada', async () => {
     performWebSearchMock.mockResolvedValueOnce(
       'Título: Grupo Piccini abre usina\nURL: https://example.com/piccini-usina\nResumo: Investimento em etanol de milho.\n---',
     );
@@ -71,6 +74,74 @@ describe('api/open-web-search', () => {
       providerStatus: [{ provider: 'duckduckgo', ok: true }],
     });
     expect(fetch).not.toHaveBeenCalled();
+    expect(performWebSearchMock).toHaveBeenCalledWith('Grupo Piccini RRP Energia Tapurah');
+  });
+
+  it('usa Brave como primário quando BRAVE_SEARCH_API_KEY está configurada e Brave responde', async () => {
+    process.env.BRAVE_SEARCH_API_KEY = 'brave-key';
+    vi.mocked(fetch).mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        web: {
+          results: [
+            { title: 'Grupo Piccini RRP Energia', url: 'https://example.com/piccini', description: 'Investimento em etanol de milho.' },
+          ],
+        },
+      }),
+    } as unknown as Response);
+
+    const { default: handler } = await import('../api/open-web-search');
+    const response = makeResponse();
+
+    await handler(
+      {
+        method: 'POST',
+        body: { query: 'Grupo Piccini RRP Energia Tapurah' },
+      } as VercelRequest,
+      response.res,
+    );
+
+    expect(response.statusCode).toBe(200);
+    expect(response.payload).toMatchObject({
+      content: expect.stringContaining('Grupo Piccini RRP Energia'),
+      source: 'Brave',
+      degraded: false,
+      providerStatus: [{ provider: 'duckduckgo', ok: true }],
+    });
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(String(vi.mocked(fetch).mock.calls[0][0])).toContain('api.search.brave.com');
+    expect(performWebSearchMock).not.toHaveBeenCalled();
+  });
+
+  it('cai para DuckDuckGo quando Brave falha com chave configurada', async () => {
+    process.env.BRAVE_SEARCH_API_KEY = 'brave-key';
+    vi.mocked(fetch).mockResolvedValueOnce({
+      ok: false,
+      status: 422,
+    } as unknown as Response);
+    performWebSearchMock.mockResolvedValueOnce(
+      'Título: Grupo Piccini abre usina\nURL: https://example.com/piccini-usina\nResumo: Investimento em etanol de milho.\n---',
+    );
+
+    const { default: handler } = await import('../api/open-web-search');
+    const response = makeResponse();
+
+    await handler(
+      {
+        method: 'POST',
+        body: { query: 'Grupo Piccini RRP Energia Tapurah' },
+      } as VercelRequest,
+      response.res,
+    );
+
+    expect(response.statusCode).toBe(200);
+    expect(response.payload).toMatchObject({
+      content: expect.stringContaining('Grupo Piccini abre usina'),
+      source: 'OpenWebSearch/DuckDuckGo',
+      degraded: false,
+    });
+    expect(fetch).toHaveBeenCalledTimes(1);
     expect(performWebSearchMock).toHaveBeenCalledWith('Grupo Piccini RRP Energia Tapurah');
   });
 

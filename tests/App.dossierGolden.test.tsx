@@ -19,6 +19,7 @@ const {
   getIsolatedBenchmarkMock,
   lookupClienteMock,
   formatarParaPromptMock,
+  lifecycleMocks,
 } = vi.hoisted(() => ({
   sessionStateRef: { current: [] as unknown[] },
   downloadFileMock: vi.fn(),
@@ -28,6 +29,29 @@ const {
   getIsolatedBenchmarkMock: vi.fn(),
   lookupClienteMock: vi.fn(),
   formatarParaPromptMock: vi.fn(),
+  lifecycleMocks: {
+    create: vi.fn(),
+    acquire: vi.fn(),
+    start: vi.fn(() => vi.fn()),
+    set: vi.fn(),
+    clear: vi.fn(),
+    getRun: vi.fn(async () => ({
+      run_id: 'run-1',
+      status: 'RUNNING',
+      lease_owner: 'lease-owner-1',
+      lease_expires_at: new Date(Date.now() + 45_000).toISOString(),
+    })),
+    renew: vi.fn(async () => ({
+      run_id: 'run-1',
+      status: 'RUNNING',
+      lease_owner: 'lease-owner-1',
+      lease_expires_at: new Date(Date.now() + 45_000).toISOString(),
+    })),
+    markFailed: vi.fn(async () => ({ status: 'FAILED', runId: 'run-1' })),
+    markCompleted: vi.fn(async () => ({ status: 'COMPLETED', runId: 'run-1' })),
+    markCancelled: vi.fn(async () => ({ status: 'CANCELLED', runId: 'run-1' })),
+    release: vi.fn(async () => ({})),
+  },
 }));
 
 vi.mock('../components/ChatInterface', () => ({
@@ -227,6 +251,23 @@ vi.mock('../services/llmService', () => ({
   getIsolatedBenchmark: getIsolatedBenchmarkMock,
 }));
 
+// Lifecycle do dossiê (message-orchestrator real): sem Supabase disponível no
+// ambiente de teste, o fluxo lançaria "Supabase indisponível para lifecycle".
+// Mesmo padrão de tests/features/chat/message-orchestrator.test.ts.
+vi.mock('../lib/supabase/dossierRuns', () => ({
+  DOSSIER_RUN_RPC_TIMEOUT_MS: 15_000,
+  createOrGetDossierRun: lifecycleMocks.create,
+  acquireDossierRunLease: lifecycleMocks.acquire,
+  markDossierRunFailed: lifecycleMocks.markFailed,
+  markDossierRunCompleted: lifecycleMocks.markCompleted,
+  markDossierRunCancelled: lifecycleMocks.markCancelled,
+  releaseDossierRunLease: lifecycleMocks.release,
+  getDossierRun: lifecycleMocks.getRun,
+  renewDossierRunLease: lifecycleMocks.renew,
+}));
+vi.mock('../features/dossier/dossier-run-heartbeat', () => ({ startDossierRunHeartbeat: lifecycleMocks.start }));
+vi.mock('../features/dossier/active-run-registry', () => ({ setActiveDossierRun: lifecycleMocks.set, clearActiveDossierRun: lifecycleMocks.clear }));
+
 function renderApp() {
   return render(
     <ChatStoreProvider>
@@ -255,6 +296,30 @@ describe('App dossier markdown golden flow', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     sessionStateRef.current = [];
+    lifecycleMocks.create.mockResolvedValue({ run_id: 'run-1', status: 'RUNNING', owner_id: 'op-1' });
+    // O orchestrator gera o leaseOwner (`<botMessageId>:lease`) e o repassa ao
+    // acquire; o getRun/renew precisam devolver o MESMO owner, senão o assert
+    // de lifecycle interpreta como lease perdida.
+    lifecycleMocks.acquire.mockImplementation(async (_runId: string, leaseOwner: string) => {
+      lifecycleMocks.getRun.mockResolvedValue({
+        run_id: 'run-1',
+        status: 'RUNNING',
+        lease_owner: leaseOwner,
+        lease_expires_at: new Date(Date.now() + 45_000).toISOString(),
+      });
+      lifecycleMocks.renew.mockResolvedValue({
+        run_id: 'run-1',
+        status: 'RUNNING',
+        lease_owner: leaseOwner,
+        lease_expires_at: new Date(Date.now() + 45_000).toISOString(),
+      });
+      return {
+        run_id: 'run-1',
+        status: 'RUNNING',
+        lease_owner: leaseOwner,
+        lease_expires_at: new Date(Date.now() + 45_000).toISOString(),
+      };
+    });
 
     const moduleFixtures = loadModuleFixtures();
     const lookupFixture = loadJsonFixture<Record<string, unknown>>(resolve(fixtureRoot, 'lookup.json'));
