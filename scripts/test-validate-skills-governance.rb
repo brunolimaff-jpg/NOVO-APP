@@ -67,7 +67,8 @@ def base_fixture(dir)
 end
 
 def with_repo
-  Dir.mktmpdir('skills-gov-test') do |dir|
+  dir = Dir.mktmpdir('skills-gov-test')
+  begin
     base_fixture(dir)
     sh!('git init -b main', chdir: dir)
     sh!('git config user.email test@example.com', chdir: dir)
@@ -76,6 +77,13 @@ def with_repo
     sh!('git commit -m init', chdir: dir)
     sh!('git remote add origin .', chdir: dir)
     yield dir
+  ensure
+    # Teardown idempotente: o git pode criar/remover arquivos temporários em
+    # .git/objects (ex.: bitmap-ref-tips_* do multi-pack-index) concorrentemente
+    # à remoção do diretório, o que faz remove_entry padrão lançar ENOENT.
+    # force: true ignora apenas arquivos que já não existem — não mascara
+    # falhas funcionais do yield, que continuam propagando normalmente.
+    FileUtils.remove_entry(dir, force: true)
   end
 end
 
@@ -365,3 +373,26 @@ with_repo do |dir|
 end
 
 puts "OK #{tests.length} tests"
+
+# --- BRU-12: regressão do teardown idempotente ---
+# Simula arquivo que desaparece concorrentemente durante o cleanup do
+# diretório temporário (o git cria/remove bitmap-ref-tips_* em .git/objects).
+# O teardown com force:true deve concluir sem ENOENT; o erro funcional do
+# yield continua propagando normalmente (não é mascarado).
+begin
+  dir = Dir.mktmpdir('skills-gov-test')
+  begin
+    FileUtils.mkdir_p(File.join(dir, '.git/objects'))
+    ghost = File.join(dir, '.git/objects/bitmap-ref-tips_ghost')
+    File.write(ghost, 'ghost')
+    # "Desaparece" antes da remoção — o teardown deve tolerar.
+    File.delete(ghost)
+    raise 'cleanup-ghost-file: erro funcional intencional deve propagar'
+  rescue RuntimeError => error
+    raise unless error.message.include?('erro funcional intencional')
+    pass!('cleanup idempotente tolera arquivo que desaparece e preserva falha funcional')
+    tests << 'cleanup-ghost-file'
+  ensure
+    FileUtils.remove_entry(dir, force: true)
+  end
+end
