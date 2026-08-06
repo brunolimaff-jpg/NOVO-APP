@@ -7,23 +7,14 @@
 -- ============================================================================
 
 -- ---------------------------------------------------------------------------
--- 1. operator_events: remover policy permissiva + isolar por operador
+-- 1. operator_events: remover policy permissiva + ISOLAR por operador.
+--    Least privilege (3ª auditoria): o consumidor (operatorTracking.ts:292)
+--    executa SOMENTE INSERT. Não há SELECT nem UPDATE pelo cliente — a policy
+--    de SELECT é removida e os grants ficam restritos a INSERT.
 -- ---------------------------------------------------------------------------
 DROP POLICY IF EXISTS "operator_own_events" ON "public"."operator_events";
 
--- SELECT: operador vê apenas eventos do próprio operator_id.
-DROP POLICY IF EXISTS "p0_events_select_own" ON "public"."operator_events";
-
-CREATE POLICY "p0_events_select_own"
-  ON "public"."operator_events"
-  FOR SELECT TO "authenticated"
-  USING (
-    "operator_id" = (
-      SELECT "operator_id" FROM "public"."profiles"
-      WHERE "id" = (SELECT "auth"."uid"()::uuid)
-      LIMIT 1
-    )
-  );
+-- (policy de SELECT removida: sem consumidor comprovado)
 
 -- INSERT: o código (operatorTracking.ts:292) insere com o operator_id do
 -- operador atual — exige que o WITH CHECK valide o PRÓPRIO operator_id.
@@ -41,6 +32,9 @@ CREATE POLICY "p0_events_insert_own"
   );
 
 REVOKE ALL ON TABLE "public"."operator_events" FROM "anon";
+-- Grants mínimos: apenas INSERT para authenticated (sem SELECT/UPDATE/DELETE).
+REVOKE ALL ON TABLE "public"."operator_events" FROM "authenticated";
+GRANT INSERT ON TABLE "public"."operator_events" TO "authenticated";
 
 -- ---------------------------------------------------------------------------
 -- 2. operator_sessions: remover policy permissiva + isolar por operador
@@ -97,10 +91,9 @@ CREATE POLICY "p0_sessions_update_own"
 
 REVOKE ALL ON TABLE "public"."operator_sessions" FROM "anon";
 
--- Grants mínimos (least privilege): authenticated em operator_events usa apenas
--- INSERT (operatorTracking.ts:292); em operator_sessions usa SELECT/INSERT/UPDATE
--- (operatorTracking.ts:174-265). Revogar DELETE/REFERENCES/TRIGGER/TRUNCATE.
-REVOKE DELETE, REFERENCES, TRIGGER, TRUNCATE ON TABLE "public"."operator_events" FROM "authenticated";
+-- Grants mínimos (least privilege, 3ª auditoria): operator_events já está em
+-- REVOKE ALL + GRANT INSERT acima. operator_sessions usa SELECT/INSERT/UPDATE
+-- (operatorTracking.ts:174-265) — garantir sem DELETE/REFERENCES/TRIGGER/TRUNCATE.
 REVOKE DELETE, REFERENCES, TRIGGER, TRUNCATE ON TABLE "public"."operator_sessions" FROM "authenticated";
 
 -- ---------------------------------------------------------------------------
