@@ -180,6 +180,59 @@ it('AuthError desconhecido é sanitizado — detalhe técnico não chega à inte
     expect(outcome?.error?.message).toContain('Invalid login credentials');
   });
 
+it('erro RESOLVIDO (não exceção) com AuthError desconhecido é sanitizado — detalhe técnico não chega à interface', async () => {
+    // O cliente Supabase normalmente resolve com { data, error } em vez de lançar.
+    signInMock.mockResolvedValue({
+      data: { session: null },
+      error: new AuthError('detalhe técnico: timeout na camada de transporte 10.0.0.9', 502, 'transport_timeout'),
+    });
+    const { result } = renderHook(() => useAuth(), { wrapper: ({ children }) => <SupabaseAuthProvider>{children}</SupabaseAuthProvider> });
+
+    let outcome: { error: AuthError | null } | undefined;
+    await act(async () => {
+      outcome = await result.current.signIn('bruno@senior.com.br', 'Senha1234');
+    });
+
+    expect(outcome?.error).not.toBeNull();
+    expect(outcome?.error?.message).toContain('Verifique sua conexão');
+    expect(outcome?.error?.message).not.toContain('10.0.0.9');
+    expect(outcome?.error?.message).not.toContain('timeout na camada');
+    expect(outcome?.error?.code).toBe('transport_timeout');
+  });
+
+  it('erro RESOLVIDO no signUp também é sanitizado', async () => {
+    signUpMock.mockResolvedValue({
+      data: { user: null, session: null },
+      error: new AuthError('Internal server error: query param invalid at 10.0.0.4', 500, 'unexpected_failure'),
+    });
+    const { result } = renderHook(() => useAuth(), { wrapper: ({ children }) => <SupabaseAuthProvider>{children}</SupabaseAuthProvider> });
+
+    let outcome: { error: AuthError | null } | undefined;
+    await act(async () => {
+      outcome = await result.current.signUp('bruno@senior.com.br', 'Senha1234', 'Bruno Lima');
+    });
+
+    expect(outcome?.error?.message).toContain('cadastro');
+    expect(outcome?.error?.message).not.toContain('10.0.0.4');
+    expect(outcome?.error?.code).toBe('unexpected_failure');
+  });
+
+  it('código da allowlist preserva mensagem segura mesmo em erro resolvido', async () => {
+    signInMock.mockResolvedValue({
+      data: { session: null },
+      error: new AuthError('Invalid login credentials', 400, 'invalid_credentials'),
+    });
+    const { result } = renderHook(() => useAuth(), { wrapper: ({ children }) => <SupabaseAuthProvider>{children}</SupabaseAuthProvider> });
+
+    let outcome: { error: AuthError | null } | undefined;
+    await act(async () => {
+      outcome = await result.current.signIn('bruno@senior.com.br', 'SenhaErrada');
+    });
+
+    expect(outcome?.error?.code).toBe('invalid_credentials');
+    expect(outcome?.error?.message).toContain('Invalid login credentials');
+  });
+
   it('resetPassword também não retorna falso { error: null } com cliente indisponível', async () => {
     supabaseRef.current = null;
     const { result } = renderHook(() => useAuth(), { wrapper: ({ children }) => <SupabaseAuthProvider>{children}</SupabaseAuthProvider> });

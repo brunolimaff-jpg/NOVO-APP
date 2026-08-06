@@ -123,8 +123,12 @@ export const SupabaseAuthProvider: React.FC<{ children: ReactNode }> = ({ childr
       });
 
       if (error) {
-        setError(error);
-        return { error };
+        const sanitized = toSanitizedAuthError(
+          error,
+          'Não foi possível concluir o cadastro. Verifique sua conexão e tente novamente.',
+        );
+        setError(sanitized);
+        return { error: sanitized };
       }
 
       // Com confirmacao de email ativada, data.session vem null
@@ -161,8 +165,12 @@ export const SupabaseAuthProvider: React.FC<{ children: ReactNode }> = ({ childr
       });
 
       if (error) {
-        setError(error);
-        return { error };
+        const sanitized = toSanitizedAuthError(
+          error,
+          'Não foi possível entrar. Verifique sua conexão e tente novamente.',
+        );
+        setError(sanitized);
+        return { error: sanitized };
       }
 
       setSession(data.session);
@@ -205,9 +213,14 @@ export const SupabaseAuthProvider: React.FC<{ children: ReactNode }> = ({ childr
     try {
       const { error: resetError } = await supabase.auth.resetPasswordForEmail(email);
       if (resetError) {
-        setError(resetError);
+        const sanitized = toSanitizedAuthError(
+          resetError,
+          'Não foi possível iniciar a recuperação de senha. Verifique sua conexão e tente novamente.',
+        );
+        setError(sanitized);
+        return { error: sanitized };
       }
-      return { error: resetError ?? null };
+      return { error: null };
     } catch (err) {
       const sanitized = toSanitizedAuthError(
         err,
