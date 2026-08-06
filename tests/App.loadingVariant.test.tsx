@@ -5,7 +5,7 @@ import App from '../App';
 import { ChatStoreProvider } from '../stores/chatStore';
 import { DossierStoreProvider } from '../stores/dossierStore';
 
-const { deepDiveErrorRef, deepDiveAccessRef, sendMessageToLlmMock, generateDossierModuleMock, setSessionsMock } =
+const { deepDiveErrorRef, deepDiveAccessRef, sendMessageToLlmMock, generateDossierModuleMock, setSessionsMock, lifecycleMocks, waterfallRunMock } =
   vi.hoisted(() => ({
     deepDiveErrorRef: { current: null as unknown },
     deepDiveAccessRef: { current: true },
@@ -18,6 +18,30 @@ const { deepDiveErrorRef, deepDiveAccessRef, sendMessageToLlmMock, generateDossi
     })),
     generateDossierModuleMock: vi.fn(),
     setSessionsMock: vi.fn(),
+    lifecycleMocks: {
+      create: vi.fn(),
+      acquire: vi.fn(),
+      start: vi.fn(() => vi.fn()),
+      set: vi.fn(),
+      clear: vi.fn(),
+      getRun: vi.fn(async () => ({
+        run_id: 'run-1',
+        status: 'RUNNING',
+        lease_owner: 'lease-owner-1',
+        lease_expires_at: new Date(Date.now() + 45_000).toISOString(),
+      })),
+      renew: vi.fn(async () => ({
+        run_id: 'run-1',
+        status: 'RUNNING',
+        lease_owner: 'lease-owner-1',
+        lease_expires_at: new Date(Date.now() + 45_000).toISOString(),
+      })),
+      markFailed: vi.fn(async () => ({ status: 'FAILED', runId: 'run-1' })),
+      markCompleted: vi.fn(async () => ({ status: 'COMPLETED', runId: 'run-1' })),
+      markCancelled: vi.fn(async () => ({ status: 'CANCELLED', runId: 'run-1' })),
+      release: vi.fn(async () => ({})),
+    },
+    waterfallRunMock: vi.fn(),
   }));
 
 vi.mock('../components/ChatInterface', () => ({
@@ -219,6 +243,10 @@ vi.mock('../utils/featureAccess', () => ({
   }),
 }));
 
+vi.mock('../features/dossier/waterfall-orchestrator', () => ({
+  useDossierWaterfallOrchestrator: () => ({ runMegaPromptWaterfall: waterfallRunMock }),
+}));
+
 vi.mock('../services/llmService', () => ({
   sendMessageToLlm: sendMessageToLlmMock,
   generateContinuityQuestion: vi.fn(),
@@ -226,11 +254,41 @@ vi.mock('../services/llmService', () => ({
   getIsolatedBenchmark: vi.fn(),
 }));
 
+// Lifecycle do dossiê (message-orchestrator real): sem Supabase disponível no
+// ambiente de teste, o fluxo lançaria "Supabase indisponível para lifecycle".
+// Mesmo padrão de tests/features/chat/message-orchestrator.test.ts.
+vi.mock('../lib/supabase/dossierRuns', () => ({
+  DOSSIER_RUN_RPC_TIMEOUT_MS: 15_000,
+  createOrGetDossierRun: lifecycleMocks.create,
+  acquireDossierRunLease: lifecycleMocks.acquire,
+  markDossierRunFailed: lifecycleMocks.markFailed,
+  markDossierRunCompleted: lifecycleMocks.markCompleted,
+  markDossierRunCancelled: lifecycleMocks.markCancelled,
+  releaseDossierRunLease: lifecycleMocks.release,
+  getDossierRun: lifecycleMocks.getRun,
+  renewDossierRunLease: lifecycleMocks.renew,
+}));
+vi.mock('../features/dossier/dossier-run-heartbeat', () => ({ startDossierRunHeartbeat: lifecycleMocks.start }));
+vi.mock('../features/dossier/active-run-registry', () => ({ setActiveDossierRun: lifecycleMocks.set, clearActiveDossierRun: lifecycleMocks.clear }));
+
 describe('App loading variant regression', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     deepDiveErrorRef.current = null;
     deepDiveAccessRef.current = true;
+    lifecycleMocks.create.mockResolvedValue({ run_id: 'run-1', status: 'RUNNING', owner_id: 'op-1' });
+    lifecycleMocks.acquire.mockResolvedValue({
+      run_id: 'run-1',
+      status: 'RUNNING',
+      lease_owner: 'lease-owner-1',
+      lease_expires_at: new Date(Date.now() + 45_000).toISOString(),
+    });
+    // Waterfall sintético: chama o gerador de módulos (intenção original do
+    // teste) e retorna COMPLETED — o teste cobre o loading, não o waterfall.
+    waterfallRunMock.mockImplementation(async () => {
+      await generateDossierModuleMock();
+      return { status: 'COMPLETED' };
+    });
   });
 
   it('renderiza o shell do chat sem ReferenceError de loadingVariant', () => {
@@ -275,8 +333,6 @@ describe('App loading variant regression', () => {
   });
 
   it('mantem investigacao inicial via onDeepDive no fluxo padrao (sem label de deep dive)', async () => {
-    generateDossierModuleMock.mockImplementationOnce(() => new Promise(() => {}));
-
     renderApp();
 
     fireEvent.click(screen.getByRole('button', { name: 'trigger-initial-investigation' }));
@@ -288,6 +344,8 @@ describe('App loading variant regression', () => {
       expect(screen.queryByTestId('loading-smart')).not.toBeInTheDocument();
     });
 
+    // O handleDeepDive monta "Dossiê completo de [empresa]..." → caminho
+    // isMegaPrompt → waterfall sintético → generateDossierModule.
     expect(generateDossierModuleMock).toHaveBeenCalled();
     expect(deepDiveErrorRef.current).toBeNull();
   });

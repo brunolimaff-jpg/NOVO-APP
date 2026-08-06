@@ -40,6 +40,65 @@ export async function dismissMigrationNotice(page: Page) {
   }
 }
 
+interface DismissDuplicateDossierOptions {
+  required?: boolean;
+  timeoutMs?: number;
+}
+
+export async function dismissDuplicateDossierModal(
+  page: Page,
+  options: DismissDuplicateDossierOptions = {},
+) {
+  const { timeoutMs = 30_000, required = false } = options;
+  await dismissMigrationNotice(page);
+
+  const modalHeading = page.getByRole('heading', { name: /dossiê existente/i });
+  const appeared = await modalHeading
+    .waitFor({ state: 'visible', timeout: timeoutMs })
+    .then(() => true)
+    .catch(() => false);
+
+  if (!appeared) {
+    if (required) {
+      throw new Error('Modal "Dossiê existente" esperado mas não apareceu');
+    }
+    return;
+  }
+
+  const newResearch = page.getByRole('button', { name: /nova pesquisa do zero/i });
+  await expect(newResearch).toBeVisible({ timeout: 5_000 });
+  await newResearch.click({ force: true });
+  await expect(modalHeading).toBeHidden({ timeout: 30_000 });
+
+  const investigationStarted = page
+    .getByTestId('cofre-overlay')
+    .or(page.getByTestId('loading-smart-overlay'))
+    .or(page.getByTestId('inline-loading-bubble'))
+    .or(page.getByTestId('bot-message-content'));
+  await expect(investigationStarted.first()).toBeVisible({ timeout: 30_000 });
+}
+
+export async function startNewInvestigation(page: Page) {
+  const candidates = [
+    page.getByRole('button', { name: /nova pesquisa do zero/i }).first(),
+    page.getByRole('button', { name: /nova investigação|nova investigacao|nova pesquisa/i }).first(),
+    page.getByTestId('new-investigation-button'),
+    page.getByTestId('sidebar-new-investigation-button'),
+  ];
+
+  for (const candidate of candidates) {
+    if (await candidate.isVisible({ timeout: 2_000 }).catch(() => false)) {
+      await candidate.click({ force: true });
+      return;
+    }
+  }
+
+  const companyInput = page.getByTestId('investigation-company-input');
+  if (await companyInput.isVisible({ timeout: 2_000 }).catch(() => false)) return;
+
+  throw new Error('Não encontrei ação para iniciar nova investigação');
+}
+
 interface CompleteOnboardingOptions {
   email?: string;
   expectInvestigationForm?: boolean;

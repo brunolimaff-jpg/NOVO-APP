@@ -8,8 +8,36 @@ import React, {
   useState,
   type ReactNode,
 } from 'react';
-import { supabase, isSupabaseAvailable } from '../lib/supabaseClient';
+import { supabase } from '../lib/supabaseClient';
 import { AuthError, type Session, type User } from '@supabase/supabase-js';
+
+// Mensagens amigáveis e sanitizadas: detalhes técnicos do Supabase nunca chegam
+// à interface. Erros não-AuthError (rede, cliente indisponível, exceção
+// inesperada) viram AuthError com mensagem de ação.
+function authUnavailableError(): AuthError {
+  return new AuthError('Cliente de autenticação indisponível. Verifique sua conexão e tente novamente.');
+}
+
+// Códigos do Supabase Auth cujas mensagens são seguras para exibir na UI.
+// Qualquer outro AuthError tem a mensagem substituída pelo fallback amigável
+// (o código/status são preservados para diagnóstico).
+const AUTH_SAFE_ERROR_CODES = new Set([
+  'invalid_credentials',
+  'user_already_exists',
+  'email_not_confirmed',
+  'weak_password',
+  'over_request_rate_limit',
+  'signup_disabled',
+  'same_password',
+]);
+
+function toSanitizedAuthError(err: unknown, fallbackMessage: string): AuthError {
+  if (err instanceof AuthError) {
+    if (err.code && AUTH_SAFE_ERROR_CODES.has(err.code)) return err;
+    return new AuthError(fallbackMessage, err.status, err.code);
+  }
+  return new AuthError(fallbackMessage);
+}
 
 export interface AuthState {
   session: Session | null;
@@ -79,55 +107,83 @@ export const SupabaseAuthProvider: React.FC<{ children: ReactNode }> = ({ childr
 
   const signUp = useCallback(async (email: string, password: string, name: string) => {
     if (!supabase) {
-      console.warn('[Auth] signUp ignorado: Supabase indisponível');
-      return { error: null };
+      const unavailable = authUnavailableError();
+      setError(unavailable);
+      return { error: unavailable };
     }
 
     setError(null);
-    const { data, error: signUpError } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: { name },
-      },
-    });
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: { name },
+        },
+      });
 
-    if (signUpError) {
-      setError(signUpError);
-      return { error: signUpError };
+      if (error) {
+        const sanitized = toSanitizedAuthError(
+          error,
+          'Não foi possível concluir o cadastro. Verifique sua conexão e tente novamente.',
+        );
+        setError(sanitized);
+        return { error: sanitized };
+      }
+
+      // Com confirmacao de email ativada, data.session vem null
+      const needsConfirmation = data.user !== null && data.session === null;
+
+      if (data.user && data.session) {
+        setSession(data.session);
+        setUser(data.user);
+      }
+
+      return { error: null, needsConfirmation };
+    } catch (err) {
+      const sanitized = toSanitizedAuthError(
+        err,
+        'Não foi possível concluir o cadastro. Verifique sua conexão e tente novamente.',
+      );
+      setError(sanitized);
+      return { error: sanitized };
     }
-
-    // Com confirmacao de email ativada, data.session vem null
-    const needsConfirmation = data.user !== null && data.session === null;
-
-    if (data.user && data.session) {
-      setSession(data.session);
-      setUser(data.user);
-    }
-
-    return { error: null, needsConfirmation };
   }, []);
 
   const signIn = useCallback(async (email: string, password: string) => {
     if (!supabase) {
-      console.warn('[Auth] signIn ignorado: Supabase indisponível');
-      return { error: null };
+      const unavailable = authUnavailableError();
+      setError(unavailable);
+      return { error: unavailable };
     }
 
     setError(null);
-    const { data, error: signInError } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
 
-    if (signInError) {
-      setError(signInError);
-      return { error: signInError };
+      if (error) {
+        const sanitized = toSanitizedAuthError(
+          error,
+          'Não foi possível entrar. Verifique sua conexão e tente novamente.',
+        );
+        setError(sanitized);
+        return { error: sanitized };
+      }
+
+      setSession(data.session);
+      setUser(data.user);
+      return { error: null };
+    } catch (err) {
+      const sanitized = toSanitizedAuthError(
+        err,
+        'Não foi possível entrar. Verifique sua conexão e tente novamente.',
+      );
+      setError(sanitized);
+      return { error: sanitized };
     }
-
-    setSession(data.session);
-    setUser(data.user);
-    return { error: null };
   }, []);
 
   const signOut = useCallback(async () => {
@@ -148,16 +204,31 @@ export const SupabaseAuthProvider: React.FC<{ children: ReactNode }> = ({ childr
 
   const resetPassword = useCallback(async (email: string) => {
     if (!supabase) {
-      console.warn('[Auth] resetPassword ignorado: Supabase indisponível');
-      return { error: null };
+      const unavailable = authUnavailableError();
+      setError(unavailable);
+      return { error: unavailable };
     }
 
     setError(null);
-    const { error: resetError } = await supabase.auth.resetPasswordForEmail(email);
-    if (resetError) {
-      setError(resetError);
+    try {
+      const { error: resetError } = await supabase.auth.resetPasswordForEmail(email);
+      if (resetError) {
+        const sanitized = toSanitizedAuthError(
+          resetError,
+          'Não foi possível iniciar a recuperação de senha. Verifique sua conexão e tente novamente.',
+        );
+        setError(sanitized);
+        return { error: sanitized };
+      }
+      return { error: null };
+    } catch (err) {
+      const sanitized = toSanitizedAuthError(
+        err,
+        'Não foi possível iniciar a recuperação de senha. Verifique sua conexão e tente novamente.',
+      );
+      setError(sanitized);
+      return { error: sanitized };
     }
-    return { error: resetError ?? null };
   }, []);
 
   const clearError = useCallback(() => setError(null), []);
