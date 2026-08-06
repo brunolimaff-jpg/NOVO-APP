@@ -130,26 +130,54 @@ GRANT SELECT ON TABLE "public"."crm_clientes" TO "authenticated";
 
 -- ---------------------------------------------------------------------------
 -- 6. auto_close_stale_sessions(): SECURITY DEFINER com escrita — apenas
---    service_role pode executar. Fixa search_path (defesa em profundidade).
+--    service_role pode executar. Reescrita com search_path fixo e objetos
+--    qualificados (a versão do baseline referenciava operator_sessions sem
+--    qualificação, o que quebraria com search_path vazio).
 -- ---------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION "public"."auto_close_stale_sessions"()
+RETURNS integer
+LANGUAGE "plpgsql"
+SECURITY DEFINER
+SET "search_path" TO ''
+AS $$
+DECLARE
+  closed_count INTEGER;
+BEGIN
+  WITH updated AS (
+    UPDATE public.operator_sessions
+    SET
+      ended_at        = last_seen_at,
+      ended_reason    = 'timeout',
+      duration_seconds = EXTRACT(EPOCH FROM (last_seen_at - started_at))::INTEGER
+    WHERE ended_at IS NULL
+      AND last_seen_at IS NOT NULL
+      AND last_seen_at < NOW() - INTERVAL '30 minutes'
+    RETURNING 1
+  )
+  SELECT COUNT(*) INTO closed_count FROM updated;
+
+  RETURN closed_count;
+END;
+$$;
+
 REVOKE ALL ON FUNCTION "public"."auto_close_stale_sessions"() FROM PUBLIC, "anon", "authenticated";
 GRANT EXECUTE ON FUNCTION "public"."auto_close_stale_sessions"() TO "service_role";
 
 -- ---------------------------------------------------------------------------
--- 7. Views de métricas: remover acesso anônimo; manter authenticated
---    (sem consumidores no código ativo — preservadas para backend/uso futuro)
+-- 7. Views de métricas: sem acesso anônimo E sem exposição cross-operator
+--    autenticada. As views executam com privilégios do owner (postgres, sem
+--    security_invoker) e consultam operator_events/operator_sessions
+--    globalmente — o RLS das tabelas subjacentes NÃO filtra para o chamador.
+--    Sem consumidores ativos no código, a contenção de menor risco é restringir
+--    o acesso ao backend privilegiado (service_role) apenas.
 -- ---------------------------------------------------------------------------
-REVOKE ALL ON TABLE "public"."vw_company_ranking" FROM "anon";
-REVOKE ALL ON TABLE "public"."vw_daily_usage" FROM "anon";
-REVOKE ALL ON TABLE "public"."vw_event_funnel" FROM "anon";
-REVOKE ALL ON TABLE "public"."vw_operator_ranking" FROM "anon";
-REVOKE ALL ON TABLE "public"."vw_session_stats" FROM "anon";
-REVOKE ALL ON TABLE "public"."vw_metrics_summary" FROM "anon";
+REVOKE ALL ON TABLE "public"."vw_company_ranking" FROM "anon", "authenticated";
+REVOKE ALL ON TABLE "public"."vw_daily_usage" FROM "anon", "authenticated";
+REVOKE ALL ON TABLE "public"."vw_event_funnel" FROM "anon", "authenticated";
+REVOKE ALL ON TABLE "public"."vw_operator_ranking" FROM "anon", "authenticated";
+REVOKE ALL ON TABLE "public"."vw_session_stats" FROM "anon", "authenticated";
+REVOKE ALL ON TABLE "public"."vw_metrics_summary" FROM "anon", "authenticated";
 
 -- ============================================================================
 -- FIM MIGRATION 2 — revisar + revalidar em banco descartável antes de aplicar.
--- Nota: estratégia das views documentada — remoção de anon + manutenção de
--- authenticated (conteúdo cross-operator das views depende de operator_events,
--- que agora está isolado; a exposição residual será coberta pelo isolamento
--- da tabela fonte + testes da matriz).
 -- ============================================================================

@@ -70,5 +70,32 @@ export async function findExistingDossier(
     }
   }
 
+  // P0: com o RLS isolado, os SELECTs acima só enxergam dossiês PRÓPRIOS. Para
+  // preservar o comportamento aprovado da BRU-11 (#478) — informar que existe um
+  // dossiê de OUTRO operador e exigir ação explícita — consultamos a RPC segura
+  // que retorna APENAS a existência (booleano), sem id, content, score,
+  // proprietário ou metadados. O resultado vira um sinal sintético que dispara o
+  // modal fail-closed; nenhum dado estrangeiro trafega para o cliente.
+  if (cnpjDigits.length >= 11) {
+    const { data: exists, error: rpcError } = await supabase!
+      .rpc('check_existing_dossier_for_cnpj', { p_cnpj: cnpjDigits });
+
+    if (rpcError) {
+      scoutDiag.warn('dossierDuplicate', 'Falha na descoberta segura de duplicidade', {
+        cnpj: cnpjDigits,
+        error: rpcError.message,
+      });
+    } else if (exists === true) {
+      return {
+        id: 'foreign-duplicate-signal',
+        title: empresaAlvo?.trim() || 'Dossiê existente',
+        empresaAlvo: empresaAlvo?.trim() || '',
+        createdAt: '',
+        scoreOportunidade: null,
+        operatorId: '__foreign_operator__',
+      };
+    }
+  }
+
   return null;
 }
