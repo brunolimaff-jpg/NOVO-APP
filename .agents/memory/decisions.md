@@ -1,5 +1,14 @@
 # decisions.md — NOVO-APP
 
+## DI-2026-08-06-BRU7-A: Dossier Flow — arquitetura client-orchestrated / server-arbitrated (Alternativa A aprovada)
+
+- **Decisão (BRU-7, Alternativa A, aprovada pelo Bruno em 2026-08-06):** formalizar `CLIENT_ORCHESTRATED / SERVER_ARBITRATED / DATABASE_TERMINAL_STATE`. O navegador orquestra o waterfall; RPCs SECURITY DEFINER arbitram auth, ownership, lease e validade das transições; o banco é o estado terminal canônico.
+- **Ações do lote:** removido o endpoint órfão `api/dossier.ts` + gateway exclusivo `api/_dossier-llm-gateway.ts` + `tests/api/dossier.test.ts` (nenhum callsite produtivo; verificado por busca exaustiva — TEST_ONLY/DOCUMENTATION_ONLY/DEAD_CODE; `api/_llm-client.ts` preservado, compartilhado com `/api/llm`). Contrato documentado em `docs/architecture/dossier-ownership-contract.md`.
+- **Recuperação pós-reload:** `active-run-registry` persistido em `sessionStorage`; no boot, run persistido sem contexto local → estado explícito de interrupção, sem retomada automática, sem falso COMPLETED, loading resetado, telemetria `reload_interrupted_run`.
+- **PR #468:** `DO_NOT_MERGE` (direção server-owned não adotada; fechada sem merge no lote).
+- **Validação:** suíte unitária 1610/1610, contracts 144/144, dossier golden 1/1, typecheck 0, lint 0 erros, build OK, no-gemini PASS.
+- **Próximo:** auditoria do Planejador → teste A/B DeepSeek V4 Flash → BRU-11 → BRU-8 → BRU-10 (medida G + cron) → Golden Live.
+
 ## DI-2026-07-28-01: Baseline de Produção em dump nativo PG 17 e paridade exata de catálogo (37/37 constraints)
 
 - **Decisão:** O baseline canônico de migrações do schema `public` deve ser extraído via `pg_dump` 17.10 nativo a partir do servidor PostgreSQL 17.6 de Produção (`vmqfcaoirjcfucvlnpig`), sem modificar ou criar objetos no schema `auth` (`auth.users`, `auth.uid()`). A paridade de catálogo deve ser validada contra Produção em 15 categorias distintas (incluindo `pg_get_constraintdef` para todas as 37 constraints de Produção, `pg_get_functiondef`, RLS, views, triggers e grants), exigindo `PRODUCTION_BASELINE_CATALOG_DIFF: ZERO`. Migrações subsequentes de hardening (`harden_dossier_grants` e `harden_legacy_operator_linking`) aplicam o menor privilégio e proteções estritas de identidade via `SECURITY DEFINER` e validações de `auth.uid()`.

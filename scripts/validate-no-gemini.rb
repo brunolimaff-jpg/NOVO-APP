@@ -50,9 +50,13 @@ EXCEPTIONS = {
   # Auto-referenciais: o gate lista os termos que bloqueia; o nome do npm
   # script contém a palavra; resolve-pr-threads.py menciona o bot de review
   # externo 'gemini-code-assist' (não é runtime do app).
+  # tests/architecture/bru7-ownership-contract.test.ts é um teste estrutural
+  # que PROVA a ausência do termo no código ativo (a substring aparece na
+  # própria verificação, não em runtime).
   'scripts/validate-no-gemini.rb' => BLOCKED_TERMS,
   'package.json' => ['gemini'],
   'scripts/resolve-pr-threads.py' => ['gemini'],
+  'tests/architecture/bru7-ownership-contract.test.ts' => ['gemini'],
 }.freeze
 
 violations = []
