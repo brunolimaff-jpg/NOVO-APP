@@ -1,34 +1,17 @@
 -- ============================================================================
--- P0-SUPABASE-SECURITY-CONTAINMENT — MIGRATION 3: DESCOBERTA SEGURA DE
--- DUPLICIDADE ESTRANGEIRA (preserva o comportamento aprovado da BRU-11 #478)
+-- P0-SUPABASE-SECURITY-CONTAINMENT — MIGRATION 3 (REVISADA): DESCOBERTA SEGURA
+-- DE DUPLICIDADE ESTRANGEIRA (preserva o comportamento aprovado da BRU-11 #478)
 -- Task: P0-SUPABASE-SECURITY-CONTAINMENT-CODE-ONLY-2026-08-06
 -- Status: CODE-ONLY — NÃO APLICAR EM PRODUÇÃO SEM AUTORIZAÇÃO EXPLÍCITA
+--
+-- Revisão (2ª auditoria): normalize_cnpj criada ANTES da RPC; RPC valida
+-- auth.uid(), perfil autenticado, CNPJ de exatamente 14 dígitos e retorna true
+-- apenas para duplicidade ESTRANGEIRA (operator_id != operador atual).
 -- ============================================================================
 
 -- ---------------------------------------------------------------------------
--- RPC: retorna APENAS a existência de um dossiê para o CNPJ em QUALQUER
--- operador. Não expõe id, content, score, operator_id, datas ou metadados.
--- Com o isolamento RLS das novas policies, um SELECT direto só veria dossiês
--- próprios; esta função consulta o universo completo (SECURITY DEFINER) mas
--- devolve somente um booleano — preservando a detecção de duplicidade
--- estrangeira exigida pelo fluxo da #478 (modal de bloqueio fail-closed),
--- sem vazar nenhum dado do proprietário.
+-- 1. normalize_cnpj: helper imutável, criado PRIMEIRO (a RPC depende dele).
 -- ---------------------------------------------------------------------------
-CREATE OR REPLACE FUNCTION "public"."check_existing_dossier_for_cnpj"(p_cnpj text)
-RETURNS boolean
-LANGUAGE "sql"
-SECURITY DEFINER
-SET search_path = ''
-AS $$
-  SELECT EXISTS (
-    SELECT 1
-    FROM "public"."dossies"
-    WHERE "cnpj" = "public"."normalize_cnpj"(p_cnpj)
-      AND "deleted_at" IS NULL
-  )
-$$;
-
--- Função auxiliar: normaliza CNPJ para dígitos (defesa contra variações).
 CREATE OR REPLACE FUNCTION "public"."normalize_cnpj"(p_cnpj text)
 RETURNS text
 LANGUAGE "sql"
@@ -38,12 +21,40 @@ AS $$
   SELECT regexp_replace(coalesce(p_cnpj, ''), '\D', '', 'g')
 $$;
 
--- ACL: apenas authenticated pode consultar (fluxo do cliente); anon e PUBLIC negados.
-REVOKE ALL ON FUNCTION "public"."check_existing_dossier_for_cnpj"(text) FROM PUBLIC, "anon";
-GRANT EXECUTE ON FUNCTION "public"."check_existing_dossier_for_cnpj"(text) TO "authenticated";
 REVOKE ALL ON FUNCTION "public"."normalize_cnpj"(text) FROM PUBLIC, "anon";
 GRANT EXECUTE ON FUNCTION "public"."normalize_cnpj"(text) TO "authenticated";
 
+-- ---------------------------------------------------------------------------
+-- 2. check_existing_dossier_for_cnpj: retorna APENAS boolean.
+--    Exige identidade autenticada válida (auth.uid() + perfil com operator_id)
+--    e retorna true somente quando existe dossiê ATIVO com o MESMO CNPJ
+--    pertencente a OUTRO operador. Nunca expõe id, content, score, datas ou
+--    operator_id do proprietário.
+-- ---------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION "public"."check_existing_dossier_for_cnpj"(p_cnpj text)
+RETURNS boolean
+LANGUAGE "sql"
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+  SELECT EXISTS (
+    SELECT 1
+    FROM "public"."dossies" d
+    WHERE d."cnpj" = "public"."normalize_cnpj"(p_cnpj)
+      AND d."deleted_at" IS NULL
+      AND length("public"."normalize_cnpj"(p_cnpj)) = 14
+      AND (SELECT "auth"."uid"()) IS NOT NULL
+      AND d."operator_id" <> (
+        SELECT "operator_id" FROM "public"."profiles"
+        WHERE "id" = (SELECT "auth"."uid"()::uuid)
+        LIMIT 1
+      )
+  )
+$$;
+
+REVOKE ALL ON FUNCTION "public"."check_existing_dossier_for_cnpj"(text) FROM PUBLIC, "anon";
+GRANT EXECUTE ON FUNCTION "public"."check_existing_dossier_for_cnpj"(text) TO "authenticated";
+
 -- ============================================================================
--- FIM MIGRATION 3 — revisar + revalidar em banco descartável antes de aplicar.
+-- FIM MIGRATION 3 (REVISADA) — revisar + revalidar em banco descartável.
 -- ============================================================================

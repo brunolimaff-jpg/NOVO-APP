@@ -30,6 +30,12 @@ export async function findExistingDossier(
 
   const cnpjDigits = cnpj?.replace(/\D/g, '') || '';
 
+  // Flag de integridade: a RPC de descoberta estrangeira só pode ser consultada
+  // quando TODAS as buscas próprias terminaram SEM erro. Se qualquer SELECT
+  // falhar, não há evidência confiável de ausência de dossiê próprio — e a RPC
+  // global (SECURITY DEFINER) poderia classificar o próprio como estrangeiro.
+  let ownLookupsHealthy = true;
+
   if (cnpjDigits.length >= 11) {
     const { data, error } = await supabase!
       .from('dossies')
@@ -41,6 +47,7 @@ export async function findExistingDossier(
       .maybeSingle();
 
     if (error) {
+      ownLookupsHealthy = false;
       scoutDiag.warn('dossierDuplicate', 'Erro Supabase na busca por CNPJ', {
         cnpj: cnpjDigits,
         error: error.message,
@@ -61,6 +68,7 @@ export async function findExistingDossier(
       .maybeSingle();
 
     if (error) {
+      ownLookupsHealthy = false;
       scoutDiag.warn('dossierDuplicate', 'Erro Supabase na busca por empresa_alvo', {
         empresaAlvo: empresaAlvo.trim(),
         error: error.message,
@@ -76,7 +84,8 @@ export async function findExistingDossier(
   // que retorna APENAS a existência (booleano), sem id, content, score,
   // proprietário ou metadados. O resultado vira um sinal sintético que dispara o
   // modal fail-closed; nenhum dado estrangeiro trafega para o cliente.
-  if (cnpjDigits.length >= 11) {
+  // Guarda: nunca chamar a RPC se alguma busca própria falhou.
+  if (cnpjDigits.length >= 11 && ownLookupsHealthy) {
     const { data: exists, error: rpcError } = await supabase!
       .rpc('check_existing_dossier_for_cnpj', { p_cnpj: cnpjDigits });
 

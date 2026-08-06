@@ -97,36 +97,39 @@ CREATE POLICY "p0_sessions_update_own"
 
 REVOKE ALL ON TABLE "public"."operator_sessions" FROM "anon";
 
+-- Grants mínimos (least privilege): authenticated em operator_events usa apenas
+-- INSERT (operatorTracking.ts:292); em operator_sessions usa SELECT/INSERT/UPDATE
+-- (operatorTracking.ts:174-265). Revogar DELETE/REFERENCES/TRIGGER/TRUNCATE.
+REVOKE DELETE, REFERENCES, TRIGGER, TRUNCATE ON TABLE "public"."operator_events" FROM "authenticated";
+REVOKE DELETE, REFERENCES, TRIGGER, TRUNCATE ON TABLE "public"."operator_sessions" FROM "authenticated";
+
 -- ---------------------------------------------------------------------------
 -- 3. user_context: remover acesso anônimo (policies autenticadas já corretas)
 -- ---------------------------------------------------------------------------
 REVOKE ALL ON TABLE "public"."user_context" FROM "anon";
 
 -- ---------------------------------------------------------------------------
--- 4. extract_cache: remover acesso anônimo; manter authenticated
---    (consumidores: services/socio-search/cache.ts, services/storage/extractCache.ts)
+-- 4. extract_cache: remover acesso anônimo; manter authenticated fail-closed
+--    (baseline não dá policy de RLS para authenticated — upsert do navegador já
+--    não-funcional em Produção; fluxo real é service_role server-side)
 -- ---------------------------------------------------------------------------
 REVOKE ALL ON TABLE "public"."extract_cache" FROM "anon";
 
 -- ---------------------------------------------------------------------------
--- 5. shared_dossiers / crm_clientes / demais tabelas com grants anon indevidos
---    (sem consumidores ativos no código — least privilege)
+-- 5. shared_dossiers / crm_clientes — sem consumidores ativos no código
 -- ---------------------------------------------------------------------------
 REVOKE ALL ON TABLE "public"."shared_dossiers" FROM "anon";
 REVOKE ALL ON TABLE "public"."crm_clientes" FROM "anon";
-REVOKE ALL ON TABLE "public"."audit_log" FROM "anon";
-REVOKE ALL ON TABLE "public"."favorites" FROM "anon";
-REVOKE ALL ON TABLE "public"."feedback_events" FROM "anon";
-REVOKE ALL ON TABLE "public"."radar_alerts" FROM "anon";
-REVOKE ALL ON TABLE "public"."radar_configs" FROM "anon";
-REVOKE ALL ON TABLE "public"."llm_experiment_runs" FROM "anon";
-REVOKE ALL ON TABLE "public"."scout_diagnostics" FROM "anon";
-REVOKE ALL ON SEQUENCE "public"."scout_diagnostics_id_seq" FROM "anon";
 
--- crm_clientes: remover privilégios de escrita desnecessários de authenticated
--- (sem consumidor no código; policy USING(true) fica sem efeito sem grant amplo)
-REVOKE INSERT, UPDATE, DELETE ON TABLE "public"."crm_clientes" FROM "authenticated";
-GRANT SELECT ON TABLE "public"."crm_clientes" TO "authenticated";
+-- crm_clientes: revogar TODO acesso de authenticated (policy viva
+-- operadores_leem_crm USING(true) tornaria qualquer autenticado capaz de ler
+-- todas as linhas). Contenção: somente service_role/backend privilegiado.
+REVOKE ALL ON TABLE "public"."crm_clientes" FROM "authenticated";
+
+-- NOTA: audit_log, favorites, feedback_events, radar_alerts, radar_configs,
+-- llm_experiment_runs e scout_diagnostics ficaram FORA deste lote (escopo do
+-- pacote P0). Hardening dessas superfícies vai em lote separado com inventário
+-- próprio de consumidores (feedback_events tem consumidor ativo no cliente).
 
 -- ---------------------------------------------------------------------------
 -- 6. auto_close_stale_sessions(): SECURITY DEFINER com escrita — apenas

@@ -5,6 +5,10 @@
 -- NUNCA executar em Produção.
 -- ============================================================================
 
+-- 0. check_function_bodies: garante que CREATE FUNCTION valida corpos (default
+--    do runner Supabase). O replay DEVE registrar on.
+SHOW check_function_bodies;
+
 -- 1. Ambiente base (equivalente ao provisionamento Supabase)
 CREATE SCHEMA IF NOT EXISTS extensions;
 CREATE SCHEMA IF NOT EXISTS auth;
@@ -228,10 +232,43 @@ BEGIN
   END;
   RAISE NOTICE 'B7 PASS: A não lê views de métricas';
 
+  -- B8: RPC — estrangeiro existe → true (CNPJ do dossiê de B)
   IF public.check_existing_dossier_for_cnpj('08545069000102') IS DISTINCT FROM true THEN
     RAISE EXCEPTION 'B8 FALHA: RPC deveria retornar true para CNPJ com duplicidade estrangeira';
   END IF;
-  RAISE NOTICE 'B8 PASS: RPC de descoberta retorna true (existência) sem expor dados';
+  RAISE NOTICE 'B8 PASS: RPC retorna true para CNPJ com duplicidade ESTRANGEIRA';
+
+  -- B9: RPC — dossiê próprio (CNPJ do dossiê de A) → false
+  IF public.check_existing_dossier_for_cnpj('11111111111111') IS DISTINCT FROM false THEN
+    RAISE EXCEPTION 'B9 FALHA: RPC deveria retornar false para dossiê PRÓPRIO';
+  END IF;
+  RAISE NOTICE 'B9 PASS: RPC retorna false para dossiê próprio';
+
+  -- B10: RPC — CNPJ inválido (menos de 14 dígitos) → false
+  IF public.check_existing_dossier_for_cnpj('123') IS DISTINCT FROM false THEN
+    RAISE EXCEPTION 'B10 FALHA: RPC deveria retornar false para CNPJ inválido';
+  END IF;
+  RAISE NOTICE 'B10 PASS: RPC retorna false para CNPJ inválido';
+
+  -- B11: RPC — CNPJ inexistente → false
+  IF public.check_existing_dossier_for_cnpj('00000000000000') IS DISTINCT FROM false THEN
+    RAISE EXCEPTION 'B11 FALHA: RPC deveria retornar false para CNPJ sem dossiê';
+  END IF;
+  RAISE NOTICE 'B11 PASS: RPC retorna false para CNPJ sem dossiê';
+END $$;
+RESET ROLE;
+
+-- Bloco B12: RPC — autenticado SEM perfil (uid sem profile) → false ou erro controlado
+SET ROLE authenticated;
+SELECT set_config('request.jwt.claims', '{"sub":"99999999-9999-9999-9999-999999999999"}', false);
+DO $$
+BEGIN
+  SET LOCAL row_security = on;
+  -- Sem perfil para o uid → subquery retorna NULL → comparação NULL → EXISTS false
+  IF public.check_existing_dossier_for_cnpj('08545069000102') IS DISTINCT FROM false THEN
+    RAISE EXCEPTION 'B12 FALHA: RPC deveria retornar false sem perfil autenticado';
+  END IF;
+  RAISE NOTICE 'B12 PASS: RPC retorna false sem perfil autenticado (fail-closed)';
 END $$;
 RESET ROLE;
 

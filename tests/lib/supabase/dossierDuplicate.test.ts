@@ -194,4 +194,86 @@ describe('findExistingDossier', () => {
 
     expect(result).toBeNull();
   });
+
+  it('P0: NÃO chama a RPC quando o SELECT por CNPJ falhou (ownLookupsHealthy=false)', async () => {
+    const { isSupabaseAvailable } = await import('../../../lib/supabaseClient');
+    vi.mocked(isSupabaseAvailable).mockReturnValueOnce(true);
+
+    // SELECT CNPJ falha (erro) — flag vira false
+    const chainCnpj = {
+      eq: mockEq.mockReturnThis(),
+      is: mockIs.mockReturnThis(),
+      order: mockOrder.mockReturnThis(),
+      limit: mockLimit.mockReturnThis(),
+      maybeSingle: mockMaybeSingle.mockResolvedValueOnce({ data: null, error: { message: 'network error' } }),
+    };
+    const chainRazao = {
+      eq: mockEq.mockReturnThis(),
+      is: mockIs.mockReturnThis(),
+      order: mockOrder.mockReturnThis(),
+      limit: mockLimit.mockReturnThis(),
+      maybeSingle: mockMaybeSingle.mockResolvedValueOnce({ data: null, error: null }),
+    };
+    mockSelect.mockReturnValueOnce(chainCnpj).mockReturnValueOnce(chainRazao);
+    mockFrom.mockReturnValueOnce({ select: mockSelect }).mockReturnValueOnce({ select: mockSelect });
+
+    const { findExistingDossier } = await import('../../../lib/supabase/dossierDuplicate');
+    const result = await findExistingDossier('08.545.069/0001-02', 'Empresa X', 'op-current');
+
+    // RPC NUNCA chamada após erro no SELECT próprio
+    expect(mockRpc).not.toHaveBeenCalled();
+    expect(result).toBeNull();
+  });
+
+  it('P0: NÃO chama a RPC quando o SELECT por razão social falhou', async () => {
+    const { isSupabaseAvailable } = await import('../../../lib/supabaseClient');
+    vi.mocked(isSupabaseAvailable).mockReturnValueOnce(true);
+
+    const chainCnpj = {
+      eq: mockEq.mockReturnThis(),
+      is: mockIs.mockReturnThis(),
+      order: mockOrder.mockReturnThis(),
+      limit: mockLimit.mockReturnThis(),
+      maybeSingle: mockMaybeSingle.mockResolvedValueOnce({ data: null, error: null }),
+    };
+    const chainRazao = {
+      eq: mockEq.mockReturnThis(),
+      is: mockIs.mockReturnThis(),
+      order: mockOrder.mockReturnThis(),
+      limit: mockLimit.mockReturnThis(),
+      maybeSingle: mockMaybeSingle.mockResolvedValueOnce({ data: null, error: { message: 'timeout' } }),
+    };
+    mockSelect.mockReturnValueOnce(chainCnpj).mockReturnValueOnce(chainRazao);
+    mockFrom.mockReturnValueOnce({ select: mockSelect }).mockReturnValueOnce({ select: mockSelect });
+
+    const { findExistingDossier } = await import('../../../lib/supabase/dossierDuplicate');
+    const result = await findExistingDossier('08.545.069/0001-02', 'Empresa X', 'op-current');
+
+    expect(mockRpc).not.toHaveBeenCalled();
+    expect(result).toBeNull();
+  });
+
+  it('P0: NÃO chama a RPC quando um dossiê próprio foi encontrado', async () => {
+    const { isSupabaseAvailable } = await import('../../../lib/supabaseClient');
+    vi.mocked(isSupabaseAvailable).mockReturnValueOnce(true);
+
+    const chainCnpj = {
+      eq: mockEq.mockReturnThis(),
+      is: mockIs.mockReturnThis(),
+      order: mockOrder.mockReturnThis(),
+      limit: mockLimit.mockReturnThis(),
+      maybeSingle: mockMaybeSingle.mockResolvedValueOnce({
+        data: { id: 'dossier-own', title: 'Empresa', empresa_alvo: 'Empresa', created_at: '2026-01-01T00:00:00Z', score_oportunidade: 10, operator_id: 'op-current' },
+        error: null,
+      }),
+    };
+    mockSelect.mockReturnValueOnce(chainCnpj);
+    mockFrom.mockReturnValueOnce({ select: mockSelect });
+
+    const { findExistingDossier } = await import('../../../lib/supabase/dossierDuplicate');
+    const result = await findExistingDossier('08.545.069/0001-02', 'Empresa', 'op-current');
+
+    expect(mockRpc).not.toHaveBeenCalled();
+    expect(result?.operatorId).toBe('op-current');
+  });
 });
