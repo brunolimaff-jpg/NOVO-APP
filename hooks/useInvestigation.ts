@@ -116,6 +116,18 @@ export function useInvestigation({
 
   const handleAccessExistingDossier = useCallback(async () => {
     if (processingRef.current || !duplicateDossier || !operatorId) return;
+
+    // GUARDA FAIL-CLOSED (BRU-11 camada 1): dossiê de outro operador é bloqueado
+    // ANTES de qualquer leitura, cópia, persistência, seleção ou reabertura.
+    // Descoberta por CNPJ não é autorização — nenhum content estrangeiro é consultado.
+    if (duplicateDossier.operatorId !== operatorId) {
+      scoutDiag.warn('Investigation', 'foreign-dossier-access-blocked', {
+        dossierId: duplicateDossier.id,
+        reason: 'owner_mismatch_fail_closed',
+      });
+      return;
+    }
+
     processingRef.current = true;
 
     // Esconde modal IMEDIATAMENTE — antes de qualquer await
@@ -156,6 +168,10 @@ export function useInvestigation({
     if (!payload || !operatorId) return;
     processingRef.current = true;
 
+    // GUARDA FAIL-CLOSED (BRU-11 camada 1): a fonte estrangeira nunca é lida,
+    // deletada, logada como reaberta ou usada como ID da nova investigação.
+    const isForeignSource = oldDossier ? oldDossier.operatorId !== operatorId : false;
+
     // Esconde modal IMEDIATAMENTE — antes da geração que leva minutos
     const oldDossierId = oldDossier?.id;
     const oldDossierCnpj = payload.cnpj;
@@ -173,7 +189,9 @@ export function useInvestigation({
         investigationSucceeded = (await storage.getDossier(result.dossierId)) !== null;
       }
 
-      if (oldDossierId && investigationSucceeded) {
+      // A fonte estrangeira permanece INTOCADA: sem delete, sem log de acesso,
+      // sem evento de override — o usuário apenas gerou um dossiê novo próprio.
+      if (oldDossierId && !isForeignSource && investigationSucceeded) {
         void safeLogDossierAccess(oldDossierId, operatorId, oldDossierCnpj);
         await storage.deleteDossier(oldDossierId);
 
@@ -182,6 +200,11 @@ export function useInvestigation({
           previousDossierId: oldDossierId,
           entityType: 'dossier',
           companyName: payload.companyName,
+        });
+      } else if (oldDossierId && isForeignSource && investigationSucceeded) {
+        scoutDiag.warn('Investigation', 'foreign-source-preserved-on-new-research', {
+          previousDossierId: oldDossierId,
+          resultStatus: result?.status ?? 'rejected',
         });
       } else {
         scoutDiag.warn('ChatInterface', 'dossier-override-preserved-previous', {
@@ -207,5 +230,8 @@ export function useInvestigation({
     duplicateDossier,
     setDuplicateDossier,
     pendingPayloadRef,
+    // BRU-11 camada 1: classificação fail-closed — o modal bloqueia qualquer
+    // ação de acesso quando o dossiê descoberto pertence a outro operador.
+    isForeignDossier: duplicateDossier ? duplicateDossier.operatorId !== operatorId : false,
   };
 }

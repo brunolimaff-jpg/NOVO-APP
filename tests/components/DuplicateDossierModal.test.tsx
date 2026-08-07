@@ -96,4 +96,59 @@ describe('DuplicateDossierModal', () => {
     );
     expect(screen.queryByText(/Score PORTA/)).toBeNull();
   });
+
+  // BRU-11 camada 1: interface fail-closed para dossiê estrangeiro
+  it('isForeign: exibe mensagem explícita de bloqueio e NÃO exibe score', () => {
+    render(
+      <DuplicateDossierModal
+        existing={{ ...existingFixture, scoreOportunidade: 88 }}
+        companyName="Empresa Estrangeira"
+        isForeign
+        onAccessExisting={vi.fn()}
+        onNewResearch={vi.fn()}
+        onDismiss={vi.fn()}
+      />,
+    );
+    expect(
+      screen.getByText(
+        /Já existe um dossiê para esta empresa, mas ele pertence a outro operador e o compartilhamento ainda não está autorizado/,
+      ),
+    ).toBeDefined();
+    expect(screen.queryByText(/88\/100/)).toBeNull();
+    expect(screen.queryByText(/Score PORTA/)).toBeNull();
+  });
+
+  it('isForeign: não apresenta o botão de acesso como ação funcional', () => {
+    const onAccess = vi.fn();
+    render(
+      <DuplicateDossierModal
+        existing={existingFixture}
+        companyName="Empresa Estrangeira"
+        isForeign
+        onAccessExisting={onAccess}
+        onNewResearch={vi.fn()}
+        onDismiss={vi.fn()}
+      />,
+    );
+    expect(screen.queryByText('Acessar Dossiê Existente')).toBeNull();
+  });
+
+  it('isForeign: preserva nova pesquisa do zero (ação explícita) e cancelar', () => {
+    const onNew = vi.fn();
+    const onDismiss = vi.fn();
+    render(
+      <DuplicateDossierModal
+        existing={existingFixture}
+        companyName="Empresa Estrangeira"
+        isForeign
+        onAccessExisting={vi.fn()}
+        onNewResearch={onNew}
+        onDismiss={onDismiss}
+      />,
+    );
+    fireEvent.click(screen.getByText('Nova Pesquisa do Zero'));
+    expect(onNew).toHaveBeenCalledOnce();
+    fireEvent.click(screen.getByText('Cancelar'));
+    expect(onDismiss).toHaveBeenCalledOnce();
+  });
 });

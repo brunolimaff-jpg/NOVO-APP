@@ -99,6 +99,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
     duplicateDossier,
     setDuplicateDossier,
     pendingPayloadRef,
+    isForeignDossier,
   } = useInvestigation({
     mode,
     onDeepDive,
@@ -288,6 +289,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
         <DuplicateDossierModal
           existing={duplicateDossier}
           companyName={pendingPayloadRef.current.companyName}
+          isForeign={isForeignDossier}
           onAccessExisting={handleAccessExistingDossier}
           onNewResearch={handleNewResearchOverride}
           onDismiss={() => {
