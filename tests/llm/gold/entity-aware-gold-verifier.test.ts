@@ -191,7 +191,7 @@ describe('EntityAwareGoldVerifier — proveniência real (micro-rodada V5)', () 
     const pack = safePack();
     pack.facts.push({
       id: 'f-silos',
-      entity: 'COOPERATIVA AGRO SUL LTDA',
+      entity: 'SCHEFFER & CIA LTDA',
       claim: 'Capacidade de armazenagem de 120 mil sacas confirmada em laudo',
       status: 'Confirmado',
       source: 'Laudo técnico',
@@ -215,5 +215,53 @@ describe('EntityAwareGoldVerifier — proveniência real (micro-rodada V5)', () 
     const gold = ['# Gold Brief', 'Capacidade produtiva de 500 toneladas mensais.'].join('\n');
     const result = verifyGold(gold, canonical, pack);
     expect(result.hardFails.some((h) => h.code === 'UNSUPPORTED_PRODUCT_CLAIM')).toBe(true);
+  });
+});
+
+describe('EntityAwareGoldVerifier — evidência não emprestada (gate adversarial final)', () => {
+  it('reprova valor divergente: Safe 120 mil sacas vs Gold 900 mil sacas', () => {
+    const pack = safePack();
+    pack.facts.push({
+      id: 'f-silos',
+      entity: 'SCHEFFER & CIA LTDA',
+      claim: 'Capacidade de armazenagem de 120 mil sacas confirmada em laudo',
+      status: 'Confirmado',
+      source: 'Laudo técnico',
+      kind: 'operation',
+    });
+    const gold = ['# Gold Brief', 'Capacidade de armazenagem de 900 mil sacas confirmada em laudo.'].join('\n');
+    const result = verifyGold(gold, canonical, pack);
+    expect(result.hardFails.some((h) => h.code === 'UNSUPPORTED_PRODUCT_CLAIM')).toBe(true);
+  });
+
+  it('reprova entidade divergente: evidência da entidade B atribuída à conta A', () => {
+    const pack = safePack();
+    pack.facts.push({
+      id: 'f-cap-b',
+      entity: 'EMPRESA LATERAL LTDA',
+      claim: 'Capacidade de armazenagem de 120 mil sacas confirmada em laudo',
+      status: 'Confirmado',
+      source: 'Laudo técnico',
+      kind: 'operation',
+    });
+    // Gold afirma capacidade para a CONTA (sem mencionar a lateral)
+    const gold = ['# Gold Brief', 'A conta tem capacidade de armazenagem de 120 mil sacas.'].join('\n');
+    const result = verifyGold(gold, canonical, pack);
+    expect(result.hardFails.some((h) => h.code === 'UNSUPPORTED_PRODUCT_CLAIM')).toBe(true);
+  });
+
+  it('aceita claim compatível real: mesma entidade + valor igual + Confirmado + fonte aceitável', () => {
+    const pack = safePack();
+    pack.facts.push({
+      id: 'f-silos',
+      entity: 'SCHEFFER & CIA LTDA',
+      claim: 'Capacidade de armazenagem de 120 mil sacas confirmada em laudo',
+      status: 'Confirmado',
+      source: 'Laudo técnico',
+      kind: 'operation',
+    });
+    const gold = ['# Gold Brief', 'Capacidade de armazenagem de 120 mil sacas confirmada em laudo.'].join('\n');
+    const result = verifyGold(gold, canonical, pack);
+    expect(result.hardFails.filter((h) => h.code === 'UNSUPPORTED_PRODUCT_CLAIM')).toHaveLength(0);
   });
 });

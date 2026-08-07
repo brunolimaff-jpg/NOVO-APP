@@ -54,13 +54,33 @@ const KNOWLEDGE_NEGATION =
 const NON_EXTERNAL_SOURCE =
   /\b(estimativa|infer[êe]ncia|an[áa]lise de m[óo]dulos|dossi[êe] legado|crm interno)\b/i;
 
+/** Valor numérico com unidade numa frase ("120 mil sacas", "500 toneladas"). */
+const VALUE_PATTERN =
+  /\b(\d+(?:[.,]\d+)?\s*(?:mil|milh[oõ]es|toneladas?|sacas?|unidades?|lojas?|funcion[áa]rios?|entregas?|torres?|dias?|meses?|%|m[²3]?|t)\w*)\b/i;
+
+function extractValue(text: string): string | null {
+  const m = text.match(VALUE_PATTERN);
+  return m ? normalizeName(m[1]) : null;
+}
+
+function valuesMatch(a: string, b: string): boolean {
+  const norm = (v: string) => v.toLowerCase().replace(/[\s.,]/g, '');
+  return norm(a) === norm(b);
+}
+
 /**
- * Reconciliação por PROVENIÊNCIA REAL: a afirmação do Gold só deixa de ser
- * UNSUPPORTED_PRODUCT_CLAIM quando existe um fato no SafeFindingPack com
- * status Confirmado, fonte aceitável e termo compatível. Nunca autodeclaração
- * textual ("confirmada em laudo" escrito pelo modelo não é evidência).
+ * Reconciliação por PROVENIÊNCIA REAL em nível de CLAIM: a afirmação do Gold
+ * só deixa de ser UNSUPPORTED_PRODUCT_CLAIM quando existe um fato no
+ * SafeFindingPack com status Confirmado, fonte aceitável, MESMA CATEGORIA,
+ * MESMA ENTIDADE e VALOR COMPATÍVEL. A evidência não pode ser "emprestada":
+ * um fato "120 mil sacas" da entidade B não legitima "900 mil sacas" da conta A.
  */
-function isSupportedBySafePack(sentenceLower: string, safePack: SafeFindingPack): boolean {
+function isSupportedBySafePack(
+  sentenceLower: string,
+  sentence: string,
+  safePack: SafeFindingPack,
+  canonical: CanonicalAccount,
+): boolean {
   const terms: Array<{ pattern: RegExp; match: (c: string) => boolean }> = [
     { pattern: /capacidade/, match: (c) => /capacidade/.test(c) },
     { pattern: /produ[cç][aã]o\s+de/, match: (c) => /produ[cç][aã]o\s+de/.test(c) },
@@ -71,9 +91,31 @@ function isSupportedBySafePack(sentenceLower: string, safePack: SafeFindingPack)
   ];
   const hit = terms.find((t) => t.pattern.test(sentenceLower));
   if (!hit) return false;
-  return safePack.facts.some(
-    (f) => f.status === 'Confirmado' && !NON_EXTERNAL_SOURCE.test(f.source) && hit.match(f.claim.toLowerCase()),
-  );
+
+  const goldValue = extractValue(sentence);
+  // Entidade referida na frase: menção explícita de entidade conhecida;
+  // caso contrário, a referência é a CONTA CANÔNICA.
+  const accountName = normalizeName(canonical.legalName);
+  const mentionedEntity = [...safePack.relationships]
+    .map((r) => normalizeName(r.relatedEntity))
+    .find((name) => sentenceLower.includes(name));
+  const referredEntity = mentionedEntity ?? accountName;
+
+  return safePack.facts.some((f) => {
+    if (f.status !== 'Confirmado') return false;
+    if (NON_EXTERNAL_SOURCE.test(f.source)) return false;
+    if (!hit.match(f.claim.toLowerCase())) return false;
+    // Mesma entidade: o fato precisa pertencer à entidade referida na frase.
+    if (normalizeName(f.entity) !== referredEntity) return false;
+    // Valor compatível: Gold sem valor é sustentado por fato com valor;
+    // Gold com valor exige fato com o MESMO valor.
+    const factValue = extractValue(f.claim);
+    if (goldValue) {
+      if (!factValue) return false;
+      if (!valuesMatch(goldValue, factValue)) return false;
+    }
+    return true;
+  });
 }
 
 /** Verbos de participação societária (para detectar inversão de relação direta). */
@@ -203,7 +245,7 @@ export function verifyGold(
     if (
       UNSUPPORTED_CLAIM.test(sentenceLower) &&
       !KNOWLEDGE_NEGATION.test(sentenceLower) &&
-      !isSupportedBySafePack(sentenceLower, safePack)
+      !isSupportedBySafePack(sentenceLower, sentence, safePack, canonical)
     ) {
       push('UNSUPPORTED_PRODUCT_CLAIM', `Frase afirma capacidade/produto/prazo/ROI sem fonte: "${sentence}"`);
     }
