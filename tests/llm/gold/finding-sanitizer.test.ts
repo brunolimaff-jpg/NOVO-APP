@@ -262,3 +262,36 @@ describe('FindingSanitizer', () => {
     expect(safe.discardedClaims.some((d) => d.originFindingId === 'f-drop')).toBe(true);
   });
 });
+
+describe('FindingSanitizer — ENTITY_CONFLICT (regressão genérica do Golden Set V5)', () => {
+  it('bloqueia afirmação de tipo cadastral que contradiz o canonical', () => {
+    const raw = basePack();
+    raw.facts.push({
+      id: 'f-inversao',
+      entity: 'COOPERATIVA AGRO SUL LTDA',
+      claim: 'A filial 0005 é a matriz da cooperativa',
+      status: 'Pista forte',
+      source: 'dossiê legado',
+      kind: 'identity',
+    });
+    const safe = sanitizeFindingPack(raw, canonical);
+    const removed = safe.sanitizerEvents.find((e) => e.findingId === 'f-inversao');
+    expect(removed?.code).toBe('ENTITY_CONFLICT');
+    expect(safe.facts.find((f) => f.id === 'f-inversao')).toBeUndefined();
+  });
+
+  it('preserva afirmação de tipo cadastral consistente com o canonical', () => {
+    const raw = basePack();
+    raw.facts.push({
+      id: 'f-filial-ok',
+      entity: 'SCHEFFER & CIA LTDA',
+      claim: 'A inscrição 0001-80 é filial em Sapezal',
+      status: 'Confirmado',
+      source: 'Registro oficial',
+      kind: 'identity',
+    });
+    const safe = sanitizeFindingPack(raw, canonical);
+    expect(safe.facts.find((f) => f.id === 'f-filial-ok')).toBeDefined();
+    expect(safe.sanitizerEvents.find((e) => e.findingId === 'f-filial-ok')).toBeUndefined();
+  });
+});

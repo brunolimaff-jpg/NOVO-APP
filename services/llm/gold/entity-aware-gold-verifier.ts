@@ -50,6 +50,10 @@ const UNSUPPORTED_CLAIM =
 const KNOWLEDGE_NEGATION =
   /\b(n[aã]o\s+(est[áa]|foi|é)\s+(dispon[ií]vel|identificad[oa]s?|poss[ií]vel|confirmad[oa]s?)|deve\s+ser\s+confirmad[oa]s?|sem\s+evid[êe]ncia)\b/i;
 
+/** Frase com evidência explícita no próprio texto — não é claim sem fonte. */
+const HAS_EVIDENCE =
+  /\b(confirmad[oa]s?\s+(em|por)|registro\s+(oficial|t[ée]cnico|operacional)|laudo|licen[çc]a\s+municipal|em\s+entrevista|fonte\s+(oficial|prim[áa]ria)|documento\s+oficial)\b/i;
+
 /** Verbos de participação societária (para detectar inversão de relação direta). */
 const PARTICIPATION_VERB =
   /\b(participa\s+do\s+capital|é\s+s[óo]cia|s[óo]cia\s+de|controla|é\s+controladora|det[ée]m\s+participa[cç][aã]o)\b/i;
@@ -171,8 +175,13 @@ export function verifyGold(
 
     // 6) Capacidade/produto/prazo/ROI/integração afirmados sem validação.
     //    Frases que negam conhecimento ("não está disponível", "a confirmar")
-    //    não são afirmações e não disparam.
-    if (UNSUPPORTED_CLAIM.test(sentenceLower) && !KNOWLEDGE_NEGATION.test(sentenceLower)) {
+    //    ou trazem evidência explícita ("confirmada em laudo", "registro
+    //    oficial") não são claims sem fonte e não disparam.
+    if (
+      UNSUPPORTED_CLAIM.test(sentenceLower) &&
+      !KNOWLEDGE_NEGATION.test(sentenceLower) &&
+      !HAS_EVIDENCE.test(sentenceLower)
+    ) {
       push('UNSUPPORTED_PRODUCT_CLAIM', `Frase afirma capacidade/produto/prazo/ROI sem fonte: "${sentence}"`);
     }
 
