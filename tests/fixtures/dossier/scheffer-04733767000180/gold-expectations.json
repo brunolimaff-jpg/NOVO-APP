@@ -1,0 +1,146 @@
+{
+  "canonicalAccount": {
+    "inputCnpj": "04.733.767/0001-80",
+    "legalName": "SCHEFFER & CIA LTDA",
+    "establishmentType": "Filial",
+    "rootCnpj": "04.733.767",
+    "headOfficeCnpj": "04.733.767/0014-03",
+    "headOfficeLegalName": "SCHEFFER & CIA LTDA",
+    "directPjPartners": [{ "legalName": "SCHEFFER PARTICIPACOES S/A", "cnpj": "11.021.773/0001-70" }],
+    "qsaPeople": [
+      { "name": "CAROLINA MOGNON SCHEFFER", "role": "Sócio" },
+      { "name": "ELIZEU ZULMAR MAGGI SCHEFFER", "role": "Sócio-Administrador" },
+      { "name": "GILLIARD ANTONIO SCHEFFER", "role": "Sócio-Administrador" },
+      { "name": "GISLAYNE RAFAELA SCHEFFER", "role": "Sócio-Administrador" },
+      { "name": "GUILHERME MOGNON SCHEFFER", "role": "Sócio-Administrador" }
+    ]
+  },
+  "rawFindingPack": {
+    "module": "gold-compact",
+    "accountIdentity": {
+      "inputCnpj": "04.733.767/0001-80",
+      "legalName": "SCHEFFER & CIA LTDA",
+      "establishmentType": "Filial",
+      "rootCnpj": "04.733.767",
+      "conflicts": []
+    },
+    "facts": [
+      {
+        "id": "f-modulos",
+        "entity": "SCHEFFER & CIA LTDA",
+        "claim": "74 módulos Senior ativos registrados no CRM interno",
+        "status": "Confirmado",
+        "source": "CRM interno Senior",
+        "kind": "operation"
+      },
+      {
+        "id": "f-wms-ausencia",
+        "entity": "SCHEFFER & CIA LTDA",
+        "claim": "A empresa não possui WMS",
+        "status": "Confirmado",
+        "source": "CRM interno Senior",
+        "kind": "technology"
+      },
+      {
+        "id": "f-tms-gap",
+        "entity": "SCHEFFER & CIA LTDA",
+        "claim": "Gap de TMS confirmado na operação logística",
+        "status": "Confirmado",
+        "source": "CRM interno Senior",
+        "kind": "operation"
+      },
+      {
+        "id": "f-matriz-canonical",
+        "entity": "SCHEFFER & CIA LTDA",
+        "claim": "A matriz é a inscrição 04.733.767/0014-03 em Cuiabá",
+        "status": "Confirmado",
+        "source": "dossiê legado",
+        "kind": "identity"
+      },
+      {
+        "id": "f-manual",
+        "entity": "SCHEFFER & CIA LTDA",
+        "claim": "O processo de romaneio é manual, feito em planilha",
+        "status": "Pista forte",
+        "source": "Análise de módulos contratados",
+        "kind": "operation",
+        "process": "manual"
+      },
+      {
+        "id": "f-roi",
+        "entity": "SCHEFFER & CIA LTDA",
+        "claim": "ROI garantido de 18 meses com a solução",
+        "status": "Pista inicial",
+        "source": "Estimativa comercial",
+        "kind": "financial"
+      },
+      {
+        "id": "f-prazo",
+        "entity": "SCHEFFER & CIA LTDA",
+        "claim": "Prazo de 60 dias para implantação",
+        "status": "Pista inicial",
+        "source": "Estimativa comercial",
+        "kind": "operation"
+      },
+      {
+        "id": "f-integracao",
+        "entity": "SCHEFFER & CIA LTDA",
+        "claim": "Integração nativa com o ERP contratado",
+        "status": "Pista forte",
+        "source": "Análise de módulos contratados",
+        "kind": "technology"
+      }
+    ],
+    "relationships": [
+      {
+        "id": "r-holding",
+        "entity": "SCHEFFER & CIA LTDA",
+        "relatedEntity": "11.021.773/0001-70",
+        "relationType": "direct_pj_relation",
+        "status": "Confirmado",
+        "source": "qsa",
+        "evidence": "SCHEFFER PARTICIPACOES S/A consta como sócia PJ no QSA"
+      },
+      {
+        "id": "r-lateral",
+        "entity": "SCHEFFER & CIA LTDA",
+        "relatedEntity": "12.345.678/0001-90",
+        "relationType": "partner_other_cnpj",
+        "status": "Pista inicial",
+        "source": "socio-search",
+        "evidence": "Compartilha sócio com a conta (relação lateral)"
+      }
+    ],
+    "technologySignals": [
+      {
+        "technology": "WMS",
+        "observedFact": "WMS Senior não aparece no recorte interno de módulos contratados",
+        "status": "Confirmado",
+        "whatIsNotKnown": "Se existe solução de gestão de armazém na operação",
+        "validationQuestion": "Qual solução suporta hoje o processo de armazenagem e expedição?"
+      },
+      {
+        "technology": "TMS",
+        "observedFact": "TMS Senior não aparece no recorte interno de módulos contratados",
+        "status": "Confirmado",
+        "whatIsNotKnown": "Se existe solução de gestão de transporte na operação",
+        "validationQuestion": "Qual solução suporta hoje o processo de transporte e entrega?"
+      }
+    ],
+    "people": [
+      {
+        "id": "p-elizeu",
+        "personName": "ELIZEU ZULMAR MAGGI SCHEFFER",
+        "role": "Sócio-Administrador",
+        "roleBasis": "qsa",
+        "status": "Confirmado",
+        "source": "QSA oficial"
+      }
+    ],
+    "metrics": [],
+    "conflicts": [],
+    "openQuestions": ["Qual solução suporta hoje o processo de armazenagem e expedição?"],
+    "discardedClaims": []
+  },
+  "goldBrief": "# Gold Brief — SCHEFFER & CIA LTDA (04.733.767/0001-80)\n\n# Conta em 30 segundos\n\nSCHEFFER & CIA LTDA é uma filial em Sapezal/MT do grupo Scheffer, com matriz na inscrição 04.733.767/0014-03 em Cuiabá/MT. A conta opera cultivo de soja e beneficiamento de algodão, com 74 módulos Senior ativos registrados no CRM interno, incluindo a vertical GATec. A sócia PJ direta é SCHEFFER PARTICIPACOES S/A (11.021.773/0001-70), que concentra a participação societária da família. A estrutura é familiar, com cinco sócios administradores no QSA. O recorte combina operação agrícola e industrial, o que a torna uma conta de média complexidade para abordagem comercial. A presença da vertical GATec indica maturidade na adoção de plataformas de gestão. O QSA é um mapa inicial de acesso: o papel funcional de cada sócio não está confirmado por fonte oficial. O histórico de investimento em automação agrícola posiciona a conta como candidata natural a expansões na mesma plataforma.\n\n# Estrutura do grupo\n\nA base cadastral é a inscrição 04.733.767/0001-80, classificada como filial. A matriz 04.733.767/0014-03 concentra a sede administrativa em Cuiabá. A holding direta SCHEFFER PARTICIPACOES S/A participa do capital da conta, o que indica uma estrutura de participações separada da operação. O QSA oficial lista cinco pessoas físicas como sócios e sócios administradores, além da sócia PJ. Empresas encontradas apenas via sócio permanecem relações laterais e não são tratadas como grupo econômico sem evidência adicional. A consolidação do grupo completo, incluindo eventuais veículos societários adicionais, não está mapeada em fontes públicas e permanece como pergunta de validação.\n\n```mermaid\nflowchart LR\n    A[\"SCHEFFER & CIA LTDA (filial 0001-80)\"] --> B[\"Matriz 0014-03 (Cuiabá)\"]\n    B --> C[\"SCHEFFER PARTICIPACOES S/A\"]\n```\n\n# Mapa operacional\n\nA operação em Sapezal combina cultivo de soja e beneficiamento de algodão, apoiada por módulos Senior de gestão agrícola (GATec) e plataforma ERP/HCM registrados no CRM interno. A verticalização lavoura-industrial é o traço operacional mais relevante do recorte: a conta planta, processa e entrega, o que cria uma cadeia de valor com múltiplos pontos de gestão. A presença de módulos contratados comprova contratação, mas não comprova isoladamente o uso ou a cobertura de cada processo. O detalhamento de hectares, capacidade estática e volumes de beneficiamento não está disponível nas fontes públicas do recorte e deve ser confirmado com a conta. A operação sazonal do agronegócio exige planejamento de safra e entressafra, o que torna a gestão de custos e a rastreabilidade pontos relevantes de conversa. A estrutura de beneficiamento indica fluxo contínuo entre lavoura e expedição, com necessidade de coordenação entre os elos da cadeia.\n\n```mermaid\nflowchart LR\n    A[\"Lavoura\"] --> B[\"Beneficiamento\"] --> C[\"Expedição\"]\n```\n\n# Sinais que mudam a abordagem\n\n- Sinal 1: operação verticalizada lavoura-beneficiamento com investimento confirmado em módulos GATec no CRM interno.\n- Sinal 2: estrutura societária com holding própria separada da operação, concentrando a participação da família.\n- Sinal 3: tecnologia de logística (armazenagem e transporte) não identificada no recorte interno, sem evidência de ausência na empresa.\n\n# Bordas e gaps\n\nA tecnologia que suporta os processos de armazenagem e expedição não foi identificada no recorte interno de módulos. O mesmo vale para o transporte e a entrega. A ausência de um módulo no recorte não prova ausência do processo ou da solução na empresa, e nenhuma conclusão de lacuna foi confirmada. A identificação dessas soluções é uma pergunta de validação para a visita, não uma afirmação sobre a operação. O mesmo cuidado se aplica a outros elos da cadeia: a ausência de menção a sistemas de apoio em fontes públicas não autoriza afirmar que a conta opera sem eles. Todas as observações de não identificação devem virar perguntas de validação, mantendo a neutralidade da abordagem.\n\n# Estratégia de entrada\n\nA frente principal de abordagem é a verticalização lavoura-industrial, onde a conta já demonstra investimento em automação e onde a expansão de processos logísticos é natural. As adjacências são a consolidação societária entre operação e holding e a ampliação do uso da plataforma na área de pessoas. A entrada deve começar pelo processo de beneficiamento, com a validação da solução que suporta hoje a armazenagem. O primeiro movimento comercial deve demonstrar domínio da operação e abrir perguntas de validação sobre os elos ainda não identificados, em vez de afirmar lacunas. A abordagem deve priorizar o entendimento do fluxo de beneficiamento e da estrutura de expedição, confirmando com a conta os volumes e a sazonalidade antes de qualquer proposta de solução.\n\n# Quem abordar\n\nO QSA identifica os sócios administradores da conta. O papel funcional de cada um não está comprovado por fonte oficial e deve ser validado na primeira conversa. O ponto de partida recomendado é o sócio administrador com maior presença na operação de Sapezal, a confirmar no primeiro contato. A holding SCHEFFER PARTICIPACOES S/A concentra a participação societária e pode ser o elo para entender a governança familiar e eventuais planos de expansão. A validação dos papéis funcionais é pré-requisito para uma abordagem direcionada.\n\n# Primeiro toque\n\nO primeiro toque deve demonstrar conhecimento da operação verticalizada e perguntar, de forma neutra, qual solução suporta hoje os processos de armazenagem e transporte. A pergunta não pressupõe ausência nem lacuna: apenas abre a validação do processo logístico. O tom deve ser consultivo, mostrando entendimento da cadeia lavoura-beneficiamento e do investimento já feito em automação agrícola. A agenda da primeira conversa deve incluir a validação dos papéis funcionais do QSA e a confirmação dos volumes e da estrutura de expedição.\n\n# Próximas 3 ações\n\n1. Validar com o contato o papel funcional de cada sócio administrador do QSA.\n2. Confirmar qual solução suporta hoje o processo de armazenagem e expedição.\n3. Confirmar qual solução suporta hoje o processo de transporte e entrega."
+}
