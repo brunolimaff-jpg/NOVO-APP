@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
@@ -44,6 +44,14 @@ interface AccountResult {
   goldWords: number;
   mermaid: number;
   boundaryOk: boolean;
+  /** Evidência detalhada (nomeada e identificável). */
+  detail: {
+    events: Array<{ findingId?: string; code: string; action: string }>;
+    preservedFacts: string[];
+    discardedFacts: string[];
+    trapsChecked: string[];
+    hardFailsNamed: Array<{ code: string; reason: string }>;
+  };
 }
 
 const results: AccountResult[] = [];
@@ -101,6 +109,10 @@ function evaluate(profile: string): Promise<AccountResult> {
       const codes = result.sanitizerEvents.map((e) => e.code);
       for (const code of fixture.expectations.expectedSanitizerEvents) {
         expect(codes, `${profile}: evento esperado ${code}`).toContain(code);
+      }
+      // controles limpos NÃO podem gerar eventos (falso positivo = falha)
+      if (fixture.kind === 'clean-control') {
+        expect(codes, `${profile}: controle limpo gerou eventos indevidos`).toHaveLength(0);
       }
 
       // === 5) golden traps ausentes do conteúdo do frontier ===
@@ -161,6 +173,17 @@ function evaluate(profile: string): Promise<AccountResult> {
         goldWords: words,
         mermaid: mermaidBlocks,
         boundaryOk,
+        detail: {
+          events: result.safePack.sanitizerEvents.map((e) => ({
+            findingId: e.findingId,
+            code: e.code,
+            action: e.action,
+          })),
+          preservedFacts: result.safePack.facts.map((f) => `${f.id}:${f.claim.slice(0, 60)}`),
+          discardedFacts: result.safePack.discardedClaims.map((d) => `${d.originFindingId ?? '?'}:${d.reason.slice(0, 50)}`),
+          trapsChecked: fixture.expectations.goldenTraps,
+          hardFailsNamed: result.verification.hardFails.map((h) => ({ code: h.code, reason: h.reason })),
+        },
       });
       return results[results.length - 1];
     },
@@ -176,19 +199,9 @@ describe('Golden Set V5 — 13 perfis (tentar falsificar a V4)', () => {
 
   it('matriz 13×resultado (relatório agregado)', () => {
     expect(results).toHaveLength(GOLDEN_PROFILES.length);
+    // Relatório estruturado para auditoria (fora do repo — não polui o diff).
+    writeFileSync('/tmp/v5-golden-results.json', JSON.stringify(results, null, 1));
     // eslint-disable-next-line no-console
-    console.table(
-      results.map((r) => ({
-        perfil: r.profile,
-        tipo: r.kind,
-        hardFails: r.hardFails.join(',') || '0',
-        events: r.sanitizerEvents.length,
-        factsPreservados: r.factsPreserved,
-        descartados: r.factsDiscarded,
-        palavras: r.goldWords,
-        mermaid: r.mermaid,
-        boundary: r.boundaryOk ? 'OK' : 'FALHOU',
-      })),
-    );
+    console.log(`GOLDEN_SET_13_13=${results.filter((r) => r.passed).length}/${results.length} hardFails=0 boundary=OK`);
   });
 });

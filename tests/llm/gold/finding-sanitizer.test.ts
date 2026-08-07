@@ -295,3 +295,35 @@ describe('FindingSanitizer — ENTITY_CONFLICT (regressão genérica do Golden S
     expect(safe.sanitizerEvents.find((e) => e.findingId === 'f-filial-ok')).toBeUndefined();
   });
 });
+
+describe('FindingSanitizer — "não há" epistemológico (micro-rodada V5)', () => {
+  it('preserva forma epistemológica: "não há evidência/informação/registro sobre X"', () => {
+    const raw = basePack();
+    raw.facts.push({
+      id: 'f-epist',
+      entity: 'SCHEFFER & CIA LTDA',
+      claim: 'Não há evidência no recorte de qual WMS é utilizado',
+      status: 'Confirmado',
+      source: 'CRM interno Senior',
+      kind: 'technology',
+    });
+    const safe = sanitizeFindingPack(raw, canonical);
+    expect(safe.facts.find((f) => f.id === 'f-epist')).toBeDefined();
+    expect(safe.sanitizerEvents.find((e) => e.findingId === 'f-epist')).toBeUndefined();
+  });
+
+  it('continua bloqueando negação direta de posse: "não há WMS na empresa"', () => {
+    const raw = basePack();
+    raw.facts.push({
+      id: 'f-neg',
+      entity: 'SCHEFFER & CIA LTDA',
+      claim: 'Não há WMS na empresa',
+      status: 'Confirmado',
+      source: 'CRM interno Senior',
+      kind: 'technology',
+    });
+    const safe = sanitizeFindingPack(raw, canonical);
+    const removed = safe.sanitizerEvents.find((e) => e.findingId === 'f-neg');
+    expect(removed?.code).toBe('NEGATIVE_EVIDENCE_AS_ABSENCE');
+  });
+});

@@ -50,9 +50,31 @@ const UNSUPPORTED_CLAIM =
 const KNOWLEDGE_NEGATION =
   /\b(n[aã]o\s+(est[áa]|foi|é)\s+(dispon[ií]vel|identificad[oa]s?|poss[ií]vel|confirmad[oa]s?)|deve\s+ser\s+confirmad[oa]s?|sem\s+evid[êe]ncia)\b/i;
 
-/** Frase com evidência explícita no próprio texto — não é claim sem fonte. */
-const HAS_EVIDENCE =
-  /\b(confirmad[oa]s?\s+(em|por)|registro\s+(oficial|t[ée]cnico|operacional)|laudo|licen[çc]a\s+municipal|em\s+entrevista|fonte\s+(oficial|prim[áa]ria)|documento\s+oficial)\b/i;
+/** Fonte não aceitável como prova externa (estimativa/inferência/recorte interno). */
+const NON_EXTERNAL_SOURCE =
+  /\b(estimativa|infer[êe]ncia|an[áa]lise de m[óo]dulos|dossi[êe] legado|crm interno)\b/i;
+
+/**
+ * Reconciliação por PROVENIÊNCIA REAL: a afirmação do Gold só deixa de ser
+ * UNSUPPORTED_PRODUCT_CLAIM quando existe um fato no SafeFindingPack com
+ * status Confirmado, fonte aceitável e termo compatível. Nunca autodeclaração
+ * textual ("confirmada em laudo" escrito pelo modelo não é evidência).
+ */
+function isSupportedBySafePack(sentenceLower: string, safePack: SafeFindingPack): boolean {
+  const terms: Array<{ pattern: RegExp; match: (c: string) => boolean }> = [
+    { pattern: /capacidade/, match: (c) => /capacidade/.test(c) },
+    { pattern: /produ[cç][aã]o\s+de/, match: (c) => /produ[cç][aã]o\s+de/.test(c) },
+    { pattern: /roi|retorno\s+sobre/, match: (c) => /roi|retorno\s+sobre/.test(c) },
+    { pattern: /prazo\s+de\s+\d+/, match: (c) => /prazo\s+de\s+\d+/.test(c) },
+    { pattern: /integra[cç][aã]o\s+nativa/, match: (c) => /integra[cç][aã]o/.test(c) },
+    { pattern: /middleware/, match: (c) => /middleware/.test(c) },
+  ];
+  const hit = terms.find((t) => t.pattern.test(sentenceLower));
+  if (!hit) return false;
+  return safePack.facts.some(
+    (f) => f.status === 'Confirmado' && !NON_EXTERNAL_SOURCE.test(f.source) && hit.match(f.claim.toLowerCase()),
+  );
+}
 
 /** Verbos de participação societária (para detectar inversão de relação direta). */
 const PARTICIPATION_VERB =
@@ -174,13 +196,14 @@ export function verifyGold(
     }
 
     // 6) Capacidade/produto/prazo/ROI/integração afirmados sem validação.
-    //    Frases que negam conhecimento ("não está disponível", "a confirmar")
-    //    ou trazem evidência explícita ("confirmada em laudo", "registro
-    //    oficial") não são claims sem fonte e não disparam.
+    //    A exceção NUNCA vem do texto do Gold (o modelo poderia inventar
+    //    "confirmada em laudo" na saída): ela só existe quando a afirmação é
+    //    RECONCILIADA com um fato do SafeFindingPack com status Confirmado
+    //    e fonte aceitável (proveniência real, não linguagem).
     if (
       UNSUPPORTED_CLAIM.test(sentenceLower) &&
       !KNOWLEDGE_NEGATION.test(sentenceLower) &&
-      !HAS_EVIDENCE.test(sentenceLower)
+      !isSupportedBySafePack(sentenceLower, safePack)
     ) {
       push('UNSUPPORTED_PRODUCT_CLAIM', `Frase afirma capacidade/produto/prazo/ROI sem fonte: "${sentence}"`);
     }

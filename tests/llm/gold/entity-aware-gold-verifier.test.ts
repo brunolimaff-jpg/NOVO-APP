@@ -177,3 +177,43 @@ describe('EntityAwareGoldVerifier', () => {
     expect(result.hardFails).toHaveLength(0);
   });
 });
+
+describe('EntityAwareGoldVerifier — proveniência real (micro-rodada V5)', () => {
+  it('reprova capacidade com autodeclaração textual de fonte SEM fato no pack (bypass bloqueado)', () => {
+    const gold = ['# Gold Brief', 'Capacidade de 120 mil sacas, confirmada em laudo oficial.'].join('\n');
+    // safePack SEM fato de capacidade (o modelo inventou a evidência no texto)
+    const result = verifyGold(gold, canonical, safePack());
+    expect(result.passed).toBe(false);
+    expect(result.hardFails.some((h) => h.code === 'UNSUPPORTED_PRODUCT_CLAIM')).toBe(true);
+  });
+
+  it('aceita capacidade quando reconciliada com fato Confirmado + fonte aceitável no pack', () => {
+    const pack = safePack();
+    pack.facts.push({
+      id: 'f-silos',
+      entity: 'COOPERATIVA AGRO SUL LTDA',
+      claim: 'Capacidade de armazenagem de 120 mil sacas confirmada em laudo',
+      status: 'Confirmado',
+      source: 'Laudo técnico',
+      kind: 'operation',
+    });
+    const gold = ['# Gold Brief', 'Capacidade de armazenagem de 120 mil sacas confirmada em laudo.'].join('\n');
+    const result = verifyGold(gold, canonical, pack);
+    expect(result.hardFails.filter((h) => h.code === 'UNSUPPORTED_PRODUCT_CLAIM')).toHaveLength(0);
+  });
+
+  it('reprova capacidade com fato do pack em status não confirmado', () => {
+    const pack = safePack();
+    pack.facts.push({
+      id: 'f-cap',
+      entity: 'METALURGICA FERRO FORTE S/A',
+      claim: 'Capacidade produtiva de 500 toneladas mensais',
+      status: 'Pista inicial',
+      source: 'Estimativa de mercado',
+      kind: 'metric',
+    });
+    const gold = ['# Gold Brief', 'Capacidade produtiva de 500 toneladas mensais.'].join('\n');
+    const result = verifyGold(gold, canonical, pack);
+    expect(result.hardFails.some((h) => h.code === 'UNSUPPORTED_PRODUCT_CLAIM')).toBe(true);
+  });
+});
