@@ -265,3 +265,50 @@ describe('EntityAwareGoldVerifier — evidência não emprestada (gate adversari
     expect(result.hardFails.filter((h) => h.code === 'UNSUPPORTED_PRODUCT_CLAIM')).toHaveLength(0);
   });
 });
+
+describe('EntityAwareGoldVerifier — comparador de valor numérico (defeito da re-auditoria final)', () => {
+  it('reprova 1,2 milhões vs 12 milhões (vírgula decimal não pode sumir)', () => {
+    const pack = safePack();
+    pack.facts.push({
+      id: 'f-cap',
+      entity: 'SCHEFFER & CIA LTDA',
+      claim: 'Capacidade de 1,2 milhões de sacas confirmada em laudo',
+      status: 'Confirmado',
+      source: 'Laudo técnico',
+      kind: 'operation',
+    });
+    const gold = ['# Gold Brief', 'Capacidade de 12 milhões de sacas confirmada em laudo.'].join('\n');
+    const result = verifyGold(gold, canonical, pack);
+    expect(result.hardFails.some((h) => h.code === 'UNSUPPORTED_PRODUCT_CLAIM')).toBe(true);
+  });
+
+  it('reprova 120 mil sacas vs 120 mil funcionários (unidade composta preservada)', () => {
+    const pack = safePack();
+    pack.facts.push({
+      id: 'f-cap',
+      entity: 'SCHEFFER & CIA LTDA',
+      claim: 'Capacidade de 120 mil sacas confirmada em laudo',
+      status: 'Confirmado',
+      source: 'Laudo técnico',
+      kind: 'operation',
+    });
+    const gold = ['# Gold Brief', 'Capacidade de 120 mil funcionários confirmada em registro.'].join('\n');
+    const result = verifyGold(gold, canonical, pack);
+    expect(result.hardFails.some((h) => h.code === 'UNSUPPORTED_PRODUCT_CLAIM')).toBe(true);
+  });
+
+  it('aceita 120 mil sacas vs 120 mil sacas (igualdade real preservada)', () => {
+    const pack = safePack();
+    pack.facts.push({
+      id: 'f-cap',
+      entity: 'SCHEFFER & CIA LTDA',
+      claim: 'Capacidade de 120 mil sacas confirmada em laudo',
+      status: 'Confirmado',
+      source: 'Laudo técnico',
+      kind: 'operation',
+    });
+    const gold = ['# Gold Brief', 'Capacidade de 120 mil sacas confirmada em laudo.'].join('\n');
+    const result = verifyGold(gold, canonical, pack);
+    expect(result.hardFails.filter((h) => h.code === 'UNSUPPORTED_PRODUCT_CLAIM')).toHaveLength(0);
+  });
+});

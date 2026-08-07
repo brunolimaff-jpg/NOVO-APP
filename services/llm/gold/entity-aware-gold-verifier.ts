@@ -54,17 +54,24 @@ const KNOWLEDGE_NEGATION =
 const NON_EXTERNAL_SOURCE =
   /\b(estimativa|infer[êe]ncia|an[áa]lise de m[óo]dulos|dossi[êe] legado|crm interno)\b/i;
 
-/** Valor numérico com unidade numa frase ("120 mil sacas", "500 toneladas"). */
-const VALUE_PATTERN =
-  /\b(\d+(?:[.,]\d+)?\s*(?:mil|milh[oõ]es|toneladas?|sacas?|unidades?|lojas?|funcion[áa]rios?|entregas?|torres?|dias?|meses?|%|m[²3]?|t)\w*)\b/i;
+/**
+ * Valor numérico com unidade composta: número + 1–2 palavras de unidade
+ * ("120 mil sacas", "1,2 milhões", "500 toneladas", "90 dias").
+ */
+const VALUE_PATTERN = /\b(\d+(?:[.,]\d+)?(?:\s+[a-zà-ú%²³]+){1,2})\b/i;
 
 function extractValue(text: string): string | null {
   const m = text.match(VALUE_PATTERN);
   return m ? normalizeName(m[1]) : null;
 }
 
+/**
+ * Normalização NUMÉRICA segura: vírgula vira ponto decimal ("1,2" → "1.2"),
+ * pontos/espacos removidos (separadores de milhar). NUNCA apaga a vírgula
+ * decimal — "1,2 milhões" ≠ "12 milhões".
+ */
 function valuesMatch(a: string, b: string): boolean {
-  const norm = (v: string) => v.toLowerCase().replace(/[\s.,]/g, '');
+  const norm = (v: string) => v.toLowerCase().replace(/[\s.]/g, '').replace(/,/g, '.');
   return norm(a) === norm(b);
 }
 
