@@ -435,3 +435,5 @@
 ### 2026-06-08 — Handoff final precisa apontar repo + Bruno Vault (APLICADO na PR #346)
 
 ### 2026-06-11 — Tracking de Operador: canonical operatorId, findUserByEmail, PII-safe logging
+- DI-2026-08-06-P0: P0-SUPABASE-SECURITY-CONTAINMENT aprovado em code-only (98%): isolamento RLS por operador, eventos só INSERT, RPC booleana de duplicidade, views/crm service_role only. Migrations remoto somente com autorização separada após #477/#478 em main. (Vault: Sessões/2026-08/2026-08-06T23-00-00; Lições/supabase/)
+- DI-2026-08-06-PILHA: ordem de release #477→#478→#480(P0)→#479; merge por PR exige MERGE explícito + autorização de deploy automático de Produção.

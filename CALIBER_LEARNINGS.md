@@ -520,3 +520,12 @@ _Atualizado automaticamente pelo Caliber apos sessoes de agente._
 
 - **ESM no runtime Vercel exige `.js` extension em imports locais** [vercel, esm, deploy, runtime]
   O runtime serverless da Vercel para funcoes TypeScript usa resolucao ESM estrita. Imports de arquivos locais sem extensao `.js` (ex: `from './utils'` em vez de `from './utils.js'`) falham em producao — `ERR_MODULE_NOT_FOUND`. O tipo do erro nao deixa claro que a extensao esta faltando. Sempre adicionar `.js` em imports de arquivos locais em `api/*.ts`.
+
+- **RLS permissiva com nome enganoso: verificar USING/WITH CHECK reais, não o nome da policy** [supabase, rls, seguranca]
+  `operator_own_dossies` com `USING (operator_id IS NOT NULL)` permite qualquer linha com operator_id preenchido — sem vínculo com auth.uid(). Em Produção, um autenticado lia 1.045/1.055 dossiês de outros operadores com content completo; UPDATE cross-operator (takeover) tecnicamente autorizado. Auditar com prova de runtime (SET ROLE + claims + contagem cross-operator), não só leitura de SQL. Corrigido no P0 (PR #480) com subquery profiles/auth.uid() + WITH CHECK anti-takeover.
+
+- **SECURITY DEFINER exige search_path fixo + objetos qualificados + ordem de criação** [supabase, security-definer, migrations]
+  Função SECURITY DEFINER referenciando tabela sem qualificar quebra ao fixar search_path; e sem REVOKE de PUBLIC, anon/authenticated executam. Replay de migrations deve rodar com `check_function_bodies=on` (default) — helper deve ser criado antes de quem o chama. Registrado no replay com `SHOW check_function_bodies`.
+
+- **Incidente GitHub Actions: critérios objetivos de retomada, não esperar "All Systems Operational"** [ci, github, deploy]
+  Durante Partial System Outage, merge train bloqueado mesmo com código aprovado (merge = deploy automático Produção; sem CI não há correlação merge↔deploy↔comportamento). Retomada quando: Actions fora de major_outage + webhooks OK + monitoring/resolved + run canário iniciado (started_at preenchido). Monitor combinado (status page + canário).
