@@ -59,19 +59,38 @@ interface Measure {
   unit: string;
 }
 
+/** Palavras que encerram a unidade de medida (contexto posterior, não medida). */
+const MEASURE_STOPWORDS = new Set([
+  'confirmada', 'confirmado', 'registrada', 'registrado', 'laudo', 'fonte', 'com', 'e', 'ou', 'licença',
+]);
+
 /**
- * Parser determinístico de medida: número (decimal com vírgula ou ponto) +
- * token colado (%, t, m², °) + até 3 palavras de unidade ("milhões de sacas").
- * Preserva quantidade, escala e unidade de forma inequívoca.
+ * Parser determinístico de medida ANCORADO NA CATEGORIA do claim:
+ * procura o termo da categoria (capacidade/ROI/prazo/etc.) e captura o
+ * PRIMEIRO número APÓS ele (com token colado e até 5 palavras de unidade,
+ * incluindo modificadores materiais como "por ano"/"por mês").
+ * Números ANTERIORES ao termo (unidade 2, filial, CNPJ, ano) nunca são
+ * interpretados como medida do claim.
  */
-function parseMeasure(text: string): Measure | null {
-  const m = text.match(
-    /(\d+(?:[.,]\d+)?)\s*([a-zà-ú%²³°]*)(?:\s+([a-zà-ú%²³°]+))?(?:\s+([a-zà-ú%²³°]+))?(?:\s+([a-zà-ú%²³°]+))?/i,
+function parseMeasure(text: string, categoryPattern: RegExp): Measure | null {
+  // match da categoria sobre o texto em lowercase (patterns sem flag 'i');
+  // o índice é idêntico no texto original (lowercase preserva comprimento).
+  const categoryMatch = text.toLowerCase().match(categoryPattern);
+  if (!categoryMatch || categoryMatch.index === undefined) return null;
+  const afterCategory = text.slice(categoryMatch.index + categoryMatch[0].length);
+
+  const m = afterCategory.match(
+    /(\d+(?:[.,]\d+)?)\s*([a-zà-ú%²³°]*)(?:\s+([a-zà-ú%²³°]+))?(?:\s+([a-zà-ú%²³°]+))?(?:\s+([a-zà-ú%²³°]+))?(?:\s+([a-zà-ú%²³°]+))?(?:\s+([a-zà-ú%²³°]+))?/i,
   );
   if (!m) return null;
-  const [, number, attached, w1, w2, w3] = m;
-  const unit = [attached, w1, w2, w3].filter(Boolean).join(' ');
-  return { quantity: number.replace(',', '.'), unit: normalizeName(unit) };
+  const [, number, attached, w1, w2, w3, w4, w5] = m;
+  const tokens = [attached, w1, w2, w3, w4, w5].filter(Boolean);
+  const unitTokens: string[] = [];
+  for (const token of tokens) {
+    if (MEASURE_STOPWORDS.has(token.toLowerCase())) break;
+    unitTokens.push(token);
+  }
+  return { quantity: number.replace(',', '.'), unit: normalizeName(unitTokens.join(' ')) };
 }
 
 function measuresEqual(a: Measure, b: Measure): boolean {
@@ -102,7 +121,7 @@ function isSupportedBySafePack(
   const hit = terms.find((t) => t.pattern.test(sentenceLower));
   if (!hit) return false;
 
-  const goldMeasure = parseMeasure(sentence);
+  const goldMeasure = parseMeasure(sentence, hit.pattern);
   // Entidade referida na frase: menção explícita de entidade conhecida;
   // caso contrário, a referência é a CONTA CANÔNICA.
   const accountName = normalizeName(canonical.legalName);
@@ -119,7 +138,7 @@ function isSupportedBySafePack(
     if (normalizeName(f.entity) !== referredEntity) return false;
     // Valor compatível: Gold sem medida é sustentado por fato com medida;
     // Gold com medida exige fato com MESMA quantidade E MESMA unidade.
-    const factMeasure = parseMeasure(f.claim);
+    const factMeasure = parseMeasure(f.claim, hit.pattern);
     if (goldMeasure) {
       if (!factMeasure) return false;
       if (!measuresEqual(goldMeasure, factMeasure)) return false;

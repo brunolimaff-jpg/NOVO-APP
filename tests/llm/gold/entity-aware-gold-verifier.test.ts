@@ -355,3 +355,46 @@ describe('EntityAwareGoldVerifier — parser de medida (bloqueador da auditoria 
     expect(result.hardFails.some((h) => h.code === 'UNSUPPORTED_PRODUCT_CLAIM')).toBe(true);
   });
 });
+
+describe('EntityAwareGoldVerifier — medida ancorada na categoria (correção final da auditoria)', () => {
+  const packWithCap = (claim: string) => {
+    const pack = safePack();
+    pack.facts.push({
+      id: 'f-cap',
+      entity: 'SCHEFFER & CIA LTDA',
+      claim,
+      status: 'Confirmado',
+      source: 'Laudo técnico',
+      kind: 'operation',
+    });
+    return pack;
+  };
+
+  it('REPROVA: número anterior ao claim não vira medida (unidade 2, capacidade 120 vs 900 mil sacas)', () => {
+    const pack = packWithCap('A unidade 2 possui capacidade de 120 mil sacas confirmada em laudo');
+    const gold = ['# Gold Brief', 'A unidade 2 possui capacidade de 900 mil sacas confirmada em laudo.'].join('\n');
+    const result = verifyGold(gold, canonical, pack);
+    expect(result.hardFails.some((h) => h.code === 'UNSUPPORTED_PRODUCT_CLAIM')).toBe(true);
+  });
+
+  it('PASSA: número anterior ao claim com medida igual (unidade 2, capacidade 120 mil sacas)', () => {
+    const pack = packWithCap('A unidade 2 possui capacidade de 120 mil sacas confirmada em laudo');
+    const gold = ['# Gold Brief', 'A unidade 2 possui capacidade de 120 mil sacas confirmada em laudo.'].join('\n');
+    const result = verifyGold(gold, canonical, pack);
+    expect(result.hardFails.filter((h) => h.code === 'UNSUPPORTED_PRODUCT_CLAIM')).toHaveLength(0);
+  });
+
+  it('REPROVA: modificador material preservado (1,2 milhões de sacas por ano vs por mês)', () => {
+    const pack = packWithCap('Capacidade de 1,2 milhões de sacas por ano confirmada em laudo');
+    const gold = ['# Gold Brief', 'Capacidade de 1,2 milhões de sacas por mês confirmada em laudo.'].join('\n');
+    const result = verifyGold(gold, canonical, pack);
+    expect(result.hardFails.some((h) => h.code === 'UNSUPPORTED_PRODUCT_CLAIM')).toBe(true);
+  });
+
+  it('REPROVA: CNPJ anterior ao claim não vira medida (CNPJ .../0014-03, capacidade 120 vs 900 mil sacas)', () => {
+    const pack = packWithCap('CNPJ 04.733.767/0014-03 possui capacidade de 120 mil sacas confirmada em laudo');
+    const gold = ['# Gold Brief', 'CNPJ 04.733.767/0014-03 possui capacidade de 900 mil sacas confirmada em laudo.'].join('\n');
+    const result = verifyGold(gold, canonical, pack);
+    expect(result.hardFails.some((h) => h.code === 'UNSUPPORTED_PRODUCT_CLAIM')).toBe(true);
+  });
+});
