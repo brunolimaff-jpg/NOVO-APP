@@ -45,6 +45,10 @@ const EXECUTIVE_ROLE =
 const UNSUPPORTED_CLAIM =
   /\b(capacidade\s+(est[áa]tica|de|produtiva)|roi|retorno\s+sobre|prazo\s+de\s+\d|integra[cç][aã]o\s+nativa|middleware)\b/i;
 
+/** Frase que nega conhecimento (não é afirmação de fato) — não dispara hard fail. */
+const KNOWLEDGE_NEGATION =
+  /\b(n[aã]o\s+(est[áa]|foi|é)\s+(dispon[ií]vel|identificad[oa]s?|poss[ií]vel|confirmad[oa]s?)|deve\s+ser\s+confirmad[oa]s?|sem\s+evid[êe]ncia)\b/i;
+
 function splitSentences(goldBrief: string): string[] {
   // Protege CNPJs formatados (contêm pontos) para o split de sentenças
   // não quebrar dentro deles.
@@ -156,8 +160,10 @@ export function verifyGold(
       }
     }
 
-    // 6) Capacidade/produto/prazo/ROI/integração sem validação.
-    if (UNSUPPORTED_CLAIM.test(sentenceLower)) {
+    // 6) Capacidade/produto/prazo/ROI/integração afirmados sem validação.
+    //    Frases que negam conhecimento ("não está disponível", "a confirmar")
+    //    não são afirmações e não disparam.
+    if (UNSUPPORTED_CLAIM.test(sentenceLower) && !KNOWLEDGE_NEGATION.test(sentenceLower)) {
       push('UNSUPPORTED_PRODUCT_CLAIM', `Frase afirma capacidade/produto/prazo/ROI sem fonte: "${sentence}"`);
     }
   }
