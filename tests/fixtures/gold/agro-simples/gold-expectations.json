@@ -1,0 +1,80 @@
+{
+  "profile": "agro-simples",
+  "kind": "clean-control",
+  "canonicalAccount": {
+    "inputCnpj": "33.445.566/0001-00",
+    "legalName": "FAZENDA BOA VISTA AGROPECUARIA LTDA",
+    "establishmentType": "Matriz",
+    "rootCnpj": "33445566",
+    "headOfficeCnpj": null,
+    "headOfficeLegalName": null,
+    "directPjPartners": [],
+    "qsaPeople": [
+      {
+        "name": "JOAO PEDRO ALVES",
+        "role": "Sócio-Administrador"
+      }
+    ]
+  },
+  "rawFindingPack": {
+    "module": "gold-compact",
+    "accountIdentity": {
+      "inputCnpj": "33.445.566/0001-00",
+      "legalName": "FAZENDA BOA VISTA AGROPECUARIA LTDA",
+      "establishmentType": "Matriz",
+      "rootCnpj": "33445566",
+      "conflicts": []
+    },
+    "facts": [
+      {
+        "id": "f-area",
+        "entity": "FAZENDA BOA VISTA AGROPECUARIA LTDA",
+        "claim": "Área cultivada de soja confirmada em fonte oficial",
+        "status": "Confirmado",
+        "source": "CNPJ oficial",
+        "kind": "operation"
+      },
+      {
+        "id": "f-modulos",
+        "entity": "FAZENDA BOA VISTA AGROPECUARIA LTDA",
+        "claim": "8 módulos Senior ativos no CRM interno",
+        "status": "Confirmado",
+        "source": "CRM interno Senior",
+        "kind": "operation"
+      }
+    ],
+    "relationships": [],
+    "technologySignals": [],
+    "people": [
+      {
+        "id": "p-1",
+        "personName": "JOAO PEDRO ALVES",
+        "role": "Sócio-Administrador",
+        "roleBasis": "qsa",
+        "status": "Confirmado",
+        "source": "QSA oficial"
+      }
+    ],
+    "metrics": [],
+    "conflicts": [],
+    "openQuestions": [
+      "Qual solução suporta hoje o processo de armazenagem?"
+    ],
+    "discardedClaims": []
+  },
+  "expectations": {
+    "factsThatMustSurvive": [
+      "Área cultivada de soja",
+      "8 módulos Senior"
+    ],
+    "claimsThatMustDisappear": [],
+    "expectedSanitizerEvents": [],
+    "goldenTraps": [
+      "não possui",
+      "gap de",
+      "manual"
+    ],
+    "forbiddenHardFails": [],
+    "note": "Controle limpo: fatos legítimos sem armadilhas — testa falso positivo zero."
+  }
+}

@@ -1,0 +1,82 @@
+{
+  "profile": "construcao",
+  "kind": "standard",
+  "canonicalAccount": {
+    "inputCnpj": "88.990.011/0001-00",
+    "legalName": "CONSTRUTORA HORIZONTE ALTO LTDA",
+    "establishmentType": "Matriz",
+    "rootCnpj": "88990011",
+    "headOfficeCnpj": null,
+    "headOfficeLegalName": null,
+    "directPjPartners": [],
+    "qsaPeople": [
+      {
+        "name": "FABIO AUGUSTO REIS",
+        "role": "Sócio-Administrador"
+      }
+    ]
+  },
+  "rawFindingPack": {
+    "module": "gold-compact",
+    "accountIdentity": {
+      "inputCnpj": "88.990.011/0001-00",
+      "legalName": "CONSTRUTORA HORIZONTE ALTO LTDA",
+      "establishmentType": "Matriz",
+      "rootCnpj": "88990011",
+      "conflicts": []
+    },
+    "facts": [
+      {
+        "id": "f-obra",
+        "entity": "CONSTRUTORA HORIZONTE ALTO LTDA",
+        "claim": "Obra de 24 torres residenciais confirmada em licença",
+        "status": "Confirmado",
+        "source": "Licença municipal",
+        "kind": "operation"
+      },
+      {
+        "id": "f-manual",
+        "entity": "CONSTRUTORA HORIZONTE ALTO LTDA",
+        "claim": "O acompanhamento de obra é feito à mão",
+        "status": "Pista forte",
+        "source": "Análise de módulos contratados",
+        "kind": "operation",
+        "process": "manual"
+      },
+      {
+        "id": "f-prazo",
+        "entity": "CONSTRUTORA HORIZONTE ALTO LTDA",
+        "claim": "Prazo de 90 dias para entrega da primeira etapa",
+        "status": "Pista inicial",
+        "source": "Estimativa comercial",
+        "kind": "operation"
+      }
+    ],
+    "relationships": [],
+    "technologySignals": [],
+    "people": [],
+    "metrics": [],
+    "conflicts": [],
+    "openQuestions": [],
+    "discardedClaims": []
+  },
+  "expectations": {
+    "factsThatMustSurvive": [
+      "24 torres"
+    ],
+    "claimsThatMustDisappear": [
+      "feito à mão",
+      "Prazo de 90 dias"
+    ],
+    "expectedSanitizerEvents": [
+      "MANUAL_PROCESS_INFERRED",
+      "UNSUPPORTED_PRODUCT_CLAIM"
+    ],
+    "goldenTraps": [
+      "à mão",
+      "90 dias"
+    ],
+    "forbiddenHardFails": [],
+    "note": "Inferência operacional (manual) e prazo sem fonte bloqueadas."
+  }
+}

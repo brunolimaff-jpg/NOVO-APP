@@ -1,0 +1,89 @@
+{
+  "profile": "empresas-laterais",
+  "kind": "standard",
+  "canonicalAccount": {
+    "inputCnpj": "55.667.788/0001-00",
+    "legalName": "TRANSPORTES VALE VERDE LTDA",
+    "establishmentType": "Matriz",
+    "rootCnpj": "55667788",
+    "headOfficeCnpj": null,
+    "headOfficeLegalName": null,
+    "directPjPartners": [],
+    "qsaPeople": [
+      {
+        "name": "CARLOS EDUARDO NUNES",
+        "role": "Sócio"
+      }
+    ]
+  },
+  "rawFindingPack": {
+    "module": "gold-compact",
+    "accountIdentity": {
+      "inputCnpj": "55.667.788/0001-00",
+      "legalName": "TRANSPORTES VALE VERDE LTDA",
+      "establishmentType": "Matriz",
+      "rootCnpj": "55667788",
+      "conflicts": []
+    },
+    "facts": [
+      {
+        "id": "f-frota",
+        "entity": "TRANSPORTES VALE VERDE LTDA",
+        "claim": "Frota de 45 caminhões confirmada em registro oficial",
+        "status": "Confirmado",
+        "source": "Registro oficial",
+        "kind": "operation"
+      },
+      {
+        "id": "f-grupo",
+        "entity": "TRANSPORTES VALE VERDE LTDA",
+        "claim": "EMPRESA IRMAOS SILVA LTDA integra o grupo econômico Vale Verde",
+        "status": "Confirmado",
+        "source": "socio-search",
+        "kind": "relationship"
+      }
+    ],
+    "relationships": [
+      {
+        "id": "r-lat1",
+        "entity": "TRANSPORTES VALE VERDE LTDA",
+        "relatedEntity": "66.778.899/0001-00",
+        "relationType": "partner_other_cnpj",
+        "status": "Pista inicial",
+        "source": "socio-search",
+        "evidence": "Compartilha sócio CARLOS EDUARDO NUNES"
+      },
+      {
+        "id": "r-lat2",
+        "entity": "TRANSPORTES VALE VERDE LTDA",
+        "relatedEntity": "66.778.899/0002-00",
+        "relationType": "partner_other_cnpj",
+        "status": "Pista inicial",
+        "source": "socio-search",
+        "evidence": "Compartilha sócio CARLOS EDUARDO NUNES"
+      }
+    ],
+    "technologySignals": [],
+    "people": [],
+    "metrics": [],
+    "conflicts": [],
+    "openQuestions": [],
+    "discardedClaims": []
+  },
+  "expectations": {
+    "factsThatMustSurvive": [
+      "45 caminhões"
+    ],
+    "claimsThatMustDisappear": [
+      "integra o grupo econômico"
+    ],
+    "expectedSanitizerEvents": [
+      "LATERAL_PROMOTED"
+    ],
+    "goldenTraps": [
+      "integra o grupo"
+    ],
+    "forbiddenHardFails": [],
+    "note": "Compartilhar sócio não prova grupo: laterais permanecem laterais."
+  }
+}

@@ -1,0 +1,70 @@
+{
+  "profile": "muito-stack",
+  "kind": "standard",
+  "canonicalAccount": {
+    "inputCnpj": "00.112.233/0001-00",
+    "legalName": "AGROINDUSTRIAL BANDEIRANTES S/A",
+    "establishmentType": "Matriz",
+    "rootCnpj": "00112233",
+    "headOfficeCnpj": null,
+    "headOfficeLegalName": null,
+    "directPjPartners": [],
+    "qsaPeople": [
+      {
+        "name": "RODRIGO MENEZES",
+        "role": "Sócio-Administrador"
+      }
+    ]
+  },
+  "rawFindingPack": {
+    "module": "gold-compact",
+    "accountIdentity": {
+      "inputCnpj": "00.112.233/0001-00",
+      "legalName": "AGROINDUSTRIAL BANDEIRANTES S/A",
+      "establishmentType": "Matriz",
+      "rootCnpj": "00112233",
+      "conflicts": []
+    },
+    "facts": [
+      {
+        "id": "f-modulos",
+        "entity": "AGROINDUSTRIAL BANDEIRANTES S/A",
+        "claim": "82 módulos Senior ativos no CRM interno",
+        "status": "Confirmado",
+        "source": "CRM interno Senior",
+        "kind": "operation"
+      },
+      {
+        "id": "f-mod-processo",
+        "entity": "AGROINDUSTRIAL BANDEIRANTES S/A",
+        "claim": "A empresa usa o módulo de manutenção para todo o processo de manutenção industrial",
+        "status": "Confirmado",
+        "source": "CRM interno Senior (módulo contratado)",
+        "kind": "technology"
+      }
+    ],
+    "relationships": [],
+    "technologySignals": [],
+    "people": [],
+    "metrics": [],
+    "conflicts": [],
+    "openQuestions": [],
+    "discardedClaims": []
+  },
+  "expectations": {
+    "factsThatMustSurvive": [
+      "82 módulos Senior"
+    ],
+    "claimsThatMustDisappear": [
+      "usa o módulo de manutenção para todo o processo"
+    ],
+    "expectedSanitizerEvents": [
+      "MODULE_AS_PROCESS_PROOF"
+    ],
+    "goldenTraps": [
+      "usa o módulo de manutenção para todo"
+    ],
+    "forbiddenHardFails": [],
+    "note": "Módulo contratado não prova processo operacional."
+  }
+}

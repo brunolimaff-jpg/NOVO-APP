@@ -1,0 +1,75 @@
+{
+  "profile": "input-matriz",
+  "kind": "standard",
+  "canonicalAccount": {
+    "inputCnpj": "33.445.566/0001-00",
+    "legalName": "CEREAIS PLANALTO CENTRAL LTDA",
+    "establishmentType": "Matriz",
+    "rootCnpj": "33445566",
+    "headOfficeCnpj": null,
+    "headOfficeLegalName": null,
+    "directPjPartners": [
+      {
+        "legalName": "PARTICIPACOES PLANALTO S/A",
+        "cnpj": "55.667.788/0001-00"
+      }
+    ],
+    "qsaPeople": [
+      {
+        "name": "HELENA CRISTINA VARGAS",
+        "role": "Sócia-Administradora"
+      }
+    ]
+  },
+  "rawFindingPack": {
+    "module": "gold-compact",
+    "accountIdentity": {
+      "inputCnpj": "33.445.566/0001-00",
+      "legalName": "CEREAIS PLANALTO CENTRAL LTDA",
+      "establishmentType": "Matriz",
+      "rootCnpj": "33445566",
+      "conflicts": []
+    },
+    "facts": [
+      {
+        "id": "f-matriz",
+        "entity": "CEREAIS PLANALTO CENTRAL LTDA",
+        "claim": "Sede em Rio Verde/GO com 3 unidades confirmadas",
+        "status": "Confirmado",
+        "source": "Registro oficial",
+        "kind": "identity"
+      },
+      {
+        "id": "f-neg",
+        "entity": "CEREAIS PLANALTO CENTRAL LTDA",
+        "claim": "Não há sistema de armazenagem na unidade central",
+        "status": "Confirmado",
+        "source": "CRM interno Senior",
+        "kind": "technology"
+      }
+    ],
+    "relationships": [],
+    "technologySignals": [],
+    "people": [],
+    "metrics": [],
+    "conflicts": [],
+    "openQuestions": [],
+    "discardedClaims": []
+  },
+  "expectations": {
+    "factsThatMustSurvive": [
+      "Sede em Rio Verde/GO"
+    ],
+    "claimsThatMustDisappear": [
+      "Não há sistema de armazenagem"
+    ],
+    "expectedSanitizerEvents": [
+      "NEGATIVE_EVIDENCE_AS_ABSENCE"
+    ],
+    "goldenTraps": [
+      "não há sistema"
+    ],
+    "forbiddenHardFails": [],
+    "note": "Input matriz: nenhum falso hard fail de tipo cadastral."
+  }
+}

@@ -1,0 +1,61 @@
+{
+  "profile": "sem-stack",
+  "kind": "clean-control",
+  "canonicalAccount": {
+    "inputCnpj": "22.334.455/0001-00",
+    "legalName": "OFICINA MECANICA PONTO CERTO LTDA",
+    "establishmentType": "Matriz",
+    "rootCnpj": "22334455",
+    "headOfficeCnpj": null,
+    "headOfficeLegalName": null,
+    "directPjPartners": [],
+    "qsaPeople": [
+      {
+        "name": "MARCOS VINICIUS TAVARES",
+        "role": "Sócio-Administrador"
+      }
+    ]
+  },
+  "rawFindingPack": {
+    "module": "gold-compact",
+    "accountIdentity": {
+      "inputCnpj": "22.334.455/0001-00",
+      "legalName": "OFICINA MECANICA PONTO CERTO LTDA",
+      "establishmentType": "Matriz",
+      "rootCnpj": "22334455",
+      "conflicts": []
+    },
+    "facts": [
+      {
+        "id": "f-oficina",
+        "entity": "OFICINA MECANICA PONTO CERTO LTDA",
+        "claim": "Oficina com 18 funcionários confirmada em registro",
+        "status": "Confirmado",
+        "source": "Registro oficial",
+        "kind": "operation"
+      }
+    ],
+    "relationships": [],
+    "technologySignals": [],
+    "people": [],
+    "metrics": [],
+    "conflicts": [],
+    "openQuestions": [
+      "Qual solução suporta hoje o processo de controle de ordens de serviço?"
+    ],
+    "discardedClaims": []
+  },
+  "expectations": {
+    "factsThatMustSurvive": [
+      "18 funcionários"
+    ],
+    "claimsThatMustDisappear": [],
+    "expectedSanitizerEvents": [],
+    "goldenTraps": [
+      "não possui",
+      "gap de"
+    ],
+    "forbiddenHardFails": [],
+    "note": "Controle limpo: recorte vazio não autoriza afirmar ausência tecnológica."
+  }
+}
