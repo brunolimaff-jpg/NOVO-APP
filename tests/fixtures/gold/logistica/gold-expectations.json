@@ -1,0 +1,79 @@
+{
+  "profile": "logistica",
+  "kind": "near-miss",
+  "canonicalAccount": {
+    "inputCnpj": "77.889.900/0001-00",
+    "legalName": "DISTRIBUIDORA ROTA CERTA LTDA",
+    "establishmentType": "Matriz",
+    "rootCnpj": "77889900",
+    "headOfficeCnpj": null,
+    "headOfficeLegalName": null,
+    "directPjPartners": [],
+    "qsaPeople": [
+      {
+        "name": "RENATA OLIVEIRA DIAS",
+        "role": "Sócia-Administradora"
+      }
+    ]
+  },
+  "rawFindingPack": {
+    "module": "gold-compact",
+    "accountIdentity": {
+      "inputCnpj": "77.889.900/0001-00",
+      "legalName": "DISTRIBUIDORA ROTA CERTA LTDA",
+      "establishmentType": "Matriz",
+      "rootCnpj": "77889900",
+      "conflicts": []
+    },
+    "facts": [
+      {
+        "id": "f-wms-obs",
+        "entity": "DISTRIBUIDORA ROTA CERTA LTDA",
+        "claim": "WMS Senior não aparece no recorte interno de módulos contratados",
+        "status": "Confirmado",
+        "source": "CRM interno Senior",
+        "kind": "technology"
+      },
+      {
+        "id": "f-frota",
+        "entity": "DISTRIBUIDORA ROTA CERTA LTDA",
+        "claim": "Operação de distribuição com 120 entregas diárias confirmada",
+        "status": "Confirmado",
+        "source": "Registro operacional",
+        "kind": "operation"
+      }
+    ],
+    "relationships": [],
+    "technologySignals": [
+      {
+        "technology": "TMS",
+        "observedFact": "TMS não identificado no levantamento interno de módulos",
+        "status": "Confirmado",
+        "whatIsNotKnown": "Se existe solução de gestão de transporte na operação",
+        "validationQuestion": "Qual solução suporta hoje o processo de entrega?"
+      }
+    ],
+    "people": [],
+    "metrics": [],
+    "conflicts": [],
+    "openQuestions": [
+      "Qual solução suporta hoje o processo de armazenagem e entrega?"
+    ],
+    "discardedClaims": []
+  },
+  "expectations": {
+    "factsThatMustSurvive": [
+      "não aparece no recorte interno",
+      "120 entregas diárias"
+    ],
+    "claimsThatMustDisappear": [],
+    "expectedSanitizerEvents": [],
+    "goldenTraps": [
+      "não possui",
+      "gap de",
+      "manual"
+    ],
+    "forbiddenHardFails": [],
+    "note": "NEAR-MISS: observações válidas de não identificação DEVEM sobreviver (não é blocklist)."
+  }
+}
