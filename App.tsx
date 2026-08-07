@@ -3,6 +3,7 @@ import { useOffline } from './hooks/useOffline';
 import { useToast } from './hooks/useToast';
 import { useTheme } from './hooks/useTheme';
 import { useAppInitialization } from './hooks/useAppInitialization';
+import { useInterruptedDossierRunRecovery } from './hooks/useInterruptedDossierRunRecovery';
 import { useEmailModal } from './hooks/useEmailModal';
 import { useFollowUpModal } from './hooks/useFollowUpModal';
 import { useSessionManager, useSessionRemoteSave } from './features/chat/session-controller';
@@ -262,6 +263,13 @@ const App: React.FC = () => {
     setCurrentSessionId,
     setIsSidebarOpen,
     setIsInitialized,
+  });
+
+  useInterruptedDossierRunRecovery({
+    isInitialized,
+    updateSessionById,
+    setIsLoading,
+    resetLoadingProgress,
   });
 
   const handleClearChat = () => {
