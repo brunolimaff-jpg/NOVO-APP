@@ -54,25 +54,28 @@ const KNOWLEDGE_NEGATION =
 const NON_EXTERNAL_SOURCE =
   /\b(estimativa|infer[êe]ncia|an[áa]lise de m[óo]dulos|dossi[êe] legado|crm interno)\b/i;
 
-/**
- * Valor numérico com unidade composta: número + 1–2 palavras de unidade
- * ("120 mil sacas", "1,2 milhões", "500 toneladas", "90 dias").
- */
-const VALUE_PATTERN = /\b(\d+(?:[.,]\d+)?(?:\s+[a-zà-ú%²³]+){1,2})\b/i;
-
-function extractValue(text: string): string | null {
-  const m = text.match(VALUE_PATTERN);
-  return m ? normalizeName(m[1]) : null;
+interface Measure {
+  quantity: string;
+  unit: string;
 }
 
 /**
- * Normalização NUMÉRICA segura: vírgula vira ponto decimal ("1,2" → "1.2"),
- * pontos/espacos removidos (separadores de milhar). NUNCA apaga a vírgula
- * decimal — "1,2 milhões" ≠ "12 milhões".
+ * Parser determinístico de medida: número (decimal com vírgula ou ponto) +
+ * token colado (%, t, m², °) + até 3 palavras de unidade ("milhões de sacas").
+ * Preserva quantidade, escala e unidade de forma inequívoca.
  */
-function valuesMatch(a: string, b: string): boolean {
-  const norm = (v: string) => v.toLowerCase().replace(/[\s.]/g, '').replace(/,/g, '.');
-  return norm(a) === norm(b);
+function parseMeasure(text: string): Measure | null {
+  const m = text.match(
+    /(\d+(?:[.,]\d+)?)\s*([a-zà-ú%²³°]*)(?:\s+([a-zà-ú%²³°]+))?(?:\s+([a-zà-ú%²³°]+))?(?:\s+([a-zà-ú%²³°]+))?/i,
+  );
+  if (!m) return null;
+  const [, number, attached, w1, w2, w3] = m;
+  const unit = [attached, w1, w2, w3].filter(Boolean).join(' ');
+  return { quantity: number.replace(',', '.'), unit: normalizeName(unit) };
+}
+
+function measuresEqual(a: Measure, b: Measure): boolean {
+  return a.quantity === b.quantity && a.unit === b.unit;
 }
 
 /**
@@ -99,7 +102,7 @@ function isSupportedBySafePack(
   const hit = terms.find((t) => t.pattern.test(sentenceLower));
   if (!hit) return false;
 
-  const goldValue = extractValue(sentence);
+  const goldMeasure = parseMeasure(sentence);
   // Entidade referida na frase: menção explícita de entidade conhecida;
   // caso contrário, a referência é a CONTA CANÔNICA.
   const accountName = normalizeName(canonical.legalName);
@@ -114,12 +117,12 @@ function isSupportedBySafePack(
     if (!hit.match(f.claim.toLowerCase())) return false;
     // Mesma entidade: o fato precisa pertencer à entidade referida na frase.
     if (normalizeName(f.entity) !== referredEntity) return false;
-    // Valor compatível: Gold sem valor é sustentado por fato com valor;
-    // Gold com valor exige fato com o MESMO valor.
-    const factValue = extractValue(f.claim);
-    if (goldValue) {
-      if (!factValue) return false;
-      if (!valuesMatch(goldValue, factValue)) return false;
+    // Valor compatível: Gold sem medida é sustentado por fato com medida;
+    // Gold com medida exige fato com MESMA quantidade E MESMA unidade.
+    const factMeasure = parseMeasure(f.claim);
+    if (goldMeasure) {
+      if (!factMeasure) return false;
+      if (!measuresEqual(goldMeasure, factMeasure)) return false;
     }
     return true;
   });

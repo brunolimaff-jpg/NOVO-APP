@@ -312,3 +312,46 @@ describe('EntityAwareGoldVerifier — comparador de valor numérico (defeito da 
     expect(result.hardFails.filter((h) => h.code === 'UNSUPPORTED_PRODUCT_CLAIM')).toHaveLength(0);
   });
 });
+
+describe('EntityAwareGoldVerifier — parser de medida (bloqueador da auditoria da publicação)', () => {
+  const packWithCap = (claim: string) => {
+    const pack = safePack();
+    pack.facts.push({
+      id: 'f-cap',
+      entity: 'SCHEFFER & CIA LTDA',
+      claim,
+      status: 'Confirmado',
+      source: 'Laudo técnico',
+      kind: 'operation',
+    });
+    return pack;
+  };
+
+  it('REPROVA: Safe ROI de 10% vs Gold ROI de 90% (percentual colado)', () => {
+    const pack = packWithCap('ROI de 10% confirmado em laudo');
+    const gold = ['# Gold Brief', 'ROI de 90% confirmado em laudo.'].join('\n');
+    const result = verifyGold(gold, canonical, pack);
+    expect(result.hardFails.some((h) => h.code === 'UNSUPPORTED_PRODUCT_CLAIM')).toBe(true);
+  });
+
+  it('REPROVA: Safe 1,2 milhões de sacas vs Gold 1,2 milhões de funcionários (unidade após escala)', () => {
+    const pack = packWithCap('Capacidade de 1,2 milhões de sacas confirmada em laudo');
+    const gold = ['# Gold Brief', 'Capacidade de 1,2 milhões de funcionários confirmada em laudo.'].join('\n');
+    const result = verifyGold(gold, canonical, pack);
+    expect(result.hardFails.some((h) => h.code === 'UNSUPPORTED_PRODUCT_CLAIM')).toBe(true);
+  });
+
+  it('PASSA: Safe 1,2 milhões de sacas vs Gold igual', () => {
+    const pack = packWithCap('Capacidade de 1,2 milhões de sacas confirmada em laudo');
+    const gold = ['# Gold Brief', 'Capacidade de 1,2 milhões de sacas confirmada em laudo.'].join('\n');
+    const result = verifyGold(gold, canonical, pack);
+    expect(result.hardFails.filter((h) => h.code === 'UNSUPPORTED_PRODUCT_CLAIM')).toHaveLength(0);
+  });
+
+  it('REPROVA: Safe 500t vs Gold 600t (unidade compacta colada)', () => {
+    const pack = packWithCap('Capacidade de 500t confirmada em laudo');
+    const gold = ['# Gold Brief', 'Capacidade de 600t confirmada em laudo.'].join('\n');
+    const result = verifyGold(gold, canonical, pack);
+    expect(result.hardFails.some((h) => h.code === 'UNSUPPORTED_PRODUCT_CLAIM')).toBe(true);
+  });
+});
