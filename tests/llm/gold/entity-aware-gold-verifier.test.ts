@@ -152,6 +152,19 @@ describe('EntityAwareGoldVerifier', () => {
     expect(result.hardFails.some((h) => h.code === 'UNSUPPORTED_PRODUCT_CLAIM')).toBe(true);
   });
 
+  it('reprova relação societária direta invertida (conta participa da holding)', () => {
+    const gold = ['# Gold Brief', 'SCHEFFER & CIA LTDA participa do capital de SCHEFFER PARTICIPACOES S/A.'].join('\n');
+    const result = verifyGold(gold, canonical, safePack());
+    expect(result.passed).toBe(false);
+    expect(result.hardFails.some((h) => h.code === 'RELATIONSHIP_INVERTED')).toBe(true);
+  });
+
+  it('aceita relação direta na direção correta (holding participa da conta)', () => {
+    const gold = ['# Gold Brief', 'SCHEFFER PARTICIPACOES S/A participa do capital de SCHEFFER & CIA LTDA.'].join('\n');
+    const result = verifyGold(gold, canonical, safePack());
+    expect(result.hardFails.filter((h) => h.code === 'RELATIONSHIP_INVERTED')).toHaveLength(0);
+  });
+
   it('passa Gold limpo (caso feliz Scheffer)', () => {
     const gold = [
       '# Gold Brief',

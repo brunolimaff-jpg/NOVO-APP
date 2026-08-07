@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { CanonicalAccount, RawFindingPack, SafeFindingPack } from '../../../services/llm/gold/gold-contracts';
+import type { CanonicalAccount, RawFindingPack } from '../../../services/llm/gold/gold-contracts';
 import {
   runGuardedGoldPipeline,
   type CompactInput,
@@ -111,8 +111,11 @@ describe('GuardedGoldPipeline', () => {
     const frontierInput = compose.mock.calls[0][0];
     expect(frontierInput.safePack.sanitized).toBe(true);
     expect(frontierInput.safePack).not.toBe(rawPack());
-    // claim removida pelo sanitizer não reaparece como fato no payload do frontier
-    expect(frontierInput.safePack.facts.some((f: { claim: string }) => f.claim.includes('não possui WMS'))).toBe(false);
+    // o frontier NÃO recebe material bruto: sem originalPack, sem discardedClaims
+    expect('originalPack' in frontierInput.safePack).toBe(false);
+    expect('discardedClaims' in frontierInput.safePack).toBe(false);
+    // claim removida pelo sanitizer não aparece em NENHUMA parte do payload
+    expect(JSON.stringify(frontierInput)).not.toContain('não possui WMS');
   });
 
   it('não envia CPF ao frontier (guard do sanitizer)', async () => {
@@ -130,7 +133,10 @@ describe('GuardedGoldPipeline', () => {
     const deps: GoldPipelineDeps = { compact, compose };
 
     const result = await runGuardedGoldPipeline({ canonical, dossier: 'dossiê' }, deps);
+    // asserção REAL: o CPF formatado (com pontuação) e sem pontuação
+    // não podem existir em NENHUMA parte do payload do frontier
     const serializedFrontier = JSON.stringify(compose.mock.calls[0][0]);
+    expect(serializedFrontier).not.toContain('123.456.789');
     expect(serializedFrontier).not.toContain('123456789');
     expect(result.sanitizerEvents.some((e) => e.code === 'CPF_LEAK')).toBe(true);
   });
@@ -172,7 +178,7 @@ describe('GuardedGoldPipeline', () => {
     const deps: GoldPipelineDeps = { compact, compose };
 
     await runGuardedGoldPipeline({ canonical, dossier: 'dossiê' }, deps);
-    const frontierInput = compose.mock.calls[0][0] as { safePack: SafeFindingPack };
+    const frontierInput = compose.mock.calls[0][0];
     const direct = frontierInput.safePack.relationships.find((r) => r.relatedEntity.includes('11.021.773'));
     expect(direct?.relationType).toBe('direct_pj_relation');
   });

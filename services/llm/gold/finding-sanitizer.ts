@@ -43,7 +43,7 @@ const EXECUTIVE_ROLE =
 
 /** Capacidade/produto/ROI/prazo/integração afirmados sem validação. */
 const UNSUPPORTED_CLAIM =
-  /\b(capacidade\s+(est[áa]tica|de|produtiva)|produ[cç][aã]o\s+de\s+\d|roi|retorno\s+sobre|prazo\s+de\s+\d|integra[cç][aã]o\s+nativa|middleware)\b/i;
+  /\b(capacidade\s+(est[áa]tica|de|produtiva)|produ[cç][aã]o\s+de\s+\d+|roi|retorno\s+sobre|prazo\s+de\s+\d+|integra[cç][aã]o\s+nativa|middleware)\b/i;
 
 const NON_EXTERNAL_SOURCE =
   /\b(estimativa|infer[êe]ncia|an[áa]lise de m[óo]dulos|dossi[êe] legado|crm interno)\b/i;

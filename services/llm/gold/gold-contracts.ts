@@ -188,6 +188,18 @@ export const safeFindingPackSchema = rawFindingPackSchema
   .strict();
 export type SafeFindingPack = z.infer<typeof safeFindingPackSchema>;
 
+/**
+ * Payload que o frontier (compose) recebe: SafeFindingPack SEM o material
+ * bruto (originalPack) e SEM claims descartadas. Rastreabilidade completa
+ * (sanitized, sanitizerEvents, fatos saneados) permanece; conteúdo que o
+ * sanitizer deveria impedir NUNCA atravessa esta fronteira.
+ */
+export const frontierPackSchema = safeFindingPackSchema.omit({
+  originalPack: true,
+  discardedClaims: true,
+});
+export type FrontierPack = z.infer<typeof frontierPackSchema>;
+
 export const entityMentionSchema = z
   .object({
     cnpj: z.string().min(1),

@@ -9,8 +9,10 @@
  * RawFindingPack só entra após validação zod (fail-closed).
  */
 import {
+  frontierPackSchema,
   rawFindingPackSchema,
   type CanonicalAccount,
+  type FrontierPack,
   type RawFindingPack,
   type SafeFindingPack,
   type SanitizerEvent,
@@ -26,7 +28,8 @@ export interface CompactInput {
 
 export interface ComposeInput {
   canonical: CanonicalAccount;
-  safePack: SafeFindingPack;
+  /** Somente conteúdo seguro — nunca contém originalPack nem discardedClaims. */
+  safePack: FrontierPack;
 }
 
 export interface GoldPipelineDeps {
@@ -77,8 +80,13 @@ export async function runGuardedGoldPipeline(
   // 3) Sanitize — Raw → Safe (marca sanitized: true).
   const safePack = sanitizeFindingPack({ ...raw, relationships }, input.canonical);
 
-  // 4) Compose — o frontier recebe SOMENTE SafeFindingPack.
-  const goldBrief = await deps.compose({ canonical: input.canonical, safePack });
+  // 4) Compose — o frontier recebe SOMENTE conteúdo seguro: SafeFindingPack
+  //    SEM originalPack, SEM discardedClaims e SEM o texto bruto dos eventos
+  //    (sanitizerEvents sem `before` — a claim removida não atravessa).
+  const { originalPack: _originalPack, discardedClaims: _discardedClaims, sanitizerEvents, ...frontierRest } = safePack;
+  const frontierEvents = sanitizerEvents.map(({ before: _before, ...event }) => event);
+  const frontierInput = frontierPackSchema.parse({ ...frontierRest, sanitizerEvents: frontierEvents });
+  const goldBrief = await deps.compose({ canonical: input.canonical, safePack: frontierInput });
 
   // 5) Verify — barreira final sobre o Gold.
   const verification = verifyGold(goldBrief, input.canonical, safePack);

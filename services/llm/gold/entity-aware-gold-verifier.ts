@@ -17,6 +17,7 @@ export type GoldHardFailCode =
   | 'NEGATIVE_EVIDENCE_AS_ABSENCE'
   | 'QSA_AS_DECISOR'
   | 'UNSUPPORTED_PRODUCT_CLAIM'
+  | 'RELATIONSHIP_INVERTED'
   | 'ENTITY_CONFLICT';
 
 export interface GoldHardFail {
@@ -43,11 +44,19 @@ const EXECUTIVE_ROLE =
   /\b(cfo|ceo|coo|cio|cto|diretor|diretora|presidente|decisor|head\s+de|vice-presidente)\b/i;
 
 const UNSUPPORTED_CLAIM =
-  /\b(capacidade\s+(est[áa]tica|de|produtiva)|roi|retorno\s+sobre|prazo\s+de\s+\d|integra[cç][aã]o\s+nativa|middleware)\b/i;
+  /\b(capacidade\s+(est[áa]tica|de|produtiva)|roi|retorno\s+sobre|prazo\s+de\s+\d+|integra[cç][aã]o\s+nativa|middleware)\b/i;
 
 /** Frase que nega conhecimento (não é afirmação de fato) — não dispara hard fail. */
 const KNOWLEDGE_NEGATION =
   /\b(n[aã]o\s+(est[áa]|foi|é)\s+(dispon[ií]vel|identificad[oa]s?|poss[ií]vel|confirmad[oa]s?)|deve\s+ser\s+confirmad[oa]s?|sem\s+evid[êe]ncia)\b/i;
+
+/** Verbos de participação societária (para detectar inversão de relação direta). */
+const PARTICIPATION_VERB =
+  /\b(participa\s+do\s+capital|é\s+s[óo]cia|s[óo]cia\s+de|controla|é\s+controladora|det[ée]m\s+participa[cç][aã]o)\b/i;
+
+function normalizeName(value: string): string {
+  return value.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
 
 function splitSentences(goldBrief: string): string[] {
   // Protege CNPJs formatados (contêm pontos) para o split de sentenças
@@ -165,6 +174,24 @@ export function verifyGold(
     //    não são afirmações e não disparam.
     if (UNSUPPORTED_CLAIM.test(sentenceLower) && !KNOWLEDGE_NEGATION.test(sentenceLower)) {
       push('UNSUPPORTED_PRODUCT_CLAIM', `Frase afirma capacidade/produto/prazo/ROI sem fonte: "${sentence}"`);
+    }
+
+    // 7) Relação societária direta invertida: a CONTA não pode ser quem
+    //    participa do capital da PJ direta — o canonical define a direção
+    //    (PJ direta/holding participa da conta, não o contrário).
+    const verbMatch = sentenceLower.match(PARTICIPATION_VERB);
+    if (verbMatch) {
+      const verbIndex = verbMatch.index ?? -1;
+      const accountIndex = sentenceLower.indexOf(normalizeName(canonical.legalName));
+      for (const partner of canonical.directPjPartners) {
+        const partnerIndex = sentenceLower.indexOf(normalizeName(partner.legalName));
+        if (accountIndex >= 0 && partnerIndex >= 0 && accountIndex < verbIndex && partnerIndex > verbIndex) {
+          push(
+            'RELATIONSHIP_INVERTED',
+            `Frase inverte a relação direta: a conta participa do capital de ${partner.legalName} sem evidência`,
+          );
+        }
+      }
     }
   }
 
