@@ -31,7 +31,7 @@ describe('supabaseMigrationChain contract', () => {
   });
 
   it('devem existir exatamente 24 arquivos de migration ativos no total', () => {
-    expect(files.length).toBe(24);
+    expect(files.length).toBe(27);
   });
 
   it('todos os 18 marcadores de producao devem conter apenas comentarios e whitespace (no-op)', () => {
@@ -42,7 +42,10 @@ describe('supabaseMigrationChain contract', () => {
         !f.includes('harden_legacy_operator_linking') &&
         !f.includes('scout_diagnostics_opportunistic_retention') &&
         !f.includes('remove_duplicate_scout_diagnostics_indexes') &&
-        !f.includes('close_stale_dossier_runs'),
+        !f.includes('close_stale_dossier_runs') &&
+        !f.includes('p0_isolate_dossies') &&
+        !f.includes('p0_isolate_events_sessions_and_anon') &&
+        !f.includes('p0_secure_duplicate_discovery'),
     );
     expect(markers.length).toBe(18);
 
