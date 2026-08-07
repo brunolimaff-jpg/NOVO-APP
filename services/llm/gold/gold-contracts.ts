@@ -190,14 +190,18 @@ export type SafeFindingPack = z.infer<typeof safeFindingPackSchema>;
 
 /**
  * Payload que o frontier (compose) recebe: SafeFindingPack SEM o material
- * bruto (originalPack) e SEM claims descartadas. Rastreabilidade completa
- * (sanitized, sanitizerEvents, fatos saneados) permanece; conteúdo que o
- * sanitizer deveria impedir NUNCA atravessa esta fronteira.
+ * bruto (originalPack), SEM claims descartadas e com eventos cujo texto
+ * bruto (`before`) é IMPOSSÍVEL por construção (o schema rejeita a chave).
+ * Rastreabilidade completa (sanitized, sanitizerEvents code/action/reason,
+ * fatos saneados) permanece; conteúdo que o sanitizer deveria impedir
+ * NUNCA atravessa esta fronteira.
  */
-export const frontierPackSchema = safeFindingPackSchema.omit({
-  originalPack: true,
-  discardedClaims: true,
-});
+export const frontierSanitizerEventSchema = sanitizerEventSchema.omit({ before: true });
+export type FrontierSanitizerEvent = z.infer<typeof frontierSanitizerEventSchema>;
+
+export const frontierPackSchema = safeFindingPackSchema
+  .omit({ originalPack: true, discardedClaims: true })
+  .extend({ sanitizerEvents: z.array(frontierSanitizerEventSchema) });
 export type FrontierPack = z.infer<typeof frontierPackSchema>;
 
 export const entityMentionSchema = z

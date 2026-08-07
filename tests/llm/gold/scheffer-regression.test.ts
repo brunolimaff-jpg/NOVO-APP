@@ -3,6 +3,7 @@ import { resolve } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 import {
   canonicalAccountSchema,
+  frontierPackSchema,
   rawFindingPackSchema,
   type CanonicalAccount,
   type RawFindingPack,
@@ -140,22 +141,55 @@ describe('Scheffer Golden Regression (V4)', () => {
     expect(frontierInput.safePack.sanitized).toBe(true);
     expect('originalPack' in frontierInput.safePack).toBe(false);
     expect('discardedClaims' in frontierInput.safePack).toBe(false);
-    // nenhum fato-trap atravessou (facts/relationships/technologySignals/people)
-    const allClaims = [
-      ...frontierInput.safePack.facts.map((f: { claim: string }) => f.claim),
-      ...frontierInput.safePack.technologySignals.map((s: { observedFact: string }) => s.observedFact),
-      ...frontierInput.safePack.relationships.map((r: { evidence?: string | null }) => r.evidence ?? ''),
-    ].join(' ');
-    expect(allClaims).not.toContain('não possui');
-    expect(allClaims).not.toContain('planilha');
-    expect(allClaims).not.toContain('ROI');
-    expect(allClaims).not.toContain('60 dias');
-    // CPF não chega em NENHUMA parte do payload (nem nos eventos)
+
+    // CONTEÚDO do frontier não pode conter NENHUM trap (independe do mock):
+    // serializa o pack sem os eventos (metadado de auditoria) e aplica a
+    // lista completa de traps sobre o conteúdo que atravessou o firewall.
+    const { sanitizerEvents: _events, ...frontierContent } = frontierInput.safePack;
+    const serializedContent = JSON.stringify(frontierContent).toLowerCase();
+    const contentTraps = [
+      'não possui wms',
+      'não possui tms',
+      'gap de wms',
+      'gap de tms',
+      'processo manual',
+      'feito em planilha',
+      'demurrage',
+      'integração nativa',
+      'zero middleware',
+      '60 dias',
+      'roi garantido',
+      'auditoria gratuita',
+      'integra o grupo econômico',
+    ];
+    for (const trap of contentTraps) {
+      expect(serializedContent).not.toContain(trap);
+    }
+
+    // CPF não chega em NENHUMA parte do payload (nem nos eventos/metadados)
     const serialized = JSON.stringify(frontierInput);
     expect(serialized).not.toContain('123.456.789');
     expect(serialized).not.toContain('123456789');
     // eventos preservam código/ação/motivo (auditoria), sem o texto bruto
     expect(frontierInput.safePack.sanitizerEvents.some((e: { code: string }) => e.code === 'NEGATIVE_EVIDENCE_AS_ABSENCE')).toBe(true);
+  });
+
+  it('frontierPackSchema torna o vazamento impossível por construção (rejeita before/originalPack/discardedClaims)', () => {
+    // com before no evento + campos brutos: o schema REJEITA
+    const withBefore = {
+      ...fixture.rawFindingPack,
+      sanitized: true,
+      sanitizerEvents: [
+        { code: 'NEGATIVE_EVIDENCE_AS_ABSENCE', action: 'removed', reason: 'r', before: 'conteúdo bruto' },
+      ],
+      originalPack: fixture.rawFindingPack,
+      discardedClaims: [],
+    };
+    expect(frontierPackSchema.safeParse(withBefore).success).toBe(false);
+    // sem os campos brutos e sem before: aceito
+    const { originalPack: _o, discardedClaims: _d, ...clean } = withBefore;
+    const cleanEvents = clean.sanitizerEvents.map(({ before: _b, ...e }: { before?: string }) => e);
+    expect(frontierPackSchema.safeParse({ ...clean, sanitizerEvents: cleanEvents }).success).toBe(true);
   });
 
   it('gold esperado da fixture atende o contrato estrutural Gold (referência do composer real)', () => {
