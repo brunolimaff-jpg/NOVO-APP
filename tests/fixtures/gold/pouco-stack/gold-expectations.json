@@ -1,0 +1,70 @@
+{
+  "profile": "pouco-stack",
+  "kind": "standard",
+  "canonicalAccount": {
+    "inputCnpj": "11.223.344/0001-00",
+    "legalName": "PADARIA E CONFEITARIA TRIGO DOURADO LTDA",
+    "establishmentType": "Matriz",
+    "rootCnpj": "11223344",
+    "headOfficeCnpj": null,
+    "headOfficeLegalName": null,
+    "directPjPartners": [],
+    "qsaPeople": [
+      {
+        "name": "LUCIA HELENA PRADO",
+        "role": "Sócia"
+      }
+    ]
+  },
+  "rawFindingPack": {
+    "module": "gold-compact",
+    "accountIdentity": {
+      "inputCnpj": "11.223.344/0001-00",
+      "legalName": "PADARIA E CONFEITARIA TRIGO DOURADO LTDA",
+      "establishmentType": "Matriz",
+      "rootCnpj": "11223344",
+      "conflicts": []
+    },
+    "facts": [
+      {
+        "id": "f-filiais",
+        "entity": "PADARIA E CONFEITARIA TRIGO DOURADO LTDA",
+        "claim": "Rede de 12 lojas confirmada em registro",
+        "status": "Confirmado",
+        "source": "Registro oficial",
+        "kind": "operation"
+      },
+      {
+        "id": "f-gap",
+        "entity": "PADARIA E CONFEITARIA TRIGO DOURADO LTDA",
+        "claim": "Há uma lacuna de gestão de estoque evidente nas lojas",
+        "status": "Pista forte",
+        "source": "Análise de módulos contratados",
+        "kind": "operation"
+      }
+    ],
+    "relationships": [],
+    "technologySignals": [],
+    "people": [],
+    "metrics": [],
+    "conflicts": [],
+    "openQuestions": [],
+    "discardedClaims": []
+  },
+  "expectations": {
+    "factsThatMustSurvive": [
+      "12 lojas"
+    ],
+    "claimsThatMustDisappear": [
+      "lacuna de gestão de estoque"
+    ],
+    "expectedSanitizerEvents": [
+      "NEGATIVE_EVIDENCE_AS_GAP"
+    ],
+    "goldenTraps": [
+      "lacuna de gestão"
+    ],
+    "forbiddenHardFails": [],
+    "note": "Ausência parcial no recorte não vira oportunidade/gap."
+  }
+}

@@ -177,3 +177,224 @@ describe('EntityAwareGoldVerifier', () => {
     expect(result.hardFails).toHaveLength(0);
   });
 });
+
+describe('EntityAwareGoldVerifier — proveniência real (micro-rodada V5)', () => {
+  it('reprova capacidade com autodeclaração textual de fonte SEM fato no pack (bypass bloqueado)', () => {
+    const gold = ['# Gold Brief', 'Capacidade de 120 mil sacas, confirmada em laudo oficial.'].join('\n');
+    // safePack SEM fato de capacidade (o modelo inventou a evidência no texto)
+    const result = verifyGold(gold, canonical, safePack());
+    expect(result.passed).toBe(false);
+    expect(result.hardFails.some((h) => h.code === 'UNSUPPORTED_PRODUCT_CLAIM')).toBe(true);
+  });
+
+  it('aceita capacidade quando reconciliada com fato Confirmado + fonte aceitável no pack', () => {
+    const pack = safePack();
+    pack.facts.push({
+      id: 'f-silos',
+      entity: 'SCHEFFER & CIA LTDA',
+      claim: 'Capacidade de armazenagem de 120 mil sacas confirmada em laudo',
+      status: 'Confirmado',
+      source: 'Laudo técnico',
+      kind: 'operation',
+    });
+    const gold = ['# Gold Brief', 'Capacidade de armazenagem de 120 mil sacas confirmada em laudo.'].join('\n');
+    const result = verifyGold(gold, canonical, pack);
+    expect(result.hardFails.filter((h) => h.code === 'UNSUPPORTED_PRODUCT_CLAIM')).toHaveLength(0);
+  });
+
+  it('reprova capacidade com fato do pack em status não confirmado', () => {
+    const pack = safePack();
+    pack.facts.push({
+      id: 'f-cap',
+      entity: 'METALURGICA FERRO FORTE S/A',
+      claim: 'Capacidade produtiva de 500 toneladas mensais',
+      status: 'Pista inicial',
+      source: 'Estimativa de mercado',
+      kind: 'metric',
+    });
+    const gold = ['# Gold Brief', 'Capacidade produtiva de 500 toneladas mensais.'].join('\n');
+    const result = verifyGold(gold, canonical, pack);
+    expect(result.hardFails.some((h) => h.code === 'UNSUPPORTED_PRODUCT_CLAIM')).toBe(true);
+  });
+});
+
+describe('EntityAwareGoldVerifier — evidência não emprestada (gate adversarial final)', () => {
+  it('reprova valor divergente: Safe 120 mil sacas vs Gold 900 mil sacas', () => {
+    const pack = safePack();
+    pack.facts.push({
+      id: 'f-silos',
+      entity: 'SCHEFFER & CIA LTDA',
+      claim: 'Capacidade de armazenagem de 120 mil sacas confirmada em laudo',
+      status: 'Confirmado',
+      source: 'Laudo técnico',
+      kind: 'operation',
+    });
+    const gold = ['# Gold Brief', 'Capacidade de armazenagem de 900 mil sacas confirmada em laudo.'].join('\n');
+    const result = verifyGold(gold, canonical, pack);
+    expect(result.hardFails.some((h) => h.code === 'UNSUPPORTED_PRODUCT_CLAIM')).toBe(true);
+  });
+
+  it('reprova entidade divergente: evidência da entidade B atribuída à conta A', () => {
+    const pack = safePack();
+    pack.facts.push({
+      id: 'f-cap-b',
+      entity: 'EMPRESA LATERAL LTDA',
+      claim: 'Capacidade de armazenagem de 120 mil sacas confirmada em laudo',
+      status: 'Confirmado',
+      source: 'Laudo técnico',
+      kind: 'operation',
+    });
+    // Gold afirma capacidade para a CONTA (sem mencionar a lateral)
+    const gold = ['# Gold Brief', 'A conta tem capacidade de armazenagem de 120 mil sacas.'].join('\n');
+    const result = verifyGold(gold, canonical, pack);
+    expect(result.hardFails.some((h) => h.code === 'UNSUPPORTED_PRODUCT_CLAIM')).toBe(true);
+  });
+
+  it('aceita claim compatível real: mesma entidade + valor igual + Confirmado + fonte aceitável', () => {
+    const pack = safePack();
+    pack.facts.push({
+      id: 'f-silos',
+      entity: 'SCHEFFER & CIA LTDA',
+      claim: 'Capacidade de armazenagem de 120 mil sacas confirmada em laudo',
+      status: 'Confirmado',
+      source: 'Laudo técnico',
+      kind: 'operation',
+    });
+    const gold = ['# Gold Brief', 'Capacidade de armazenagem de 120 mil sacas confirmada em laudo.'].join('\n');
+    const result = verifyGold(gold, canonical, pack);
+    expect(result.hardFails.filter((h) => h.code === 'UNSUPPORTED_PRODUCT_CLAIM')).toHaveLength(0);
+  });
+});
+
+describe('EntityAwareGoldVerifier — comparador de valor numérico (defeito da re-auditoria final)', () => {
+  it('reprova 1,2 milhões vs 12 milhões (vírgula decimal não pode sumir)', () => {
+    const pack = safePack();
+    pack.facts.push({
+      id: 'f-cap',
+      entity: 'SCHEFFER & CIA LTDA',
+      claim: 'Capacidade de 1,2 milhões de sacas confirmada em laudo',
+      status: 'Confirmado',
+      source: 'Laudo técnico',
+      kind: 'operation',
+    });
+    const gold = ['# Gold Brief', 'Capacidade de 12 milhões de sacas confirmada em laudo.'].join('\n');
+    const result = verifyGold(gold, canonical, pack);
+    expect(result.hardFails.some((h) => h.code === 'UNSUPPORTED_PRODUCT_CLAIM')).toBe(true);
+  });
+
+  it('reprova 120 mil sacas vs 120 mil funcionários (unidade composta preservada)', () => {
+    const pack = safePack();
+    pack.facts.push({
+      id: 'f-cap',
+      entity: 'SCHEFFER & CIA LTDA',
+      claim: 'Capacidade de 120 mil sacas confirmada em laudo',
+      status: 'Confirmado',
+      source: 'Laudo técnico',
+      kind: 'operation',
+    });
+    const gold = ['# Gold Brief', 'Capacidade de 120 mil funcionários confirmada em registro.'].join('\n');
+    const result = verifyGold(gold, canonical, pack);
+    expect(result.hardFails.some((h) => h.code === 'UNSUPPORTED_PRODUCT_CLAIM')).toBe(true);
+  });
+
+  it('aceita 120 mil sacas vs 120 mil sacas (igualdade real preservada)', () => {
+    const pack = safePack();
+    pack.facts.push({
+      id: 'f-cap',
+      entity: 'SCHEFFER & CIA LTDA',
+      claim: 'Capacidade de 120 mil sacas confirmada em laudo',
+      status: 'Confirmado',
+      source: 'Laudo técnico',
+      kind: 'operation',
+    });
+    const gold = ['# Gold Brief', 'Capacidade de 120 mil sacas confirmada em laudo.'].join('\n');
+    const result = verifyGold(gold, canonical, pack);
+    expect(result.hardFails.filter((h) => h.code === 'UNSUPPORTED_PRODUCT_CLAIM')).toHaveLength(0);
+  });
+});
+
+describe('EntityAwareGoldVerifier — parser de medida (bloqueador da auditoria da publicação)', () => {
+  const packWithCap = (claim: string) => {
+    const pack = safePack();
+    pack.facts.push({
+      id: 'f-cap',
+      entity: 'SCHEFFER & CIA LTDA',
+      claim,
+      status: 'Confirmado',
+      source: 'Laudo técnico',
+      kind: 'operation',
+    });
+    return pack;
+  };
+
+  it('REPROVA: Safe ROI de 10% vs Gold ROI de 90% (percentual colado)', () => {
+    const pack = packWithCap('ROI de 10% confirmado em laudo');
+    const gold = ['# Gold Brief', 'ROI de 90% confirmado em laudo.'].join('\n');
+    const result = verifyGold(gold, canonical, pack);
+    expect(result.hardFails.some((h) => h.code === 'UNSUPPORTED_PRODUCT_CLAIM')).toBe(true);
+  });
+
+  it('REPROVA: Safe 1,2 milhões de sacas vs Gold 1,2 milhões de funcionários (unidade após escala)', () => {
+    const pack = packWithCap('Capacidade de 1,2 milhões de sacas confirmada em laudo');
+    const gold = ['# Gold Brief', 'Capacidade de 1,2 milhões de funcionários confirmada em laudo.'].join('\n');
+    const result = verifyGold(gold, canonical, pack);
+    expect(result.hardFails.some((h) => h.code === 'UNSUPPORTED_PRODUCT_CLAIM')).toBe(true);
+  });
+
+  it('PASSA: Safe 1,2 milhões de sacas vs Gold igual', () => {
+    const pack = packWithCap('Capacidade de 1,2 milhões de sacas confirmada em laudo');
+    const gold = ['# Gold Brief', 'Capacidade de 1,2 milhões de sacas confirmada em laudo.'].join('\n');
+    const result = verifyGold(gold, canonical, pack);
+    expect(result.hardFails.filter((h) => h.code === 'UNSUPPORTED_PRODUCT_CLAIM')).toHaveLength(0);
+  });
+
+  it('REPROVA: Safe 500t vs Gold 600t (unidade compacta colada)', () => {
+    const pack = packWithCap('Capacidade de 500t confirmada em laudo');
+    const gold = ['# Gold Brief', 'Capacidade de 600t confirmada em laudo.'].join('\n');
+    const result = verifyGold(gold, canonical, pack);
+    expect(result.hardFails.some((h) => h.code === 'UNSUPPORTED_PRODUCT_CLAIM')).toBe(true);
+  });
+});
+
+describe('EntityAwareGoldVerifier — medida ancorada na categoria (correção final da auditoria)', () => {
+  const packWithCap = (claim: string) => {
+    const pack = safePack();
+    pack.facts.push({
+      id: 'f-cap',
+      entity: 'SCHEFFER & CIA LTDA',
+      claim,
+      status: 'Confirmado',
+      source: 'Laudo técnico',
+      kind: 'operation',
+    });
+    return pack;
+  };
+
+  it('REPROVA: número anterior ao claim não vira medida (unidade 2, capacidade 120 vs 900 mil sacas)', () => {
+    const pack = packWithCap('A unidade 2 possui capacidade de 120 mil sacas confirmada em laudo');
+    const gold = ['# Gold Brief', 'A unidade 2 possui capacidade de 900 mil sacas confirmada em laudo.'].join('\n');
+    const result = verifyGold(gold, canonical, pack);
+    expect(result.hardFails.some((h) => h.code === 'UNSUPPORTED_PRODUCT_CLAIM')).toBe(true);
+  });
+
+  it('PASSA: número anterior ao claim com medida igual (unidade 2, capacidade 120 mil sacas)', () => {
+    const pack = packWithCap('A unidade 2 possui capacidade de 120 mil sacas confirmada em laudo');
+    const gold = ['# Gold Brief', 'A unidade 2 possui capacidade de 120 mil sacas confirmada em laudo.'].join('\n');
+    const result = verifyGold(gold, canonical, pack);
+    expect(result.hardFails.filter((h) => h.code === 'UNSUPPORTED_PRODUCT_CLAIM')).toHaveLength(0);
+  });
+
+  it('REPROVA: modificador material preservado (1,2 milhões de sacas por ano vs por mês)', () => {
+    const pack = packWithCap('Capacidade de 1,2 milhões de sacas por ano confirmada em laudo');
+    const gold = ['# Gold Brief', 'Capacidade de 1,2 milhões de sacas por mês confirmada em laudo.'].join('\n');
+    const result = verifyGold(gold, canonical, pack);
+    expect(result.hardFails.some((h) => h.code === 'UNSUPPORTED_PRODUCT_CLAIM')).toBe(true);
+  });
+
+  it('REPROVA: CNPJ anterior ao claim não vira medida (CNPJ .../0014-03, capacidade 120 vs 900 mil sacas)', () => {
+    const pack = packWithCap('CNPJ 04.733.767/0014-03 possui capacidade de 120 mil sacas confirmada em laudo');
+    const gold = ['# Gold Brief', 'CNPJ 04.733.767/0014-03 possui capacidade de 900 mil sacas confirmada em laudo.'].join('\n');
+    const result = verifyGold(gold, canonical, pack);
+    expect(result.hardFails.some((h) => h.code === 'UNSUPPORTED_PRODUCT_CLAIM')).toBe(true);
+  });
+});

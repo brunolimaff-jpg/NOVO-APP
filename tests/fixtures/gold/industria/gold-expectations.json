@@ -1,0 +1,90 @@
+{
+  "profile": "industria",
+  "kind": "standard",
+  "canonicalAccount": {
+    "inputCnpj": "66.778.899/0001-00",
+    "legalName": "METALURGICA FERRO FORTE S/A",
+    "establishmentType": "Matriz",
+    "rootCnpj": "66778899",
+    "headOfficeCnpj": null,
+    "headOfficeLegalName": null,
+    "directPjPartners": [],
+    "qsaPeople": [
+      {
+        "name": "PAULO HENRIQUE MOTA",
+        "role": "Diretor"
+      }
+    ]
+  },
+  "rawFindingPack": {
+    "module": "gold-compact",
+    "accountIdentity": {
+      "inputCnpj": "66.778.899/0001-00",
+      "legalName": "METALURGICA FERRO FORTE S/A",
+      "establishmentType": "Matriz",
+      "rootCnpj": "66778899",
+      "conflicts": []
+    },
+    "facts": [
+      {
+        "id": "f-plant",
+        "entity": "METALURGICA FERRO FORTE S/A",
+        "claim": "Planta industrial em Contagem/MG confirmada em registro",
+        "status": "Confirmado",
+        "source": "Registro oficial",
+        "kind": "operation"
+      },
+      {
+        "id": "f-capacidade",
+        "entity": "METALURGICA FERRO FORTE S/A",
+        "claim": "Capacidade produtiva de 500 toneladas mensais",
+        "status": "Pista inicial",
+        "source": "Estimativa de mercado",
+        "kind": "metric"
+      },
+      {
+        "id": "f-integracao",
+        "entity": "METALURGICA FERRO FORTE S/A",
+        "claim": "Integração nativa com o ERP da matriz",
+        "status": "Pista forte",
+        "source": "Análise de módulos contratados",
+        "kind": "technology"
+      }
+    ],
+    "relationships": [],
+    "technologySignals": [],
+    "people": [
+      {
+        "id": "p-1",
+        "personName": "PAULO HENRIQUE MOTA",
+        "role": "Diretor Industrial",
+        "roleBasis": "qsa",
+        "status": "Confirmado",
+        "source": "QSA oficial"
+      }
+    ],
+    "metrics": [],
+    "conflicts": [],
+    "openQuestions": [],
+    "discardedClaims": []
+  },
+  "expectations": {
+    "factsThatMustSurvive": [
+      "Planta industrial em Contagem"
+    ],
+    "claimsThatMustDisappear": [
+      "500 toneladas",
+      "Integração nativa"
+    ],
+    "expectedSanitizerEvents": [
+      "UNSUPPORTED_PRODUCT_CLAIM",
+      "QSA_AS_DECISOR"
+    ],
+    "goldenTraps": [
+      "500 toneladas",
+      "integração nativa"
+    ],
+    "forbiddenHardFails": [],
+    "note": "Capacidade/integração sem fonte bloqueadas; QSA não prova cargo funcional."
+  }
+}

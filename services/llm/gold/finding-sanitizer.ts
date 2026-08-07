@@ -23,8 +23,17 @@ import type {
 const CPF_PATTERN = /\b\d{3}\.\d{3}\.\d{3}-\d{2}\b/g;
 
 /** Verbos de posse/uso: negação deles afirma ausência na empresa. */
+// Lookahead no lugar de \b final: "há"/"á" não são \w no JS (acentuação).
 const POSSESSION_NEGATION =
-  /\bn[aã]o\s+(possui|possue|tem|utiliza|usa|adota|contratou|opera\s+com)\b/i;
+  /\bn[aã]o\s+(possui|possue|tem|h[áa]|utiliza|usa|adota|contratou|opera\s+com)(?=\s|[.,;!?]|$)/i;
+
+/**
+ * Formas epistemológicas de "não há" — NÃO são negação de posse:
+ * "não há evidência/informação/registro disponível sobre X" sobrevive;
+ * "não há WMS na empresa" continua bloqueado.
+ */
+const EPISTEMIC_ABSENCE =
+  /\bn[aã]o\s+h[áa]\s+(evid[êe]ncia|informa[cç][aã]o|registro|dados?|dispon[ií]vel|men[cç][aã]o|prova|ind[ií]cio|como)\b/i;
 
 /** Afirmação de gap sem evidência positiva do gap. */
 const GAP_CLAIM =
@@ -32,7 +41,7 @@ const GAP_CLAIM =
 
 /** Processo manual/planilha afirmado como processo da empresa. */
 const MANUAL_PROCESS_CLAIM =
-  /\b(processo\s+(é|e)\s+manual|feito\s+em\s+planilha|planilha\s+(de\s+)?(excel|controle)|controle\s+manual|romaneio\s+manual)\b/i;
+  /\b(processo\s+(é|e)\s+manual|feito\s+em\s+planilha|planilha\s+(de\s+)?(excel|controle)|controle\s+manual|romaneio\s+manual|feito\s+à\s+m[aã]o|manualmente)\b/i;
 
 /** Promoção de lateral a grupo/controlada. */
 const GROUP_PROMOTION_CLAIM = /\b(grupo econ[oô]mico|integra o grupo|controlada|controladora|consolidada)\b/i;
@@ -102,7 +111,7 @@ export function sanitizeFindingPack(
         reason: 'CPF presente em claim — nunca expor CPF em payload de LLM',
       };
     }
-    if (POSSESSION_NEGATION.test(claim)) {
+    if (POSSESSION_NEGATION.test(claim) && !EPISTEMIC_ABSENCE.test(claim)) {
       return {
         findingId: f.id,
         code: 'NEGATIVE_EVIDENCE_AS_ABSENCE',
@@ -141,7 +150,9 @@ export function sanitizeFindingPack(
         };
       }
     }
-    if (MODULE_PROOF_SOURCE.test(f.source) && /(usa|utiliza|processo|opera\s+com)/i.test(claim)) {
+    // Uso ATIVO declarado (usa/utiliza/adota/opera com) — \b evita casar
+    // "utilizado"/"usada" em contexto passivo ou epistemológico.
+    if (MODULE_PROOF_SOURCE.test(f.source) && /\b(usa|utiliza|adota|opera\s+com)\b/i.test(claim)) {
       return {
         findingId: f.id,
         code: 'MODULE_AS_PROCESS_PROOF',
@@ -168,6 +179,26 @@ export function sanitizeFindingPack(
         before: claim,
         reason: 'Fato já presente no canonical (fonte determinística vence narrativa)',
       };
+    }
+    // ENTITY_CONFLICT: afirmação de tipo cadastral (matriz/filial) que
+    // contradiz o canonical — fonte determinística vence a narrativa.
+    // Genérico (sem CNPJ/slug/setor): o padrão "é (a) matriz/filial" + o
+    // tipo canônico do input decidem. ATENÇÃO: sem \b antes de "é"
+    // (caracteres acentuados não são \w no JS — \b falharia).
+    if (f.kind === 'identity') {
+      const establishmentClaim = claim.match(/é\s+a?\s*(matriz|filial)\b/i);
+      if (establishmentClaim) {
+        const claimed = establishmentClaim[1].toLowerCase() === 'matriz' ? 'Matriz' : 'Filial';
+        if (claimed !== canonical.establishmentType) {
+          return {
+            findingId: f.id,
+            code: 'ENTITY_CONFLICT',
+            action: 'removed',
+            before: claim,
+            reason: `Tipo cadastral afirmado (${claimed}) contradiz o canonical (${canonical.establishmentType})`,
+          };
+        }
+      }
     }
     return null;
   };
@@ -197,7 +228,9 @@ export function sanitizeFindingPack(
   // === people (QSA não prova cargo funcional) ===
   const people: PersonFinding[] = [];
   for (const p of raw.people) {
-    if (p.roleBasis === 'qsa' && EXECUTIVE_ROLE.test(p.role)) {
+    // "Sócio-Administrador" não é cargo funcional — excluir títulos de sócio
+    // (o padrão "cio" casaria dentro de "Sócio" com acentuação).
+    if (p.roleBasis === 'qsa' && EXECUTIVE_ROLE.test(p.role) && !/s[óo]cio/i.test(p.role)) {
       sanitizerEvents.push({
         findingId: p.id,
         code: 'QSA_AS_DECISOR',

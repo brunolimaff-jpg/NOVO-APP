@@ -1,0 +1,78 @@
+{
+  "profile": "servicos-hcm",
+  "kind": "near-miss",
+  "canonicalAccount": {
+    "inputCnpj": "99.001.122/0001-00",
+    "legalName": "SERVICOS DE GESTAO DE PESSOAS PAULISTA LTDA",
+    "establishmentType": "Matriz",
+    "rootCnpj": "99001122",
+    "headOfficeCnpj": null,
+    "headOfficeLegalName": null,
+    "directPjPartners": [],
+    "qsaPeople": [
+      {
+        "name": "ANA BEATRIZ COSTA",
+        "role": "Sócia-Administradora"
+      }
+    ]
+  },
+  "rawFindingPack": {
+    "module": "gold-compact",
+    "accountIdentity": {
+      "inputCnpj": "99.001.122/0001-00",
+      "legalName": "SERVICOS DE GESTAO DE PESSOAS PAULISTA LTDA",
+      "establishmentType": "Matriz",
+      "rootCnpj": "99001122",
+      "conflicts": []
+    },
+    "facts": [
+      {
+        "id": "f-clientes",
+        "entity": "SERVICOS DE GESTAO DE PESSOAS PAULISTA LTDA",
+        "claim": "Atende 60 clientes corporativos confirmado em registro",
+        "status": "Confirmado",
+        "source": "Registro operacional",
+        "kind": "operation"
+      },
+      {
+        "id": "f-diretora",
+        "entity": "SERVICOS DE GESTAO DE PESSOAS PAULISTA LTDA",
+        "claim": "A diretora de RH confirmou em entrevista o uso de plataforma própria",
+        "status": "Confirmado",
+        "source": "Entrevista com a diretoria",
+        "kind": "person"
+      }
+    ],
+    "relationships": [],
+    "technologySignals": [],
+    "people": [
+      {
+        "id": "p-1",
+        "personName": "ANA BEATRIZ COSTA",
+        "role": "Diretora de RH",
+        "roleBasis": "report",
+        "status": "Confirmado",
+        "source": "Entrevista com a diretoria"
+      }
+    ],
+    "metrics": [],
+    "conflicts": [],
+    "openQuestions": [],
+    "discardedClaims": []
+  },
+  "expectations": {
+    "factsThatMustSurvive": [
+      "60 clientes",
+      "diretora de RH confirmou"
+    ],
+    "claimsThatMustDisappear": [],
+    "expectedSanitizerEvents": [],
+    "goldenTraps": [
+      "cfO",
+      "gap de",
+      "não possui"
+    ],
+    "forbiddenHardFails": [],
+    "note": "NEAR-MISS: cargo funcional COM fonte (roleBasis report) sobrevive; QSA sem fonte não."
+  }
+}

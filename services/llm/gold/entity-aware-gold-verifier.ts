@@ -50,6 +50,103 @@ const UNSUPPORTED_CLAIM =
 const KNOWLEDGE_NEGATION =
   /\b(n[aã]o\s+(est[áa]|foi|é)\s+(dispon[ií]vel|identificad[oa]s?|poss[ií]vel|confirmad[oa]s?)|deve\s+ser\s+confirmad[oa]s?|sem\s+evid[êe]ncia)\b/i;
 
+/** Fonte não aceitável como prova externa (estimativa/inferência/recorte interno). */
+const NON_EXTERNAL_SOURCE =
+  /\b(estimativa|infer[êe]ncia|an[áa]lise de m[óo]dulos|dossi[êe] legado|crm interno)\b/i;
+
+interface Measure {
+  quantity: string;
+  unit: string;
+}
+
+/** Palavras que encerram a unidade de medida (contexto posterior, não medida). */
+const MEASURE_STOPWORDS = new Set([
+  'confirmada', 'confirmado', 'registrada', 'registrado', 'laudo', 'fonte', 'com', 'e', 'ou', 'licença',
+]);
+
+/**
+ * Parser determinístico de medida ANCORADO NA CATEGORIA do claim:
+ * procura o termo da categoria (capacidade/ROI/prazo/etc.) e captura o
+ * PRIMEIRO número APÓS ele (com token colado e até 5 palavras de unidade,
+ * incluindo modificadores materiais como "por ano"/"por mês").
+ * Números ANTERIORES ao termo (unidade 2, filial, CNPJ, ano) nunca são
+ * interpretados como medida do claim.
+ */
+function parseMeasure(text: string, categoryPattern: RegExp): Measure | null {
+  // match da categoria sobre o texto em lowercase (patterns sem flag 'i');
+  // o índice é idêntico no texto original (lowercase preserva comprimento).
+  const categoryMatch = text.toLowerCase().match(categoryPattern);
+  if (!categoryMatch || categoryMatch.index === undefined) return null;
+  const afterCategory = text.slice(categoryMatch.index + categoryMatch[0].length);
+
+  const m = afterCategory.match(
+    /(\d+(?:[.,]\d+)?)\s*([a-zà-ú%²³°]*)(?:\s+([a-zà-ú%²³°]+))?(?:\s+([a-zà-ú%²³°]+))?(?:\s+([a-zà-ú%²³°]+))?(?:\s+([a-zà-ú%²³°]+))?(?:\s+([a-zà-ú%²³°]+))?/i,
+  );
+  if (!m) return null;
+  const [, number, attached, w1, w2, w3, w4, w5] = m;
+  const tokens = [attached, w1, w2, w3, w4, w5].filter(Boolean);
+  const unitTokens: string[] = [];
+  for (const token of tokens) {
+    if (MEASURE_STOPWORDS.has(token.toLowerCase())) break;
+    unitTokens.push(token);
+  }
+  return { quantity: number.replace(',', '.'), unit: normalizeName(unitTokens.join(' ')) };
+}
+
+function measuresEqual(a: Measure, b: Measure): boolean {
+  return a.quantity === b.quantity && a.unit === b.unit;
+}
+
+/**
+ * Reconciliação por PROVENIÊNCIA REAL em nível de CLAIM: a afirmação do Gold
+ * só deixa de ser UNSUPPORTED_PRODUCT_CLAIM quando existe um fato no
+ * SafeFindingPack com status Confirmado, fonte aceitável, MESMA CATEGORIA,
+ * MESMA ENTIDADE e VALOR COMPATÍVEL. A evidência não pode ser "emprestada":
+ * um fato "120 mil sacas" da entidade B não legitima "900 mil sacas" da conta A.
+ */
+function isSupportedBySafePack(
+  sentenceLower: string,
+  sentence: string,
+  safePack: SafeFindingPack,
+  canonical: CanonicalAccount,
+): boolean {
+  const terms: Array<{ pattern: RegExp; match: (c: string) => boolean }> = [
+    { pattern: /capacidade/, match: (c) => /capacidade/.test(c) },
+    { pattern: /produ[cç][aã]o\s+de/, match: (c) => /produ[cç][aã]o\s+de/.test(c) },
+    { pattern: /roi|retorno\s+sobre/, match: (c) => /roi|retorno\s+sobre/.test(c) },
+    { pattern: /prazo\s+de\s+\d+/, match: (c) => /prazo\s+de\s+\d+/.test(c) },
+    { pattern: /integra[cç][aã]o\s+nativa/, match: (c) => /integra[cç][aã]o/.test(c) },
+    { pattern: /middleware/, match: (c) => /middleware/.test(c) },
+  ];
+  const hit = terms.find((t) => t.pattern.test(sentenceLower));
+  if (!hit) return false;
+
+  const goldMeasure = parseMeasure(sentence, hit.pattern);
+  // Entidade referida na frase: menção explícita de entidade conhecida;
+  // caso contrário, a referência é a CONTA CANÔNICA.
+  const accountName = normalizeName(canonical.legalName);
+  const mentionedEntity = [...safePack.relationships]
+    .map((r) => normalizeName(r.relatedEntity))
+    .find((name) => sentenceLower.includes(name));
+  const referredEntity = mentionedEntity ?? accountName;
+
+  return safePack.facts.some((f) => {
+    if (f.status !== 'Confirmado') return false;
+    if (NON_EXTERNAL_SOURCE.test(f.source)) return false;
+    if (!hit.match(f.claim.toLowerCase())) return false;
+    // Mesma entidade: o fato precisa pertencer à entidade referida na frase.
+    if (normalizeName(f.entity) !== referredEntity) return false;
+    // Valor compatível: Gold sem medida é sustentado por fato com medida;
+    // Gold com medida exige fato com MESMA quantidade E MESMA unidade.
+    const factMeasure = parseMeasure(f.claim, hit.pattern);
+    if (goldMeasure) {
+      if (!factMeasure) return false;
+      if (!measuresEqual(goldMeasure, factMeasure)) return false;
+    }
+    return true;
+  });
+}
+
 /** Verbos de participação societária (para detectar inversão de relação direta). */
 const PARTICIPATION_VERB =
   /\b(participa\s+do\s+capital|é\s+s[óo]cia|s[óo]cia\s+de|controla|é\s+controladora|det[ée]m\s+participa[cç][aã]o)\b/i;
@@ -170,9 +267,15 @@ export function verifyGold(
     }
 
     // 6) Capacidade/produto/prazo/ROI/integração afirmados sem validação.
-    //    Frases que negam conhecimento ("não está disponível", "a confirmar")
-    //    não são afirmações e não disparam.
-    if (UNSUPPORTED_CLAIM.test(sentenceLower) && !KNOWLEDGE_NEGATION.test(sentenceLower)) {
+    //    A exceção NUNCA vem do texto do Gold (o modelo poderia inventar
+    //    "confirmada em laudo" na saída): ela só existe quando a afirmação é
+    //    RECONCILIADA com um fato do SafeFindingPack com status Confirmado
+    //    e fonte aceitável (proveniência real, não linguagem).
+    if (
+      UNSUPPORTED_CLAIM.test(sentenceLower) &&
+      !KNOWLEDGE_NEGATION.test(sentenceLower) &&
+      !isSupportedBySafePack(sentenceLower, sentence, safePack, canonical)
+    ) {
       push('UNSUPPORTED_PRODUCT_CLAIM', `Frase afirma capacidade/produto/prazo/ROI sem fonte: "${sentence}"`);
     }
 
