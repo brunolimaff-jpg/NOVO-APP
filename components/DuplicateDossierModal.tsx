@@ -3,14 +3,20 @@ import type { ExistingDossier } from '../lib/supabase/dossierDuplicate';
 interface DuplicateDossierModalProps {
   existing: ExistingDossier;
   companyName: string;
+  /** BRU-11 camada 1: true quando o dossiê pertence a outro operador — interface fail-closed. */
+  isForeign?: boolean;
   onAccessExisting: () => void;
   onNewResearch: () => void;
   onDismiss: () => void;
 }
 
+const FOREIGN_BLOCK_MESSAGE =
+  'Já existe um dossiê para esta empresa, mas ele pertence a outro operador e o compartilhamento ainda não está autorizado. Nenhum conteúdo foi aberto ou copiado. Você pode cancelar ou iniciar uma nova pesquisa do zero.';
+
 export function DuplicateDossierModal({
   existing,
   companyName,
+  isForeign = false,
   onAccessExisting,
   onNewResearch,
   onDismiss,
@@ -32,21 +38,29 @@ export function DuplicateDossierModal({
           Já existe um dossiê para <strong>{companyName}</strong>, gerado em {createdAt}.
         </p>
 
-        {existing.scoreOportunidade != null && (
-          <div className="flex items-center gap-2 mb-4 px-3 py-2 bg-amber-50 dark:bg-amber-900/30 rounded-lg">
-            <span className="text-sm text-amber-700 dark:text-amber-300">
-              Score PORTA: {existing.scoreOportunidade}/100
-            </span>
+        {isForeign ? (
+          <div className="mb-4 px-3 py-2 bg-amber-50 dark:bg-amber-900/30 rounded-lg border border-amber-200 dark:border-amber-800">
+            <p className="text-sm text-amber-800 dark:text-amber-200">{FOREIGN_BLOCK_MESSAGE}</p>
           </div>
+        ) : (
+          existing.scoreOportunidade != null && (
+            <div className="flex items-center gap-2 mb-4 px-3 py-2 bg-amber-50 dark:bg-amber-900/30 rounded-lg">
+              <span className="text-sm text-amber-700 dark:text-amber-300">
+                Score PORTA: {existing.scoreOportunidade}/100
+              </span>
+            </div>
+          )
         )}
 
         <div className="flex flex-col gap-3">
-          <button
-            onClick={onAccessExisting}
-            className="w-full px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors"
-          >
-            Acessar Dossiê Existente
-          </button>
+          {!isForeign && (
+            <button
+              onClick={onAccessExisting}
+              className="w-full px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors"
+            >
+              Acessar Dossiê Existente
+            </button>
+          )}
           <button
             onClick={onNewResearch}
             className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300 font-medium rounded-lg transition-colors"

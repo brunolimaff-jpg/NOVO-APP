@@ -1,0 +1,90 @@
+{
+  "profile": "input-filial-outra-uf",
+  "kind": "standard",
+  "canonicalAccount": {
+    "inputCnpj": "44.556.677/0008-00",
+    "legalName": "GRANJAS DO SERTAO LTDA",
+    "establishmentType": "Filial",
+    "rootCnpj": "44556677",
+    "headOfficeCnpj": "44.556.677/0001-00",
+    "headOfficeLegalName": "GRANJAS DO SERTAO LTDA",
+    "directPjPartners": [],
+    "qsaPeople": [
+      {
+        "name": "OTAVIO BARBOSA LIMA",
+        "role": "Sócio"
+      }
+    ]
+  },
+  "rawFindingPack": {
+    "module": "gold-compact",
+    "accountIdentity": {
+      "inputCnpj": "44.556.677/0008-00",
+      "legalName": "GRANJAS DO SERTAO LTDA",
+      "establishmentType": "Filial",
+      "rootCnpj": "44556677",
+      "conflicts": []
+    },
+    "facts": [
+      {
+        "id": "f-filial",
+        "entity": "GRANJAS DO SERTAO LTDA",
+        "claim": "Unidade em Petrolina/PE confirmada em registro",
+        "status": "Confirmado",
+        "source": "Registro oficial",
+        "kind": "identity"
+      },
+      {
+        "id": "f-inversao",
+        "entity": "GRANJAS DO SERTAO LTDA",
+        "claim": "A inscrição 0008 em Petrolina é a matriz do grupo",
+        "status": "Pista forte",
+        "source": "dossiê legado",
+        "kind": "identity"
+      },
+      {
+        "id": "f-cpf",
+        "entity": "OTAVIO BARBOSA LIMA",
+        "claim": "Sócio OTAVIO BARBOSA LIMA com CPF 987.654.321-00",
+        "status": "Confirmado",
+        "source": "QSA oficial",
+        "kind": "person"
+      }
+    ],
+    "relationships": [
+      {
+        "id": "r-matriz",
+        "entity": "GRANJAS DO SERTAO LTDA",
+        "relatedEntity": "44.556.677/0001-00",
+        "relationType": "same_root",
+        "status": "Confirmado",
+        "source": "raiz",
+        "evidence": "Mesma raiz — matriz"
+      }
+    ],
+    "technologySignals": [],
+    "people": [],
+    "metrics": [],
+    "conflicts": [],
+    "openQuestions": [],
+    "discardedClaims": []
+  },
+  "expectations": {
+    "factsThatMustSurvive": [
+      "Petrolina/PE"
+    ],
+    "claimsThatMustDisappear": [
+      "é a matriz do grupo",
+      "987.654.321"
+    ],
+    "expectedSanitizerEvents": [
+      "CPF_LEAK"
+    ],
+    "goldenTraps": [
+      "é a matriz do grupo",
+      "987.654.321"
+    ],
+    "forbiddenHardFails": [],
+    "note": "Inversão matriz/filial + CPF: bloqueados; input filial em outra UF."
+  }
+}

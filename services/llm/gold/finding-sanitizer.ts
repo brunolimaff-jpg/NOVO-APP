@@ -1,0 +1,321 @@
+/**
+ * T3 — FindingSanitizer (V4 Pipeline Guarded).
+ *
+ * Uma passagem determinística única: RawFindingPack → SafeFindingPack.
+ * Regras SEMÂNTICAS (estrutura de claim/status/fonte/relação/roleBasis),
+ * nunca blocklist de produtos ("WMS não identificado" é observação válida;
+ * "não possui WMS"/"gap WMS"/"processo manual" sem evidência são derivações).
+ * Tudo que é removido/reescrito fica registrado em sanitizerEvents[] e
+ * discardedClaims[] — pack continua rastreável.
+ */
+import type {
+  CanonicalAccount,
+  DiscardedClaim,
+  Finding,
+  PersonFinding,
+  RawFindingPack,
+  RelationshipFinding,
+  SafeFindingPack,
+  SanitizerEvent,
+  SanitizerEventCode,
+} from './gold-contracts';
+
+const CPF_PATTERN = /\b\d{3}\.\d{3}\.\d{3}-\d{2}\b/g;
+
+/** Verbos de posse/uso: negação deles afirma ausência na empresa. */
+// Lookahead no lugar de \b final: "há"/"á" não são \w no JS (acentuação).
+const POSSESSION_NEGATION =
+  /\bn[aã]o\s+(possui|possue|tem|h[áa]|utiliza|usa|adota|contratou|opera\s+com)(?=\s|[.,;!?]|$)/i;
+
+/**
+ * Formas epistemológicas de "não há" — NÃO são negação de posse:
+ * "não há evidência/informação/registro disponível sobre X" sobrevive;
+ * "não há WMS na empresa" continua bloqueado.
+ */
+const EPISTEMIC_ABSENCE =
+  /\bn[aã]o\s+h[áa]\s+(evid[êe]ncia|informa[cç][aã]o|registro|dados?|dispon[ií]vel|men[cç][aã]o|prova|ind[ií]cio|como)\b/i;
+
+/** Afirmação de gap sem evidência positiva do gap. */
+const GAP_CLAIM =
+  /\b(gap|gaps|lacuna|lacunas)\s+(de|em|confirmado|identificado)|(sem\s+(wms|tms|erp|sistema|solu[cç][aã]o))\b/i;
+
+/** Processo manual/planilha afirmado como processo da empresa. */
+const MANUAL_PROCESS_CLAIM =
+  /\b(processo\s+(é|e)\s+manual|feito\s+em\s+planilha|planilha\s+(de\s+)?(excel|controle)|controle\s+manual|romaneio\s+manual|feito\s+à\s+m[aã]o|manualmente)\b/i;
+
+/** Promoção de lateral a grupo/controlada. */
+const GROUP_PROMOTION_CLAIM = /\b(grupo econ[oô]mico|integra o grupo|controlada|controladora|consolidada)\b/i;
+
+/** Cargos funcionais que QSA não prova. */
+const EXECUTIVE_ROLE =
+  /\b(cfo|ceo|coo|cio|cto|diretor|diretora|presidente|decisor|head\s+de|gerente\s+geral|vice-presidente)\b/i;
+
+/** Capacidade/produto/ROI/prazo/integração afirmados sem validação. */
+const UNSUPPORTED_CLAIM =
+  /\b(capacidade\s+(est[áa]tica|de|produtiva)|produ[cç][aã]o\s+de\s+\d+|roi|retorno\s+sobre|prazo\s+de\s+\d+|integra[cç][aã]o\s+nativa|middleware)\b/i;
+
+const NON_EXTERNAL_SOURCE =
+  /\b(estimativa|infer[êe]ncia|an[áa]lise de m[óo]dulos|dossi[êe] legado|crm interno)\b/i;
+
+const MODULE_PROOF_SOURCE = /\b(m[óo]dulo\s+contratado|crm interno senior)\b/i;
+
+function stripCpf(value: string): string {
+  return value.replace(CPF_PATTERN, '[REDIGIDO]');
+}
+
+function hasCpf(value: string): boolean {
+  CPF_PATTERN.lastIndex = 0;
+  return CPF_PATTERN.test(value);
+}
+
+function normalizeForCanonical(value: string): string {
+  return value.toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+export interface SanitizeResult {
+  safe: SafeFindingPack;
+  sanitizerEvents: SanitizerEvent[];
+}
+
+export function sanitizeFindingPack(
+  raw: RawFindingPack,
+  canonical: CanonicalAccount,
+): SafeFindingPack {
+  const sanitizerEvents: SanitizerEvent[] = [];
+  const discardedClaims: DiscardedClaim[] = [];
+
+  const drop = (event: SanitizerEvent, claimText: string): void => {
+    sanitizerEvents.push(event);
+    discardedClaims.push({
+      claim: stripCpf(claimText),
+      reason: event.reason,
+      originFindingId: event.findingId ?? null,
+    });
+  };
+
+  const canonicalValues = [
+    canonical.headOfficeCnpj ?? '',
+    canonical.legalName,
+    canonical.rootCnpj,
+    ...canonical.directPjPartners.flatMap((p) => [p.cnpj, p.legalName]),
+  ].map(normalizeForCanonical);
+
+  const classifyFinding = (f: Finding, lateralEntities: Set<string>): SanitizerEvent | null => {
+    const claim = f.claim;
+    if (hasCpf(claim)) {
+      return {
+        findingId: f.id,
+        code: 'CPF_LEAK',
+        action: 'removed',
+        before: claim,
+        reason: 'CPF presente em claim — nunca expor CPF em payload de LLM',
+      };
+    }
+    if (POSSESSION_NEGATION.test(claim) && !EPISTEMIC_ABSENCE.test(claim)) {
+      return {
+        findingId: f.id,
+        code: 'NEGATIVE_EVIDENCE_AS_ABSENCE',
+        action: 'removed',
+        before: claim,
+        reason: 'Negação de posse sem evidência positiva — ausência no recorte não prova ausência na empresa',
+      };
+    }
+    if (GAP_CLAIM.test(claim)) {
+      return {
+        findingId: f.id,
+        code: 'NEGATIVE_EVIDENCE_AS_GAP',
+        action: 'removed',
+        before: claim,
+        reason: 'Ausência convertida em gap sem evidência positiva do gap',
+      };
+    }
+    if (MANUAL_PROCESS_CLAIM.test(claim)) {
+      return {
+        findingId: f.id,
+        code: 'MANUAL_PROCESS_INFERRED',
+        action: 'removed',
+        before: claim,
+        reason: 'Processo manual/planilha inferido sem evidência de processo',
+      };
+    }
+    if (f.kind === 'relationship' && GROUP_PROMOTION_CLAIM.test(claim)) {
+      const mentionedLateral = lateralEntities.has(normalizeForCanonical(f.entity));
+      if (mentionedLateral || /socio-search/i.test(f.source)) {
+        return {
+          findingId: f.id,
+          code: 'LATERAL_PROMOTED',
+          action: 'removed',
+          before: claim,
+          reason: 'Relação lateral promovida a grupo/controlada sem evidência (compartilhar sócio não prova grupo)',
+        };
+      }
+    }
+    // Uso ATIVO declarado (usa/utiliza/adota/opera com) — \b evita casar
+    // "utilizado"/"usada" em contexto passivo ou epistemológico.
+    if (MODULE_PROOF_SOURCE.test(f.source) && /\b(usa|utiliza|adota|opera\s+com)\b/i.test(claim)) {
+      return {
+        findingId: f.id,
+        code: 'MODULE_AS_PROCESS_PROOF',
+        action: 'rewritten',
+        before: claim,
+        after: `Módulo contratado (${f.source}) — presença de módulo não prova uso nem processo operacional`,
+        reason: 'Presença de módulo contratado usada como prova de processo/uso',
+      };
+    }
+    if (UNSUPPORTED_CLAIM.test(claim) && (f.status !== 'Confirmado' || NON_EXTERNAL_SOURCE.test(f.source))) {
+      return {
+        findingId: f.id,
+        code: 'UNSUPPORTED_PRODUCT_CLAIM',
+        action: 'removed',
+        before: claim,
+        reason: 'Capacidade/produto/prazo/ROI/integração sem fonte externa validada',
+      };
+    }
+    if (f.kind === 'identity' && canonicalValues.some((v) => v.length > 0 && normalizeForCanonical(claim).includes(v))) {
+      return {
+        findingId: f.id,
+        code: 'CANONICAL_DUPLICATE',
+        action: 'deduplicated',
+        before: claim,
+        reason: 'Fato já presente no canonical (fonte determinística vence narrativa)',
+      };
+    }
+    // ENTITY_CONFLICT: afirmação de tipo cadastral (matriz/filial) que
+    // contradiz o canonical — fonte determinística vence a narrativa.
+    // Genérico (sem CNPJ/slug/setor): o padrão "é (a) matriz/filial" + o
+    // tipo canônico do input decidem. ATENÇÃO: sem \b antes de "é"
+    // (caracteres acentuados não são \w no JS — \b falharia).
+    if (f.kind === 'identity') {
+      const establishmentClaim = claim.match(/é\s+a?\s*(matriz|filial)\b/i);
+      if (establishmentClaim) {
+        const claimed = establishmentClaim[1].toLowerCase() === 'matriz' ? 'Matriz' : 'Filial';
+        if (claimed !== canonical.establishmentType) {
+          return {
+            findingId: f.id,
+            code: 'ENTITY_CONFLICT',
+            action: 'removed',
+            before: claim,
+            reason: `Tipo cadastral afirmado (${claimed}) contradiz o canonical (${canonical.establishmentType})`,
+          };
+        }
+      }
+    }
+    return null;
+  };
+
+  const lateralEntities = new Set(
+    raw.relationships
+      .filter((r) => r.relationType === 'partner_other_cnpj')
+      .map((r) => normalizeForCanonical(r.relatedEntity)),
+  );
+
+  // === facts ===
+  const facts: Finding[] = [];
+  for (const f of raw.facts) {
+    const event = classifyFinding(f, lateralEntities);
+    if (!event) {
+      facts.push(f);
+      continue;
+    }
+    if (event.action === 'rewritten') {
+      facts.push({ ...f, claim: event.after ?? f.claim, source: f.source });
+    } else if (event.action === 'deduplicated') {
+      // removido do pack; registrado como deduplicado
+    }
+    drop(event, event.before ?? f.claim);
+  }
+
+  // === people (QSA não prova cargo funcional) ===
+  const people: PersonFinding[] = [];
+  for (const p of raw.people) {
+    // "Sócio-Administrador" não é cargo funcional — excluir títulos de sócio
+    // (o padrão "cio" casaria dentro de "Sócio" com acentuação).
+    if (p.roleBasis === 'qsa' && EXECUTIVE_ROLE.test(p.role) && !/s[óo]cio/i.test(p.role)) {
+      sanitizerEvents.push({
+        findingId: p.id,
+        code: 'QSA_AS_DECISOR',
+        action: 'downgraded',
+        before: p.role,
+        after: 'Sócio (QSA)',
+        reason: 'QSA é mapa de acesso, não prova de cargo funcional',
+      });
+      people.push({ ...p, role: 'Sócio (QSA)' });
+      continue;
+    }
+    people.push(p);
+  }
+
+  // === relationships (lateral permanece lateral) ===
+  const relationships: RelationshipFinding[] = [];
+  for (const r of raw.relationships) {
+    if (r.relationType === 'partner_other_cnpj' && GROUP_PROMOTION_CLAIM.test(r.evidence ?? '')) {
+      sanitizerEvents.push({
+        findingId: r.id,
+        code: 'LATERAL_PROMOTED',
+        action: 'downgraded',
+        before: r.evidence ?? undefined,
+        after: 'Compartilhamento de sócio (relação lateral)',
+        reason: 'Evidência de lateral promovida a grupo por compartilhamento de sócio',
+      });
+      relationships.push({ ...r, evidence: 'Compartilhamento de sócio (relação lateral)' });
+      continue;
+    }
+    relationships.push(r);
+  }
+
+  // === openQuestions: pergunta com pressuposto → pergunta neutra ===
+  const openQuestions: string[] = [];
+  for (const q of raw.openQuestions) {
+    const pressuposition = q.match(/(.+?)\s+sem\s+[^?]+\??$/i);
+    if (pressuposition && /(fazem|faz|opera|realiza|gerencia|controla|executa)/i.test(pressuposition[1])) {
+      const processPart = pressuposition[1]
+        .replace(/^(como|de que forma)\s+/i, '')
+        .replace(/\b(voc[êe]s|vcs|a empresa|a companhia)\b/gi, '')
+        .replace(/\b(fazem|faz|opera|operam|realiza|realizam|gerencia|gerenciam|controla|controlam|executa|executam)\b/gi, '')
+        .replace(/^\s*(o|a|os|as)\s+/i, '')
+        .trim();
+      openQuestions.push(`Qual solução suporta hoje o processo de ${processPart}?`);
+      sanitizerEvents.push({
+        code: 'NEGATIVE_EVIDENCE_AS_ABSENCE',
+        action: 'rewritten',
+        before: q,
+        after: `Qual solução suporta hoje o processo de ${processPart}?`,
+        reason: 'Pergunta que pressupõe conclusão reescrita em pergunta neutra',
+      });
+      continue;
+    }
+    openQuestions.push(q);
+  }
+
+  return {
+    module: raw.module,
+    accountIdentity: raw.accountIdentity,
+    facts,
+    relationships,
+    technologySignals: raw.technologySignals,
+    people,
+    metrics: raw.metrics,
+    conflicts: raw.conflicts,
+    openQuestions,
+    discardedClaims,
+    sanitized: true,
+    sanitizerEvents,
+    originalPack: raw,
+  };
+}
+
+/** Veredito semântico de código de evento (uso externo). */
+export function isSanitizerEventCode(code: string): code is SanitizerEventCode {
+  return [
+    'NEGATIVE_EVIDENCE_AS_ABSENCE',
+    'NEGATIVE_EVIDENCE_AS_GAP',
+    'MANUAL_PROCESS_INFERRED',
+    'LATERAL_PROMOTED',
+    'QSA_AS_DECISOR',
+    'MODULE_AS_PROCESS_PROOF',
+    'UNSUPPORTED_PRODUCT_CLAIM',
+    'CANONICAL_DUPLICATE',
+    'ENTITY_CONFLICT',
+    'CPF_LEAK',
+  ].includes(code);
+}

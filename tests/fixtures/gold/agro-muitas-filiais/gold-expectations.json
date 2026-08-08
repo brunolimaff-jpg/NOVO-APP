@@ -1,0 +1,104 @@
+{
+  "profile": "agro-muitas-filiais",
+  "kind": "standard",
+  "canonicalAccount": {
+    "inputCnpj": "44.556.677/0005-00",
+    "legalName": "COOPERATIVA AGRO SUL LTDA",
+    "establishmentType": "Filial",
+    "rootCnpj": "44556677",
+    "headOfficeCnpj": "44.556.677/0001-00",
+    "headOfficeLegalName": "COOPERATIVA AGRO SUL LTDA",
+    "directPjPartners": [
+      {
+        "legalName": "HOLDING CAMPO NOVO S/A",
+        "cnpj": "99.887.766/0001-00"
+      }
+    ],
+    "qsaPeople": [
+      {
+        "name": "MARIA FERNANDA ROCHA",
+        "role": "Sócia-Administradora"
+      }
+    ]
+  },
+  "rawFindingPack": {
+    "module": "gold-compact",
+    "accountIdentity": {
+      "inputCnpj": "44.556.677/0005-00",
+      "legalName": "COOPERATIVA AGRO SUL LTDA",
+      "establishmentType": "Filial",
+      "rootCnpj": "44556677",
+      "conflicts": []
+    },
+    "facts": [
+      {
+        "id": "f-silos",
+        "entity": "COOPERATIVA AGRO SUL LTDA",
+        "claim": "Capacidade de armazenagem de 120 mil sacas confirmada em laudo",
+        "status": "Confirmado",
+        "source": "Laudo técnico",
+        "kind": "operation"
+      },
+      {
+        "id": "f-negacao",
+        "entity": "COOPERATIVA AGRO SUL LTDA",
+        "claim": "A companhia não tem solução de transporte contratada",
+        "status": "Confirmado",
+        "source": "CRM interno Senior",
+        "kind": "technology"
+      },
+      {
+        "id": "f-inversao",
+        "entity": "COOPERATIVA AGRO SUL LTDA",
+        "claim": "A filial 0005 é a matriz da cooperativa",
+        "status": "Pista forte",
+        "source": "dossiê legado",
+        "kind": "identity"
+      }
+    ],
+    "relationships": [
+      {
+        "id": "r-matriz",
+        "entity": "COOPERATIVA AGRO SUL LTDA",
+        "relatedEntity": "44.556.677/0001-00",
+        "relationType": "partner_other_cnpj",
+        "status": "Pista inicial",
+        "source": "socio-search",
+        "evidence": "Encontrada via sócio (classificação a corrigir: mesma raiz)"
+      },
+      {
+        "id": "r-holding",
+        "entity": "COOPERATIVA AGRO SUL LTDA",
+        "relatedEntity": "99.887.766/0001-00",
+        "relationType": "direct_pj_relation",
+        "status": "Confirmado",
+        "source": "qsa",
+        "evidence": "Sócia PJ no QSA"
+      }
+    ],
+    "technologySignals": [],
+    "people": [],
+    "metrics": [],
+    "conflicts": [],
+    "openQuestions": [],
+    "discardedClaims": []
+  },
+  "expectations": {
+    "factsThatMustSurvive": [
+      "120 mil sacas"
+    ],
+    "claimsThatMustDisappear": [
+      "não tem solução de transporte",
+      "é a matriz da cooperativa"
+    ],
+    "expectedSanitizerEvents": [
+      "NEGATIVE_EVIDENCE_AS_ABSENCE"
+    ],
+    "goldenTraps": [
+      "não tem solução",
+      "é a matriz"
+    ],
+    "forbiddenHardFails": [],
+    "note": "same_root corrige matriz classificada como lateral; inversão matriz/filial bloqueada."
+  }
+}

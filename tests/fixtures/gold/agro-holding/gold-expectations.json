@@ -1,0 +1,200 @@
+{
+  "profile": "agro-holding",
+  "kind": "standard",
+  "canonicalAccount": {
+    "inputCnpj": "04.733.767/0001-80",
+    "legalName": "SCHEFFER & CIA LTDA",
+    "establishmentType": "Filial",
+    "rootCnpj": "04.733.767",
+    "headOfficeCnpj": "04.733.767/0014-03",
+    "headOfficeLegalName": "SCHEFFER & CIA LTDA",
+    "directPjPartners": [
+      {
+        "legalName": "SCHEFFER PARTICIPACOES S/A",
+        "cnpj": "11.021.773/0001-70"
+      }
+    ],
+    "qsaPeople": [
+      {
+        "name": "CAROLINA MOGNON SCHEFFER",
+        "role": "Sócio"
+      },
+      {
+        "name": "ELIZEU ZULMAR MAGGI SCHEFFER",
+        "role": "Sócio-Administrador"
+      },
+      {
+        "name": "GILLIARD ANTONIO SCHEFFER",
+        "role": "Sócio-Administrador"
+      },
+      {
+        "name": "GISLAYNE RAFAELA SCHEFFER",
+        "role": "Sócio-Administrador"
+      },
+      {
+        "name": "GUILHERME MOGNON SCHEFFER",
+        "role": "Sócio-Administrador"
+      }
+    ]
+  },
+  "rawFindingPack": {
+    "module": "gold-compact",
+    "accountIdentity": {
+      "inputCnpj": "04.733.767/0001-80",
+      "legalName": "SCHEFFER & CIA LTDA",
+      "establishmentType": "Filial",
+      "rootCnpj": "04.733.767",
+      "conflicts": []
+    },
+    "facts": [
+      {
+        "id": "f-modulos",
+        "entity": "SCHEFFER & CIA LTDA",
+        "claim": "74 módulos Senior ativos registrados no CRM interno",
+        "status": "Confirmado",
+        "source": "CRM interno Senior",
+        "kind": "operation"
+      },
+      {
+        "id": "f-wms-ausencia",
+        "entity": "SCHEFFER & CIA LTDA",
+        "claim": "A empresa não possui WMS",
+        "status": "Confirmado",
+        "source": "CRM interno Senior",
+        "kind": "technology"
+      },
+      {
+        "id": "f-tms-gap",
+        "entity": "SCHEFFER & CIA LTDA",
+        "claim": "Gap de TMS confirmado na operação logística",
+        "status": "Confirmado",
+        "source": "CRM interno Senior",
+        "kind": "operation"
+      },
+      {
+        "id": "f-matriz-canonical",
+        "entity": "SCHEFFER & CIA LTDA",
+        "claim": "A matriz é a inscrição 04.733.767/0014-03 em Cuiabá",
+        "status": "Confirmado",
+        "source": "dossiê legado",
+        "kind": "identity"
+      },
+      {
+        "id": "f-manual",
+        "entity": "SCHEFFER & CIA LTDA",
+        "claim": "O processo de romaneio é manual, feito em planilha",
+        "status": "Pista forte",
+        "source": "Análise de módulos contratados",
+        "kind": "operation",
+        "process": "manual"
+      },
+      {
+        "id": "f-roi",
+        "entity": "SCHEFFER & CIA LTDA",
+        "claim": "ROI garantido de 18 meses com a solução",
+        "status": "Pista inicial",
+        "source": "Estimativa comercial",
+        "kind": "financial"
+      },
+      {
+        "id": "f-prazo",
+        "entity": "SCHEFFER & CIA LTDA",
+        "claim": "Prazo de 60 dias para implantação",
+        "status": "Pista inicial",
+        "source": "Estimativa comercial",
+        "kind": "operation"
+      },
+      {
+        "id": "f-integracao",
+        "entity": "SCHEFFER & CIA LTDA",
+        "claim": "Integração nativa com o ERP contratado",
+        "status": "Pista forte",
+        "source": "Análise de módulos contratados",
+        "kind": "technology"
+      }
+    ],
+    "relationships": [
+      {
+        "id": "r-holding",
+        "entity": "SCHEFFER & CIA LTDA",
+        "relatedEntity": "11.021.773/0001-70",
+        "relationType": "direct_pj_relation",
+        "status": "Confirmado",
+        "source": "qsa",
+        "evidence": "SCHEFFER PARTICIPACOES S/A consta como sócia PJ no QSA"
+      },
+      {
+        "id": "r-lateral",
+        "entity": "SCHEFFER & CIA LTDA",
+        "relatedEntity": "12.345.678/0001-90",
+        "relationType": "partner_other_cnpj",
+        "status": "Pista inicial",
+        "source": "socio-search",
+        "evidence": "Compartilha sócio com a conta (relação lateral)"
+      }
+    ],
+    "technologySignals": [
+      {
+        "technology": "WMS",
+        "observedFact": "WMS Senior não aparece no recorte interno de módulos contratados",
+        "status": "Confirmado",
+        "whatIsNotKnown": "Se existe solução de gestão de armazém na operação",
+        "validationQuestion": "Qual solução suporta hoje o processo de armazenagem e expedição?"
+      },
+      {
+        "technology": "TMS",
+        "observedFact": "TMS Senior não aparece no recorte interno de módulos contratados",
+        "status": "Confirmado",
+        "whatIsNotKnown": "Se existe solução de gestão de transporte na operação",
+        "validationQuestion": "Qual solução suporta hoje o processo de transporte e entrega?"
+      }
+    ],
+    "people": [
+      {
+        "id": "p-elizeu",
+        "personName": "ELIZEU ZULMAR MAGGI SCHEFFER",
+        "role": "Sócio-Administrador",
+        "roleBasis": "qsa",
+        "status": "Confirmado",
+        "source": "QSA oficial"
+      }
+    ],
+    "metrics": [],
+    "conflicts": [],
+    "openQuestions": [
+      "Qual solução suporta hoje o processo de armazenagem e expedição?"
+    ],
+    "discardedClaims": []
+  },
+  "expectations": {
+    "factsThatMustSurvive": [
+      "74 módulos Senior",
+      "SCHEFFER PARTICIPACOES S/A"
+    ],
+    "claimsThatMustDisappear": [
+      "não possui WMS",
+      "Gap de TMS",
+      "manual",
+      "ROI garantido",
+      "Prazo de 60 dias",
+      "Integração nativa"
+    ],
+    "expectedSanitizerEvents": [
+      "NEGATIVE_EVIDENCE_AS_ABSENCE",
+      "NEGATIVE_EVIDENCE_AS_GAP",
+      "MANUAL_PROCESS_INFERRED",
+      "UNSUPPORTED_PRODUCT_CLAIM",
+      "CANONICAL_DUPLICATE"
+    ],
+    "goldenTraps": [
+      "não possui",
+      "gap de",
+      "planilha",
+      "roi",
+      "60 dias",
+      "integração nativa"
+    ],
+    "forbiddenHardFails": [],
+    "note": "Âncora V4→V5: a mesma entrada aprovada na V4 deve continuar passando."
+  }
+}

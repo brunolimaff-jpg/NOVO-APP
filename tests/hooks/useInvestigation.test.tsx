@@ -104,7 +104,9 @@ describe('useInvestigation — handleNewResearchOverride preserva o dossiê ante
   function setupOverride(oldDossierId: string) {
     const hook = renderHook(() => useInvestigation(baseParams as never));
     act(() => {
-      hook.result.current.setDuplicateDossier({ id: oldDossierId, empresaAlvo: 'Antiga', cnpj: null, title: 'Antiga', updatedAt: '' } as never);
+      // operatorId igual ao do operador logado ('op-1') → dossiê PRÓPRIO
+      // (sem operatorId o fail-closed do BRU-11 trataria como estrangeiro)
+      hook.result.current.setDuplicateDossier({ id: oldDossierId, empresaAlvo: 'Antiga', cnpj: null, title: 'Antiga', updatedAt: '', operatorId: 'op-1' } as never);
       hook.result.current.pendingPayloadRef.current = payload as never;
     });
     return hook;
