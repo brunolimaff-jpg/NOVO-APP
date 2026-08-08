@@ -89,3 +89,43 @@ Antes de aprovar mudanças:
 - O arquivo segue `*.test.ts` ou `*.test.tsx`?
 - O teste está claramente estruturado em **AAA**?
 - O teste evita os itens de “o que NÃO testar”?
+
+---
+
+## 6) Gates de CI (BRU-13) — determinísticos e não bloqueadores
+
+Desde o BRU-13 (2026-08-06), o Playwright **não** é gate obrigatório de PR.
+
+### Gates obrigatórios (bloqueadores, determinísticos)
+
+- Typecheck
+- Lint
+- Vitest completo (`npm run test`)
+- Testes focados proporcionais à superfície alterada
+- Contratos (`npm run test:contracts`)
+- Build
+- Dossier Golden determinístico (`npm run test:dossier`) quando aplicável
+- No-Gemini Gate
+- Gates de governança/segurança existentes (Skills Governance, Agent Orchestration, Agent Execution Control, Agent Runtime Observation, Runtime Safety Preflight)
+- Análise nominal de regressão (0 falhas novas por identidade)
+
+Comando agregado: `npm run validate:ci` (typecheck + test + contracts + contrato de CI).
+
+### Validações NÃO bloqueadoras (manuais / com autorização)
+
+- Playwright E2E manual (workflow `e2e-critical-manual.yml`, `workflow_dispatch` only)
+- Preview visual do Bruno (gate final de UX)
+- Golden Live (requer autorização explícita)
+- CNPJ real / serviços externos / LLM live
+
+### Contrato estático de CI
+
+`scripts/validate-ci-contract.rb` falha se:
+
+1. `ci.yml` voltar a chamar Playwright ou instalar Chromium;
+2. `validate:ci` voltar a depender de E2E;
+3. o workflow manual ganhar trigger `pull_request`, `push` ou `schedule`;
+4. o workflow manual usar secrets ou variáveis de LLM live;
+5. jobs determinísticos obrigatórios forem removidos.
+
+Testes: `npm run test:ci-contract` (1 positivo + 5 negativos).

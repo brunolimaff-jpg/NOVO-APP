@@ -1,0 +1,45 @@
+---
+name: E2E Critical Browser Manual
+
+# BRU-13: E2E Playwright é ferramenta DIAGNÓSTICA manual e NÃO bloqueia PRs.
+# - TRIGGER: workflow_dispatch ONLY (sem pull_request/push/schedule).
+# - Fixtures e stubs determinísticos (sem LLM live, sem credenciais de Produção).
+# - Timeout externo observável; artefatos (trace/vídeo/screenshot/relatório) em falha.
+on: # yamllint disable-line rule:truthy
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  critical-browser:
+    name: Critical Browser Regressions
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: npm
+      - name: Fix npm version
+        run: |
+          npm install --global npm@11.11.0
+          test "$(node --version)" = "v24.14.1"
+          test "$(npm --version)" = "11.11.0"
+          node --version
+          npm --version
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Run critical browser regressions (manual, não bloqueador)
+        run: npm run test:e2e:critical-ux
+      - name: Upload Playwright artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7
+          if-no-files-found: ignore

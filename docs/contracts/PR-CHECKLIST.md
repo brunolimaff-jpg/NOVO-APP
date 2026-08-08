@@ -24,9 +24,9 @@ Se seu PR toca em qualquer um destes, o checklist completo é **obrigatório**:
 
 ## Pré-requisitos de Ambiente
 
-- **E2E precisa de Chromium**: `npx playwright install chromium` (Linux: `--with-deps`)
-- **CI sem browser**: use `npm run validate:ci` (typecheck + unit + contracts, sem E2E)
-- **Pretest:e2e**: o script `pretest:e2e` verifica e instala Chromium automaticamente antes de rodar E2E
+- **E2E é manual e NÃO bloqueia PR** (BRU-13): use o workflow `e2e-critical-manual.yml` (workflow_dispatch) ou `npm run test:e2e:critical-ux:safe` como diagnóstico, nunca como gate de CI.
+- **CI sem browser**: use `npm run validate:ci` (typecheck + unit + contracts + contrato de CI, sem E2E)
+- **Pretest:e2e**: o script `pretest:e2e` verifica e instala Chromium automaticamente antes de rodar E2E manual
 
 ## Checklist
 
@@ -39,13 +39,15 @@ Se seu PR toca em qualquer um destes, o checklist completo é **obrigatório**:
 
 - [ ] `npm test` passou (todos os testes unitários)
 - [ ] `npm run test:contracts` passou (todos os contratos)
+- [ ] `npm run validate:ci-contract` passou (contrato estático de CI — E2E fora do gate obrigatório)
 
-### E2E Anti-Regressão
+### E2E Anti-Regressão (diagnóstico manual, NÃO bloqueador)
 
-- [ ] `npm run test:e2e:blank` passou (anti-painel-branco)
-- [ ] `npm run test:e2e:loading` passou (anti-loading-infinito)
-- [ ] `npm run test:e2e:errors` passou (anti-erro-silencioso)
-- [ ] `npm run test:e2e:smoke` passou (presença de data-testid)
+- [ ] (opcional) `npm run test:e2e:blank` rodou (anti-painel-branco)
+- [ ] (opcional) `npm run test:e2e:loading` rodou (anti-loading-infinito)
+- [ ] (opcional) `npm run test:e2e:errors` rodou (anti-erro-silencioso)
+- [ ] (opcional) `npm run test:e2e:smoke` rodou (presença de data-testid)
+- [ ] Ou: workflow `e2e-critical-manual.yml` executado com artefatos preservados
 
 ### Verificação Manual
 

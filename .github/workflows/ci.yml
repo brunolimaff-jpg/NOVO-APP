@@ -97,28 +97,6 @@ jobs:
       - name: Validate no-Gemini runtime
         run: ruby scripts/validate-no-gemini.rb
 
-  e2e-critical-browser:
-    name: E2E Critical Browser
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version-file: '.nvmrc'
-          cache: npm
-      - name: Fix npm version
-        run: |
-          npm install --global npm@11.11.0
-          test "$(node --version)" = "v24.14.1"
-          test "$(npm --version)" = "11.11.0"
-          node --version
-          npm --version
-      - run: npm ci
-      - run: npx playwright install --with-deps chromium
-      - name: Run critical browser regressions
-        run: npm run test:e2e:critical-ux
-
   skills-governance:
     name: Skills Governance
     runs-on: ubuntu-latest
