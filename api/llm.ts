@@ -77,13 +77,62 @@ const SOFT_PROMPT_LEAK_PATTERNS: RegExp[] = [
   /priorize objetividade.*fontes audit[aá]veis/i,
 ];
 
+/**
+ * True quando o texto é um JSON completo e válido — direto ou com fences
+ * markdown/texto envolvente (extrai o bloco entre o primeiro "{" e o último
+ * "}", como o parseJsonPayload do contrato Gold).
+ */
+function isJsonParseable(text: string): boolean {
+  const t = (text || '').trim();
+  if (!t) return false;
+  try {
+    JSON.parse(t);
+    return true;
+  } catch {
+    const start = t.indexOf('{');
+    const end = t.lastIndexOf('}');
+    if (start === -1 || end <= start) return false;
+    try {
+      JSON.parse(t.slice(start, end + 1));
+      return true;
+    } catch {
+      return false;
+    }
+  }
+}
+
+/**
+ * Remove marcadores internos de reasoning do modelo ([[ALGO: ...]]) e, apenas
+ * para respostas NÃO-JSON, um "]" residual histórico na última linha isolada.
+ *
+ * BRU-33 (fix 2026-08-09, contrato do Planejador): o comportamento antigo
+ * `/^\s*\]\s*$/gm` removia TODAS as linhas compostas só por "]", corrompendo
+ * fechamentos legítimos de arrays no JSON pretty do Gold Compact → o leak
+ * shield quebrava o JSON → compact-error → fallback para o dossiê gigante
+ * (causa raiz provada: LiteLLM direto passa, /api/llm quebra).
+ * Contrato: 1) resposta inteira JSON válida → NENHUMA transformação
+ * destrutiva; 2) não-JSON → limpar "]" residual só na última linha isolada
+ * (nunca global); 3) detecção de prompt leak continua depois (segurança
+ * inalterada).
+ */
 function stripInternalMarkersLocal(text: string): string {
-  return (text || '')
+  const cleaned = (text || '')
     .replace(INTERNAL_MARKER_REGEX, '')
     .replace(INTERNAL_MARKER_OPEN_TAIL_REGEX, '')
     .replace(/\n{3,}/g, '\n\n')
-    .replace(/^\s*\]\s*$/gm, '')
     .trim();
+
+  // 1) JSON válido atravessa INTACTO (nenhuma transformação destrutiva).
+  if (isJsonParseable(cleaned)) return cleaned;
+
+  // 2) Não-JSON: limpa apenas um "]" residual isolado na ÚLTIMA linha
+  //    (cola histórica de reasoning do DeepSeek) — nunca linhas internas.
+  const lines = cleaned.split('\n');
+  if (lines.length > 1 && /^\s*\]\s*$/.test(lines[lines.length - 1])) {
+    lines.pop();
+    return lines.join('\n').trim();
+  }
+  return cleaned;
 }
 
 function detectPromptLeakIndicatorsLocal(text: string): { detected: boolean; indicators: string[] } {
@@ -98,7 +147,7 @@ function detectPromptLeakIndicatorsLocal(text: string): { detected: boolean; ind
   };
 }
 
-function applyPromptLeakShieldLocal(text: string): {
+export function applyPromptLeakShieldLocal(text: string): {
   text: string;
   blocked: boolean;
   indicators: string[];
