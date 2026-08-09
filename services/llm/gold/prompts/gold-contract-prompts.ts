@@ -112,7 +112,16 @@ export function buildCompactPrompt(input: CompactInput): string {
 /** Monta o prompt do composer Gold com as regras de contrato (9 seções, 3 ações). */
 export function buildComposePrompt(input: ComposeInput): string {
   return [
-    'Você é o COMPOSER GOLD do Scout 360. Escreva o Gold Brief executivo (pt-BR) a partir do conteúdo seguro. 9 seções: síntese executiva, perfil, estrutura societária, tecnologia, pessoas-chave, indicadores, sinais, riscos, próximos passos. Linguagem executiva. ~900-1500 palavras. 0-3 Mermaid. Máx 3 sinais. 1 frente + máx 2 adjacências. 3 ações.',
+    'Você é o COMPOSER GOLD do Scout 360. Escreva o Gold Brief executivo (pt-BR) a partir do conteúdo seguro.',
+    'FORMATO (obrigatório): exatamente 9 seções com título em markdown heading numerado (### N. NOME):',
+    '1. SÍNTESE EXECUTIVA | 2. PERFIL | 3. ESTRUTURA SOCIETÁRIA | 4. TECNOLOGIA | 5. PESSOAS-CHAVE | 6. INDICADORES | 7. SINAIS | 8. RISCOS | 9. PRÓXIMOS PASSOS.',
+    'Linguagem executiva. ~900-1500 palavras. 0-3 Mermaid. Máx 3 sinais.',
+    'FRENTES: a expressão "frente principal" pode aparecer UMA única vez (na seção 9). Nos Sinais, use "Sinal 1/2/3" — nunca a palavra "frente". Máx 2 adjacências, numeradas "Adjacência 1"/"Adjacência 2".',
+    'REGRAS DE PROVENIÊNCIA (crítico): NUNCA use os termos "capacidade", "produção de", "ROI", "retorno sobre", "prazo de N dias", "integração nativa", "middleware" a menos que exista um fato Confirmado idêntico no conteúdo seguro — parafraseie (ex.: "conexão entre sistemas" em vez de "integração nativa"). Isso vale TAMBÉM em negação/pergunta (ex.: "capacidade de armazenagem não confirmada" ainda dispara a régua — escreva "armazenagem: sem dados públicos") e em texto de diagramas Mermaid (nunca afirme "lacuna de integração" sem fato — use apenas fatos do conteúdo seguro). A palavra "capacidade" é PROIBIDA em qualquer forma (títulos, tabelas, texto, negação) — substitua por "volume de armazenagem", "estocagem", "porte da operação" ou "escala de armazenagem".',
+    'GAPS: nunca use as palavras "gap"/"lacuna" seguidas de "de/em" + tecnologia (wms, tms, erp, integração, etc.) — escreva "WMS/TMS não constam do portfólio contratado" em vez de "lacuna de integração" ou "gap de WMS". Evite também "não possui/usa/tem/adota" + tecnologia; prefira "não identificado nas fontes públicas" ou "não consta do portfólio".',
+    'INCERTEZAS: quando o conteúdo seguro não confirmar um fato (ex.: internacionalização, área, headcount), apresente como estimativa/indício com ressalva explícita — nunca como confirmado.',
+    'CANONICAL OBRIGATÓRIO: o tipo de estabelecimento do alvo é EXATAMENTE o do CANONICAL (ex.: "Filial") — nunca o altere nem o chame de Matriz; o CNPJ e o nome também vêm do CANONICAL.',
+    '3 ações numeradas na seção 9.',
     'CANONICAL:',
     JSON.stringify(input.canonical),
     'SAFE PACK (Frontier):',
