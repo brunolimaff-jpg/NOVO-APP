@@ -26,6 +26,12 @@ export interface GoldSeamInput {
   /** Dossiê final já pronto (waterfallFinalText) — nunca é descartado. */
   dossierText: string;
   deps: GoldSeamDeps;
+  /**
+   * AbortSignal do fluxo (usuário/run-control): abort do usuário NÃO é
+   * fallback — propaga (CANCELLED). O deadline total de 120s usa um
+   * AbortSignal.timeout combinado; TimeoutError cai em fallback silencioso.
+   */
+  signal?: AbortSignal;
 }
 
 export interface GoldSeamDeps {
@@ -37,24 +43,36 @@ export interface GoldSeamDeps {
    * fallback silencioso. O dossier de entrada NÃO é reconstruído aqui: o
    * Gold consome o dossiê que já existe (princípio do Planejador).
    */
-  buildCanonical: (cnpj: string, companyName: string) => Promise<CanonicalAccount | null>;
+  buildCanonical: (cnpj: string, companyName: string, signal?: AbortSignal) => Promise<CanonicalAccount | null>;
   /** Pipeline Gold guardado (compact + compose + parse + sanitize + verifier). */
-  runGold: (input: { canonical: CanonicalAccount; dossier: string }) => Promise<GuardedGoldPipelineResult>;
+  runGold: (
+    input: { canonical: CanonicalAccount; dossier: string },
+    signal?: AbortSignal,
+  ) => Promise<GuardedGoldPipelineResult>;
 }
+
+/** Deadline total do pós-processamento Gold (congelado pelo Planejador). */
+export const GOLD_DEADLINE_MS = 120_000;
 
 /**
  * Pós-processamento fail-closed: devolve `dossierText` intacto em qualquer
- * falha interna do Gold; devolve o Gold apenas quando elegível
- * (Verifier sem hard fails + GoldContractValidator PASS).
+ * falha interna do Gold (incluindo TimeoutError do deadline de 120s);
+ * devolve o Gold apenas quando elegível (Verifier sem hard fails +
+ * GoldContractValidator PASS). Abort do usuário NÃO é fallback — propaga.
  */
 export async function tryEnhanceDossierWithGold(input: GoldSeamInput): Promise<string> {
-  const { cnpj, companyName, dossierText, deps } = input;
+  const { cnpj, companyName, dossierText, deps, signal } = input;
   if (!deps.enabled || !cnpj) return dossierText;
+  // Deadline total: combina o signal do usuário com um timeout de 120s.
+  // TimeoutError → fallback; AbortError (usuário) → propaga.
+  const goldSignal = signal
+    ? AbortSignal.any([signal, AbortSignal.timeout(GOLD_DEADLINE_MS)])
+    : AbortSignal.timeout(GOLD_DEADLINE_MS);
   try {
-    const canonical = await deps.buildCanonical(cnpj, companyName);
+    const canonical = await deps.buildCanonical(cnpj, companyName, goldSignal);
     if (!canonical) return dossierText;
 
-    const result = await deps.runGold({ canonical, dossier: dossierText });
+    const result = await deps.runGold({ canonical, dossier: dossierText }, goldSignal);
     if (result.verification.hardFails.length > 0) return dossierText;
 
     const contract = validateGoldContract(result.goldBrief);
@@ -63,7 +81,8 @@ export async function tryEnhanceDossierWithGold(input: GoldSeamInput): Promise<s
     return result.goldBrief;
   } catch (error) {
     // Abort do usuário NÃO é fallback: propaga para o fluxo preservar
-    // CANCELLED. Qualquer outra falha interna cai silenciosamente no dossiê.
+    // CANCELLED. Qualquer outra falha interna (incl. TimeoutError do
+    // deadline) cai silenciosamente no dossiê.
     if (isAbortLikeError(error)) throw error;
     return dossierText;
   }

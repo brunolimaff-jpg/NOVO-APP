@@ -33,8 +33,8 @@ export interface ComposeInput {
 }
 
 export interface GoldPipelineDeps {
-  compact: (input: CompactInput) => Promise<RawFindingPack>;
-  compose: (input: ComposeInput) => Promise<string>;
+  compact: (input: CompactInput, signal?: AbortSignal) => Promise<RawFindingPack>;
+  compose: (input: ComposeInput, signal?: AbortSignal) => Promise<string>;
 }
 
 export interface GuardedGoldPipelineResult {
@@ -47,12 +47,16 @@ export interface GuardedGoldPipelineResult {
 export async function runGuardedGoldPipeline(
   input: { canonical: CanonicalAccount; dossier: string },
   deps: GoldPipelineDeps,
+  signal?: AbortSignal,
 ): Promise<GuardedGoldPipelineResult> {
   // 1) Compact → parse (fail-closed antes do sanitizer).
-  const compactOutput = await deps.compact({
-    canonical: input.canonical,
-    dossier: input.dossier,
-  });
+  const compactOutput = await deps.compact(
+    {
+      canonical: input.canonical,
+      dossier: input.dossier,
+    },
+    signal,
+  );
   const parsed = rawFindingPackSchema.safeParse(compactOutput);
   if (!parsed.success) {
     const detail = parsed.error.issues[0]?.message ?? 'JSON inválido';
@@ -86,7 +90,7 @@ export async function runGuardedGoldPipeline(
   const { originalPack: _originalPack, discardedClaims: _discardedClaims, sanitizerEvents, ...frontierRest } = safePack;
   const frontierEvents = sanitizerEvents.map(({ before: _before, ...event }) => event);
   const frontierInput = frontierPackSchema.parse({ ...frontierRest, sanitizerEvents: frontierEvents });
-  const goldBrief = await deps.compose({ canonical: input.canonical, safePack: frontierInput });
+  const goldBrief = await deps.compose({ canonical: input.canonical, safePack: frontierInput }, signal);
 
   // 5) Verify — barreira final sobre o Gold.
   const verification = verifyGold(goldBrief, input.canonical, safePack);

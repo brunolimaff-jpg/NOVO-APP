@@ -26,10 +26,10 @@ import type { GoldSeamDeps } from './gold-dossier-seam';
 const GOLD_CANONICAL_ENDPOINT = '/api/gold-canonical';
 
 export interface GoldBrowserAdapterOptions {
-  /** Default: env VITE_GOLD_DOSSIER_ENHANCE === 'true' (OFF por padrão). */
+  /** Default: env VITE_GOLD_DOSSIER_ENHANCE === '1' ou 'true' (OFF por padrão). */
   enabled?: boolean;
   /** Injeção para testes — zero chamadas provider. */
-  fetchCanonical?: (cnpj: string, companyName: string) => Promise<CanonicalAccount | null>;
+  fetchCanonical?: (cnpj: string, companyName: string, signal?: AbortSignal) => Promise<CanonicalAccount | null>;
   chatSendMessage?: typeof proxyChatSendMessage;
 }
 
@@ -37,11 +37,12 @@ export interface GoldBrowserAdapterOptions {
 export async function fetchCanonicalFromApi(
   cnpj: string,
   companyName: string,
+  signal?: AbortSignal,
   fetcher: typeof fetch = fetch,
 ): Promise<CanonicalAccount | null> {
   try {
     const url = `${GOLD_CANONICAL_ENDPOINT}?cnpj=${encodeURIComponent(cnpj)}&companyName=${encodeURIComponent(companyName)}`;
-    const res = await fetcher(url, { headers: { Accept: 'application/json' } });
+    const res = await fetcher(url, { headers: { Accept: 'application/json' }, signal });
     if (!res.ok) return null;
     const data = (await res.json()) as CanonicalAccount;
     if (!data?.inputCnpj) return null;
@@ -61,39 +62,45 @@ export function createGoldSeamDeps(options: GoldBrowserAdapterOptions = {}): Gol
   const chatSendMessage = options.chatSendMessage ?? proxyChatSendMessage;
 
   const pipelineDeps: GoldPipelineDeps = {
-    async compact(input) {
-      const result = await chatSendMessage({
-        model: GOLD_COMPACT_MODEL_ID,
-        systemInstruction:
-          'Você é um extrator determinístico de fatos comerciais. Responda apenas JSON estrito, completo, sem truncar nenhum campo. Se o dossiê for longo, distribua os fatos sem omitir campos obrigatórios.',
-        history: [],
-        message: buildCompactPrompt(input),
-        temperature: 0,
-        thinkingLevel: 'low',
-      });
+    async compact(input, signal) {
+      const result = await chatSendMessage(
+        {
+          model: GOLD_COMPACT_MODEL_ID,
+          systemInstruction:
+            'Você é um extrator determinístico de fatos comerciais. Responda apenas JSON estrito, completo, sem truncar nenhum campo. Se o dossiê for longo, distribua os fatos sem omitir campos obrigatórios.',
+          history: [],
+          message: buildCompactPrompt(input),
+          temperature: 0,
+          thinkingLevel: 'low',
+        },
+        signal,
+      );
       return parseJsonPayload(result.text);
     },
-    async compose(input) {
-      const result = await chatSendMessage({
-        model: GOLD_COMPOSE_MODEL_ID,
-        systemInstruction:
-          'Você é um redator executivo de briefs de inteligência comercial. Escreva apenas o Gold Brief em pt-BR.',
-        history: [],
-        message: buildComposePrompt(input),
-        temperature: 0,
-        thinkingLevel: 'low',
-      });
+    async compose(input, signal) {
+      const result = await chatSendMessage(
+        {
+          model: GOLD_COMPOSE_MODEL_ID,
+          systemInstruction:
+            'Você é um redator executivo de briefs de inteligência comercial. Escreva apenas o Gold Brief em pt-BR.',
+          history: [],
+          message: buildComposePrompt(input),
+          temperature: 0,
+          thinkingLevel: 'low',
+        },
+        signal,
+      );
       return result.text;
     },
   };
 
   return {
     enabled,
-    async buildCanonical(cnpj, companyName) {
-      return fetchCanonical(cnpj, companyName);
+    async buildCanonical(cnpj, companyName, signal) {
+      return fetchCanonical(cnpj, companyName, signal);
     },
-    async runGold(input) {
-      return runGuardedGoldPipeline(input, pipelineDeps);
+    async runGold(input, signal) {
+      return runGuardedGoldPipeline(input, pipelineDeps, signal);
     },
   };
 }

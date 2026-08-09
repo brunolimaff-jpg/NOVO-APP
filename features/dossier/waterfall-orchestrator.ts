@@ -1250,28 +1250,55 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
         // caem silenciosamente no dossiê; abort do usuário e erros de
         // run-control/lease preservam a semântica atual (CANCELLED/FAILED).
         if (goldSeamDeps.enabled && sessionCnpjDigits) {
+          const goldStartedAt = Date.now();
+          scoutDiag.info('GoldSeam', 'gold-start', {
+            sessionId,
+            waterfallRunId,
+            company: normalizedCompany || resolvedMegaCompany,
+            cnpj: sessionCnpjDigits,
+          });
           try {
             const enhancedText = await tryEnhanceDossierWithGold({
               cnpj: sessionCnpjDigits,
               companyName: normalizedCompany || resolvedMegaCompany,
               dossierText: waterfallFinalText,
               deps: goldSeamDeps,
+              signal,
             });
+            const goldDurationMs = Date.now() - goldStartedAt;
             if (enhancedText !== waterfallFinalText) {
               scoutDiag.info('GoldSeam', 'gold-elegivel', {
                 sessionId,
                 waterfallRunId,
                 goldChars: enhancedText.length,
                 dossierChars: waterfallFinalText.length,
+                goldDurationMs,
                 company: normalizedCompany || resolvedMegaCompany,
               });
               waterfallFinalText = enhancedText;
+            } else {
+              scoutDiag.info('GoldSeam', 'gold-rejeitado-fallback', {
+                sessionId,
+                waterfallRunId,
+                goldDurationMs,
+                reason: 'verifier_ou_contract_fail',
+                company: normalizedCompany || resolvedMegaCompany,
+              });
             }
           } catch (error) {
-            if (isAbortLikeError(error) || isDossierRunControlError(error)) throw error;
+            if (isAbortLikeError(error) || isDossierRunControlError(error)) {
+              scoutDiag.info('GoldSeam', 'gold-abortado', {
+                sessionId,
+                waterfallRunId,
+                goldDurationMs: Date.now() - goldStartedAt,
+                reason: isAbortLikeError(error) ? 'user_abort' : 'run_control',
+              });
+              throw error;
+            }
             scoutDiag.warn('GoldSeam', 'gold-falha-fallback-dossier', {
               sessionId,
               waterfallRunId,
+              goldDurationMs: Date.now() - goldStartedAt,
               error: error instanceof Error ? error.message : String(error),
             });
           }

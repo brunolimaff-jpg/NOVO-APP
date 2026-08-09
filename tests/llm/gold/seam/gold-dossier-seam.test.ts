@@ -15,7 +15,11 @@ import { join } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 import type { CanonicalAccount, SafeFindingPack } from '../../../../services/llm/gold/gold-contracts';
 import type { GuardedGoldPipelineResult } from '../../../../services/llm/gold/gold-pipeline';
-import { tryEnhanceDossierWithGold, type GoldSeamDeps } from '../../../../services/llm/gold/seam/gold-dossier-seam';
+import {
+  GOLD_DEADLINE_MS,
+  tryEnhanceDossierWithGold,
+  type GoldSeamDeps,
+} from '../../../../services/llm/gold/seam/gold-dossier-seam';
 
 const DOSSIER_TEXT = '# DOSSIÊ SCOUT 360\n\nEmpresa alvo: SCHEFFER & CIA LTDA\n\n... dossiê completo ...';
 // Gold REAL que passou no GoldContractValidator no reteste canônico
@@ -158,7 +162,8 @@ describe('tryEnhanceDossierWithGold — seam fail-closed', () => {
       deps,
     });
     expect(out).toBe(GOLD_TEXT);
-    expect(deps.buildCanonical).toHaveBeenCalledWith('04.733.767/0001-80', 'SCHEFFER & CIA LTDA');
+    expect(deps.buildCanonical.mock.calls[0][0]).toBe('04.733.767/0001-80');
+    expect(deps.buildCanonical.mock.calls[0][1]).toBe('SCHEFFER & CIA LTDA');
     expect(deps.runGold).toHaveBeenCalledTimes(1);
   });
 
@@ -176,6 +181,24 @@ describe('tryEnhanceDossierWithGold — seam fail-closed', () => {
         deps,
       }),
     ).rejects.toMatchObject({ name: 'AbortError' });
+  });
+
+  it('signal do usuário é propagado para buildCanonical e runGold', async () => {
+    const deps = makeDeps();
+    const controller = new AbortController();
+    await tryEnhanceDossierWithGold({
+      cnpj: '04.733.767/0001-80',
+      companyName: 'SCHEFFER & CIA LTDA',
+      dossierText: DOSSIER_TEXT,
+      deps,
+      signal: controller.signal,
+    });
+    expect(deps.buildCanonical.mock.calls[0][2]).toBeDefined();
+    expect(deps.runGold.mock.calls[0][1]).toBeDefined();
+  });
+
+  it('deadline de 120s congelado (GOLD_DEADLINE_MS = 120000)', () => {
+    expect(GOLD_DEADLINE_MS).toBe(120_000);
   });
 
   it('prova zero provider: nenhum teste toca fetch/LLM real (mocks apenas)', () => {
