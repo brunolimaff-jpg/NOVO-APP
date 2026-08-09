@@ -53,7 +53,10 @@ export async function fetchCanonicalFromApi(
 }
 
 export function createGoldSeamDeps(options: GoldBrowserAdapterOptions = {}): GoldSeamDeps {
-  const enabled = options.enabled ?? import.meta.env.VITE_GOLD_DOSSIER_ENHANCE === 'true';
+  // Padrão do projeto (utils/feature-flags.ts): aceita '1' ou 'true'.
+  const enabled =
+    options.enabled ??
+    (import.meta.env.VITE_GOLD_DOSSIER_ENHANCE === '1' || import.meta.env.VITE_GOLD_DOSSIER_ENHANCE === 'true');
   const fetchCanonical = options.fetchCanonical ?? fetchCanonicalFromApi;
   const chatSendMessage = options.chatSendMessage ?? proxyChatSendMessage;
 
