@@ -42,6 +42,11 @@ function formatCnpj(digits: string): string {
 
 /** Dados cadastrais reais: BrasilAPI (primária) com fallback CNPJ.ws. */
 export async function fetchCnpjData(cnpjDigits: string): Promise<BrasilApiCadastro> {
+  // Validação estrita de dígitos antes de qualquer interpolação de URL
+  // (SSRF-safe: o valor nunca pode carregar path/query/host arbitrários).
+  if (!/^\d{14}$/.test(cnpjDigits)) {
+    throw new Error(`CNPJ inválido para consulta cadastral (${cnpjDigits.length} dígitos)`);
+  }
   try {
     const res = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cnpjDigits}`, {
       headers: { 'User-Agent': 'Scout360/1.0' },
