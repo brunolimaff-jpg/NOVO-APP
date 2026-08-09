@@ -87,12 +87,32 @@ function buildAbortError(): Error {
   return error;
 }
 
+/**
+ * BRU-33 — Razão real do abort do signal (semântica abort vs timeout).
+ * Um AbortSignal.timeout aborta com DOMException 'TimeoutError'; o
+ * isAbortLikeError do seam só trata 'AbortError'/mensagem "aborted" como
+ * cancelamento do usuário — então TimeoutError precisa chegar intacto ao
+ * seam para cair em FALLBACK (e não virar CANCELLED).
+ */
+function abortReasonOf(signal: AbortSignal): Error {
+  const reason = signal.reason;
+  return reason instanceof Error ? reason : buildAbortError();
+}
+
+/**
+ * BRU-33 — Semântica abort vs timeout (último bloqueador, Planejador
+ * 2026-08-09): quando o signal externo aborta com uma RAZÃO (ex.: TimeoutError
+ * do deadline Gold de 120s via AbortSignal.timeout), o erro propagado deve
+ * PRESERVAR essa razão — TimeoutError deve cair em fallback, e apenas
+ * AbortError (user abort) deve virar CANCELLED. Antes, readResponseText
+ * recriava tudo como AbortError → o deadline Gold virava CANCELLED.
+ */
 async function readResponseText(response: Response, signal: AbortSignal): Promise<string> {
-  if (signal.aborted) throw buildAbortError();
+  if (signal.aborted) throw abortReasonOf(signal);
 
   let cleanupAbortListener: (() => void) | undefined;
   const abortPromise = new Promise<never>((_, reject) => {
-    const rejectOnAbort = () => reject(buildAbortError());
+    const rejectOnAbort = () => reject(abortReasonOf(signal));
     signal.addEventListener('abort', rejectOnAbort, { once: true });
     cleanupAbortListener = () => signal.removeEventListener('abort', rejectOnAbort);
   });
@@ -128,7 +148,12 @@ async function callLlmApi<TResponse>(
     controller.abort();
   }, timeoutMs);
 
-  const forwardAbort = () => controller.abort();
+  // BRU-33: preserva a RAZÃO do abort externo — se o signal do chamador
+  // abortou com TimeoutError (deadline Gold 120s), o fetch rejeita com
+  // TimeoutError (→ fallback); se abortou com AbortError (user), idem (→
+  // CANCELLED). Sem isso, tudo virava AbortError genérico e o deadline do
+  // Gold era interpretado como cancelamento do usuário.
+  const forwardAbort = () => controller.abort(signal?.reason);
   signal?.addEventListener('abort', forwardAbort, { once: true });
 
   let response: Response | null = null;

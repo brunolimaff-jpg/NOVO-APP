@@ -17,6 +17,7 @@
  * ZERO import de shadow/ no runtime (regra do Planejador).
  */
 import { proxyChatSendMessage } from '../../../llmProxy';
+import { isAbortLikeError } from '../../../../utils/abortHelpers';
 import { GOLD_COMPACT_MODEL_ID, GOLD_COMPOSE_MODEL_ID } from '../../../../config/models';
 import type { CanonicalAccount } from '../gold-contracts';
 import { runGuardedGoldPipeline, type GoldPipelineDeps } from '../gold-pipeline';
@@ -47,8 +48,13 @@ export async function fetchCanonicalFromApi(
     const data = (await res.json()) as CanonicalAccount;
     if (!data?.inputCnpj) return null;
     return data;
-  } catch {
-    // Upstream indisponível → fallback silencioso (dossiê intacto).
+  } catch (error) {
+    // Upstream indisponível → fallback silencioso (dossiê intacto). MAS abort
+    // do usuário NÃO é fallback (último bloqueador BRU-33, Planejador
+    // 2026-08-09): user abort durante o canonical deve PROPAGAR (CANCELLED),
+    // não virar canonical_null → dossiê. TimeoutError (deadline Gold 120s)
+    // não é abort-like → continua caindo em fallback.
+    if (isAbortLikeError(error)) throw error;
     return null;
   }
 }
