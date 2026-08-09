@@ -124,9 +124,25 @@ REGRAS OBRIGATÓRIAS:
 7. NÃO afirme suporte onde o safePack não sustenta; use linguagem calibrada
    (pista vs confirmado).
 8. NÃO reproduza CPF, dados pessoais sensíveis ou material bruto.
-9. EXTENSÃO: ~900–1500 palavras. Mermaid: 0–3 diagramas, apenas quando
-   agregarem decisão.
-10. AÇÕES: EXATAMENTE 3 próximos passos concretos e acionáveis (nem mais, nem menos).
+9. EXTENSÃO: ~900–1500 palavras (NUNCA abaixo de 900 — contrato rejeita).
+   Mermaid: 0–3 diagramas; 1–2 preferenciais quando o conteúdo seguro
+   suportar (1º = fluxo da operação, 2º = teia societária). Nós E arestas
+   precisam ser sustentados (seta = afirmação de fluxo/relação): sem
+   cadeia/ordem não comprovada; sem termos sensíveis ("capacidade",
+   "produção de", "ROI", "prazo de N", "integração nativa", "middleware")
+   nem gap/lacuna tecnológica dentro dos diagramas.
+10. TEIA SOCIETÁRIA (whitelist estrita): nós apenas com CNPJs de
+    (a) conta alvo do canonical; (b) headOfficeCnpj se != null;
+    (c) directPjPartners; (d) safePack.relationships. Semântica da
+    relação preservada (same_root / direct_pj_relation /
+    partner_other_cnpj); partner_other_cnpj JAMAIS vira "empresa do
+    grupo", "controlada" ou "holding". Nós em linha própria com IDs e
+    arestas pelos IDs.
+11. MATRIZ DE CNPJs (seção 3 ESTRUTURA SOCIETÁRIA): tabela empresa | CNPJ
+    | papel com a MESMA whitelist do item 10; deduplicar CNPJs; não
+    inventar CNPJ/nome/papel; CNPJ seguro sem nome → "Nome não
+    identificado no conteúdo seguro".
+12. AÇÕES: EXATAMENTE 3 próximos passos concretos e acionáveis (nem mais, nem menos).
 ```
 
 ### Variáveis
