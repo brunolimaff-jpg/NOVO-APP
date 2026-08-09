@@ -89,14 +89,14 @@ function buildAbortError(): Error {
 
 /**
  * BRU-33 — Razão real do abort do signal (semântica abort vs timeout).
- * Um AbortSignal.timeout aborta com DOMException 'TimeoutError'; o
- * isAbortLikeError do seam só trata 'AbortError'/mensagem "aborted" como
- * cancelamento do usuário — então TimeoutError precisa chegar intacto ao
- * seam para cair em FALLBACK (e não virar CANCELLED).
+ * PRESERVA signal.reason LITERALMENTE (inclusive DOMException TimeoutError/
+ * AbortError): no browser, DOMException NÃO é instanceof Error — filtrar por
+ * isso recriaria um AbortError genérico e o TimeoutError do deadline Gold
+ * (120s) viraria CANCELLED em vez de fallback (gap apontado pelo Planejador
+ * 2026-08-09).
  */
 function abortReasonOf(signal: AbortSignal): Error {
-  const reason = signal.reason;
-  return reason instanceof Error ? reason : buildAbortError();
+  return signal.reason != null ? (signal.reason as Error) : buildAbortError();
 }
 
 /**
@@ -159,6 +159,11 @@ async function callLlmApi<TResponse>(
   let response: Response | null = null;
   let responseText: string;
   try {
+    // BRU-33: signal JÁ abortado antes da chamada → propaga imediatamente a
+    // razão (fetch NÃO inicia). Sem isso, um cancelamento entre etapas do
+    // Gold ficaria pendente até o timeout interno do proxy (gap apontado pelo
+    // Planejador 2026-08-09).
+    if (signal?.aborted) throw abortReasonOf(signal);
     try {
       scoutDiag.info('LlmProxy', 'request:start', {
         endpoint,
