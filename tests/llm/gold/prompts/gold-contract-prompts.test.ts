@@ -80,13 +80,13 @@ describe('SCOUT-V7-GOLD-RUNTIME-QUALITY-01 — prompts alinhados ao PROMPT_SPEC'
     expect(frontier.conflicts[0]).toMatch(/n[aã]o confirmada no exterior/);
   });
 
-  it('4: Prompt Composer instrui mermaid (fluxo da operação + teia societária) com regra anti-invenção', () => {
+  it('4: Prompt Composer instrui Mapa do Caos Operacional + teia societária com regra anti-invenção', () => {
     const prompt = buildComposePrompt({ canonical, safePack: {} as never });
     expect(prompt).toMatch(/Mermaid/i);
-    expect(prompt).toMatch(/FLUXO DA OPERA[cÇ][aÃ]O/i);
+    expect(prompt).toMatch(/MAPA DO CAOS OPERACIONAL/i);
     expect(prompt).toMatch(/TEIA SOCIET[aÁ]RIA/i);
-    expect(prompt).toMatch(/nunca invente etapa, empresa, CNPJ, rela[cç][aã]o ou seta/i);
-    expect(prompt).toMatch(/apenas fatos do conteúdo seguro/i);
+    expect(prompt).toMatch(/omita-o em vez de inventar/i);
+    expect(prompt).toMatch(/somente fatos do CANONICAL e do SAFE PACK/i);
   });
 
   it('5: Prompt Composer instrui tabela "Matriz de CNPJs" na Estrutura Societária com CNPJs só do conteúdo seguro', () => {
@@ -108,20 +108,20 @@ describe('SCOUT-V7-GOLD-RUNTIME-QUALITY-01 — prompts alinhados ao PROMPT_SPEC'
     expect(prompt).toMatch(/safePack\.relationships/i);
   });
 
-  it('B: Prompt pede 1-2 Mermaid QUANDO houver evidência suficiente (1º fluxo, 2º teia)', () => {
+  it('B: Prompt pede Mapa do Caos Operacional QUANDO houver evidência suficiente (1º mapa, 2º teia)', () => {
     const prompt = buildComposePrompt({ canonical, safePack: {} as never });
-    expect(prompt).toMatch(/1-2 diagramas Mermaid/i);
-    expect(prompt).toMatch(/FLUXO DA OPERA[cÇ][aÃ]O/i);
-    expect(prompt).toMatch(/TEIA SOCIET[aÁ]RIA/i);
+    expect(prompt).toMatch(/MAPA DO CAOS OPERACIONAL/i);
+    expect(prompt).toMatch(/obrigat[óo]rio quando houver evid[eê]ncia segura suficiente/i);
+    expect(prompt).toMatch(/TEIA SOCIET[aÁ]RIA = 2[ºo] diagrama/i);
     expect(prompt).toMatch(/omita-o em vez de inventar/i);
   });
 
-  it('C: Arestas também precisam ser sustentadas — nenhum processo criado só para completar fluxo', () => {
+  it('C: NÓ verdadeiro não autoriza SETA inventada — nenhum processo criado só para completar fluxo', () => {
     const prompt = buildComposePrompt({ canonical, safePack: {} as never });
-    expect(prompt).toMatch(/ARESTAS S[aÃ]O AFIRMA[cÇ][oÕ]ES/i);
-    expect(prompt).toMatch(/a aresta tamb[eé]m precisa estar sustentada/i);
-    expect(prompt).toMatch(/N[aÃ]O invente a cadeia/i);
-    expect(prompt).toMatch(/sem causalidade\/ordem n[aã]o comprovada/i);
+    expect(prompt).toMatch(/N[ÓO] verdadeiro N[ÃA]O autoriza SETA inventada/i);
+    expect(prompt).toMatch(/toda aresta precisa de suporte no conteúdo seguro/i);
+    expect(prompt).toMatch(/ponto de aten[cç][aã]o somente quando sustentado/i);
+    expect(prompt).toMatch(/aus[eê]ncia de tecnologia NUNCA vira gap/i);
   });
 
   it('D: Mermaid societário — apenas CNPJs permitidos; partner_other_cnpj permanece relação lateral', () => {
@@ -158,8 +158,9 @@ describe('SCOUT-V7-GOLD-RUNTIME-QUALITY-01 — prompts alinhados ao PROMPT_SPEC'
       sanitized: true,
     } as never;
     const prompt = buildComposePrompt({ canonical, safePack: frontier });
-    expect(prompt).toMatch(/1-2 diagramas Mermaid/i);
-    expect(prompt).toMatch(/se houver fatos confirmados de cultivo, beneficiamento e trading, o fluxo DEVE existir/i);
+    expect(prompt).toMatch(/MAPA DO CAOS OPERACIONAL/i);
+    expect(prompt).toMatch(/opera[cç][aã]o principal → ramifica[cç][oõ]es reais da cadeia/i);
+    expect(prompt).toMatch(/N[ÓO] verdadeiro N[ÃA]O autoriza SETA inventada/i);
   });
 
   it('G: Fixture sem evidência operacional → prompt não obriga inventar diagrama', () => {
@@ -179,7 +180,7 @@ describe('SCOUT-V7-GOLD-RUNTIME-QUALITY-01 — prompts alinhados ao PROMPT_SPEC'
       sanitized: true,
     } as never;
     const prompt = buildComposePrompt({ canonical, safePack: frontier });
-    expect(prompt).toMatch(/quando o conteúdo seguro permitir/i);
+    expect(prompt).toMatch(/quando houver evid[eê]ncia segura suficiente/i);
     expect(prompt).toMatch(/se um diagrama n[aã]o tiver suporte, omita-o em vez de inventar/i);
   });
 });

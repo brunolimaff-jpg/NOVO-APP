@@ -125,12 +125,17 @@ REGRAS OBRIGATÓRIAS:
    (pista vs confirmado).
 8. NÃO reproduza CPF, dados pessoais sensíveis ou material bruto.
 9. EXTENSÃO: ~900–1500 palavras (NUNCA abaixo de 900 — contrato rejeita).
-   Mermaid: 0–3 diagramas; 1–2 preferenciais quando o conteúdo seguro
-   suportar (1º = fluxo da operação, 2º = teia societária). Nós E arestas
-   precisam ser sustentados (seta = afirmação de fluxo/relação): sem
-   cadeia/ordem não comprovada; sem termos sensíveis ("capacidade",
-   "produção de", "ROI", "prazo de N", "integração nativa", "middleware")
-   nem gap/lacuna tecnológica dentro dos diagramas.
+   Mermaid: 0–3 diagramas; MAPA DO CAOS OPERACIONAL = obrigatório quando
+   houver evidência segura suficiente (peça visual principal, seção 2
+   PERFIL): operação principal → ramificações reais da cadeia → sistemas/
+   processos identificados → pontos de atenção sustentados; compreensível
+   sozinho. TEIA SOCIETÁRIA = 2º diagrama (seção 3) + Matriz de CNPJs.
+   NÓ verdadeiro NÃO autoriza SETA inventada: toda aresta precisa de
+   suporte; ponto de atenção somente quando sustentado; ausência de
+   tecnologia NUNCA vira gap; incerteza como "não confirmado"/"a validar";
+   sem termos sensíveis ("capacidade", "produção de", "ROI", "prazo de N",
+   "integração nativa", "middleware") nem gap/lacuna tecnológica dentro
+   dos diagramas.
 10. TEIA SOCIETÁRIA (whitelist estrita): nós apenas com CNPJs de
     (a) conta alvo do canonical; (b) headOfficeCnpj se != null;
     (c) directPjPartners; (d) safePack.relationships. Semântica da

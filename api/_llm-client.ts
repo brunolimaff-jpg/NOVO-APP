@@ -14,7 +14,11 @@ export interface NormalizeModelOutputResult {
 }
 
 const DEFAULT_REQUEST_BUDGET_MS = 38_000;
-const MAX_REQUEST_BUDGET_MS = 180_000;
+// SCOUT-V7-GOLD-RUNTIME-QUALITY-01 + causa raiz 2026-08-09 (GATEWAY_TIMEOUT
+// 504 durationMs 180002): o teto de 180s cortava o compact lento (>180s)
+// ANTES do deadline Gold. Reconciliado com maxDuration do Vercel (300s):
+// 280s de budget por chamada deixa ~20s de margem de overhead serverless.
+const MAX_REQUEST_BUDGET_MS = 280_000;
 const DEFAULT_LEGACY_TIMEOUT_MS = 120_000;
 const DEFAULT_MAX_RETRIES = 1;
 const DEFAULT_RETRY_BASE_DELAY_MS = 500;

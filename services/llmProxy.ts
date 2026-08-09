@@ -56,8 +56,11 @@ const CUSTOM_LLM_PROXY_BASE_URL = (import.meta.env.VITE_LLM_PROXY_URL || '')
   .replace(/\/api\/llm$/, '')
   .replace(/\/$/, '');
 // O serverless usa 55s para chat normal e ate 180s para investigacoes pesadas.
-// Frontend da margem de 210s para cobrir o cenario mais longo + overhead de rede.
-const LLM_PROXY_TIMEOUT_MS = Number(import.meta.env.VITE_LLM_PROXY_TIMEOUT_MS || 210000);
+// SCOUT-V7-GOLD-RUNTIME-QUALITY-01 (causa raiz 2026-08-09): o gateway /api/llm
+// agora permite ate 280s por chamada (MAX_REQUEST_BUDGET_MS) e o deadline Gold
+// e 270s — o frontend precisa de margem acima disso (290s) para que o erro do
+// gateway chegue ao browser em vez de o proxy cortar antes.
+const LLM_PROXY_TIMEOUT_MS = Number(import.meta.env.VITE_LLM_PROXY_TIMEOUT_MS || 290000);
 
 // FIX: resolveEndpoint permanece como função pura — nunca como const de módulo.
 // Chamá-la no nível de módulo causaria TDZ quando outro módulo importa llmProxy

@@ -61,7 +61,7 @@ describe('llmProxy — abort vs timeout (BRU-33)', () => {
 
     const promise = proxyChatSendMessage({ model: 'scout-gold-compact', systemInstruction: '', history: [], message: 'x' });
     const assertion = expect(promise).rejects.toThrow(/LLM proxy timeout after \d+ms/);
-    await vi.advanceTimersByTimeAsync(220_000); // LLM_PROXY_TIMEOUT_MS default 210s
+    await vi.advanceTimersByTimeAsync(300_000); // LLM_PROXY_TIMEOUT_MS default 290s
     await assertion;
   });
 
