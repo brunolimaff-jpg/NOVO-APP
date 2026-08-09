@@ -13,6 +13,8 @@ import {
   type ScorePortaData,
 } from '../../../types';
 import type { PortaScoreResolution } from '../../../utils/porta';
+import type { GoldSeamDeps } from '../../../services/llm/gold/seam/gold-dossier-seam';
+import type { CanonicalAccount } from '../../../services/llm/gold/gold-contracts';
 
 const uuidv4Mock = vi.hoisted(() => vi.fn());
 const generateDossierModuleMock = vi.hoisted(() => vi.fn());
@@ -37,6 +39,10 @@ const runControlMocks = vi.hoisted(() => ({ assertCanContinue: vi.fn(), assertCa
 const lifecycleRpcMocks = vi.hoisted(() => ({ complete: vi.fn(), failed: vi.fn(), release: vi.fn(), cancelled: vi.fn() }));
 const evidencePipelineMock = vi.hoisted(() => vi.fn(() => false));
 const queryPlannerMocks = vi.hoisted(() => ({ plan: vi.fn(), collect: vi.fn() }));
+const tryEnhanceDossierWithGoldMock = vi.hoisted(() => vi.fn());
+const createGoldSeamDepsMock = vi.hoisted(() =>
+  vi.fn(() => ({ enabled: false, buildCanonical: vi.fn(), runGold: vi.fn() })),
+);
 
 vi.mock('uuid', () => ({
   v4: uuidv4Mock,
@@ -97,6 +103,16 @@ vi.mock('../../../services/brasilApiService', () => ({
 
 vi.mock('../../../features/dossier/benchmark-stage', () => ({
   runDossierBenchmarkStage: runDossierBenchmarkStageMock,
+}));
+
+// BRU-33 — seam Gold: mockado no nível do módulo; os testes injetam deps
+// customizados via makeHarness (zero chamadas provider).
+vi.mock('../../../services/llm/gold/seam/gold-dossier-seam', async importOriginal => {
+  const actual = await importOriginal<typeof import('../../../services/llm/gold/seam/gold-dossier-seam')>();
+  return { ...actual, tryEnhanceDossierWithGold: tryEnhanceDossierWithGoldMock };
+});
+vi.mock('../../../services/llm/gold/seam/gold-browser-adapter', () => ({
+  createGoldSeamDeps: createGoldSeamDepsMock,
 }));
 
 vi.mock('../../../features/dossier/porta-reconciliation', () => ({
@@ -261,6 +277,7 @@ function makeHarness(
     messages?: Message[];
     shouldSimulateFallback?: boolean;
     activeGenerationRef?: { current: Record<string, string> };
+    goldSeamDeps?: GoldSeamDeps;
   } = {},
 ) {
   const state = {
@@ -306,6 +323,7 @@ function makeHarness(
       completeLoadingProgress,
       setFailureCount,
       activeGenerationRef: overrides.activeGenerationRef,
+      goldSeamDeps: overrides.goldSeamDeps,
     }),
   );
 
@@ -1459,5 +1477,87 @@ describe('useDossierWaterfallOrchestrator', () => {
     );
 
     maybeChatStoreRef.current = undefined;
+  });
+
+  // ─── BRU-33: seam Gold pós-processamento fail-closed ─────────────────────
+
+  function makeGoldEnabledDeps(): GoldSeamDeps {
+    return {
+      enabled: true,
+      buildCanonical: vi.fn(async (): Promise<CanonicalAccount> => ({
+        inputCnpj: '12.345.678/0001-90',
+        legalName: 'Acme Agro',
+        establishmentType: 'Matriz',
+        rootCnpj: '12345678',
+        headOfficeCnpj: null,
+        headOfficeLegalName: null,
+        directPjPartners: [],
+        qsaPeople: [],
+      })),
+      runGold: vi.fn(async () => ({
+        goldBrief: '**GOLD BRIEF EXECUTIVO | SCOUT 360**\n\n### 1. SÍNTESE EXECUTIVA\n\nGold de teste elegível.',
+        safePack: { findings: [] } as never,
+        sanitizerEvents: [],
+        verification: { passed: true, hardFails: [] },
+      })),
+    };
+  }
+
+  it('BRU-33: flag OFF (default) → fluxo atual intacto, seam NÃO é chamado', async () => {
+    tryEnhanceDossierWithGoldMock.mockResolvedValue('NAO_DEVE_SER_USADO');
+    const harness = makeHarness();
+
+    const result = await act(async () => harness.result.current.runMegaPromptWaterfall(makeRunArgs()));
+
+    expect(result?.status).toBe('COMPLETED');
+    expect(tryEnhanceDossierWithGoldMock).not.toHaveBeenCalled();
+    expect(getBotMessage(harness).text).toContain('consolidado');
+  });
+
+  it('BRU-33: Gold elegível → o usuário recebe o Gold (mesmo texto em UI/persistência)', async () => {
+    const goldText = '**GOLD BRIEF EXECUTIVO | SCOUT 360**\n\nGold de teste elegível.';
+    tryEnhanceDossierWithGoldMock.mockResolvedValue(goldText);
+    const harness = makeHarness({ goldSeamDeps: makeGoldEnabledDeps() });
+
+    const result = await act(async () => harness.result.current.runMegaPromptWaterfall(makeRunArgs()));
+
+    expect(result?.status).toBe('COMPLETED');
+    expect(getBotMessage(harness).text).toBe(goldText);
+    expect(getBotMessage(harness).text).not.toContain('consolidado');
+  });
+
+  it('BRU-33: seam devolve o dossiê (Verifier/Contract FAIL) → dossiê original intacto', async () => {
+    const harness = makeHarness({ goldSeamDeps: makeGoldEnabledDeps() });
+    tryEnhanceDossierWithGoldMock.mockImplementation(
+      async ({ dossierText }: { dossierText: string }) => dossierText,
+    );
+
+    const result = await act(async () => harness.result.current.runMegaPromptWaterfall(makeRunArgs()));
+
+    expect(result?.status).toBe('COMPLETED');
+    expect(getBotMessage(harness).text).toContain('consolidado');
+    expect(getBotMessage(harness).text).not.toContain('GOLD BRIEF');
+  });
+
+  it('BRU-33: erro interno do Gold (LLM 502) → fallback silencioso no dossiê', async () => {
+    tryEnhanceDossierWithGoldMock.mockRejectedValue(new Error('LiteLLM 502'));
+    const harness = makeHarness({ goldSeamDeps: makeGoldEnabledDeps() });
+
+    const result = await act(async () => harness.result.current.runMegaPromptWaterfall(makeRunArgs()));
+
+    expect(result?.status).toBe('COMPLETED');
+    expect(getBotMessage(harness).text).toContain('consolidado');
+  });
+
+  it('BRU-33: abort do usuário durante o Gold NÃO vira fallback — preserva CANCELLED', async () => {
+    const abortError = new Error('The operation was aborted');
+    abortError.name = 'AbortError';
+    tryEnhanceDossierWithGoldMock.mockRejectedValue(abortError);
+    const harness = makeHarness({ goldSeamDeps: makeGoldEnabledDeps() });
+
+    const result = await act(async () => harness.result.current.runMegaPromptWaterfall(makeRunArgs()));
+
+    expect(result?.status).toBe('CANCELLED');
+    expect(getBotMessage(harness).text).not.toContain('GOLD BRIEF');
   });
 });

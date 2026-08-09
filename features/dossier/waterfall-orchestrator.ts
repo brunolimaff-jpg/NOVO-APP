@@ -51,6 +51,9 @@ import type { RunMegaPromptWaterfallArgs } from '../../types';
 import { isAbortLikeError } from '../../utils/abortHelpers';
 import { DossierRunCancelledError, assertDossierRunCanContinue, assertDossierRunCanContinueWithRenewal as assertDossierRunCanContinueWithRenewalFn, isDossierRunControlError } from './dossier-run-control';
 import { markDossierRunCancelled, markDossierRunCompleted, markDossierRunFailed, releaseDossierRunLease } from '../../lib/supabase/dossierRuns';
+// BRU-33 — seam Gold pós-processamento fail-closed (V7 Preview Wiring).
+import { tryEnhanceDossierWithGold, type GoldSeamDeps } from '../../services/llm/gold/seam/gold-dossier-seam';
+import { createGoldSeamDeps } from '../../services/llm/gold/seam/gold-browser-adapter';
 import { isEvidencePipelineV2 } from '../../utils/feature-flags';
 import { ensureContinuitySuggestions, pickCompanyLabel } from '../../utils/messageHelpers';
 import { runDossierBenchmarkStage } from './benchmark-stage';
@@ -97,6 +100,8 @@ export interface UseDossierWaterfallOrchestratorOptions {
   replaceLoadingProgressStage: (stage: string, totalStages?: number) => void;
   completeLoadingProgress: () => void;
   setFailureCount: Dispatch<SetStateAction<number>>;
+  /** BRU-33 — deps do seam Gold (injetável para testes; default OFF). */
+  goldSeamDeps?: GoldSeamDeps;
 }
 
 function requireDependency<T>(value: T | null | undefined, dependencyName: string): T {
@@ -541,6 +546,8 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
     'completeLoadingProgress',
   );
   const setFailureCount = requireDependency(options.setFailureCount ?? chatStore?.setFailureCount, 'setFailureCount');
+  // BRU-33 — Gold pós-processamento (flag OFF por padrão via adapter).
+  const goldSeamDeps = options.goldSeamDeps ?? createGoldSeamDeps();
   const setIsLoading = options.setIsLoading ?? chatStore?.setIsLoading;
   const setLoadingVariant = options.setLoadingVariant ?? chatStore?.setLoadingVariant;
   const activeGenerationRef = options.activeGenerationRef ?? chatStore?.activeGenerationRef;
@@ -1232,11 +1239,43 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
             removedDuplicateLines: enxuto.removedDuplicateLines,
           });
         }
-        const waterfallFinalText =
+        let waterfallFinalText =
           enxuto.text ||
           finalized.text ||
           accumulatedText ||
           `Dossiê de ${resolvedMegaCompany || 'empresa'} não pôde ser gerado. Tente novamente.`;
+        // BRU-33 — Gold pós-processamento fail-closed: entra DEPOIS do dossiê
+        // final e ANTES do generateContinuityQuestion, para Gold/continuidade/
+        // UI/persistência usarem o mesmo texto. Apenas falhas internas do Gold
+        // caem silenciosamente no dossiê; abort do usuário e erros de
+        // run-control/lease preservam a semântica atual (CANCELLED/FAILED).
+        if (goldSeamDeps.enabled && sessionCnpjDigits) {
+          try {
+            const enhancedText = await tryEnhanceDossierWithGold({
+              cnpj: sessionCnpjDigits,
+              companyName: normalizedCompany || resolvedMegaCompany,
+              dossierText: waterfallFinalText,
+              deps: goldSeamDeps,
+            });
+            if (enhancedText !== waterfallFinalText) {
+              scoutDiag.info('GoldSeam', 'gold-elegivel', {
+                sessionId,
+                waterfallRunId,
+                goldChars: enhancedText.length,
+                dossierChars: waterfallFinalText.length,
+                company: normalizedCompany || resolvedMegaCompany,
+              });
+              waterfallFinalText = enhancedText;
+            }
+          } catch (error) {
+            if (isAbortLikeError(error) || isDossierRunControlError(error)) throw error;
+            scoutDiag.warn('GoldSeam', 'gold-falha-fallback-dossier', {
+              sessionId,
+              waterfallRunId,
+              error: error instanceof Error ? error.message : String(error),
+            });
+          }
+        }
         const hasFallbackVerified =
           Array.from(waterfallVerificationStatuses.values()).some(status => status === 'fallback_verified') ||
           waterfallGroundingSources.some(source => source.verification === 'fallback');

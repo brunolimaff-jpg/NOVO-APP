@@ -10,6 +10,8 @@ export const MODEL_IDS = {
   tactical: 'scout-tactical',
   deepChat: 'scout-deep-chat',
   deepResearch: 'scout-deep-research',
+  goldCompact: 'scout-gold-compact',
+  goldCompose: 'scout-gold-compose',
 } as const;
 
 export type LlmModelId = (typeof MODEL_IDS)[keyof typeof MODEL_IDS];
@@ -19,6 +21,8 @@ export const TACTICAL_MODEL_ID = MODEL_IDS.tactical;
 export const DEEP_CHAT_MODEL_ID = MODEL_IDS.deepChat;
 export const STABLE_RESEARCH_MODEL_ID = MODEL_IDS.deepResearch;
 export const LOADING_CURIOSITY_MODEL_ID = MODEL_IDS.router;
+export const GOLD_COMPACT_MODEL_ID = MODEL_IDS.goldCompact;
+export const GOLD_COMPOSE_MODEL_ID = MODEL_IDS.goldCompose;
 
 export interface MainChatModelSelectionInput {
   isDeepDive: boolean;

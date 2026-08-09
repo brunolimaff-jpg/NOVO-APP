@@ -397,4 +397,151 @@ describe('EntityAwareGoldVerifier — medida ancorada na categoria (correção f
     const result = verifyGold(gold, canonical, pack);
     expect(result.hardFails.some((h) => h.code === 'UNSUPPORTED_PRODUCT_CLAIM')).toBe(true);
   });
+
+  // ── Política do Planejador (2026-08-08): falso positivo de "capacidade" ──
+  it('ACEITA: "capacidade de investimento" (uso financeiro, não produtivo)', () => {
+    const gold = [
+      '# Gold Brief',
+      'A conta demonstra capacidade de investimento em novas plantas industriais.',
+    ].join('\n');
+    const result = verifyGold(gold, canonical, safePack());
+    expect(result.hardFails.some((h) => h.code === 'UNSUPPORTED_PRODUCT_CLAIM')).toBe(false);
+  });
+
+  it('ACEITA: "capacidade de absorção de ciclos econômicos" (gerencial)', () => {
+    const gold = [
+      '# Gold Brief',
+      'A empresa tem capacidade de absorção de ciclos econômicos adversos.',
+    ].join('\n');
+    const result = verifyGold(gold, canonical, safePack());
+    expect(result.hardFails.some((h) => h.code === 'UNSUPPORTED_PRODUCT_CLAIM')).toBe(false);
+  });
+
+  it('ACEITA: "capacidade de atender múltiplas necessidades" (gerencial)', () => {
+    const gold = [
+      '# Gold Brief',
+      'A operação tem capacidade de atender múltiplas necessidades dos clientes.',
+    ].join('\n');
+    const result = verifyGold(gold, canonical, safePack());
+    expect(result.hardFails.some((h) => h.code === 'UNSUPPORTED_PRODUCT_CLAIM')).toBe(false);
+  });
+
+  it('REPROVA: "capacidade produtiva de 500 toneladas/mês" sem fato no pack', () => {
+    const gold = [
+      '# Gold Brief',
+      'A conta possui capacidade produtiva de 500 toneladas por mês.',
+    ].join('\n');
+    const result = verifyGold(gold, canonical, safePack());
+    expect(result.hardFails.some((h) => h.code === 'UNSUPPORTED_PRODUCT_CLAIM')).toBe(true);
+  });
+
+  it('REPROVA: "capacidade de armazenagem de 120 mil sacas" sem fato no pack', () => {
+    const gold = [
+      '# Gold Brief',
+      'A conta tem capacidade de armazenagem de 120 mil sacas.',
+    ].join('\n');
+    const result = verifyGold(gold, canonical, safePack());
+    expect(result.hardFails.some((h) => h.code === 'UNSUPPORTED_PRODUCT_CLAIM')).toBe(true);
+  });
+
+  it('REPROVA: "produção de 900 mil toneladas" sem fato no pack', () => {
+    const gold = [
+      '# Gold Brief',
+      'A produção de 900 mil toneladas por ano sustenta a operação.',
+    ].join('\n');
+    const result = verifyGold(gold, canonical, safePack());
+    expect(result.hardFails.some((h) => h.code === 'UNSUPPORTED_PRODUCT_CLAIM')).toBe(true);
+  });
+
+  // ── Política B do Planejador (2026-08-08): NEGATIVE_EVIDENCE_AS_GAP ──
+  it('ACEITA: "lacuna de dados financeiros públicos" (lacuna de informação)', () => {
+    const gold = [
+      '# Gold Brief',
+      'Há lacuna de dados financeiros públicos para validar o faturamento.',
+    ].join('\n');
+    const result = verifyGold(gold, canonical, safePack());
+    expect(result.hardFails.some((h) => h.code === 'NEGATIVE_EVIDENCE_AS_GAP')).toBe(false);
+  });
+
+  it('ACEITA: "lacuna de informação" (lacuna de informação)', () => {
+    const gold = [
+      '# Gold Brief',
+      'Existe lacuna de informação sobre a estrutura societária completa.',
+    ].join('\n');
+    const result = verifyGold(gold, canonical, safePack());
+    expect(result.hardFails.some((h) => h.code === 'NEGATIVE_EVIDENCE_AS_GAP')).toBe(false);
+  });
+
+  it('REPROVA: "lacuna operacional de TMS" (gap operacional)', () => {
+    const gold = [
+      '# Gold Brief',
+      'A empresa apresenta lacuna operacional de TMS na distribuição.',
+    ].join('\n');
+    const result = verifyGold(gold, canonical, safePack());
+    expect(result.hardFails.some((h) => h.code === 'NEGATIVE_EVIDENCE_AS_GAP')).toBe(true);
+  });
+
+  it('REPROVA: "gap de ERP identificado" (gap tecnológico)', () => {
+    const gold = [
+      '# Gold Brief',
+      'Foi identificado um gap de ERP na gestão da operação.',
+    ].join('\n');
+    const result = verifyGold(gold, canonical, safePack());
+    expect(result.hardFails.some((h) => h.code === 'NEGATIVE_EVIDENCE_AS_GAP')).toBe(true);
+  });
+
+  // ── QSA legalRole (decisão congelada do Planejador 2026-08-08) ──
+  it('PASS: QSA Presidente → "consta no QSA como Presidente" (qualificação literal)', () => {
+    const gold = [
+      '# Gold Brief',
+      'CAROLINA MOGNON SCHEFFER consta no QSA como Presidente da empresa.',
+    ].join('\n');
+    const result = verifyGold(gold, canonical, safePack());
+    expect(result.hardFails.some((h) => h.code === 'QSA_AS_DECISOR')).toBe(false);
+  });
+
+  it('PASS: QSA Diretor → "consta no QSA como Diretor" (qualificação literal)', () => {
+    const gold = [
+      '# Gold Brief',
+      'ELIZEU ZULMAR MAGGI SCHEFFER consta no QSA como Diretor.',
+    ].join('\n');
+    const result = verifyGold(gold, canonical, safePack());
+    expect(result.hardFails.some((h) => h.code === 'QSA_AS_DECISOR')).toBe(false);
+  });
+
+  it('FAIL: QSA Presidente → "é CFO" (papel funcional inferido)', () => {
+    const gold = [
+      '# Gold Brief',
+      'ELIZEU ZULMAR MAGGI SCHEFFER é CFO da organização.',
+    ].join('\n');
+    const result = verifyGold(gold, canonical, safePack());
+    expect(result.hardFails.some((h) => h.code === 'QSA_AS_DECISOR')).toBe(true);
+  });
+
+  it('FAIL: QSA Presidente → "é decisor" (papel funcional inferido)', () => {
+    const gold = [
+      '# Gold Brief',
+      'ELIZEU ZULMAR MAGGI SCHEFFER é decisor nas compras de tecnologia.',
+    ].join('\n');
+    const result = verifyGold(gold, canonical, safePack());
+    expect(result.hardFails.some((h) => h.code === 'QSA_AS_DECISOR')).toBe(true);
+  });
+
+  it('FAIL: QSA Diretor → "é Diretor Comercial" (papel funcional específico)', () => {
+    const gold = [
+      '# Gold Brief',
+      'ELIZEU ZULMAR MAGGI SCHEFFER é Diretor Comercial da empresa.',
+    ].join('\n');
+    const result = verifyGold(gold, canonical, safePack());
+    expect(result.hardFails.some((h) => h.code === 'QSA_AS_DECISOR')).toBe(true);
+  });
+
+  it('FAIL: QSA Sócio-Administrador → "é Diretor de Operações" (papel funcional)', () => {
+    const gold = [
+      '# Gold Brief',
+      'ELIZEU ZULMAR MAGGI SCHEFFER é Diretor de Operações.',
+    ].join('\n');
+    const result = verifyGold(gold, canonical, safePack());
+    expect(result.hardFails.some((h) => h.code === 'QSA_AS_DECISOR')).toBe(true);
+  });
 });

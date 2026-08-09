@@ -35,16 +35,31 @@ const CNPJ_PATTERN = /\b\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}\b/g;
 const POSSESSION_NEGATION =
   /\bn[aã]o\s+(possui|possue|tem|utiliza|usa|adota|contratou)\b/i;
 
+/**
+ * Gap/lacuna OPERACIONAL ou TECNOLÓGICO (política B congelada pelo
+ * Planejador): reprova somente quando ausência de tecnologia/processo é
+ * convertida em deficiência operacional ("gap de WMS", "lacuna operacional
+ * de TMS"). Lacuna de INFORMAÇÃO ("lacuna de dados financeiros", "lacuna
+ * de informação") é PERMITIDA — não é gap operacional.
+ */
 const GAP_CLAIM =
-  /\b(gap|gaps|lacuna|lacunas)\s+(de|em|confirmado|identificado)\b/i;
+  /\b(gap|gaps|lacuna|lacunas)\s+(de|em|operacional\s+de|confirmad[oa]\s+em|identificad[oa]\s+em)\s+(wms|tms|erp|crm|automa[cç][aã]o|sistema|sistemas|software|tecnologia|processo|opera[cç][aã]o|produ[cç][aã]o|log[ií]stica|estoque|fabrica[cç][aã]o|integra[cç][aã]o|infraestrutura)\b/i;
 
 const GROUP_PROMOTION_CLAIM = /\b(grupo econ[oô]mico|integra o grupo|controlada|controladora|consolidada)\b/i;
 
 const EXECUTIVE_ROLE =
   /\b(cfo|ceo|coo|cio|cto|diretor|diretora|presidente|decisor|head\s+de|vice-presidente)\b/i;
 
+/**
+ * Claim de capacidade PRODUTIVA/OPERACIONAL não sustentado (política do
+ * Planejador): reprova "capacidade estática/produtiva/de produção/
+ * armazenagem/estocagem/processamento/...", "capacidade de <medida>"
+ * (ex.: "capacidade de 120 mil sacas"), "ROI", "prazo de N",
+ * "integração nativa", "middleware". NÃO reprova "capacidade de
+ * investimento/absorção/atender" (uso financeiro/gerencial).
+ */
 const UNSUPPORTED_CLAIM =
-  /\b(capacidade\s+(est[áa]tica|de|produtiva)|roi|retorno\s+sobre|prazo\s+de\s+\d+|integra[cç][aã]o\s+nativa|middleware)\b/i;
+  /\b(capacidade\s+(est[áa]tica|produtiva|de\s+(produ[cç][aã]o|fabrica[cç][aã]o|armazenagem|estocagem|processamento|esmagamento|moagem|refino|opera[cç][aã]o|atendimento|est[óo]cagem|anual|mensal|(?=\d+(?:[.,]\d+)?\s*(?:milh[oõ]es?|mil|sacas|toneladas|t\b|m³|m3|litros|kg))))|produ[cç][aã]o\s+de|roi|retorno\s+sobre|prazo\s+de\s+\d+|integra[cç][aã]o\s+nativa|middleware)\b/i;
 
 /** Frase que nega conhecimento (não é afirmação de fato) — não dispara hard fail. */
 const KNOWLEDGE_NEGATION =
@@ -111,7 +126,7 @@ function isSupportedBySafePack(
   canonical: CanonicalAccount,
 ): boolean {
   const terms: Array<{ pattern: RegExp; match: (c: string) => boolean }> = [
-    { pattern: /capacidade/, match: (c) => /capacidade/.test(c) },
+    { pattern: /capacidade\s+(est[áa]tica|produtiva|de\s+(produ[cç][aã]o|fabrica[cç][aã]o|armazenagem|estocagem|processamento|esmagamento|moagem|refino|opera[cç][aã]o|atendimento|est[óo]cagem|anual|mensal|(?=\d+(?:[.,]\d+)?\s*(?:milh[oõ]es?|mil|sacas|toneladas|t\b|m³|m3|litros|kg))))/, match: (c) => /capacidade/.test(c) },
     { pattern: /produ[cç][aã]o\s+de/, match: (c) => /produ[cç][aã]o\s+de/.test(c) },
     { pattern: /roi|retorno\s+sobre/, match: (c) => /roi|retorno\s+sobre/.test(c) },
     { pattern: /prazo\s+de\s+\d+/, match: (c) => /prazo\s+de\s+\d+/.test(c) },
@@ -262,6 +277,13 @@ export function verifyGold(
     if (EXECUTIVE_ROLE.test(sentenceLower)) {
       const mentionsQsaPerson = [...qsaPeople].some((name) => sentenceLower.includes(name));
       if (mentionsQsaPerson) {
+        // legalRole (decisão congelada do Planejador 2026-08-08):
+        // "consta no QSA como Presidente/Diretor" = qualificação literal da
+        // fonte cadastral (roleBasis=qsa, functionalRole=unknown) → PERMITIDO.
+        // "é Presidente/CFO/CTO/decisor" = papel funcional inferido → PROIBIDO.
+        const qualificacaoLiteral =
+          /\bconsta\s+no\s+qsa\s+como\b|\bno\s+qsa\s+como\b|\bqsa\s+o\s+registra\s+como\b|\bqsa\s+registra\s+como\b/i;
+        if (qualificacaoLiteral.test(sentenceLower)) continue;
         push('QSA_AS_DECISOR', `Frase atribui cargo funcional a pessoa do QSA: "${sentence}"`);
       }
     }
