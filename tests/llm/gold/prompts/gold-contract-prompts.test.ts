@@ -79,4 +79,21 @@ describe('SCOUT-V7-GOLD-RUNTIME-QUALITY-01 — prompts alinhados ao PROMPT_SPEC'
     expect(frontier.conflicts).toHaveLength(1);
     expect(frontier.conflicts[0]).toMatch(/n[aã]o confirmada no exterior/);
   });
+
+  it('4: Prompt Composer instrui mermaid (fluxo da operação + teia societária) com regra anti-invenção', () => {
+    const prompt = buildComposePrompt({ canonical, safePack: {} as never });
+    expect(prompt).toMatch(/Mermaid/i);
+    expect(prompt).toMatch(/FLUXO DA OPERA[cÇ][aÃ]O/i);
+    expect(prompt).toMatch(/TEIA SOCIET[aÁ]RIA/i);
+    expect(prompt).toMatch(/nunca invente etapa, empresa, CNPJ, rela[cç][aã]o ou seta/i);
+    expect(prompt).toMatch(/apenas fatos do conteúdo seguro/i);
+  });
+
+  it('5: Prompt Composer instrui tabela "Matriz de CNPJs" na Estrutura Societária com CNPJs só do conteúdo seguro', () => {
+    const prompt = buildComposePrompt({ canonical, safePack: {} as never });
+    expect(prompt).toMatch(/Matriz de CNPJs/i);
+    expect(prompt).toMatch(/empresa \| CNPJ \| papel/i);
+    expect(prompt).toMatch(/ESTRUTURA SOCIET[aÁ]RIA/i);
+    expect(prompt).toMatch(/nunca invente CNPJ, nome ou papel/i);
+  });
 });
