@@ -52,7 +52,11 @@ import { isAbortLikeError } from '../../utils/abortHelpers';
 import { DossierRunCancelledError, assertDossierRunCanContinue, assertDossierRunCanContinueWithRenewal as assertDossierRunCanContinueWithRenewalFn, isDossierRunControlError } from './dossier-run-control';
 import { markDossierRunCancelled, markDossierRunCompleted, markDossierRunFailed, releaseDossierRunLease } from '../../lib/supabase/dossierRuns';
 // BRU-33 — seam Gold pós-processamento fail-closed (V7 Preview Wiring).
-import { tryEnhanceDossierWithGold, type GoldSeamDeps } from '../../services/llm/gold/seam/gold-dossier-seam';
+import {
+  tryEnhanceDossierWithGold,
+  type GoldRejectionReason,
+  type GoldSeamDeps,
+} from '../../services/llm/gold/seam/gold-dossier-seam';
 import { createGoldSeamDeps } from '../../services/llm/gold/seam/gold-browser-adapter';
 import { isEvidencePipelineV2 } from '../../utils/feature-flags';
 import { ensureContinuitySuggestions, pickCompanyLabel } from '../../utils/messageHelpers';
@@ -1258,12 +1262,27 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
             cnpj: sessionCnpjDigits,
           });
           try {
+            // Telemetria por etapa (BRU-33, veredito do Planejador 2026-08-09):
+            // cada estágio do pipeline Gold emite seu próprio evento para o
+            // runtime remoto provar onde o Gold parou (compact→compose) sem
+            // depender de console externo. Apenas métricas — nunca conteúdo.
+            let goldRejectionReason: GoldRejectionReason | undefined;
             const enhancedText = await tryEnhanceDossierWithGold({
               cnpj: sessionCnpjDigits,
               companyName: normalizedCompany || resolvedMegaCompany,
               dossierText: waterfallFinalText,
               deps: goldSeamDeps,
               signal,
+              onStage: (stage, detail) => {
+                scoutDiag.info('GoldSeam', stage, {
+                  sessionId,
+                  waterfallRunId,
+                  ...(detail ?? {}),
+                });
+              },
+              onRejected: (reason) => {
+                goldRejectionReason = reason;
+              },
             });
             const goldDurationMs = Date.now() - goldStartedAt;
             if (enhancedText !== waterfallFinalText) {
@@ -1281,7 +1300,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
                 sessionId,
                 waterfallRunId,
                 goldDurationMs,
-                reason: 'verifier_ou_contract_fail',
+                reason: goldRejectionReason ?? 'internal_fallback',
                 company: normalizedCompany || resolvedMegaCompany,
               });
             }

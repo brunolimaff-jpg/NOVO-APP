@@ -206,4 +206,94 @@ describe('tryEnhanceDossierWithGold — seam fail-closed', () => {
     // sem importar proxyGenerateContent/LiteLLM — nada de rede.
     expect(vi.mocked(makeDeps().runGold).getMockImplementation()).toBeDefined();
   });
+
+  // ─── BRU-33: reason real + telemetria por etapa (veredito do Planejador) ──
+
+  it('canonical null → onRejected(canonical_null) e telemetria canonical-done resolved:false', async () => {
+    const deps = makeDeps({ buildCanonical: vi.fn(async () => null) });
+    const stages: string[] = [];
+    const rejected: string[] = [];
+
+    const out = await tryEnhanceDossierWithGold({
+      cnpj: '04.733.767/0001-80',
+      companyName: 'SCHEFFER & CIA LTDA',
+      dossierText: DOSSIER_TEXT,
+      deps,
+      onStage: (stage, detail) => stages.push(`${stage}:${detail?.resolved ?? '-'}`),
+      onRejected: (reason) => rejected.push(reason),
+    });
+
+    expect(out).toBe(DOSSIER_TEXT);
+    expect(stages).toEqual(['canonical-done:false']);
+    expect(rejected).toEqual(['canonical_null']);
+    expect(deps.runGold).not.toHaveBeenCalled();
+  });
+
+  it('Verifier hard fail → onRejected(verifier_fail), contract-done NÃO é emitido', async () => {
+    const deps = makeDeps({
+      runGold: vi.fn(async () =>
+        makeGoldResult({ verification: { passed: false, hardFails: [{ code: 'UNSUPPORTED_PRODUCT_CLAIM', reason: 'x' }] } }),
+      ),
+    });
+    const stages: string[] = [];
+    const rejected: string[] = [];
+
+    const out = await tryEnhanceDossierWithGold({
+      cnpj: '04.733.767/0001-80',
+      companyName: 'SCHEFFER & CIA LTDA',
+      dossierText: DOSSIER_TEXT,
+      deps,
+      onStage: (stage, detail) => stages.push(`${stage}:${detail?.resolved ?? detail?.passed ?? '-'}`),
+      onRejected: (reason) => rejected.push(reason),
+    });
+
+    expect(out).toBe(DOSSIER_TEXT);
+    expect(rejected).toEqual(['verifier_fail']);
+    expect(stages).not.toContain('contract-done:true');
+    expect(stages).not.toContain('contract-done:false');
+  });
+
+  it('GoldContractValidator FAIL → onRejected(contract_fail) e contract-done passed:false', async () => {
+    const deps = makeDeps({
+      runGold: vi.fn(async () => makeGoldResult({ goldBrief: 'texto curto sem seções' })),
+    });
+    const rejected: string[] = [];
+    const contractStages: string[] = [];
+
+    const out = await tryEnhanceDossierWithGold({
+      cnpj: '04.733.767/0001-80',
+      companyName: 'SCHEFFER & CIA LTDA',
+      dossierText: DOSSIER_TEXT,
+      deps,
+      onStage: (stage, detail) => {
+        if (stage === 'contract-done') contractStages.push(`${stage}:${detail?.passed ?? '-'}`);
+      },
+      onRejected: (reason) => rejected.push(reason),
+    });
+
+    expect(out).toBe(DOSSIER_TEXT);
+    expect(rejected).toEqual(['contract_fail']);
+    expect(contractStages).toEqual(['contract-done:false']);
+  });
+
+  it('Gold elegível → emite canonical-done:true e contract-done:true, sem onRejected', async () => {
+    const deps = makeDeps();
+    const stages: string[] = [];
+    const rejected: string[] = [];
+
+    const out = await tryEnhanceDossierWithGold({
+      cnpj: '04.733.767/0001-80',
+      companyName: 'SCHEFFER & CIA LTDA',
+      dossierText: DOSSIER_TEXT,
+      deps,
+      onStage: (stage, detail) => stages.push(`${stage}:${detail?.resolved ?? detail?.passed ?? '-'}`),
+      onRejected: (reason) => rejected.push(reason),
+    });
+
+    expect(out).toBe(GOLD_TEXT);
+    expect(rejected).toEqual([]);
+    expect(stages).toEqual(['canonical-done:true', 'contract-done:true']);
+    // o onStage do chamador atravessa o runGold (3º argumento) — telemetria do pipeline
+    expect(deps.runGold.mock.calls[0][2]).toBeDefined();
+  });
 });

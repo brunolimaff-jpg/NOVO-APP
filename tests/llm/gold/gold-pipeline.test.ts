@@ -182,4 +182,114 @@ describe('GuardedGoldPipeline', () => {
     const direct = frontierInput.safePack.relationships.find((r) => r.relatedEntity.includes('11.021.773'));
     expect(direct?.relationType).toBe('direct_pj_relation');
   });
+
+  // ─── BRU-33: telemetria por etapa (veredito do Planejador 2026-08-09) ─────
+
+  it('emite a sequência completa de estágios no sucesso (compact→…→verifier)', async () => {
+    const compact = vi.fn(async (_input: CompactInput) => rawPack());
+    const compose = vi.fn(async (_input: ComposeInput) => cleanGold);
+    const deps: GoldPipelineDeps = { compact, compose };
+    const stages: Array<{ stage: string; detail?: unknown }> = [];
+
+    const result = await runGuardedGoldPipeline(
+      { canonical, dossier: 'dossiê legado' },
+      deps,
+      undefined,
+      (stage, detail) => stages.push({ stage, detail }),
+    );
+
+    expect(stages.map((s) => s.stage)).toEqual([
+      'compact-start',
+      'compact-response',
+      'raw-schema-ok',
+      'sanitize-done',
+      'frontier-schema-ok',
+      'compose-start',
+      'compose-done',
+      'verifier-done',
+    ]);
+    // métricas presentes, conteúdo nunca (sem dados sensíveis)
+    expect(stages[0].detail).toMatchObject({ chars: 'dossiê legado'.length });
+    expect(stages[1].detail).toMatchObject({ chars: expect.any(Number) });
+    expect(stages[stages.length - 1].detail).toMatchObject({ hardFails: 0 });
+    expect(result.verification.passed).toBe(true);
+  });
+
+  it('emite raw-schema-fail com evidência (issues + firstIssuePath) antes do throw fail-closed', async () => {
+    const compact = vi.fn(async () => ({ module: 'incompleto' } as unknown as RawFindingPack));
+    const compose = vi.fn(async (_input: ComposeInput) => cleanGold);
+    const deps: GoldPipelineDeps = { compact, compose };
+    const stages: string[] = [];
+
+    await expect(
+      runGuardedGoldPipeline(
+        { canonical, dossier: 'dossiê' },
+        deps,
+        undefined,
+        (stage, detail) => stages.push(`${stage}:${detail?.firstIssuePath ?? '-'}`),
+      ),
+    ).rejects.toThrow(/RawFindingPack fora do schema/);
+
+    expect(stages[0]).toMatch(/^compact-start/);
+    expect(stages[1]).toMatch(/^compact-response/);
+    expect(stages[2]).toMatch(/^raw-schema-fail:/);
+    expect(stages.length).toBe(3);
+    expect(compose).not.toHaveBeenCalled();
+  });
+
+  it('emite compact-error com a mensagem curta quando o compact lança (ex.: parseJsonPayload)', async () => {
+    const compact = vi.fn(async () => {
+      throw new Error('JSON inválido: esperado objeto na resposta do compactor');
+    });
+    const compose = vi.fn(async (_input: ComposeInput) => cleanGold);
+    const deps: GoldPipelineDeps = { compact, compose };
+    const stages: string[] = [];
+
+    await expect(
+      runGuardedGoldPipeline(
+        { canonical, dossier: 'dossiê' },
+        deps,
+        undefined,
+        (stage, detail) => stages.push(`${stage}:${detail?.detail ?? '-'}`),
+      ),
+    ).rejects.toThrow('JSON inválido');
+
+    expect(stages).toEqual([
+      'compact-start:-',
+      'compact-error:JSON inválido: esperado objeto na resposta do compactor',
+    ]);
+    expect(compose).not.toHaveBeenCalled();
+  });
+
+  it('emite frontier-schema-fail com evidência quando o pack sanitizado sai do schema', async () => {
+    const compact = vi.fn(async (_input: CompactInput) => rawPack());
+    const compose = vi.fn(async (_input: ComposeInput) => cleanGold);
+    const deps: GoldPipelineDeps = { compact, compose };
+    const stages: string[] = [];
+    const sanitizerModule = await import('../../../services/llm/gold/finding-sanitizer');
+    // captura a implementação REAL antes do spy (o binding do namespace é live)
+    const originalSanitize = sanitizerModule.sanitizeFindingPack;
+    const spy = vi.spyOn(sanitizerModule, 'sanitizeFindingPack').mockImplementation((pack, canonical) => {
+      const real = originalSanitize(pack, canonical);
+      // roda o sanitizer REAL e depois corrompe um campo que o FrontierPack
+      // valida (o Raw já passou) — força o frontier-schema-fail
+      return { ...real, facts: 'corrompido' } as never;
+    });
+
+    try {
+      await expect(
+        runGuardedGoldPipeline(
+          { canonical, dossier: 'dossiê' },
+          deps,
+          undefined,
+          (stage, detail) => stages.push(`${stage}:${detail?.firstIssuePath ?? '-'}`),
+        ),
+      ).rejects.toThrow();
+      expect(stages.some((s) => s.startsWith('frontier-schema-fail:facts'))).toBe(true);
+      expect(stages.includes('compose-start')).toBe(false);
+      expect(compose).not.toHaveBeenCalled();
+    } finally {
+      spy.mockRestore();
+    }
+  });
 });

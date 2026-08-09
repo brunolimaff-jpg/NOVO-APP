@@ -16,8 +16,16 @@
  */
 import { isAbortLikeError } from '../../../../utils/abortHelpers';
 import type { CanonicalAccount } from '../gold-contracts';
+import type { GoldStageHandler } from '../gold-pipeline';
 import type { GuardedGoldPipelineResult } from '../gold-pipeline';
 import { validateGoldContract } from '../gold-contract-validator';
+
+/**
+ * BRU-33 — Razão REAL da rejeição quando o seam devolve o dossiê sem exceção.
+ * Substitui o reason enganoso "verifier_ou_contract_fail" (que rotulava também
+ * canonical null como se fosse falha de verificação).
+ */
+export type GoldRejectionReason = 'canonical_null' | 'verifier_fail' | 'contract_fail';
 
 export interface GoldSeamInput {
   /** CNPJ normalizado (pode vir nulo quando a pesquisa não tem CNPJ). */
@@ -32,6 +40,10 @@ export interface GoldSeamInput {
    * AbortSignal.timeout combinado; TimeoutError cai em fallback silencioso.
    */
   signal?: AbortSignal;
+  /** Telemetria por etapa — apenas métricas, nunca conteúdo (sem dados sensíveis). */
+  onStage?: GoldStageHandler;
+  /** Razão real quando o seam devolve o dossiê SEM exceção (veredito do Planejador). */
+  onRejected?: (reason: GoldRejectionReason) => void;
 }
 
 export interface GoldSeamDeps {
@@ -48,6 +60,7 @@ export interface GoldSeamDeps {
   runGold: (
     input: { canonical: CanonicalAccount; dossier: string },
     signal?: AbortSignal,
+    onStage?: GoldStageHandler,
   ) => Promise<GuardedGoldPipelineResult>;
 }
 
@@ -61,7 +74,7 @@ export const GOLD_DEADLINE_MS = 120_000;
  * GoldContractValidator PASS). Abort do usuário NÃO é fallback — propaga.
  */
 export async function tryEnhanceDossierWithGold(input: GoldSeamInput): Promise<string> {
-  const { cnpj, companyName, dossierText, deps, signal } = input;
+  const { cnpj, companyName, dossierText, deps, signal, onStage, onRejected } = input;
   if (!deps.enabled || !cnpj) return dossierText;
   // Deadline total: combina o signal do usuário com um timeout de 120s.
   // TimeoutError → fallback; AbortError (usuário) → propaga.
@@ -70,13 +83,25 @@ export async function tryEnhanceDossierWithGold(input: GoldSeamInput): Promise<s
     : AbortSignal.timeout(GOLD_DEADLINE_MS);
   try {
     const canonical = await deps.buildCanonical(cnpj, companyName, goldSignal);
-    if (!canonical) return dossierText;
+    if (!canonical) {
+      onStage?.('canonical-done', { resolved: false });
+      onRejected?.('canonical_null');
+      return dossierText;
+    }
+    onStage?.('canonical-done', { resolved: true });
 
-    const result = await deps.runGold({ canonical, dossier: dossierText }, goldSignal);
-    if (result.verification.hardFails.length > 0) return dossierText;
+    const result = await deps.runGold({ canonical, dossier: dossierText }, goldSignal, onStage);
+    if (result.verification.hardFails.length > 0) {
+      onRejected?.('verifier_fail');
+      return dossierText;
+    }
 
     const contract = validateGoldContract(result.goldBrief);
-    if (!contract.passed) return dossierText;
+    onStage?.('contract-done', { passed: contract.passed });
+    if (!contract.passed) {
+      onRejected?.('contract_fail');
+      return dossierText;
+    }
 
     return result.goldBrief;
   } catch (error) {

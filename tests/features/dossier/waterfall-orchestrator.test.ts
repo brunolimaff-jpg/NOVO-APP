@@ -1560,4 +1560,25 @@ describe('useDossierWaterfallOrchestrator', () => {
     expect(result?.status).toBe('CANCELLED');
     expect(getBotMessage(harness).text).not.toContain('GOLD BRIEF');
   });
+
+  it('BRU-33: reason REAL no gold-rejeitado-fallback (não mais verifier_ou_contract_fail cego)', async () => {
+    // Seam devolve o dossiê (fallback) e reporta a razão verdadeira via onRejected
+    tryEnhanceDossierWithGoldMock.mockImplementation(
+      async ({ dossierText, onRejected }: { dossierText: string; onRejected?: (r: string) => void }) => {
+        onRejected?.('contract_fail');
+        return dossierText;
+      },
+    );
+    const harness = makeHarness({ goldSeamDeps: makeGoldEnabledDeps() });
+
+    const result = await act(async () => harness.result.current.runMegaPromptWaterfall(makeRunArgs()));
+
+    expect(result?.status).toBe('COMPLETED');
+    expect(getBotMessage(harness).text).toContain('consolidado');
+    expect(scoutDiagMock.info).toHaveBeenCalledWith(
+      'GoldSeam',
+      'gold-rejeitado-fallback',
+      expect.objectContaining({ reason: 'contract_fail' }),
+    );
+  });
 });

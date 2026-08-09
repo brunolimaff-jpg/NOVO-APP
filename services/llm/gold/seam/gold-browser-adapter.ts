@@ -99,8 +99,8 @@ export function createGoldSeamDeps(options: GoldBrowserAdapterOptions = {}): Gol
     async buildCanonical(cnpj, companyName, signal) {
       return fetchCanonical(cnpj, companyName, signal);
     },
-    async runGold(input, signal) {
-      return runGuardedGoldPipeline(input, pipelineDeps, signal);
+    async runGold(input, signal, onStage) {
+      return runGuardedGoldPipeline(input, pipelineDeps, signal, onStage);
     },
   };
 }
