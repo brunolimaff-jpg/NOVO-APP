@@ -100,6 +100,17 @@ describe('PROMPT_LEAK_SHIELD_JSON_FIX (gates A–F)', () => {
     expect(result.text).toContain('confirme o CNPJ');
   });
 
+  it('G: JSON válido contendo [[PORTA: segredo]] NÃO tem o marcador removido silenciosamente — leak detection bloqueia', () => {
+    const json = '{"claim": "evidência [[PORTA: conteúdo interno]]", "status": "Confirmado"}';
+    expect(() => JSON.parse(json)).not.toThrow(); // é JSON válido
+    const result = applyPromptLeakShieldLocal(json);
+    // o JSON NÃO é devolvido com o marcador apagado silenciosamente (sem
+    // transformação destrutiva); a detecção de leak decide — e bloqueia
+    expect(result.text).not.toContain('"claim": "evidência "');
+    expect(result.blocked).toBe(true);
+    expect(result.text).toContain('confirme o CNPJ');
+  });
+
   it('F: fixture compact Scheffer pelo MESMO caminho (shield) → JSON.parse PASS + rawFindingPackSchema PASS', () => {
     const json = compactJson();
     const result = applyPromptLeakShieldLocal(json);

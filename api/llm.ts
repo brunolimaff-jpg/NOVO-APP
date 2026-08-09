@@ -110,20 +110,26 @@ function isJsonParseable(text: string): boolean {
  * fechamentos legítimos de arrays no JSON pretty do Gold Compact → o leak
  * shield quebrava o JSON → compact-error → fallback para o dossiê gigante
  * (causa raiz provada: LiteLLM direto passa, /api/llm quebra).
- * Contrato: 1) resposta inteira JSON válida → NENHUMA transformação
- * destrutiva; 2) não-JSON → limpar "]" residual só na última linha isolada
+ * Contrato (microfix de ordenação 2026-08-09): 1) resposta inteira JSON
+ * válida (checada no texto ORIGINAL, ANTES de qualquer regex) → NENHUMA
+ * transformação destrutiva — o detectPromptLeakIndicatorsLocal decide se
+ * bloqueia; 2) não-JSON → limpar "]" residual só na última linha isolada
  * (nunca global); 3) detecção de prompt leak continua depois (segurança
  * inalterada).
  */
 function stripInternalMarkersLocal(text: string): string {
-  const cleaned = (text || '')
+  const raw = (text || '').trim();
+
+  // 1) JSON válido (direto ou com fences) atravessa INTACTO — a checagem é no
+  //    texto ORIGINAL, antes das regex, para não apagar marcadores dentro de
+  //    strings JSON antes de o leak detector enxergá-los.
+  if (isJsonParseable(raw)) return raw;
+
+  const cleaned = raw
     .replace(INTERNAL_MARKER_REGEX, '')
     .replace(INTERNAL_MARKER_OPEN_TAIL_REGEX, '')
     .replace(/\n{3,}/g, '\n\n')
     .trim();
-
-  // 1) JSON válido atravessa INTACTO (nenhuma transformação destrutiva).
-  if (isJsonParseable(cleaned)) return cleaned;
 
   // 2) Não-JSON: limpa apenas um "]" residual isolado na ÚLTIMA linha
   //    (cola histórica de reasoning do DeepSeek) — nunca linhas internas.
