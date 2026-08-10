@@ -57,6 +57,17 @@ const UNSUPPORTED_CLAIM =
 const NON_EXTERNAL_SOURCE =
   /\b(estimativa|infer[êe]ncia|an[áa]lise de m[óo]dulos|dossi[êe] legado|crm interno)\b/i;
 
+/** PACK_FORENSIC_REPLAY: fontes institucionais/releases NÃO provam registro
+ * legal ou operação oficial (caso Colômbia: site institucional menciona
+ * Cumaribo, mas registro legal colombiano não verificado). */
+const WEAK_SOURCE_FOR_SENSITIVE =
+  /\b(site\s+institucional|release|comunicado\s+de\s+imprensa|site\s+oficial|men[cç][aã]o)\b/i;
+
+/** PACK_FORENSIC_REPLAY: temas onde promoção de status é perigosa
+ * (internacionalização/Colômbia, holding/controle). */
+const SENSITIVE_THEME =
+  /\b(col[oó]mbia|cumaribo|internacional|exterior|holding|controladora|controle\s+societ[aá]rio)\b/i;
+
 const MODULE_PROOF_SOURCE = /\b(m[óo]dulo\s+contratado|crm interno senior)\b/i;
 
 function stripCpf(value: string): string {
@@ -180,6 +191,27 @@ export function sanitizeFindingPack(
         reason: 'Fato já presente no canonical (fonte determinística vence narrativa)',
       };
     }
+    // STATUS_PROMOTION (PACK_FORENSIC_REPLAY, Planejador 2026-08-10):
+    // tema sensível (internacionalização/Colômbia/holding/controle) com
+    // status Confirmado sustentado APENAS por fonte institucional/release/
+    // menção — registro legal/operação oficial não verificado → rebaixa para
+    // Pista forte. Evita que o Composer afirme "confirmada" com base em
+    // vocabulário do claim (verifier R1 contornável quando o Compact marca
+    // Confirmado — Caso B do dump).
+    if (
+      f.status === 'Confirmado' &&
+      SENSITIVE_THEME.test(claim) &&
+      WEAK_SOURCE_FOR_SENSITIVE.test(f.source)
+    ) {
+      return {
+        findingId: f.id,
+        code: 'STATUS_PROMOTION',
+        action: 'downgraded',
+        before: `status=${f.status} | ${claim}`,
+        after: `status=Pista forte | ${claim}`,
+        reason: 'Status Confirmado sobre tema sensível sustentado só por fonte institucional/release — registro legal não verificado; rebaixado para Pista forte',
+      };
+    }
     // ENTITY_CONFLICT: afirmação de tipo cadastral (matriz/filial) que
     // contradiz o canonical — fonte determinística vence a narrativa.
     // Genérico (sem CNPJ/slug/setor): o padrão "é (a) matriz/filial" + o
@@ -219,6 +251,9 @@ export function sanitizeFindingPack(
     }
     if (event.action === 'rewritten') {
       facts.push({ ...f, claim: event.after ?? f.claim, source: f.source });
+    } else if (event.action === 'downgraded') {
+      // STATUS_PROMOTION/QSA_AS_DECISOR: mantém o fato com status rebaixado
+      facts.push({ ...f, status: 'Pista forte' });
     } else if (event.action === 'deduplicated') {
       // removido do pack; registrado como deduplicado
     }
@@ -317,5 +352,6 @@ export function isSanitizerEventCode(code: string): code is SanitizerEventCode {
     'CANONICAL_DUPLICATE',
     'ENTITY_CONFLICT',
     'CPF_LEAK',
+    'STATUS_PROMOTION',
   ].includes(code);
 }

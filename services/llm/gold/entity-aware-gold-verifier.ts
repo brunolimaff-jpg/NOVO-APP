@@ -365,16 +365,39 @@ export function verifyGold(
     //    no Gold, nunca no raw/frontier) → hard fail. O gatilho é a presença
     //    de pessoas QSA no safePack (não precisa estar na MESMA frase — o
     //    contexto do Gold inteiro já deriva do QSA).
+    //    PROVENANCE EXCEPTION (Planejador 2026-08-10): se existir fato
+    //    Confirmado com fonte NÃO-QSA comprovando sucessão/governança
+    //    familiar, a afirmação passa (ex.: "Empresa anuncia processo formal
+    //    de sucessão familiar", source=comunicado oficial, status=Confirmado).
     if (QSA_GOVERNANCE_CLAIM.test(sentenceLower) && qsaPeople.size > 0) {
-      push('QSA_GOVERNANCE_CLAIM', `Frase deriva governança/família do QSA sem evidência: "${sentence}"`);
+      const hasExternalProvenance = safePack.facts.some(
+        (f) =>
+          f.status === 'Confirmado' &&
+          !/qsa/i.test(f.source) &&
+          /sucess[aã]o|governan[cç]a|gera[cç][aã]o|familiar|transi[cç][aã]o/i.test(f.claim),
+      );
+      if (!hasExternalProvenance) {
+        push('QSA_GOVERNANCE_CLAIM', `Frase deriva governança/família do QSA sem evidência: "${sentence}"`);
+      }
     }
 
     // 10) PACK_FORENSIC_REPLAY: ausência de módulo/tecnologia → fragilidade
     //     operacional derivada ("ponto de fragilidade", "depender de sistemas
     //     desconectados ou manuais"). A ausência no portfólio NÃO prova dor
     //     operacional (grupo manual_desconectado só apareceu no Gold) → hard fail.
+    //     PROVENANCE EXCEPTION (Planejador 2026-08-10): se existir fato
+    //     Confirmado com fonte externa comprovando processo manual/fragilidade
+    //     (ex.: auditoria oficial), a afirmação passa.
     if (ABSENCE_DERIVED_WEAKNESS.test(sentenceLower)) {
-      push('ABSENCE_DERIVED_WEAKNESS', `Frase deriva fragilidade operacional de ausência: "${sentence}"`);
+      const hasExternalProvenance = safePack.facts.some(
+        (f) =>
+          f.status === 'Confirmado' &&
+          !NON_EXTERNAL_SOURCE.test(f.source) &&
+          /manual|planilha|desconect|fragilidade|processo/i.test(f.claim),
+      );
+      if (!hasExternalProvenance) {
+        push('ABSENCE_DERIVED_WEAKNESS', `Frase deriva fragilidade operacional de ausência: "${sentence}"`);
+      }
     }
   }
 

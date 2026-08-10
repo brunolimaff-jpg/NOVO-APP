@@ -73,6 +73,8 @@ export interface GoldStageDetail {
   firstIssuePath?: string;
   events?: number;
   hardFails?: number;
+  /** Códigos dos hard fails do verifier (diagnóstico runtime, PACK_FORENSIC_REPLAY). */
+  codes?: string[];
   resolved?: boolean;
   passed?: boolean;
   detail?: string;

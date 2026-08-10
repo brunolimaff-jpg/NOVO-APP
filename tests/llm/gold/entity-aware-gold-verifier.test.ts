@@ -47,7 +47,7 @@ function safePack(): SafeFindingPack {
         personName: 'ELIZEU ZULMAR MAGGI SCHEFFER',
         role: 'Sócio (QSA)',
         roleBasis: 'qsa',
-        status: 'Confirmado',
+        status: 'Confirmado' as const,
         source: 'QSA oficial',
       },
     ],
@@ -193,9 +193,9 @@ describe('EntityAwareGoldVerifier — proveniência real (micro-rodada V5)', () 
       id: 'f-silos',
       entity: 'SCHEFFER & CIA LTDA',
       claim: 'Capacidade de armazenagem de 120 mil sacas confirmada em laudo',
-      status: 'Confirmado',
+      status: 'Confirmado' as const,
       source: 'Laudo técnico',
-      kind: 'operation',
+      kind: 'operation' as const,
     });
     const gold = ['# Gold Brief', 'Capacidade de armazenagem de 120 mil sacas confirmada em laudo.'].join('\n');
     const result = verifyGold(gold, canonical, pack);
@@ -225,9 +225,9 @@ describe('EntityAwareGoldVerifier — evidência não emprestada (gate adversari
       id: 'f-silos',
       entity: 'SCHEFFER & CIA LTDA',
       claim: 'Capacidade de armazenagem de 120 mil sacas confirmada em laudo',
-      status: 'Confirmado',
+      status: 'Confirmado' as const,
       source: 'Laudo técnico',
-      kind: 'operation',
+      kind: 'operation' as const,
     });
     const gold = ['# Gold Brief', 'Capacidade de armazenagem de 900 mil sacas confirmada em laudo.'].join('\n');
     const result = verifyGold(gold, canonical, pack);
@@ -240,9 +240,9 @@ describe('EntityAwareGoldVerifier — evidência não emprestada (gate adversari
       id: 'f-cap-b',
       entity: 'EMPRESA LATERAL LTDA',
       claim: 'Capacidade de armazenagem de 120 mil sacas confirmada em laudo',
-      status: 'Confirmado',
+      status: 'Confirmado' as const,
       source: 'Laudo técnico',
-      kind: 'operation',
+      kind: 'operation' as const,
     });
     // Gold afirma capacidade para a CONTA (sem mencionar a lateral)
     const gold = ['# Gold Brief', 'A conta tem capacidade de armazenagem de 120 mil sacas.'].join('\n');
@@ -256,9 +256,9 @@ describe('EntityAwareGoldVerifier — evidência não emprestada (gate adversari
       id: 'f-silos',
       entity: 'SCHEFFER & CIA LTDA',
       claim: 'Capacidade de armazenagem de 120 mil sacas confirmada em laudo',
-      status: 'Confirmado',
+      status: 'Confirmado' as const,
       source: 'Laudo técnico',
-      kind: 'operation',
+      kind: 'operation' as const,
     });
     const gold = ['# Gold Brief', 'Capacidade de armazenagem de 120 mil sacas confirmada em laudo.'].join('\n');
     const result = verifyGold(gold, canonical, pack);
@@ -273,9 +273,9 @@ describe('EntityAwareGoldVerifier — comparador de valor numérico (defeito da 
       id: 'f-cap',
       entity: 'SCHEFFER & CIA LTDA',
       claim: 'Capacidade de 1,2 milhões de sacas confirmada em laudo',
-      status: 'Confirmado',
+      status: 'Confirmado' as const,
       source: 'Laudo técnico',
-      kind: 'operation',
+      kind: 'operation' as const,
     });
     const gold = ['# Gold Brief', 'Capacidade de 12 milhões de sacas confirmada em laudo.'].join('\n');
     const result = verifyGold(gold, canonical, pack);
@@ -288,9 +288,9 @@ describe('EntityAwareGoldVerifier — comparador de valor numérico (defeito da 
       id: 'f-cap',
       entity: 'SCHEFFER & CIA LTDA',
       claim: 'Capacidade de 120 mil sacas confirmada em laudo',
-      status: 'Confirmado',
+      status: 'Confirmado' as const,
       source: 'Laudo técnico',
-      kind: 'operation',
+      kind: 'operation' as const,
     });
     const gold = ['# Gold Brief', 'Capacidade de 120 mil funcionários confirmada em registro.'].join('\n');
     const result = verifyGold(gold, canonical, pack);
@@ -303,9 +303,9 @@ describe('EntityAwareGoldVerifier — comparador de valor numérico (defeito da 
       id: 'f-cap',
       entity: 'SCHEFFER & CIA LTDA',
       claim: 'Capacidade de 120 mil sacas confirmada em laudo',
-      status: 'Confirmado',
+      status: 'Confirmado' as const,
       source: 'Laudo técnico',
-      kind: 'operation',
+      kind: 'operation' as const,
     });
     const gold = ['# Gold Brief', 'Capacidade de 120 mil sacas confirmada em laudo.'].join('\n');
     const result = verifyGold(gold, canonical, pack);
@@ -320,9 +320,9 @@ describe('EntityAwareGoldVerifier — parser de medida (bloqueador da auditoria 
       id: 'f-cap',
       entity: 'SCHEFFER & CIA LTDA',
       claim,
-      status: 'Confirmado',
+      status: 'Confirmado' as const,
       source: 'Laudo técnico',
-      kind: 'operation',
+      kind: 'operation' as const,
     });
     return pack;
   };
@@ -363,9 +363,9 @@ describe('EntityAwareGoldVerifier — medida ancorada na categoria (correção f
       id: 'f-cap',
       entity: 'SCHEFFER & CIA LTDA',
       claim,
-      status: 'Confirmado',
+      status: 'Confirmado' as const,
       source: 'Laudo técnico',
-      kind: 'operation',
+      kind: 'operation' as const,
     });
     return pack;
   };
@@ -561,7 +561,7 @@ describe('EntityAwareGoldVerifier — PACK_FORENSIC_REPLAY (3 regras novas)', ()
           claim: 'Operação internacional confirmada em Cumaribo, Corregimiento de El Viento, Colômbia',
           status: 'Pista forte',
           source: 'socio-search',
-          kind: 'operation',
+          kind: 'operation' as const,
           process: null,
         },
       ],
@@ -662,5 +662,53 @@ describe('EntityAwareGoldVerifier — PACK_FORENSIC_REPLAY (3 regras novas)', ()
     const result = verifyGold(gold, canonical, safePackColombiaPista());
     expect(result.hardFails.some((h) => h.code === 'PROMOTED_CLAIM')).toBe(true);
     expect(result.hardFails.some((h) => h.code === 'QSA_GOVERNANCE_CLAIM')).toBe(true);
+  });
+
+  it('R2 PROVENANCE EXCEPTION: fact externo Confirmado prova sucessão → PASS', () => {
+    const base = safePack();
+    const pack = {
+      ...base,
+      facts: [
+        {
+          id: 'f-suc',
+          entity: 'SCHEFFER & CIA LTDA',
+          claim: 'Empresa anuncia processo formal de sucessão familiar em comunicado oficial',
+          status: 'Confirmado' as const,
+          source: 'Comunicado oficial',
+          kind: 'operation' as const,
+          process: null,
+        },
+      ],
+    };
+    const gold = [
+      '# Gold Brief',
+      'Há uma transição geracional em curso, confirmada por comunicado oficial da empresa.',
+    ].join('\n');
+    const result = verifyGold(gold, canonical, pack);
+    expect(result.hardFails.some((h) => h.code === 'QSA_GOVERNANCE_CLAIM')).toBe(false);
+  });
+
+  it('R3 PROVENANCE EXCEPTION: fact externo Confirmado prova processo manual → PASS', () => {
+    const base = safePack();
+    const pack = {
+      ...base,
+      facts: [
+        {
+          id: 'f-man',
+          entity: 'SCHEFFER & CIA LTDA',
+          claim: 'Auditoria externa identificou controle manual de romaneio nas unidades',
+          status: 'Confirmado' as const,
+          source: 'Auditoria externa',
+          kind: 'operation' as const,
+          process: null,
+        },
+      ],
+    };
+    const gold = [
+      '# Gold Brief',
+      'Auditoria externa confirmou dependência de sistemas desconectados ou manuais no romaneio.',
+    ].join('\n');
+    const result = verifyGold(gold, canonical, pack);
+    expect(result.hardFails.some((h) => h.code === 'ABSENCE_DERIVED_WEAKNESS')).toBe(false);
   });
 });

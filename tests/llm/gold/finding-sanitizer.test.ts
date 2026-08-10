@@ -235,6 +235,59 @@ describe('FindingSanitizer', () => {
     expect(safe.openQuestions.some((q) => q.includes('Qual solução suporta hoje o processo de romaneio?'))).toBe(true);
   });
 
+  // ─── PACK_FORENSIC_REPLAY (Planejador 2026-08-10) — STATUS_PROMOTION ───
+
+  it('STATUS_PROMOTION: Confirmado sobre Colômbia com fonte institucional → rebaixa p/ Pista forte', () => {
+    const raw = basePack();
+    raw.facts.push({
+      id: 'f-col',
+      entity: 'SCHEFFER & CIA LTDA',
+      claim: 'Operação em Cumaribo, Corregimiento de El Viento, Colômbia',
+      status: 'Confirmado',
+      source: 'Site institucional Scheffer',
+      kind: 'operation',
+      process: null,
+    });
+    const safe = sanitizeFindingPack(raw, canonical);
+    const col = safe.facts.find((f) => f.id === 'f-col');
+    expect(col?.status).toBe('Pista forte');
+    expect(safe.sanitizerEvents.some((e) => e.code === 'STATUS_PROMOTION')).toBe(true);
+  });
+
+  it('STATUS_PROMOTION: NÃO rebaixa tema não-sensível com fonte institucional', () => {
+    const raw = basePack();
+    raw.facts.push({
+      id: 'f-mt',
+      entity: 'SCHEFFER & CIA LTDA',
+      claim: 'Operação confirmada nos estados de Mato Grosso e Maranhão',
+      status: 'Confirmado',
+      source: 'Site institucional Scheffer',
+      kind: 'operation',
+      process: null,
+    });
+    const safe = sanitizeFindingPack(raw, canonical);
+    const mt = safe.facts.find((f) => f.id === 'f-mt');
+    expect(mt?.status).toBe('Confirmado');
+    expect(safe.sanitizerEvents.some((e) => e.code === 'STATUS_PROMOTION')).toBe(false);
+  });
+
+  it('STATUS_PROMOTION: NÃO rebaixa Confirmado sobre Colômbia com fonte externa oficial', () => {
+    const raw = basePack();
+    raw.facts.push({
+      id: 'f-col2',
+      entity: 'SCHEFFER & CIA LTDA',
+      claim: 'Registro legal da operação colombiana confirmado',
+      status: 'Confirmado',
+      source: 'Registro oficial colombiano',
+      kind: 'operation',
+      process: null,
+    });
+    const safe = sanitizeFindingPack(raw, canonical);
+    const col = safe.facts.find((f) => f.id === 'f-col2');
+    expect(col?.status).toBe('Confirmado');
+    expect(safe.sanitizerEvents.some((e) => e.code === 'STATUS_PROMOTION')).toBe(false);
+  });
+
   it('mantém pack rastreável (ids preservados) e removed/kept coerentes', () => {
     const raw = basePack();
     raw.facts.push(
