@@ -1,51 +1,49 @@
-# HANDOFF AI — Baseline Canônico de Migrações Supabase & Hardening (PR #464)
+# HANDOFF AI — Gold EXPERIENCE-01C (PR #483)
 
-> Atualizado: 2026-07-28  
-> Projeto: **NOVO-APP**  
-> Branch Ativa: `fix/canonical-supabase-migration-baseline`  
-> PR Ativa: **#464** (Draft, Mergeável, Base `main`)  
-> HEAD Commit SHA: `a8a07919a606969fc34c7daee4ec41ca72f48b57`  
-> Vault Narrative: [[2026-07-28T17-25-00-fix-canonical-supabase-migration-baseline|Nota de Handoff no Bruno Vault]]
-
----
-
-## 1. Estado da PR #464 & Migrações
-
-- **Objetivo:** Substituir a cadeia de migrações corrompida por um baseline canônico nativo do schema de Produção e aplicar o hardening de privilégios e identidade (least privilege).
-- **Status:** **CONCLUÍDO / AGUARDANDO AUTORIZAÇÃO DO ORQUESTRADOR**
-- **Cadeia de Migrações (21 arquivos ativos com timestamps de 14 dígitos):**
-  - `20260501000000_production_schema_baseline.sql`: Dump nativo PG 17 do schema `public` de Produção (`vmqfcaoirjcfucvlnpig`). Sem objetos do schema `auth`, sem `auth.users`, sem `auth.uid()`, e com extensões canônicas (`pg_trgm`, `pgcrypto`, `uuid-ossp`).
-  - **18 Marcadores no-op de Produção:** Preservam os timestamps canônicos de Produção sem executar DDL redundante.
-  - `20260728173731_harden_dossier_grants.sql`: Restringe privilégios em `dossier_runs`, `dossies`, `profiles` e `handle_new_user()` para o princípio do menor privilégio.
-  - `20260728180000_harden_legacy_operator_linking.sql`: Hardening da RPC `link_legacy_operator` (exige `auth.uid()` igual a `p_auth_user_id`, e-mail obrigatório e correspondente ao perfil autenticado e ao `user_context`, `SECURITY DEFINER`, `search_path = ''` e ACL restrita a `authenticated`).
+> Atualizado: 2026-08-10 18:40
+> Projeto: **NOVO-APP**
+> Worktree ativo: `/private/tmp/v6-worktree`
+> Branch: `feat/v6-shadow-prep`
+> PR: **#483** (DRAFT, OPEN, não mergeada)
+> HEAD: `cc1bfb4ae0b1c4db68e78356004e7eb93a6ee47c` (local = remoto)
+> Vault: [[2026-08-10T18-30-00-gold-experience-01c-canonical-mermaid|Sessão 01C no Bruno Vault]]
 
 ---
 
-## 2. Validação & Garantias de Qualidade
+## 1. Estado
 
-- **Paridade de Catálogo:** 15 categorias de catálogo comparadas individualmente contra Produção (incluindo `pg_get_constraintdef` para 37/37 constraints, `pg_get_functiondef`, RLS, views, triggers e grants).  
-  `PRODUCTION_BASELINE_CATALOG_DIFF: ZERO`.
-- **Replay Local & `db push`:**
-  - `BASELINE_PSQL_EXIT_CODE: 0` (Replay estrito com `-v ON_ERROR_STOP=1` em PostgreSQL 17 local).
-  - `FULL_CHAIN_PUSH_EXIT_CODE: 0` (`npx supabase db push` registrou 21 migrações limpas).
-- **Testes PostgreSQL Runtime:**
-  - `scripts/test_harden_dossier_grants.sql`: Todos os asserts passaram.
-  - `scripts/test_harden_identity.sql`: 11/11 asserts de segurança e negação de UPDATE direto de `operator_id` passaram.
-- **Suíte Vitest Contratos:** 61/61 asserções de contrato de migração aprovadas em `tests/contracts/`.
-- **Gates Estáticos:** `git diff --check` zerado; `npm run lint` zerado (0 erros).
+- **01C CANONICAL MERMAID: IMPLEMENTADO + PUSHED + CI GREEN + PREVIEW NOVO**
+- Cadeia validada: commit `cc1bfb4a` → GitHub → CI success (run 31436052266) → Vercel `scoutagro-5xhliiq2x` (bundle `index-CtBCnw6g.js`) → HTTP 200 → smoke zero erros.
+- **Planejador deu GO para rodada Scheffer paga** (1 execução controlada, sem retry).
 
----
+## 2. Arquivos alterados (commit cc1bfb4a — 8 arquivos, +1020/-55)
 
-## 3. Restrições Estritas
+| Arquivo | O que |
+|---------|-------|
+| `services/llm/gold/mermaid/mermaid-deterministic.ts` | NOVO — `injectCanonicalGoldMermaids` (3 mapas, graph LR + paleta canônica, legenda fora do fence, canonical vence) |
+| `services/llm/gold/gold-pipeline.ts` | Builder entre compose e verify (stage `mermaid-inject`) |
+| `services/llm/gold/prompts/gold-contract-prompts.ts` | Composer não escreve Mermaid; leak `canonical.qsaPeople` fechado; qsaCount do canonical |
+| `services/llm/gold/entity-aware-gold-verifier.ts` | R10 sinônimos + exceção por categoria/direção/entidade/multi-claim |
+| `tests/llm/gold/mermaid-deterministic.test.ts` | NOVO — 38 testes RED→GREEN |
+| `tests/llm/gold/{gold-pipeline,prompts/gold-contract-prompts,entity-aware-gold-verifier}.test.ts` | Atualizados |
 
-- NÃO aplicar migrações remotamente em Preview ou Produção.
-- NÃO executar `migration repair` nem `db push` remoto.
-- NÃO alterar a PR #456.
-- NÃO fazer force push.
-- NÃO marcar Ready e NÃO fazer merge sem palavra-chave `MERGE` e autorização do orquestrador.
+## 3. Gates
 
----
+- 175/175 testes gold (exit 0) · typecheck OK · lint 0 · build OK · diff-check OK
+- Pré-existentes (não causados): 5 arquivos teste gold com `No such built-in module: node:`; falhas React.act na suíte completa; warnings lint em `api/*`.
 
-## 4. Próxima Ação
+## 4. Próxima ação (autorizada)
 
-Aguardar a validação final do orquestrador Bruno. Se autorizada com a instrução contendo a palavra `MERGE`, marcar a PR #464 como Ready e realizar o squash merge na `main`.
+Rodada Scheffer paga no Preview `https://scoutagro-5xhliiq2x-brunolimaff-3629s-projects.vercel.app`:
+1. Gerar 1 Gold Scheffer (sem retry automático).
+2. Capturar Gold completo + 3 Mermaid renderizados + console/runtime + Verifier/Contract.
+3. Screenshots seções 2/3/5/7/8/9.
+4. Devolver evidência compacta ao Planejador.
+
+## 5. Não fazer
+
+- Merge #483 sem token `MERGE` do Bruno.
+- Mais de 1 rodada paga (sem retry).
+- Alterar Supabase/Produção/provider/budgets/RUN_ORPHAN.
+- Tocar o repo principal (`fix/remove-auth-migration-gate`).
+- Commitar untrackeds: `.commandcode/`, `scripts/gold-forensic-dump.ts`.

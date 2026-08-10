@@ -490,3 +490,5 @@
 ### 2026-06-08 — Handoff final precisa apontar repo + Bruno Vault (APLICADO na PR #346)
 
 ### 2026-06-11 — Tracking de Operador: canonical operatorId, findUserByEmail, PII-safe logging
+
+- **Decisão (2026-08-10):** EXPERIENCE-01C — Mermaid determinístico no pipeline Gold (compose → mermaid-inject → verifier → contract). Composer não escreve mais Mermaid; R10 com exceção por categoria+direção+entidade+multi-claim. Aprovado pelo Planejador (GO), push cc1bfb4a. Merge #483 = HOLD até revisão da rodada paga.

@@ -1,24 +1,7 @@
-# Last Session Context
+# Última sessão — 2026-08-10 (Gold 01C)
 
-Saved: 2026-07-13
-
-> Snapshot de conveniência. Fontes canônicas: `activeContext.md`, `progress.md`, `decisions.md` e `HANDOFF_AI.md`.
-
-## Branch e PRs relevantes
-
-- **origin/main:** `46765ab8` — squash merge PR #425 (Fase 3B.1.5)
-- **PR #425:** MERGED — hardening e benchmark do harness Codex
-- **PR #424:** MERGED — Fase 3B.1 (`9c8b3228`)
-- **Próxima fase:** 3B.2 (não iniciada)
-
-## Estado atual
-
-- Trilha de agentes em main até 3B.1.5
-- Auditor harness: 37 testes; parser TOML fail-closed
-- Multi-Agent V2 não confiável até prova CLI
-- Probe A `BLOCKED_BY_HARNESS`; Probe B não executado
-
-## Próxima ação
-
-- Iniciar Fase 3B.2 só sob pedido explícito
-- Não misturar WIP/stashes Scout nesta trilha
+- Worktree: /private/tmp/v6-worktree · branch feat/v6-shadow-prep · HEAD cc1bfb4a (local=remoto)
+- PR #483 DRAFT · CI success · Preview scoutagro-5xhliiq2x (index-CtBCnw6g.js)
+- Próximo passo AUTORIZADO: rodada Scheffer paga (1, sem retry) → capturar Gold + Mermaid + Verifier/Contract + screenshots → devolver ao Planejador
+- Merge HOLD · Produção NÃO · Não tocar repo principal (fix/remove-auth-migration-gate)
+- Vault: [[2026-08-10T18-30-00-gold-experience-01c-canonical-mermaid]]

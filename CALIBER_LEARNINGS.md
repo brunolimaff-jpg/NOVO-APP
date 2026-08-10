@@ -523,3 +523,6 @@ _Atualizado automaticamente pelo Caliber apos sessoes de agente._
 
 - **ESM no runtime Vercel exige `.js` extension em imports locais** [vercel, esm, deploy, runtime]
   O runtime serverless da Vercel para funcoes TypeScript usa resolucao ESM estrita. Imports de arquivos locais sem extensao `.js` (ex: `from './utils'` em vez de `from './utils.js'`) falham em producao — `ERR_MODULE_NOT_FOUND`. O tipo do erro nao deixa claro que a extensao esta faltando. Sempre adicionar `.js` em imports de arquivos locais em `api/*.ts`.
+
+- **Fato verdadeiro nao autoriza claim B — reconciliacao por categoria + direcao + entidade** [gold, verifier, mermaid, proveniencia]
+  Evidencia de proveniencia precisa casar com a MESMA categoria, a MESMA direcao semantica e a MESMA entidade da frase. Regex global de excecao cria bypass ("sem sistema centralizado" liberado por "sistema centralizado" — o oposto; fato da empresa lateral liberando claim da conta). Vale tambem para builder deterministico: fato Confirmado nao autoriza aresta sem evidencia estruturada da relacao. Implementado em `entity-aware-gold-verifier.ts` (hasMatchingWeaknessProvenance com filter+every) e `mermaid-deterministic.ts`. Licao completa: Bruno Vault `02 - Meus Projetos/NOVO-APP/Licoes/gold/fato-verdadeiro-nao-autoriza-claim-b-arestas-e-r10.md`.

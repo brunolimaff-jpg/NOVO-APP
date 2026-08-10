@@ -77,3 +77,16 @@
 - Preview final `dpl_AMQkRove9o47UHrVwt1pB8okXE9d` ficou READY, comprovou Build Output e 13 Functions Node; sem deploy manual ou produção.
 - Sentry runtime não mudou; o plugin de build só envia sourcemaps com opt-in explícito e token.
 - Typecheck, Tests, Golden e E2E continuam com falhas preexistentes comparadas à baseline.
+
+## 2026-08-10 — Gold EXPERIENCE-01C CANONICAL MERMAID (sessão 18:30)
+- 01C implementado (builder Mermaid determinístico + leak QSA + R10), 4 revisões do Planejador, push `cc1bfb4a`, CI success, Preview `scoutagro-5xhliiq2x` (bundle index-CtBCnw6g.js), smoke zero erros.
+- GO do Planejador para rodada Scheffer paga (1 controlada, sem retry) — PENDENTE.
+- Vault: [[2026-08-10T18-30-00-gold-experience-01c-canonical-mermaid]] · lição nova em Lições/gold/.
+- Revertido experimental "números de mercado" no specialist-prompts.ts (a pedido do Bruno).
+
+## 2026-08-10 — Gold 01C.1 observability + 01D visual-first
+- Evidência local do Preview consultada em `scout_diag_fallback_*`; eventos `GoldSeam` não foram persistidos. Dois códigos/claims reais da rodada Scheffer permanecem **NÃO VERIFICADOS**; nenhuma correção causal foi inferida.
+- Implementada observabilidade segura: `verifier-done`, `verifier-summary` e `gold-rejeitado-fallback` passam `hardFails`, `codes` e `codeCounts`, sem reasons/claims; fallback fail-closed preservado.
+- Implementada tabela dinâmica `buildDynamicValueChainTable` no builder canônico, com vocabulário dos seis `ScoutSegment` existentes, linhas derivadas apenas do SafeFindingPack e inserção abaixo do Mapa do Caos.
+- Gates: 128 Gold focados PASS, typecheck PASS, build PASS, lint PASS com 0 erros/69 warnings preexistentes, diff-check PASS. Suítes `node:`/React.act permanecem bloqueadas por baseline ambiental.
+- Próximo: enviar checkpoint ao Planejador quando a aba Web estiver disponível; não fazer nova rodada paga, push, merge ou produção sem decisão dele.
