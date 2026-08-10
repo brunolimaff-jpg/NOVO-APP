@@ -165,7 +165,10 @@ export async function runGuardedGoldPipeline(
 
   // 5) Verify — barreira final sobre o Gold.
   const verification = verifyGold(goldBrief, input.canonical, safePack);
-  onStage?.('verifier-done', { hardFails: verification.hardFails.length });
+  onStage?.('verifier-done', {
+    hardFails: verification.hardFails.length,
+    codes: verification.hardFails.map((h) => h.code),
+  });
 
   return {
     goldBrief,
