@@ -125,28 +125,48 @@ REGRAS OBRIGATÓRIAS:
    (pista vs confirmado).
 8. NÃO reproduza CPF, dados pessoais sensíveis ou material bruto.
 9. EXTENSÃO: ~900–1500 palavras (NUNCA abaixo de 900 — contrato rejeita).
-   Mermaid: 0–3 diagramas; MAPA DO CAOS OPERACIONAL = obrigatório quando
-   houver evidência segura suficiente (peça visual principal, seção 2
-   PERFIL): operação principal → ramificações reais da cadeia → sistemas/
-   processos identificados → pontos de atenção sustentados; compreensível
-   sozinho. TEIA SOCIETÁRIA = 2º diagrama (seção 3) + Matriz de CNPJs.
+   Mermaid: EXATAMENTE 3 diagramas com papéis fixos quando houver suporte —
+   (1) MAPA DO CAOS OPERACIONAL (peça visual principal, seção 2 PERFIL):
+   operação principal → ramificações reais da cadeia → sistemas/processos
+   identificados → pontos de atenção sustentados; compreensível sozinho.
+   (2) TEIA SOCIETÁRIA (seção 3 ESTRUTURA SOCIETÁRIA) junto da Tabela de
+   CNPJs. (3) CAMINHO DA VENDA (seção 9 PRÓXIMOS PASSOS).
    NÓ verdadeiro NÃO autoriza SETA inventada: toda aresta precisa de
    suporte; ponto de atenção somente quando sustentado; ausência de
    tecnologia NUNCA vira gap; incerteza como "não confirmado"/"a validar";
    sem termos sensíveis ("capacidade", "produção de", "ROI", "prazo de N",
    "integração nativa", "middleware") nem gap/lacuna tecnológica dentro
-   dos diagramas.
+   dos diagramas. LEGENDA E CORES: todo Mermaid usa classDef com cores
+   distintas por categoria (azul = ✅ confirmado; verde = 🔗 relação/
+   processo observado; amarelo = 🔎 a validar; cor comercial distinta =
+   🎯 próximo movimento) e fecha com legenda curta em texto; a cor não é a
+   única informação — toda categoria tem texto e/ou ícone no nó.
 10. TEIA SOCIETÁRIA (whitelist estrita): nós apenas com CNPJs de
     (a) conta alvo do canonical; (b) headOfficeCnpj se != null;
     (c) directPjPartners; (d) safePack.relationships. Semântica da
     relação preservada (same_root / direct_pj_relation /
     partner_other_cnpj); partner_other_cnpj JAMAIS vira "empresa do
     grupo", "controlada" ou "holding". Nós em linha própria com IDs e
-    arestas pelos IDs.
-11. MATRIZ DE CNPJs (seção 3 ESTRUTURA SOCIETÁRIA): tabela empresa | CNPJ
+    arestas pelos IDs. A Teia contém EMPRESAS, nunca lista nominal de
+    pessoas.
+11. TABELA DE CNPJs (seção 3 ESTRUTURA SOCIETÁRIA): tabela empresa | CNPJ
     | papel com a MESMA whitelist do item 10; deduplicar CNPJs; não
     inventar CNPJ/nome/papel; CNPJ seguro sem nome → "Nome não
-    identificado no conteúdo seguro".
+    identificado no conteúdo seguro". O nome "Tabela de CNPJs" não é
+    classificação cadastral — para o CNPJ alvo vale somente o tipo
+    cadastral do canonical (identity lock).
+11b. QSA (Opção A, decisão do Bruno 2026-08-10): NUNCA listar pessoas do
+    QSA individualmente (sem bullets, biografias ou Mermaid de atores).
+    QSA é cadastral, não mapa de decisores. Mostrar apenas indicador
+    agregado "👥 N pessoas no QSA — papéis cadastrais, não decisores".
+    Nomes só com papel funcional NÃO-QSA confirmado e material.
+11c. CAMINHO DA VENDA (3º Mermaid, seção 9): Evidência segura → Hipótese
+    comercial → Discovery → Problema confirmado? → (sim) Definir owner/
+    sponsor → Dimensionar impacto → Movimento comercial; (não) Nutrir /
+    buscar evidência / encerrar hipótese. Produto específico só após
+    problema e aderência validados. Não saltar de ausência de módulo/
+    tecnologia para dor, gap, processo manual ou oportunidade
+    automaticamente.
 12. AÇÕES: EXATAMENTE 3 próximos passos concretos e acionáveis (nem mais, nem menos).
 ```
 

@@ -197,4 +197,46 @@ describe('SCOUT-V7-GOLD-RUNTIME-QUALITY-01 — prompts alinhados ao PROMPT_SPEC'
     expect(prompt).toMatch(/par[aá]grafos curtos/i);
     expect(prompt).toMatch(/emoji para mascarar afirma[cç][aã]o n[aã]o sustentada/i);
   });
+
+  // ─── SCOUT-V7-GOLD-EXPERIENCE-01 (Planejador 2026-08-10) ───
+  // Experiência visual: 3 papéis de Mermaid, legenda com classes, QSA agregado
+  // (nunca lista nominal), Caminho da Venda, ausência não vira oportunidade.
+
+  it('EXP-1: Prompt fixa os 3 papéis visuais dos Mermaid (Mapa do Caos, Teia, Caminho da Venda)', () => {
+    const prompt = buildComposePrompt({ canonical, safePack: {} as never });
+    expect(prompt).toMatch(/Mapa do Caos/i);
+    expect(prompt).toMatch(/Teia Societ[aá]ria|teia societ[aá]ria/i);
+    expect(prompt).toMatch(/Caminho da Venda/i);
+  });
+
+  it('EXP-2: Prompt exige legenda textual/ícone para cada categoria de cor (cor nunca é a única semântica)', () => {
+    const prompt = buildComposePrompt({ canonical, safePack: {} as never });
+    expect(prompt).toMatch(/legenda/i);
+    expect(prompt).toMatch(/cor n[uaã]o [ée] a [úu]nica/i);
+  });
+
+  it('EXP-3: Prompt PROÍBE lista nominal de pessoas do QSA (só indicador agregado)', () => {
+    const prompt = buildComposePrompt({ canonical, safePack: {} as never });
+    // QSA agregado obrigatório
+    expect(prompt).toMatch(/QSA/i);
+    expect(prompt).toMatch(/cadastrais, n[ãa]o decisores|n[ãa]o decisores/i);
+    // Proibição explícita de listar pessoas individualmente
+    expect(prompt).toMatch(/n[ãa]o liste|proibido listar|nunca liste/i);
+    expect(prompt).toMatch(/individual|nominal|por extenso/i);
+  });
+
+  it('EXP-4: Caminho da Venda contém evidência, hipótese, discovery, validação e movimento comercial', () => {
+    const prompt = buildComposePrompt({ canonical, safePack: {} as never });
+    expect(prompt).toMatch(/evid[eê]ncia/i);
+    expect(prompt).toMatch(/hip[óo]tese/i);
+    expect(prompt).toMatch(/discovery/i);
+    expect(prompt).toMatch(/validad[ao]|valida[cç][aã]o/i);
+    expect(prompt).toMatch(/movimento comercial/i);
+  });
+
+  it('EXP-5: Ausência de módulo/tecnologia NÃO vira oportunidade automaticamente no Caminho da Venda', () => {
+    const prompt = buildComposePrompt({ canonical, safePack: {} as never });
+    expect(prompt).toMatch(/n[ãa]o saltar de aus[eê]ncia/i);
+    expect(prompt).toMatch(/oportunidade/i);
+  });
 });
