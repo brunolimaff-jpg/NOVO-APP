@@ -206,6 +206,7 @@ describe('GuardedGoldPipeline', () => {
       'frontier-schema-ok',
       'compose-start',
       'compose-done',
+      'mermaid-inject',
       'verifier-done',
     ]);
     // métricas presentes, conteúdo nunca (sem dados sensíveis)

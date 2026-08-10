@@ -82,9 +82,90 @@ const CONFIRMED_CLAIM =
 const QSA_GOVERNANCE_CLAIM =
   /\b(n[úu]cleo\s+familiar|decis[aã]o\s+concentrada|envolvimento\s+direto\s+na\s+gest[aã]o|transi[cç][aã]o\s+geracional|gera[cç][aã]o\s+mais\s+nova|gera[cç][aã]o\s+seguinte|grupo\s+familiar\s+controlador|controle\s+familiar)\b/i;
 
-/** R3: ausência de módulo/tecnologia → fragilidade operacional derivada. */
+/**
+ * B4 (EXPERIENCE-01C, Planejador 2026-08-10): exceção de proveniência da R10
+ * por CATEGORIA com DIREÇÃO SEMÂNTICA e VÍNCULO DE ENTIDADE.
+ * 1. A frase do Gold exige uma categoria (manualidade, planilha, desconexão,
+ *    ausência de centralização, fragmentação, fragilidade); a evidência
+ *    externa só libera quando comprova a MESMA categoria.
+ * 2. Direção semântica: "sem sistema centralizado" NÃO pode ser liberado por
+ *    "sistema centralizado" (oposto) — a evidência precisa sustentar
+ *    ausência/descentralização.
+ * 3. Entity-aware: a evidência precisa pertencer à MESMA entidade da frase
+ *    (canonical.legalName quando a frase não menciona entidade explícita;
+ *    a entidade mencionada quando há menção de entidade conhecida). Nada de
+ *    empréstimo de evidência entre empresas.
+ */
+function hasMatchingWeaknessProvenance(
+  sentence: string,
+  safePack: SafeFindingPack,
+  canonical: CanonicalAccount,
+): boolean {
+  const sentenceLower = sentence.toLowerCase();
+
+  // 1) Categoria exigida pela frase + regex de evidência correspondente
+  //    (com direção semântica: a evidência sustenta a MESMA afirmação).
+  const categories: Array<{ pattern: RegExp; match: RegExp }> = [
+    // "sem ... centralizado / centralização" → evidência de AUSÊNCIA/descentralização
+    {
+      pattern: /sem\s+(?:gest[aã]o|controle|sistema)\s+centralizad[oa]/,
+      match: /(?:sem|n[aã]o\s+(?:possui|tem|utiliza|adota|h[aá]|existe))\s+(?:gest[aã]o|controle|sistema)\s+centralizad[oa]|descentralizad[oa]/i,
+    },
+    // fragmentação
+    { pattern: /fragmentad[oa]/, match: /fragmentad[oa]/i },
+    // manualidade (processo manual, dependência manual/manuais)
+    { pattern: /manuais?/, match: /manua/i },
+    // planilha
+    { pattern: /planilhas?/, match: /planilha/i },
+    // desconexão
+    { pattern: /desconectad[oa]/, match: /desconect/i },
+    // fragilidade
+    { pattern: /fragilidade/, match: /fragilidade/i },
+    // ponto de fragilidade
+    { pattern: /ponto\s+de\s+fragilidade/, match: /fragilidade/i },
+    // "processo potencialmente fragmentado" → fragmentação
+    { pattern: /processo\s+potencialmente\s+fragmentado/, match: /fragmentad[oa]/i },
+  ];
+  const neededCategories = categories.filter((c) => c.pattern.test(sentenceLower));
+  if (neededCategories.length === 0) return false;
+
+  // 2) Entity-aware: entidade referida pela frase. Se a frase menciona uma
+  //    entidade conhecida (relação do SafePack), a evidência deve ser dela;
+  //    caso contrário, da conta canônica.
+  const accountName = normalizeName(canonical.legalName);
+  const mentionedEntity = [...safePack.relationships]
+    .map((r) => normalizeName(r.relatedEntity))
+    .find((name) => sentenceLower.includes(name));
+  const referredEntity = mentionedEntity ?? accountName;
+
+  // 3) TODAS as categorias presentes na frase precisam de evidência — uma
+  //    frase com duas afirmações R10 ("sem sistema centralizado e com
+  //    processos manuais") não pode passar comprovando apenas uma
+  //    (B4 multi-claim, Planejador 2026-08-10).
+  return neededCategories.every((needed) =>
+    safePack.facts.some(
+      (f) =>
+        f.status === 'Confirmado' &&
+        !NON_EXTERNAL_SOURCE.test(f.source) &&
+        normalizeName(f.entity) === referredEntity &&
+        needed.match.test(f.claim),
+    ),
+  );
+}
+
+/**
+ * R3: ausência de módulo/tecnologia → fragilidade operacional derivada.
+ * Padrão-base (congelado) + sinônimos observados na rodada real Scheffer
+ * (Planejador 2026-08-10 — EXPERIENCE-01C): o Composer atravessou a régua
+ * com "processo potencialmente fragmentado", "planilhas ou sistemas
+ * pontuais", "sem sistema centralizado", "dependência de sistemas
+ * desconectados". A ausência no portfólio NÃO prova dor operacional —
+ * qualquer formulação que derive fragilidade/manualidade/desconexão da
+ * ausência de tecnologia é hard fail (com exceção de proveniência externa
+ * da MESMA categoria — hasMatchingWeaknessProvenance).
+ */
 const ABSENCE_DERIVED_WEAKNESS =
-  /\b(ponto\s+de\s+fragilidade|fragilidade\s+operacional|depender\s+de\s+sistemas\s+desconectados\s+ou\s+manuais|depend[eê]ncia\s+de\s+sistemas\s+desconectados|sistemas\s+desconectados\s+ou\s+manuais)\b/i;
+  /\b(ponto\s+de\s+fragilidade|fragilidade\s+operacional|depender\s+de\s+sistemas\s+desconectados\s+ou\s+manuais|depend[eê]ncia\s+de\s+sistemas\s+desconectados|sistemas\s+desconectados\s+ou\s+manuais|processo\s+potencialmente\s+fragmentado|processos?\s+(fragmentados?|manuais?)|via\s+planilhas?\s+ou\s+sistemas\s+pontuais|planilhas?\s+ou\s+sistemas\s+pontuais|sem\s+sistema\s+centralizado|sem\s+(gest[aã]o|controle|sistema)\s+centralizad[oa]|depend[eê]ncia\s+de\s+(processos|sistemas|planilhas)\s+manuais)\b/i;
 
 interface Measure {
   quantity: string;
@@ -389,12 +470,11 @@ export function verifyGold(
     //     Confirmado com fonte externa comprovando processo manual/fragilidade
     //     (ex.: auditoria oficial), a afirmação passa.
     if (ABSENCE_DERIVED_WEAKNESS.test(sentenceLower)) {
-      const hasExternalProvenance = safePack.facts.some(
-        (f) =>
-          f.status === 'Confirmado' &&
-          !NON_EXTERNAL_SOURCE.test(f.source) &&
-          /manual|planilha|desconect|fragilidade|processo/i.test(f.claim),
-      );
+      // Exceção por CATEGORIA (B4): a evidência externa precisa comprovar a
+      // MESMA categoria da frase (manual → manual; centralizado → ausência
+      // de centralização; fragmentado → fragmentação), nunca conceito
+      // vagamente próximo.
+      const hasExternalProvenance = hasMatchingWeaknessProvenance(sentence, safePack, canonical);
       if (!hasExternalProvenance) {
         push('ABSENCE_DERIVED_WEAKNESS', `Frase deriva fragilidade operacional de ausência: "${sentence}"`);
       }

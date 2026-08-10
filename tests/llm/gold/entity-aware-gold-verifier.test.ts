@@ -704,11 +704,40 @@ describe('EntityAwareGoldVerifier — PACK_FORENSIC_REPLAY (3 regras novas)', ()
         },
       ],
     };
+    // Frase com UMA categoria (manualidade) e evidência da MESMA categoria →
+    // exceção de proveniência se aplica (B4: categoria + direção + entidade).
+    const gold = [
+      '# Gold Brief',
+      'Auditoria externa confirmou dependência de processos manuais no romaneio.',
+    ].join('\n');
+    const result = verifyGold(gold, canonical, pack);
+    expect(result.hardFails.some((h) => h.code === 'ABSENCE_DERIVED_WEAKNESS')).toBe(false);
+  });
+
+  it('R3 MULTI-CLAIM: frase com 2 categorias exige evidência para AMBAS (B4)', () => {
+    const base = safePack();
+    const pack = {
+      ...base,
+      facts: [
+        {
+          id: 'f-man',
+          entity: 'SCHEFFER & CIA LTDA',
+          claim: 'Auditoria externa identificou controle manual de romaneio nas unidades',
+          status: 'Confirmado' as const,
+          source: 'Auditoria externa',
+          kind: 'operation' as const,
+          process: null,
+        },
+      ],
+    };
+    // "sistemas desconectados OU manuais" = 2 afirmações; só manual é provado
+    // → desconexão sem evidência → hard fail (fato verdadeiro não autoriza
+    // a outra afirmação).
     const gold = [
       '# Gold Brief',
       'Auditoria externa confirmou dependência de sistemas desconectados ou manuais no romaneio.',
     ].join('\n');
     const result = verifyGold(gold, canonical, pack);
-    expect(result.hardFails.some((h) => h.code === 'ABSENCE_DERIVED_WEAKNESS')).toBe(false);
+    expect(result.hardFails.some((h) => h.code === 'ABSENCE_DERIVED_WEAKNESS')).toBe(true);
   });
 });

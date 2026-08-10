@@ -20,6 +20,7 @@ import {
 import { normalizeCnpj, resolveCanonicalRelations } from './canonical-relation-resolver';
 import { sanitizeFindingPack } from './finding-sanitizer';
 import { verifyGold, type GoldVerificationResult } from './entity-aware-gold-verifier';
+import { injectCanonicalGoldMermaids } from './mermaid/mermaid-deterministic';
 
 export interface CompactInput {
   canonical: CanonicalAccount;
@@ -62,6 +63,7 @@ export type GoldStage =
   | 'frontier-schema-fail'
   | 'compose-start'
   | 'compose-done'
+  | 'mermaid-inject'
   | 'verifier-done'
   // Emitidos pelo seam (fora do pipeline): cadastro canônico e contrato.
   | 'canonical-done'
@@ -165,15 +167,23 @@ export async function runGuardedGoldPipeline(
   const goldBrief = await deps.compose({ canonical: input.canonical, safePack: frontierInput }, signal);
   onStage?.('compose-done', { chars: goldBrief.length });
 
-  // 5) Verify — barreira final sobre o Gold.
-  const verification = verifyGold(goldBrief, input.canonical, safePack);
+  // 4b) EXPERIENCE-01C — Mermaid determinístico (CANONICAL MERMAID):
+  // o Composer NÃO escreve mais código Mermaid; os 3 mapas são montados
+  // aqui com a gramática/paleta literal do Scout (graph LR + classDef
+  // core/satellite/danger/warning/neutral). O Verifier roda sobre o Gold
+  // JÁ com os mapas finais (contrato do Planejador 2026-08-10).
+  const goldWithMermaids = injectCanonicalGoldMermaids(goldBrief, input.canonical, safePack);
+  onStage?.('mermaid-inject', { chars: goldWithMermaids.length });
+
+  // 5) Verify — barreira final sobre o Gold (com os Mermaid determinísticos).
+  const verification = verifyGold(goldWithMermaids, input.canonical, safePack);
   onStage?.('verifier-done', {
     hardFails: verification.hardFails.length,
     codes: verification.hardFails.map((h) => h.code),
   });
 
   return {
-    goldBrief,
+    goldBrief: goldWithMermaids,
     safePack,
     sanitizerEvents: safePack.sanitizerEvents,
     verification,

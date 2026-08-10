@@ -80,13 +80,15 @@ describe('SCOUT-V7-GOLD-RUNTIME-QUALITY-01 — prompts alinhados ao PROMPT_SPEC'
     expect(frontier.conflicts[0]).toMatch(/n[aã]o confirmada no exterior/);
   });
 
-  it('4: Prompt Composer instrui Mapa do Caos Operacional + teia societária com regra anti-invenção', () => {
+  it('4: Prompt Composer NÃO escreve Mermaid — fornece conteúdo seguro para o builder determinístico', () => {
     const prompt = buildComposePrompt({ canonical, safePack: {} as never });
-    expect(prompt).toMatch(/Mermaid/i);
-    expect(prompt).toMatch(/MAPA DO CAOS OPERACIONAL/i);
-    expect(prompt).toMatch(/TEIA SOCIET[aÁ]RIA/i);
-    expect(prompt).toMatch(/omita-o em vez de inventar/i);
-    expect(prompt).toMatch(/somente fatos do CANONICAL e do SAFE PACK/i);
+    expect(prompt).toMatch(/N[ÃA]O escreva c[óo]digo Mermaid/i);
+    expect(prompt).toMatch(/builder determin[ií]stico/i);
+    expect(prompt).toMatch(/conte[úu]do seguro/i);
+    expect(prompt).toMatch(/Mapa do Caos/i);
+    expect(prompt).toMatch(/Teia Societ[aá]ria/i);
+    expect(prompt).toMatch(/Caminho da Venda/i);
+    expect(prompt).toMatch(/SUBSTITU[ÍI]DO/i);
   });
 
   it('5: Prompt Composer instrui tabela "Tabela de CNPJs" (SEM "Matriz de CNPJs") na Estrutura Societária com CNPJs só do conteúdo seguro', () => {
@@ -113,20 +115,19 @@ describe('SCOUT-V7-GOLD-RUNTIME-QUALITY-01 — prompts alinhados ao PROMPT_SPEC'
     expect(prompt).toMatch(/safePack\.relationships/i);
   });
 
-  it('B: Prompt pede Mapa do Caos Operacional QUANDO houver evidência suficiente (1º mapa, 2º teia)', () => {
+  it('B: Prompt delega os 3 mapas ao builder determinístico (1º Mapa do Caos, 2º teia, 3º Caminho da Venda)', () => {
     const prompt = buildComposePrompt({ canonical, safePack: {} as never });
-    expect(prompt).toMatch(/MAPA DO CAOS OPERACIONAL/i);
-    expect(prompt).toMatch(/obrigat[óo]rio quando houver evid[eê]ncia segura suficiente/i);
-    expect(prompt).toMatch(/TEIA SOCIET[aÁ]RIA = 2[ºo] diagrama/i);
-    expect(prompt).toMatch(/omita-o em vez de inventar/i);
+    expect(prompt).toMatch(/Mapa do Caos na se[çc][aã]o 2/i);
+    expect(prompt).toMatch(/Teia Societ[aá]ria na se[çc][aã]o 3/i);
+    expect(prompt).toMatch(/Caminho da Venda na se[çc][aã]o 9/i);
+    expect(prompt).toMatch(/graph LR/i);
   });
 
-  it('C: NÓ verdadeiro não autoriza SETA inventada — nenhum processo criado só para completar fluxo', () => {
+  it('C: Prompt exige conteúdo seguro por seção para os mapas (sem inventar fluxo/aresta)', () => {
     const prompt = buildComposePrompt({ canonical, safePack: {} as never });
-    expect(prompt).toMatch(/N[ÓO] verdadeiro N[ÃA]O autoriza SETA inventada/i);
-    expect(prompt).toMatch(/toda aresta precisa de suporte no conteúdo seguro/i);
-    expect(prompt).toMatch(/ponto de aten[cç][aã]o somente quando sustentado/i);
-    expect(prompt).toMatch(/aus[eê]ncia de tecnologia NUNCA vira gap/i);
+    expect(prompt).toMatch(/somente fatos Confirmados/i);
+    expect(prompt).toMatch(/sem gap\/dor\/aus[eê]ncia/i);
+    expect(prompt).toMatch(/rela[cç][aã]o lateral/i);
   });
 
   it('D: Mermaid societário — apenas CNPJs permitidos; partner_other_cnpj permanece relação lateral', () => {
@@ -136,15 +137,17 @@ describe('SCOUT-V7-GOLD-RUNTIME-QUALITY-01 — prompts alinhados ao PROMPT_SPEC'
     expect(prompt).toMatch(/same_root = mesma raiz/i);
   });
 
-  it('E: Texto Mermaid preserva as regras existentes (sem gap/capacidade/ROI/prazo/integração/middleware)', () => {
+  it('E: Prompt exige conteúdo seguro para os mapas (regras de proveniência valem no texto do Gold)', () => {
     const prompt = buildComposePrompt({ canonical, safePack: {} as never });
-    expect(prompt).toMatch(/termos sens[ií]veis, "gap"\/"lacuna" e aus[eê]ncia-virada-lacuna s[aã]o proibidos tamb[eé]m dentro dos mermaid/i);
+    expect(prompt).toMatch(/proveni[eê]ncia/i);
+    expect(prompt).toMatch(/gap\/dor\/aus[eê]ncia/i);
     expect(prompt).toMatch(/capacidade.*proibida|PROIBIDA em qualquer forma/i);
   });
 
-  it('F: Fixture com evidência operacional suficiente → permite pelo menos 1 Mermaid válido', () => {
+  it('F: Fixture com evidência operacional suficiente → o prompt instrui o conteúdo dos mapas (fatos confirmados)', () => {
     // safePack com fatos Confirmados de campo, beneficiamento e trading: o
-    // prompt deve permitir o fluxo (instrução de incluir quando suportado).
+    // prompt deve instruir a listagem do conteúdo seguro que sustenta o Mapa
+    // do Caos (operações confirmadas), que o builder transforma em diagrama.
     const frontier = {
       module: 'gold-compactor',
       accountIdentity: { inputCnpj: '04.733.767/0001-80', legalName: 'SCHEFFER & CIA LTDA', establishmentType: 'Filial', rootCnpj: '04.733.767', conflicts: [] },
@@ -163,14 +166,14 @@ describe('SCOUT-V7-GOLD-RUNTIME-QUALITY-01 — prompts alinhados ao PROMPT_SPEC'
       sanitized: true,
     } as never;
     const prompt = buildComposePrompt({ canonical, safePack: frontier });
-    expect(prompt).toMatch(/MAPA DO CAOS OPERACIONAL/i);
-    expect(prompt).toMatch(/opera[cç][aã]o principal → ramifica[cç][oõ]es reais da cadeia/i);
-    expect(prompt).toMatch(/N[ÓO] verdadeiro N[ÃA]O autoriza SETA inventada/i);
+    expect(prompt).toMatch(/Mapa do Caos na se[çc][aã]o 2/i);
+    expect(prompt).toMatch(/somente fatos Confirmados/i);
+    expect(prompt).toMatch(/N[ÃA]O escreva c[óo]digo Mermaid/i);
   });
 
-  it('G: Fixture sem evidência operacional → prompt não obriga inventar diagrama', () => {
-    // safePack vazio: a instrução deve condicionar à evidência ("quando o
-    // conteúdo seguro permitir") e exigir omissão em vez de invenção.
+  it('G: Fixture sem evidência operacional → prompt não obriga o Composer a produzir diagrama', () => {
+    // safePack vazio: o Composer não escreve Mermaid; o builder decide os
+    // mapas com base no conteúdo. O prompt apenas exige conteúdo seguro.
     const frontier = {
       module: 'gold-compactor',
       accountIdentity: { inputCnpj: '04.733.767/0001-80', legalName: 'SCHEFFER & CIA LTDA', establishmentType: 'Filial', rootCnpj: '04.733.767', conflicts: [] },
@@ -185,8 +188,8 @@ describe('SCOUT-V7-GOLD-RUNTIME-QUALITY-01 — prompts alinhados ao PROMPT_SPEC'
       sanitized: true,
     } as never;
     const prompt = buildComposePrompt({ canonical, safePack: frontier });
-    expect(prompt).toMatch(/quando houver evid[eê]ncia segura suficiente/i);
-    expect(prompt).toMatch(/se um diagrama n[aã]o tiver suporte, omita-o em vez de inventar/i);
+    expect(prompt).toMatch(/N[ÃA]O escreva c[óo]digo Mermaid/i);
+    expect(prompt).toMatch(/SUBSTITU[ÍI]DO/i);
   });
 
   it('H: Prompt instrui visual com emoji NO HEADING DEPOIS do nome (não quebra contrato de seções)', () => {
@@ -209,10 +212,11 @@ describe('SCOUT-V7-GOLD-RUNTIME-QUALITY-01 — prompts alinhados ao PROMPT_SPEC'
     expect(prompt).toMatch(/Caminho da Venda/i);
   });
 
-  it('EXP-2: Prompt exige legenda textual/ícone para cada categoria de cor (cor nunca é a única semântica)', () => {
+  it('EXP-2: Prompt delega os Mermaid ao builder determinístico (gramática visual padrão do Scout)', () => {
     const prompt = buildComposePrompt({ canonical, safePack: {} as never });
-    expect(prompt).toMatch(/legenda/i);
-    expect(prompt).toMatch(/cor n[uaã]o [ée] a [úu]nica/i);
+    expect(prompt).toMatch(/builder determin[ií]stico/i);
+    expect(prompt).toMatch(/gram[aá]tica visual padr[aã]o do Scout/i);
+    expect(prompt).toMatch(/graph LR/i);
   });
 
   it('EXP-3: Prompt PROÍBE lista nominal de pessoas do QSA (só indicador agregado)', () => {
@@ -225,7 +229,19 @@ describe('SCOUT-V7-GOLD-RUNTIME-QUALITY-01 — prompts alinhados ao PROMPT_SPEC'
     expect(prompt).toMatch(/individual|nominal|por extenso/i);
   });
 
-  it('EXP-3b: Prompt envia apenas quantidade QSA, preserva pessoa official/report', () => {
+  it('EXP-3b: Prompt envia apenas quantidade QSA (do CANONICAL), preserva pessoa official/report', () => {
+    // EXPERIENCE-01C (fix Planejador): a contagem QSA vem do canonical
+    // (fonte cadastral), NUNCA do safePack.people. Aqui o canonical tem 2
+    // pessoas no QSA mas o safePack tem 1 qsa + 1 official: o prompt deve
+    // mostrar "2 pessoas no QSA" (canônico), excluir o nome QSA e manter o
+    // papel funcional.
+    const canonicalComQsa: CanonicalAccount = {
+      ...canonical,
+      qsaPeople: [
+        { name: 'PESSOA QSA CANONICA 1', role: 'Sócio' },
+        { name: 'PESSOA QSA CANONICA 2', role: 'Sócio' },
+      ],
+    };
     const frontier = {
       module: 'gold-compactor',
       accountIdentity: { inputCnpj: '04.733.767/0001-80', legalName: 'SCHEFFER & CIA LTDA', establishmentType: 'Filial', rootCnpj: '04.733.767', conflicts: [] },
@@ -235,9 +251,14 @@ describe('SCOUT-V7-GOLD-RUNTIME-QUALITY-01 — prompts alinhados ao PROMPT_SPEC'
         { id: 'official-1', personName: 'RESPONSAVEL FUNCIONAL CONFIRMADO', role: 'Diretor de Operações', roleBasis: 'official', status: 'Confirmado', source: 'Relatório oficial' },
       ],
     } as never;
-    const prompt = buildComposePrompt({ canonical, safePack: frontier });
-    expect(prompt).toContain('👥 1 pessoas no QSA');
+    const prompt = buildComposePrompt({ canonical: canonicalComQsa, safePack: frontier });
+    // contagem canônica (2), não a do safePack (1)
+    expect(prompt).toContain('👥 2 pessoas no QSA');
+    expect(prompt).not.toContain('👥 1 pessoas no QSA');
+    // nomes QSA nunca atravessam (nem do safePack nem do canonical)
     expect(prompt).not.toContain('NOME QSA QUE NAO DEVE ATRAVESSAR');
+    expect(prompt).not.toContain('PESSOA QSA CANONICA 1');
+    expect(prompt).not.toContain('PESSOA QSA CANONICA 2');
     expect(prompt).toContain('RESPONSAVEL FUNCIONAL CONFIRMADO');
   });
 
