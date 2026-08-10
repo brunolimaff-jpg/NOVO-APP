@@ -56,11 +56,11 @@ const CUSTOM_LLM_PROXY_BASE_URL = (import.meta.env.VITE_LLM_PROXY_URL || '')
   .replace(/\/api\/llm$/, '')
   .replace(/\/$/, '');
 // O serverless usa 55s para chat normal e ate 180s para investigacoes pesadas.
-// SCOUT-V7-GOLD-RUNTIME-QUALITY-01 (causa raiz 2026-08-09): o gateway /api/llm
-// agora permite ate 280s por chamada (MAX_REQUEST_BUDGET_MS) e o deadline Gold
-// e 270s — o frontend precisa de margem acima disso (290s) para que o erro do
-// gateway chegue ao browser em vez de o proxy cortar antes.
-const LLM_PROXY_TIMEOUT_MS = Number(import.meta.env.VITE_LLM_PROXY_TIMEOUT_MS || 290000);
+// Frontend da margem de 210s para cobrir o cenario mais longo + overhead de rede.
+// PACOTE 1 (SCOUT-V7-GOLD-BUDGET-LAYERED-01, Planejador 2026-08-09): o Gold
+// usa override por chamada (270s) via opção timeoutMs — este default de 210s
+// permanece para TODOS os consumidores não-Gold.
+const LLM_PROXY_TIMEOUT_MS = Number(import.meta.env.VITE_LLM_PROXY_TIMEOUT_MS || 210000);
 
 // FIX: resolveEndpoint permanece como função pura — nunca como const de módulo.
 // Chamá-la no nível de módulo causaria TDZ quando outro módulo importa llmProxy
@@ -134,9 +134,17 @@ async function callLlmApi<TResponse>(
     | LlmChatRequest
     | Record<string, unknown>,
   signal?: AbortSignal,
+  timeoutOverrideMs?: number,
 ): Promise<TResponse> {
   const controller = new AbortController();
-  const timeoutMs = Number.isFinite(LLM_PROXY_TIMEOUT_MS) && LLM_PROXY_TIMEOUT_MS > 0 ? LLM_PROXY_TIMEOUT_MS : 90000;
+  // PACOTE 1 (SCOUT-V7-GOLD-BUDGET-LAYERED-01): timeoutOverrideMs permite o
+  // Gold usar 270s por chamada sem alterar o default de 210s dos demais.
+  const timeoutMs =
+    Number.isFinite(timeoutOverrideMs) && (timeoutOverrideMs as number) > 0
+      ? (timeoutOverrideMs as number)
+      : Number.isFinite(LLM_PROXY_TIMEOUT_MS) && LLM_PROXY_TIMEOUT_MS > 0
+        ? LLM_PROXY_TIMEOUT_MS
+        : 90000;
   let timedOut = false;
   const action = typeof payload.action === 'string' ? payload.action : 'unknown';
   const requestClass =
@@ -277,15 +285,22 @@ export async function proxyGenerateContent(
   return response;
 }
 
+export interface LlmProxyChatOptions {
+  /** PACOTE 1: override do timeout do proxy para esta chamada (ms). Gold usa 270_000. */
+  timeoutMs?: number;
+}
+
 export async function proxyChatSendMessage(
   params: Omit<LlmChatRequest, 'action'>,
   signal?: AbortSignal,
+  options?: LlmProxyChatOptions,
 ): Promise<LlmChatResponse> {
   // endpoint resolvido lazy — sem const de módulo
   return callLlmApi<LlmChatResponse>(
     resolveLlmApiEndpoint(),
     { action: 'chatSendMessage', ...params },
     signal,
+    options?.timeoutMs,
   );
 }
 

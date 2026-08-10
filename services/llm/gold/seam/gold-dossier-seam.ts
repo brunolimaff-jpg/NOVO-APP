@@ -65,28 +65,30 @@ export interface GoldSeamDeps {
 }
 
 /**
- * Deadline total do pós-processamento Gold. SCOUT-V7-GOLD-DEADLINE-180
- * (Planejador 2026-08-09) mostrou-se NEUTRO na causa raiz real: o teto do
- * gateway (/api/llm MAX_REQUEST_BUDGET_MS) também era 180s e cortava o
- * compact lento (>180s) ANTES do deadline Gold. Reconciliado com o
- * maxDuration do Vercel (300s) e com o orçamento por etapa (lição
- * pipeline-server-side-isolado-deve-explicitar-orcamento):
- * compact até ~230s + compose ~40s = ~270s; hierarquia: GOLD_DEADLINE 270s
- * < gateway por chamada 280s < llmProxy 290s < maxDuration 300s.
- * TimeoutError → fallback; abort → propaga.
+ * Deadline total do pós-processamento Gold (PACOTE 1 — SCOUT-V7-GOLD-BUDGET-
+ * LAYERED-01, Planejador 2026-08-09). Orçamentos por camada, sem alterar
+ * defaults não-Gold:
+ * - SERVER_GOLD_CALL_BUDGET = 240s (timeoutMs por chamada, só intents gold,
+ *   em api/llm.ts — LiteLLMCallInput.timeoutMs, que contorna o default/env)
+ * - BROWSER_GOLD_CALL_BUDGET = 270s (override por chamada no llmProxy via
+ *   adapter Gold; default 210s inalterado para os demais)
+ * - GOLD_TOTAL_DEADLINE = 330s (aqui): canonical + compact + compose +
+ *   verifier/contract; se o compact consumir os 240s, restam ~90s p/ compose.
+ * Hierarquia: 240s server < 270s browser < 300s Vercel; pipeline ≤ 330s.
+ * TimeoutError → fallback; abort do usuário → propaga.
  */
-export const GOLD_DEADLINE_MS = 270_000;
+export const GOLD_DEADLINE_MS = 330_000;
 
 /**
  * Pós-processamento fail-closed: devolve `dossierText` intacto em qualquer
- * falha interna do Gold (incluindo TimeoutError do deadline de 270s);
+ * falha interna do Gold (incluindo TimeoutError do deadline de 330s);
  * devolve o Gold apenas quando elegível (Verifier sem hard fails +
  * GoldContractValidator PASS). Abort do usuário NÃO é fallback — propaga.
  */
 export async function tryEnhanceDossierWithGold(input: GoldSeamInput): Promise<string> {
   const { cnpj, companyName, dossierText, deps, signal, onStage, onRejected } = input;
   if (!deps.enabled || !cnpj) return dossierText;
-  // Deadline total: combina o signal do usuário com um timeout de 270s.
+  // Deadline total: combina o signal do usuário com um timeout de 330s.
   // TimeoutError → fallback; AbortError (usuário) → propaga.
   const goldSignal = signal
     ? AbortSignal.any([signal, AbortSignal.timeout(GOLD_DEADLINE_MS)])

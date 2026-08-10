@@ -26,6 +26,10 @@ import type { GoldSeamDeps } from './gold-dossier-seam';
 
 const GOLD_CANONICAL_ENDPOINT = '/api/gold-canonical';
 
+/** PACOTE 1 (SCOUT-V7-GOLD-BUDGET-LAYERED-01): 270s por chamada Gold no
+ * browser — entre o budget server de 240s e o maxDuration do Vercel (300s). */
+export const GOLD_BROWSER_CALL_BUDGET_MS = 270_000;
+
 export interface GoldBrowserAdapterOptions {
   /** Default: env VITE_GOLD_DOSSIER_ENHANCE === '1' ou 'true' (OFF por padrão). */
   enabled?: boolean;
@@ -80,6 +84,9 @@ export function createGoldSeamDeps(options: GoldBrowserAdapterOptions = {}): Gol
           thinkingLevel: 'low',
         },
         signal,
+        // PACOTE 1 (SCOUT-V7-GOLD-BUDGET-LAYERED-01): 270s por chamada Gold
+        // no browser (> 240s server, < 300s Vercel). Default 210s inalterado.
+        { timeoutMs: GOLD_BROWSER_CALL_BUDGET_MS },
       );
       return parseJsonPayload(result.text);
     },
@@ -95,6 +102,7 @@ export function createGoldSeamDeps(options: GoldBrowserAdapterOptions = {}): Gol
           thinkingLevel: 'low',
         },
         signal,
+        { timeoutMs: GOLD_BROWSER_CALL_BUDGET_MS },
       );
       return result.text;
     },

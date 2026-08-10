@@ -198,7 +198,7 @@ describe('callLiteLLM', () => {
   it('preserva timeout e defaults do caminho legado usado por api/llm', async () => {
     expect(resolveLiteLLMClientTimeoutMs()).toBe(120_000);
     expect(resolveLiteLLMClientTimeoutMs('150000')).toBe(150_000);
-    expect(resolveLiteLLMClientTimeoutMs('999999')).toBe(280_000);
+    expect(resolveLiteLLMClientTimeoutMs('999999')).toBe(180_000);
     const legacyText = 'Vou analisar sem remover este prefixo.\n<reasoning>conteúdo legado literal</reasoning>';
     fetchMock.mockResolvedValueOnce({
       ok: true,
@@ -231,7 +231,7 @@ describe('callLiteLLM', () => {
 
   it('respeita timeout explícito válido', async () => {
     expect(resolveLiteLLMRequestBudgetMs('60000')).toBe(60_000);
-    expect(resolveLiteLLMRequestBudgetMs('999999')).toBe(280_000);
+    expect(resolveLiteLLMRequestBudgetMs('999999')).toBe(180_000);
     expect(resolveLiteLLMRequestBudgetMs('1000')).toBe(1000);
     await callLiteLLM(
       { model: 'huawei/deepseek-v4-flash', userContent: 'gerar dossiê' },

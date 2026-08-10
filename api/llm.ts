@@ -59,6 +59,10 @@ export const config = {
 
 export const maxDuration = 300;
 
+/** PACOTE 1 (SCOUT-V7-GOLD-BUDGET-LAYERED-01): 240s por chamada Gold no
+ * server — entre o default/env não-Gold e o maxDuration de 300s. */
+const SERVER_GOLD_CALL_BUDGET_MS = 240_000;
+
 const CHAT_DEFAULT_MAX_OUTPUT_TOKENS = 65_536;
 const INTERNAL_MARKER_REGEX = /\[\[\s*[A-Z_]+\s*:[\s\S]*?\]\]/gi;
 const INTERNAL_MARKER_OPEN_TAIL_REGEX = /\[\[\s*[A-Z_]+\s*:[\s\S]*$/i;
@@ -351,6 +355,11 @@ async function executeChatSendMessage(
   const correlationId = `chat-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
 
   try {
+    // PACOTE 1 (SCOUT-V7-GOLD-BUDGET-LAYERED-01, Planejador 2026-08-09):
+    // intents Gold recebem timeoutMs explícito de 240s por chamada (contorna
+    // o default/env de 180s sem alterar o teto global nem os não-Gold).
+    // Hierarquia: 240s server < 270s browser < 300s maxDuration Vercel.
+    const isGoldIntent = body.model === 'scout-gold-compact' || body.model === 'scout-gold-compose';
     const input: LiteLLMCallInput = {
       model: resolvedModel,
       systemInstruction: body.systemInstruction || undefined,
@@ -361,6 +370,7 @@ async function executeChatSendMessage(
       runId: correlationId,
       action: 'chatSendMessage',
       correlationId,
+      ...(isGoldIntent ? { timeoutMs: SERVER_GOLD_CALL_BUDGET_MS } : {}),
     };
     const result = await callLiteLLM(input);
 

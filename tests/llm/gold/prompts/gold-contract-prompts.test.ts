@@ -183,4 +183,13 @@ describe('SCOUT-V7-GOLD-RUNTIME-QUALITY-01 — prompts alinhados ao PROMPT_SPEC'
     expect(prompt).toMatch(/quando houver evid[eê]ncia segura suficiente/i);
     expect(prompt).toMatch(/se um diagrama n[aã]o tiver suporte, omita-o em vez de inventar/i);
   });
+
+  it('H: Prompt instrui visual com emoji NO HEADING DEPOIS do nome (não quebra contrato de seções)', () => {
+    const prompt = buildComposePrompt({ canonical, safePack: {} as never });
+    expect(prompt).toMatch(/### 1\. S[ÍI]NTESE EXECUTIVA 🎯/i);
+    expect(prompt).toMatch(/### 3\. ESTRUTURA SOCIET[ÁA]RIA 🏛️/i);
+    expect(prompt).toMatch(/o emoji DEPOIS n[aã]o quebra o match/i);
+    expect(prompt).toMatch(/par[aá]grafos curtos/i);
+    expect(prompt).toMatch(/emoji para mascarar afirma[cç][aã]o n[aã]o sustentada/i);
+  });
 });

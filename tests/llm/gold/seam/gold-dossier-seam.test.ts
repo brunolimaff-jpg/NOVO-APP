@@ -197,8 +197,8 @@ describe('tryEnhanceDossierWithGold — seam fail-closed', () => {
     expect(deps.runGold.mock.calls[0][1]).toBeDefined();
   });
 
-  it('deadline de 270s congelado (GOLD_DEADLINE_MS = 270000, reconciliado com maxDuration 300s)', () => {
-    expect(GOLD_DEADLINE_MS).toBe(270_000);
+  it('deadline de 330s congelado (GOLD_DEADLINE_MS = 330000, PACOTE 1 BUDGET-LAYERED)', () => {
+    expect(GOLD_DEADLINE_MS).toBe(330_000);
   });
 
   it('prova zero provider: nenhum teste toca fetch/LLM real (mocks apenas)', () => {
