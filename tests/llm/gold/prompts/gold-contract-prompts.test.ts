@@ -89,9 +89,13 @@ describe('SCOUT-V7-GOLD-RUNTIME-QUALITY-01 — prompts alinhados ao PROMPT_SPEC'
     expect(prompt).toMatch(/somente fatos do CANONICAL e do SAFE PACK/i);
   });
 
-  it('5: Prompt Composer instrui tabela "Matriz de CNPJs" na Estrutura Societária com CNPJs só do conteúdo seguro', () => {
+  it('5: Prompt Composer instrui tabela "Tabela de CNPJs" (SEM "Matriz de CNPJs") na Estrutura Societária com CNPJs só do conteúdo seguro', () => {
     const prompt = buildComposePrompt({ canonical, safePack: {} as never });
-    expect(prompt).toMatch(/Matriz de CNPJs/i);
+    expect(prompt).toMatch(/Tabela de CNPJs/i);
+    // SEMANTICS-FIX (Planejador 2026-08-10): "Matriz de CNPJs" como nome de
+    // tabela confunde o modelo com tipo cadastral (WRONG_ESTABLISHMENT_TYPE).
+    // O prompt não pode conter a expressão literal.
+    expect(prompt).not.toMatch(/Matriz de CNPJs/i);
     expect(prompt).toMatch(/empresa \| CNPJ \| papel/i);
     expect(prompt).toMatch(/ESTRUTURA SOCIET[aÁ]RIA/i);
     expect(prompt).toMatch(/n[aã]o invente CNPJ\/nome\/papel|nunca invente CNPJ, nome ou papel/i);
@@ -99,9 +103,10 @@ describe('SCOUT-V7-GOLD-RUNTIME-QUALITY-01 — prompts alinhados ao PROMPT_SPEC'
 
   // ─── SCOUT-V7-GOLD-DEADLINE-180: gates A-G do Planejador (2026-08-09) ───
 
-  it('A: Prompt Composer exige Matriz de CNPJs na seção 3 (whitelist de 4 fontes)', () => {
+  it('A: Prompt Composer exige Tabela de CNPJs (sem "Matriz de CNPJs") na seção 3 (whitelist de 4 fontes)', () => {
     const prompt = buildComposePrompt({ canonical, safePack: {} as never });
-    expect(prompt).toMatch(/Matriz de CNPJs/i);
+    expect(prompt).toMatch(/Tabela de CNPJs/i);
+    expect(prompt).not.toMatch(/Matriz de CNPJs/i);
     expect(prompt).toMatch(/conta alvo do CANONICAL/i);
     expect(prompt).toMatch(/headOfficeCnpj != null/i);
     expect(prompt).toMatch(/directPjPartners/i);

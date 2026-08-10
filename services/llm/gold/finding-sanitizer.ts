@@ -79,6 +79,23 @@ const MODULE_PROOF_SOURCE = /\b(m[óo]dulo\s+contratado|crm interno senior)\b/i;
  * para linguagem de pista/a validar, eliminando a contradição lexical. */
 const CONFIRMED_VOCABULARY = /\b(confirmad[ao]|confirmadamente)\b/i;
 
+/** Reescreve vocabulário de certeza em claim de tema sensível para linguagem
+ * de pista ("confirmada/confirmado" → "mencionada/mencionado", com fusão do
+ * padrão "operação internacional mencionada" → "menção a operação
+ * internacional"). Usada pelo CLAIM_LEXICAL_PROMOTION e pelo STATUS_PROMOTION
+ * (que rebaixa o status MAS também precisa neutralizar o claim — senão o fato
+ * rebaixado continua carregando "confirmada" e o Composer copia → R8). */
+function rewriteConfirmedVocabulary(claim: string): string {
+  return claim
+    .replace(/\bconfirmadamente\b/gi, 'possivelmente')
+    .replace(/\bconfirmad[ao]\b/gi, (m) => {
+      const fem = /a$/i.test(m);
+      return fem ? 'mencionada' : 'mencionado';
+    })
+    .replace(/\b(operaci[oó]n|opera[cç][aã]o)\s+(internacional\s+)?(mencionada|mencionado)\b/gi, 'menção a operação internacional')
+    .trim();
+}
+
 function stripCpf(value: string): string {
   return value.replace(CPF_PATTERN, '[REDIGIDO]');
 }
@@ -212,13 +229,20 @@ export function sanitizeFindingPack(
       SENSITIVE_THEME.test(claim) &&
       WEAK_SOURCE_FOR_SENSITIVE.test(f.source)
     ) {
+      // Micro-patch (Planejador 2026-08-10): o downgrade do status NÃO basta —
+      // se o claim continuar com "confirmada", o fato rebaixado (Pista forte +
+      // "confirmada") vira exatamente a contradição lexical que o Composer copia
+      // → R8 PROMOTED_CLAIM. Neutraliza o vocabulário de certeza no MESMO evento.
+      const neutralizedClaim = CONFIRMED_VOCABULARY.test(claim)
+        ? rewriteConfirmedVocabulary(claim)
+        : claim;
       return {
         findingId: f.id,
         code: 'STATUS_PROMOTION',
         action: 'downgraded',
         before: `status=${f.status} | ${claim}`,
-        after: `status=Pista forte | ${claim}`,
-        reason: 'Status Confirmado sobre tema sensível sustentado só por fonte institucional/release — registro legal não verificado; rebaixado para Pista forte',
+        after: neutralizedClaim,
+        reason: 'Status Confirmado sobre tema sensível sustentado só por fonte institucional/release — registro legal não verificado; rebaixado para Pista forte e claim neutralizado',
       };
     }
     // CLAIM_LEXICAL_PROMOTION (SEMANTICS-FIX, Planejador 2026-08-10):
@@ -229,20 +253,12 @@ export function sanitizeFindingPack(
     // Reescreve SOMENTE o claim (mantém o status) para eliminar a palavra de
     // certeza e trocar por linguagem de pista/a validar.
     if (f.status !== 'Confirmado' && SENSITIVE_THEME.test(claim) && CONFIRMED_VOCABULARY.test(claim)) {
-      const rewrittenClaim = claim
-        .replace(/\bconfirmadamente\b/gi, 'possivelmente')
-        .replace(/\bconfirmad[ao]\b/gi, (m) => {
-          const fem = /a$/i.test(m);
-          return fem ? 'mencionada' : 'mencionado';
-        })
-        .replace(/\b(operaci[oó]n|opera[cç][aã]o)\s+(internacional\s+)?(mencionada|mencionado)\b/gi, 'menção a operação internacional')
-        .trim();
       return {
         findingId: f.id,
         code: 'CLAIM_LEXICAL_PROMOTION',
         action: 'rewritten',
         before: claim,
-        after: rewrittenClaim,
+        after: rewriteConfirmedVocabulary(claim),
         reason: 'Claim usa vocabulário de certeza ("confirmada") sobre tema sensível com status != Confirmado — reescrita para linguagem de pista (evita promoção pelo Composer)',
       };
     }
@@ -286,8 +302,9 @@ export function sanitizeFindingPack(
     if (event.action === 'rewritten') {
       facts.push({ ...f, claim: event.after ?? f.claim, source: f.source });
     } else if (event.action === 'downgraded') {
-      // STATUS_PROMOTION/QSA_AS_DECISOR: mantém o fato com status rebaixado
-      facts.push({ ...f, status: 'Pista forte' });
+      // STATUS_PROMOTION: mantém o fato com status rebaixado e, quando o evento
+      // carrega `after` (claim neutralizado), aplica a reescrita lexical.
+      facts.push({ ...f, status: 'Pista forte', claim: event.after ?? f.claim });
     } else if (event.action === 'deduplicated') {
       // removido do pack; registrado como deduplicado
     }

@@ -254,6 +254,28 @@ describe('FindingSanitizer', () => {
     expect(safe.sanitizerEvents.some((e) => e.code === 'STATUS_PROMOTION')).toBe(true);
   });
 
+  it('STATUS_PROMOTION: Confirmado + "confirmada" + fonte fraca → rebaixa status E neutraliza o claim (micro-patch)', () => {
+    const raw = basePack();
+    raw.facts.push({
+      id: 'f-col3',
+      entity: 'SCHEFFER & CIA LTDA',
+      claim: 'Operação internacional confirmada em Cumaribo, Colômbia',
+      status: 'Confirmado',
+      source: 'Site institucional Scheffer',
+      kind: 'operation',
+      process: null,
+    });
+    const safe = sanitizeFindingPack(raw, canonical);
+    const col = safe.facts.find((f) => f.id === 'f-col3');
+    // Status rebaixado (STATUS_PROMOTION)
+    expect(col?.status).toBe('Pista forte');
+    // Micro-patch: claim neutralizado — sem "confirmada" (senão o fato rebaixado
+    // carrega a contradição lexical que o Composer copia → R8 PROMOTED_CLAIM)
+    expect(col?.claim).not.toMatch(/confirmada/i);
+    expect(col?.claim).toMatch(/mencionada|menção/i);
+    expect(safe.sanitizerEvents.some((e) => e.code === 'STATUS_PROMOTION')).toBe(true);
+  });
+
   it('STATUS_PROMOTION: NÃO rebaixa tema não-sensível com fonte institucional', () => {
     const raw = basePack();
     raw.facts.push({
