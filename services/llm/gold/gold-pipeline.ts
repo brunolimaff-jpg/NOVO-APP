@@ -21,6 +21,7 @@ import { normalizeCnpj, resolveCanonicalRelations } from './canonical-relation-r
 import { sanitizeFindingPack } from './finding-sanitizer';
 import { verifyGold, type GoldVerificationResult } from './entity-aware-gold-verifier';
 import { injectCanonicalGoldMermaids } from './mermaid/mermaid-deterministic';
+import type { ScoutSegment } from '../query-planner';
 
 export interface CompactInput {
   canonical: CanonicalAccount;
@@ -29,6 +30,8 @@ export interface CompactInput {
 
 export interface ComposeInput {
   canonical: CanonicalAccount;
+  /** Segmento operacional compartilhado pelo planner, quando disponível. */
+  segment?: ScoutSegment;
   /** Somente conteúdo seguro — nunca contém originalPack nem discardedClaims. */
   safePack: FrontierPack;
 }
@@ -77,6 +80,8 @@ export interface GoldStageDetail {
   hardFails?: number;
   /** Códigos dos hard fails do verifier (diagnóstico runtime, PACK_FORENSIC_REPLAY). */
   codes?: string[];
+  /** Contagem por código, sem frases ou claims do Gold. */
+  codeCounts?: Record<string, number>;
   resolved?: boolean;
   passed?: boolean;
   detail?: string;
@@ -85,7 +90,7 @@ export interface GoldStageDetail {
 export type GoldStageHandler = (stage: GoldStage, detail?: GoldStageDetail) => void;
 
 export async function runGuardedGoldPipeline(
-  input: { canonical: CanonicalAccount; dossier: string },
+  input: { canonical: CanonicalAccount; dossier: string; segment?: ScoutSegment },
   deps: GoldPipelineDeps,
   signal?: AbortSignal,
   onStage?: GoldStageHandler,
@@ -164,7 +169,7 @@ export async function runGuardedGoldPipeline(
   }
   onStage?.('frontier-schema-ok');
   onStage?.('compose-start', { chars: JSON.stringify(frontierInput).length });
-  const goldBrief = await deps.compose({ canonical: input.canonical, safePack: frontierInput }, signal);
+  const goldBrief = await deps.compose({ canonical: input.canonical, safePack: frontierInput, segment: input.segment }, signal);
   onStage?.('compose-done', { chars: goldBrief.length });
 
   // 4b) EXPERIENCE-01C — Mermaid determinístico (CANONICAL MERMAID):
@@ -172,14 +177,19 @@ export async function runGuardedGoldPipeline(
   // aqui com a gramática/paleta literal do Scout (graph LR + classDef
   // core/satellite/danger/warning/neutral). O Verifier roda sobre o Gold
   // JÁ com os mapas finais (contrato do Planejador 2026-08-10).
-  const goldWithMermaids = injectCanonicalGoldMermaids(goldBrief, input.canonical, safePack);
+  const goldWithMermaids = injectCanonicalGoldMermaids(goldBrief, input.canonical, safePack, input.segment);
   onStage?.('mermaid-inject', { chars: goldWithMermaids.length });
 
   // 5) Verify — barreira final sobre o Gold (com os Mermaid determinísticos).
   const verification = verifyGold(goldWithMermaids, input.canonical, safePack);
+  const codeCounts = verification.hardFails.reduce<Record<string, number>>((counts, hardFail) => {
+    counts[hardFail.code] = (counts[hardFail.code] ?? 0) + 1;
+    return counts;
+  }, {});
   onStage?.('verifier-done', {
     hardFails: verification.hardFails.length,
-    codes: verification.hardFails.map((h) => h.code),
+    codes: verification.hardFails.map((hardFail) => hardFail.code),
+    codeCounts,
   });
 
   return {

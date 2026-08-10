@@ -18,6 +18,7 @@ import type { GuardedGoldPipelineResult } from '../../../../services/llm/gold/go
 import {
   GOLD_DEADLINE_MS,
   tryEnhanceDossierWithGold,
+  type GoldRejectionDetail,
   type GoldSeamDeps,
 } from '../../../../services/llm/gold/seam/gold-dossier-seam';
 
@@ -236,7 +237,7 @@ describe('tryEnhanceDossierWithGold — seam fail-closed', () => {
       ),
     });
     const stages: string[] = [];
-    const rejected: string[] = [];
+    const rejected: Array<{ reason: string; detail?: GoldRejectionDetail }> = [];
 
     const out = await tryEnhanceDossierWithGold({
       cnpj: '04.733.767/0001-80',
@@ -244,11 +245,22 @@ describe('tryEnhanceDossierWithGold — seam fail-closed', () => {
       dossierText: DOSSIER_TEXT,
       deps,
       onStage: (stage, detail) => stages.push(`${stage}:${detail?.resolved ?? detail?.passed ?? '-'}`),
-      onRejected: (reason) => rejected.push(reason),
+      onRejected: (reason, detail) => rejected.push({ reason, detail }),
     });
 
     expect(out).toBe(DOSSIER_TEXT);
-    expect(rejected).toEqual(['verifier_fail']);
+    expect(rejected).toEqual([
+      {
+        reason: 'verifier_fail',
+        detail: {
+          hardFails: 1,
+          codes: ['UNSUPPORTED_PRODUCT_CLAIM'],
+          codeCounts: { UNSUPPORTED_PRODUCT_CLAIM: 1 },
+        },
+      },
+    ]);
+    expect(rejected[0].detail).not.toHaveProperty('reason');
+    expect(rejected[0].detail).not.toHaveProperty('claim');
     expect(stages).not.toContain('contract-done:true');
     expect(stages).not.toContain('contract-done:false');
   });

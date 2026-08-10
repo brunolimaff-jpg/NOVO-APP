@@ -28,6 +28,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import {
+  buildDynamicValueChainTable,
   injectCanonicalGoldMermaids,
   MERMAID_CANONICAL_PALETTE,
 } from '../../../services/llm/gold/mermaid/mermaid-deterministic';
@@ -453,6 +454,84 @@ describe('SCOUT-V7-GOLD-EXPERIENCE-01C — CANONICAL MERMAID', () => {
     expect(result.passed).toBe(true);
   });
 
+  it('GREEN 12: tabela de elos usa o segmento agro e só fatos/sinais/perguntas seguros', () => {
+    const pack = makeSafePack({
+      facts: [
+        {
+          id: 'f-agro',
+          entity: 'SCHEFFER & CIA LTDA',
+          claim: 'Cultivo de soja confirmado em fonte externa.',
+          status: 'Confirmado',
+          source: 'Fonte externa',
+          kind: 'operation',
+          process: null,
+        },
+        {
+          id: 'f-log',
+          entity: 'SCHEFFER & CIA LTDA',
+          claim: 'Transporte próprio confirmado em registro.',
+          status: 'Confirmado',
+          source: 'Fonte externa',
+          kind: 'operation',
+          process: null,
+        },
+      ],
+      technologySignals: [
+        {
+          technology: 'WMS',
+          observedFact: 'WMS não aparece no recorte interno de módulos contratados.',
+          status: 'Confirmado',
+          whatIsNotKnown: 'Qual solução suporta a armazenagem.',
+          validationQuestion: 'Qual solução suporta hoje a armazenagem?',
+        },
+      ],
+      openQuestions: ['Qual solução suporta hoje a armazenagem?'],
+    });
+
+    const table = buildDynamicValueChainTable(pack, 'agropecuaria');
+    expect(table).toContain('| Elo | Dimensão | Status | Evidência | Leitura comercial | Validar |');
+    expect(table).toContain('Produção');
+    expect(table).toContain('Logística');
+    expect(table).toContain('✅ Confirmado');
+    expect(table).toContain('Qual solução suporta hoje a armazenagem?');
+    expect(table).not.toContain('gap');
+    expect(table).not.toContain('dor');
+    expect(table).not.toContain('oportunidade');
+  });
+
+  it('GREEN 12b: tabela de elos usa vocabulário de logística sem inventar linhas', () => {
+    const pack = makeSafePack({
+      facts: [
+        {
+          id: 'f-delivery',
+          entity: 'SCHEFFER & CIA LTDA',
+          claim: '120 entregas diárias confirmadas em registro operacional.',
+          status: 'Confirmado',
+          source: 'Registro operacional',
+          kind: 'operation',
+          process: null,
+        },
+      ],
+      relationships: [],
+      technologySignals: [],
+      openQuestions: [],
+    });
+
+    const table = buildDynamicValueChainTable(pack, 'logistica');
+    expect(table).toContain('Transporte');
+    expect(table).not.toContain('Produção');
+    expect(table).not.toContain('CNPJ');
+  });
+
+  it('GREEN 12c: injeção visual mantém os três Mermaid e coloca os elos após o mapa', () => {
+    const gold = injectCanonicalGoldMermaids(BAD_GOLD, canonical, makeSafePack(), 'agropecuaria');
+    const chaosIndex = gold.indexOf('MAPA DE ELOS DA CADEIA DE VALOR');
+    const teiaIndex = gold.indexOf('SCHEFFER PARTICIPACOES');
+    expect(chaosIndex).toBeGreaterThan(-1);
+    expect(teiaIndex).toBeGreaterThan(chaosIndex);
+    expect((gold.match(/```mermaid\n/g) ?? []).length).toBeGreaterThanOrEqual(3);
+  });
+
   it('GREEN 13: legenda fica FORA do fence Mermaid (texto markdown após o bloco), nos 3 mapas', () => {
     const gold = injectCanonicalGoldMermaids(BAD_GOLD, canonical, makeSafePack());
     const blocks = gold.match(/```mermaid\n([\s\S]*?)```/g) ?? [];
@@ -485,5 +564,55 @@ describe('SCOUT-V7-GOLD-EXPERIENCE-01C — CANONICAL MERMAID', () => {
     // classe do partner continua satellite (não neutral)
     expect(teia).toMatch(/class\s+A2 satellite/);
     expect(teia).not.toMatch(/class\s+A2 neutral/);
+  });
+
+  // ─── SCOUT-V7-GOLD-EXPERIENCE-01D — TABELA DE ELOS MULTI-SEGMENTO ───
+
+  it('01D-6: tabela de elos com segmento construcao usa vocabulário de obra/licenças', () => {
+    const pack = makeSafePack({
+      facts: [
+        { id: 'f-obra', entity: 'CONSTRUTORA LTDA', claim: 'Empreendimento residencial em execução confirmado em registro.', status: 'Confirmado', source: 'Registro', kind: 'operation', process: null },
+        { id: 'f-lic', entity: 'CONSTRUTORA LTDA', claim: 'Licenças de obra em dia confirmadas em alvará.', status: 'Confirmado', source: 'Alvará', kind: 'operation', process: null },
+      ],
+      relationships: [], technologySignals: [], openQuestions: [],
+    });
+    const table = buildDynamicValueChainTable(pack, 'construcao');
+    expect(table).toContain('Obra');
+    expect(table).toContain('Licenças');
+    expect(table).not.toContain('Produção');
+    expect(table).not.toContain('gap');
+  });
+
+  it('01D-7: tabela de elos com segmento hcm_intensivo usa vocabulário de pessoas/plataforma', () => {
+    const pack = makeSafePack({
+      facts: [
+        { id: 'f-aqu', entity: 'SERVICOS LTDA', claim: 'Aquisição de talentos em plataforma confirmada em comunicado oficial.', status: 'Confirmado', source: 'Comunicado', kind: 'operation', process: null },
+        { id: 'f-folha', entity: 'SERVICOS LTDA', claim: 'Folha de pagamento processada na plataforma confirmada em relatório.', status: 'Confirmado', source: 'Relatório', kind: 'technology', process: null },
+      ],
+      relationships: [], technologySignals: [], openQuestions: [],
+    });
+    const table = buildDynamicValueChainTable(pack, 'hcm_intensivo');
+    expect(table).toContain('Aquisição');
+    expect(table).toContain('Operação');
+    expect(table).not.toContain('Produção');
+  });
+
+  it('01D-8: tabela de elos com segmento industrial_geral (default) usa vocabulário de planta/processo', () => {
+    const pack = makeSafePack({
+      facts: [
+        { id: 'f-prod', entity: 'INDUSTRIA LTDA', claim: 'Produção de fertilizantes confirmada em laudo técnico.', status: 'Confirmado', source: 'Laudo', kind: 'operation', process: null },
+        { id: 'f-sup', entity: 'INDUSTRIA LTDA', claim: 'Suprimentos críticos confirmados em contrato de fornecimento.', status: 'Confirmado', source: 'Contrato', kind: 'operation', process: null },
+      ],
+      relationships: [], technologySignals: [], openQuestions: [],
+    });
+    const table = buildDynamicValueChainTable(pack, 'industrial_geral');
+    expect(table).toContain('Produção');
+    expect(table).toContain('Suprimentos');
+  });
+
+  it('01D-9: tabela de elos sem fatos confirmados retorna null (não inventa linhas de gap)', () => {
+    const pack = makeSafePack({ facts: [], relationships: [], technologySignals: [], openQuestions: [] });
+    const table = buildDynamicValueChainTable(pack, 'agropecuaria');
+    expect(table).toBeNull();
   });
 });

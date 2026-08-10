@@ -54,6 +54,7 @@ import { markDossierRunCancelled, markDossierRunCompleted, markDossierRunFailed,
 // BRU-33 — seam Gold pós-processamento fail-closed (V7 Preview Wiring).
 import {
   tryEnhanceDossierWithGold,
+  type GoldRejectionDetail,
   type GoldRejectionReason,
   type GoldSeamDeps,
 } from '../../services/llm/gold/seam/gold-dossier-seam';
@@ -641,6 +642,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
         const lookupTarget = canUseLookup ? resolvedMegaCompany : '';
         let waterfallLookupContext = '';
         let waterfallClienteSeniorData: ClienteSeniorData | undefined;
+        let goldSegment: import('../../services/llm/query-planner').ScoutSegment = 'industrial_geral';
         const waterfallGroundingSources: VerifiedSource[] = [];
         const waterfallVerificationStatuses = new Map<string, WebVerificationStatus>();
 
@@ -980,6 +982,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
                 : void 0,
               estadoOperacao: [],
             });
+            goldSegment = entity.segmentoInferido;
 
             const callLLM = async (prompt: string): Promise<string> => {
               const { sendMessageToLlm } = await import('../../services/llmService');
@@ -1267,10 +1270,12 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
             // runtime remoto provar onde o Gold parou (compact→compose) sem
             // depender de console externo. Apenas métricas — nunca conteúdo.
             let goldRejectionReason: GoldRejectionReason | undefined;
+            let goldRejectionDetail: GoldRejectionDetail | undefined;
             const enhancedText = await tryEnhanceDossierWithGold({
               cnpj: sessionCnpjDigits,
               companyName: normalizedCompany || resolvedMegaCompany,
               dossierText: waterfallFinalText,
+              segment: goldSegment,
               deps: goldSeamDeps,
               signal,
               onStage: (stage, detail) => {
@@ -1280,8 +1285,18 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
                   ...(detail ?? {}),
                 });
               },
-              onRejected: (reason) => {
+              onRejected: (reason, detail) => {
                 goldRejectionReason = reason;
+                goldRejectionDetail = detail;
+                if (reason === 'verifier_fail' && detail) {
+                  scoutDiag.info('GoldSeam', 'verifier-summary', {
+                    sessionId,
+                    waterfallRunId,
+                    hardFails: detail.hardFails ?? 0,
+                    codes: detail.codes ?? [],
+                    codeCounts: detail.codeCounts ?? {},
+                  });
+                }
               },
             });
             const goldDurationMs = Date.now() - goldStartedAt;
@@ -1301,6 +1316,13 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
                 waterfallRunId,
                 goldDurationMs,
                 reason: goldRejectionReason ?? 'internal_fallback',
+                ...(goldRejectionReason === 'verifier_fail' && goldRejectionDetail
+                  ? {
+                      hardFails: goldRejectionDetail.hardFails ?? 0,
+                      codes: goldRejectionDetail.codes ?? [],
+                      codeCounts: goldRejectionDetail.codeCounts ?? {},
+                    }
+                  : {}),
                 company: normalizedCompany || resolvedMegaCompany,
               });
             }

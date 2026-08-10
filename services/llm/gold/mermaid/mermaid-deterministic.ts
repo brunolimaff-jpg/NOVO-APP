@@ -21,6 +21,7 @@
  * Claims antigos inseguros (gap/TMS/dor) NÃO são reutilizados.
  */
 import type { CanonicalAccount, SafeFindingPack } from '../gold-contracts';
+import type { ScoutSegment } from '../../query-planner';
 import { normalizeCnpj } from '../canonical-relation-resolver';
 
 /** Paleta canônica literal do Scout (foundation.ts + fixtures). */
@@ -286,10 +287,157 @@ function buildSalesPathMap(): string {
   );
 }
 
+interface ValueChainRow {
+  elo: string;
+  dimension: string;
+  status: string;
+  evidence: string;
+  commercialReading: string;
+  validate: string;
+}
+
+const SEGMENT_VALUE_CHAIN: Record<ScoutSegment, Array<{ pattern: RegExp; label: string }>> = {
+  agropecuaria: [
+    { pattern: /produ[cç][aã]o|cultivo|safra|campo/i, label: 'Produção' },
+    { pattern: /armazen|estoque|silo/i, label: 'Armazenagem' },
+    { pattern: /benefici|processamento/i, label: 'Beneficiamento' },
+    { pattern: /log[ií]st|transporte|entrega/i, label: 'Logística' },
+    { pattern: /rastreab|certifica[cç]/i, label: 'Rastreabilidade' },
+  ],
+  agroindustria: [
+    { pattern: /suprimento|insumo/i, label: 'Suprimentos' },
+    { pattern: /produ[cç][aã]o|fabrica[cç][aã]o|processamento/i, label: 'Produção' },
+    { pattern: /benefici|qualidade/i, label: 'Beneficiamento e qualidade' },
+    { pattern: /armazen|estoque/i, label: 'Armazenagem' },
+    { pattern: /log[ií]st|transporte|distribui[cç]/i, label: 'Logística' },
+  ],
+  construcao: [
+    { pattern: /suprimento|compras|insumo/i, label: 'Suprimentos' },
+    { pattern: /obra|constru[cç]|projeto/i, label: 'Obra' },
+    { pattern: /qualidade|licen[cç]|seguran[cç]/i, label: 'Qualidade e conformidade' },
+    { pattern: /manuten[cç]/i, label: 'Manutenção' },
+    { pattern: /entrega|cliente/i, label: 'Entrega' },
+  ],
+  logistica: [
+    { pattern: /compras|aquisi[cç]/i, label: 'Compras' },
+    { pattern: /transporte|frota|entrega/i, label: 'Transporte' },
+    { pattern: /estoque|armazen|invent[aá]rio/i, label: 'Estoque' },
+    { pattern: /centro de distribui[cç]|cd\b|distribui[cç]/i, label: 'Distribuição' },
+    { pattern: /canal|cliente/i, label: 'Canais' },
+  ],
+  hcm_intensivo: [
+    { pattern: /aquisi[cç]|contrata[cç]/i, label: 'Aquisição' },
+    { pattern: /opera[cç]|folha|ponto/i, label: 'Operação' },
+    { pattern: /entrega|servi[cç]/i, label: 'Entrega' },
+    { pattern: /atendimento|cliente/i, label: 'Atendimento' },
+    { pattern: /renova[cç]|reten[cç]/i, label: 'Renovação' },
+  ],
+  industrial_geral: [
+    { pattern: /suprimento|compras|insumo/i, label: 'Suprimentos' },
+    { pattern: /produ[cç][aã]o|fabrica[cç]|processamento/i, label: 'Produção' },
+    { pattern: /qualidade|conformidade/i, label: 'Qualidade' },
+    { pattern: /manuten[cç]/i, label: 'Manutenção' },
+    { pattern: /distribui[cç]|log[ií]st|transporte/i, label: 'Distribuição' },
+  ],
+};
+
+function truncateCell(value: string, max = 180): string {
+  const normalized = value.replace(/\s+/g, ' ').replace(/\|/g, '/').trim();
+  return normalized.length > max ? `${normalized.slice(0, max - 3)}...` : normalized;
+}
+
+function statusBadge(status: string): string {
+  return status === 'Confirmado' ? '✅ Confirmado' : '🟠 A validar';
+}
+
+function valueChainDimension(value: string, kind: string, segment: ScoutSegment): string {
+  const match = SEGMENT_VALUE_CHAIN[segment].find((entry) => entry.pattern.test(value));
+  if (match) return match.label;
+  if (kind === 'technology') return 'Tecnologia';
+  if (kind === 'relationship') return 'Relações';
+  if (kind === 'metric' || kind === 'financial') return 'Indicadores';
+  return 'Operação';
+}
+
+function valueChainElo(dimension: string): string {
+  return dimension.toLowerCase();
+}
+
+function validationForDimension(openQuestions: string[], dimension: string): string {
+  const match = openQuestions.find((question) => {
+    const questionLower = question.toLowerCase();
+    return dimension.toLowerCase().split(/\s+e\s+|\s+/).some((token) => token.length > 4 && questionLower.includes(token));
+  });
+  return match ? truncateCell(match, 140) : '—';
+}
+
+export function buildDynamicValueChainTable(
+  safePack: SafeFindingPack,
+  segment: ScoutSegment = 'industrial_geral',
+): string | null {
+  const rows: ValueChainRow[] = [];
+  const openQuestions = safePack.openQuestions ?? [];
+
+  for (const fact of safePack.facts ?? []) {
+    if (fact.status !== 'Confirmado') continue;
+    const dimension = valueChainDimension(fact.claim, fact.kind, segment);
+    rows.push({
+      elo: valueChainElo(dimension),
+      dimension,
+      status: statusBadge(fact.status),
+      evidence: truncateCell(fact.claim),
+      commercialReading: `Base confirmada para entender o elo de ${dimension.toLowerCase()}.`,
+      validate: validationForDimension(openQuestions, dimension),
+    });
+  }
+
+  for (const signal of safePack.technologySignals ?? []) {
+    const dimension = valueChainDimension(signal.technology, 'technology', segment);
+    rows.push({
+      elo: valueChainElo(dimension),
+      dimension: signal.technology,
+      status: statusBadge(signal.status),
+      evidence: truncateCell(signal.observedFact),
+      commercialReading: 'Escopo observado; confirmar cobertura antes de recomendar qualquer solução.',
+      validate: truncateCell(signal.validationQuestion, 140),
+    });
+  }
+
+  for (const question of openQuestions) {
+    if (rows.some((row) => row.validate === question)) continue;
+    rows.push({
+      elo: 'discovery',
+      dimension: 'Discovery',
+      status: '🟠 A validar',
+      evidence: 'Pergunta aberta do dossiê',
+      commercialReading: 'Tema ainda não comprovado; manter a conversa investigativa.',
+      validate: truncateCell(question, 140),
+    });
+  }
+
+  if (rows.length === 0) return null;
+
+  const order = SEGMENT_VALUE_CHAIN[segment].map((entry) => entry.label.toLowerCase());
+  rows.sort((a, b) => {
+    const aIndex = order.findIndex((label) => a.dimension.toLowerCase().includes(label));
+    const bIndex = order.findIndex((label) => b.dimension.toLowerCase().includes(label));
+    return (aIndex < 0 ? order.length : aIndex) - (bIndex < 0 ? order.length : bIndex);
+  });
+
+  const tableRows = rows.map((row) => `| ${row.elo} | ${row.dimension} | ${row.status} | ${row.evidence} | ${row.commercialReading} | ${row.validate} |`);
+  return [
+    '### 🔗 MAPA DE ELOS DA CADEIA DE VALOR',
+    '',
+    '| Elo | Dimensão | Status | Evidência | Leitura comercial | Validar |',
+    '| --- | --- | --- | --- | --- | --- |',
+    ...tableRows,
+  ].join('\n');
+}
+
 /**
  * Insere os mapas determinísticos no Gold:
  * 1. Remove QUALQUER bloco ```mermaid ... ``` existente (Mermaid livre do Composer);
- * 2. Injeta o Mapa do Caos na seção 2 (se houver suporte),
+ * 2. Injeta o Mapa do Caos e a tabela dinâmica na seção 2,
  *    a Teia Societária na seção 3 e o Caminho da Venda na seção 9.
  *
  * A inserção é feita logo após o heading da seção-alvo (### N. NOME).
@@ -298,14 +446,17 @@ export function injectCanonicalGoldMermaids(
   goldBrief: string,
   canonical: CanonicalAccount,
   safePack: SafeFindingPack,
+  segment: ScoutSegment = 'industrial_geral',
 ): string {
   // 1) Remove todos os blocos Mermaid existentes.
   let gold = goldBrief.replace(/```mermaid\n?[\s\S]*?```\n?/gi, '');
 
-  // 2) Mapa do Caos na seção 2 (PERFIL).
+  // 2) Mapa do Caos + Elos na seção 2 (PERFIL).
   const chaos = buildChaosMap(safePack);
-  if (chaos) {
-    gold = gold.replace(/^###\s*2\.\s*PERFIL[^\n]*$/mi, (m) => `${m}\n\n${chaos}`);
+  const valueChainTable = buildDynamicValueChainTable(safePack, segment);
+  if (chaos || valueChainTable) {
+    const visualBlock = [chaos, valueChainTable].filter(Boolean).join('\n\n');
+    gold = gold.replace(/^###\s*2\.\s*PERFIL[^\n]*$/mi, (m) => `${m}\n\n${visualBlock}`);
   }
 
   // 3) Teia Societária na seção 3 (ESTRUTURA SOCIETÁRIA).

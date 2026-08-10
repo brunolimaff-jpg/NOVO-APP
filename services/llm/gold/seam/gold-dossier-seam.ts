@@ -16,6 +16,7 @@
  */
 import { isAbortLikeError } from '../../../../utils/abortHelpers';
 import type { CanonicalAccount } from '../gold-contracts';
+import type { ScoutSegment } from '../../query-planner';
 import type { GoldStageHandler } from '../gold-pipeline';
 import type { GuardedGoldPipelineResult } from '../gold-pipeline';
 import { validateGoldContract } from '../gold-contract-validator';
@@ -27,12 +28,20 @@ import { validateGoldContract } from '../gold-contract-validator';
  */
 export type GoldRejectionReason = 'canonical_null' | 'verifier_fail' | 'contract_fail';
 
+export interface GoldRejectionDetail {
+  hardFails?: number;
+  codes?: string[];
+  codeCounts?: Record<string, number>;
+}
+
 export interface GoldSeamInput {
   /** CNPJ normalizado (pode vir nulo quando a pesquisa não tem CNPJ). */
   cnpj: string | null | undefined;
   companyName: string;
   /** Dossiê final já pronto (waterfallFinalText) — nunca é descartado. */
   dossierText: string;
+  /** Segmento operacional do planner, quando disponível. */
+  segment?: ScoutSegment;
   deps: GoldSeamDeps;
   /**
    * AbortSignal do fluxo (usuário/run-control): abort do usuário NÃO é
@@ -43,7 +52,7 @@ export interface GoldSeamInput {
   /** Telemetria por etapa — apenas métricas, nunca conteúdo (sem dados sensíveis). */
   onStage?: GoldStageHandler;
   /** Razão real quando o seam devolve o dossiê SEM exceção (veredito do Planejador). */
-  onRejected?: (reason: GoldRejectionReason) => void;
+  onRejected?: (reason: GoldRejectionReason, detail?: GoldRejectionDetail) => void;
 }
 
 export interface GoldSeamDeps {
@@ -58,7 +67,7 @@ export interface GoldSeamDeps {
   buildCanonical: (cnpj: string, companyName: string, signal?: AbortSignal) => Promise<CanonicalAccount | null>;
   /** Pipeline Gold guardado (compact + compose + parse + sanitize + verifier). */
   runGold: (
-    input: { canonical: CanonicalAccount; dossier: string },
+    input: { canonical: CanonicalAccount; dossier: string; segment?: ScoutSegment },
     signal?: AbortSignal,
     onStage?: GoldStageHandler,
   ) => Promise<GuardedGoldPipelineResult>;
@@ -102,9 +111,18 @@ export async function tryEnhanceDossierWithGold(input: GoldSeamInput): Promise<s
     }
     onStage?.('canonical-done', { resolved: true });
 
-    const result = await deps.runGold({ canonical, dossier: dossierText }, goldSignal, onStage);
+    const result = await deps.runGold({ canonical, dossier: dossierText, segment: input.segment }, goldSignal, onStage);
     if (result.verification.hardFails.length > 0) {
-      onRejected?.('verifier_fail');
+      const codes = result.verification.hardFails.map((hardFail) => hardFail.code);
+      const codeCounts = codes.reduce<Record<string, number>>((counts, code) => {
+        counts[code] = (counts[code] ?? 0) + 1;
+        return counts;
+      }, {});
+      onRejected?.('verifier_fail', {
+        hardFails: codes.length,
+        codes,
+        codeCounts,
+      });
       return dossierText;
     }
 

@@ -155,9 +155,22 @@ describe('GuardedGoldPipeline', () => {
     const compose = vi.fn(async (_input: ComposeInput) => trappedGold);
     const deps: GoldPipelineDeps = { compact, compose };
 
-    const result = await runGuardedGoldPipeline({ canonical, dossier: 'dossiê' }, deps);
+    const stages: Array<{ stage: string; detail?: unknown }> = [];
+    const result = await runGuardedGoldPipeline(
+      { canonical, dossier: 'dossiê' },
+      deps,
+      undefined,
+      (stage, detail) => stages.push({ stage, detail }),
+    );
     expect(result.verification.passed).toBe(false);
     expect(result.verification.hardFails.some((h) => h.code === 'NEGATIVE_EVIDENCE_AS_GAP')).toBe(true);
+    const verifierStage = stages.find((entry) => entry.stage === 'verifier-done');
+    expect(verifierStage?.detail).toMatchObject({
+      hardFails: expect.any(Number),
+      codes: expect.arrayContaining(['NEGATIVE_EVIDENCE_AS_GAP']),
+      codeCounts: expect.objectContaining({ NEGATIVE_EVIDENCE_AS_GAP: expect.any(Number) }),
+    });
+    expect(verifierStage?.detail).not.toHaveProperty('reason');
   });
 
   it('reclassifica relação lateral pela precedência canônica antes do sanitizer', async () => {
@@ -212,7 +225,9 @@ describe('GuardedGoldPipeline', () => {
     // métricas presentes, conteúdo nunca (sem dados sensíveis)
     expect(stages[0].detail).toMatchObject({ chars: 'dossiê legado'.length });
     expect(stages[1].detail).toMatchObject({ chars: expect.any(Number) });
-    expect(stages[stages.length - 1].detail).toMatchObject({ hardFails: 0 });
+    expect(stages[stages.length - 1].detail).toMatchObject({ hardFails: 0, codes: [], codeCounts: {} });
+    expect(stages[stages.length - 1].detail).not.toHaveProperty('reason');
+    expect(stages[stages.length - 1].detail).not.toHaveProperty('claim');
     expect(result.verification.passed).toBe(true);
   });
 

@@ -276,4 +276,42 @@ describe('SCOUT-V7-GOLD-RUNTIME-QUALITY-01 — prompts alinhados ao PROMPT_SPEC'
     expect(prompt).toMatch(/n[ãa]o saltar de aus[eê]ncia/i);
     expect(prompt).toMatch(/oportunidade/i);
   });
+
+  // ─── SCOUT-V7-GOLD-EXPERIENCE-01D (Planejador 2026-08-10) — VISUAL-FIRST ───
+
+  it('01D-1: prompt instrui ordem visual → evidência → interpretação → ação', () => {
+    const prompt = buildComposePrompt({ canonical, safePack: {} as never });
+    expect(prompt).toMatch(/visual.*evid[eê]ncia.*interpreta[cç][aã]o.*a[cç][aã]o/i);
+  });
+
+  it('01D-2: prompt limita prosa entre superfícies (1 parágrafo curto ou 2 bullets)', () => {
+    const prompt = buildComposePrompt({ canonical, safePack: {} as never });
+    expect(prompt).toMatch(/nunca 5-8 par[aá]grafos/i);
+    expect(prompt).toMatch(/1 par[aá]grafo curto \(2-3 frases\)/i);
+  });
+
+  it('01D-3: prompt define superfícies por tipo (fluxo→Mermaid, inventário→tabela, fatos→bullets, discovery→pergunta, ação→movimento)', () => {
+    const prompt = buildComposePrompt({ canonical, safePack: {} as never });
+    expect(prompt).toMatch(/fluxo\/processo\/rela[cç][aã]o/i);
+    expect(prompt).toMatch(/invent[aá]rio\/status\/compara[cç][aã]o/i);
+    expect(prompt).toMatch(/bullets\/cards/i);
+    expect(prompt).toMatch(/pergunta de discovery/i);
+    expect(prompt).toMatch(/pr[oó]ximo movimento/i);
+  });
+
+  it('01D-4: prompt usa vocabulário semântico congelado de emojis (confiança nunca só pela cor)', () => {
+    const prompt = buildComposePrompt({ canonical, safePack: {} as never });
+    for (const token of ['✅ Confirmado', '🟠 A validar', '🔴 Risco', '💡 Hip[óo]tese', '🔍 Discovery', '🎯 A[cç][aã]o', '🏢 Empresa', '🔗 Rela[cç][aã]o', '📊 Evid[eê]ncia']) {
+      expect(prompt).toMatch(new RegExp(token, 'i'));
+    }
+    expect(prompt).toMatch(/emoji comunica o tipo, nunca a confian[cç]a sozinha/i);
+  });
+
+  it('01D-5: prompt mapeia superfícies das 9 seções (tabelas em Tecnologia/Pessoas/Indicadores/Riscos)', () => {
+    const prompt = buildComposePrompt({ canonical, safePack: {} as never });
+    expect(prompt).toMatch(/4 TECNOLOGIA \(tabela/i);
+    expect(prompt).toMatch(/5 PESSOAS-CHAVE \(tabela/i);
+    expect(prompt).toMatch(/6 INDICADORES \(tabela/i);
+    expect(prompt).toMatch(/8 RISCOS \(tabela/i);
+  });
 });
