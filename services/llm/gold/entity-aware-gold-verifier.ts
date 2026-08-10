@@ -18,7 +18,10 @@ export type GoldHardFailCode =
   | 'QSA_AS_DECISOR'
   | 'UNSUPPORTED_PRODUCT_CLAIM'
   | 'RELATIONSHIP_INVERTED'
-  | 'ENTITY_CONFLICT';
+  | 'ENTITY_CONFLICT'
+  | 'PROMOTED_CLAIM'
+  | 'QSA_GOVERNANCE_CLAIM'
+  | 'ABSENCE_DERIVED_WEAKNESS';
 
 export interface GoldHardFail {
   code: GoldHardFailCode;
@@ -68,6 +71,20 @@ const KNOWLEDGE_NEGATION =
 /** Fonte não aceitável como prova externa (estimativa/inferência/recorte interno). */
 const NON_EXTERNAL_SOURCE =
   /\b(estimativa|infer[êe]ncia|an[áa]lise de m[óo]dulos|dossi[êe] legado|crm interno)\b/i;
+
+// ─── PACK_FORENSIC_REPLAY (Planejador 2026-08-10) — 3 regras determinísticas ───
+
+/** R1: frase afirma "confirmada/o" como fato (promoção de claim Pista→Confirmado por vocabulário). */
+const CONFIRMED_CLAIM =
+  /\b(confirmad[oa]|confirmad[oa]s?)\b/i;
+
+/** R2: formulações semânticas que derivam governança/família/decisão do QSA. */
+const QSA_GOVERNANCE_CLAIM =
+  /\b(n[úu]cleo\s+familiar|decis[aã]o\s+concentrada|envolvimento\s+direto\s+na\s+gest[aã]o|transi[cç][aã]o\s+geracional|gera[cç][aã]o\s+mais\s+nova|gera[cç][aã]o\s+seguinte|grupo\s+familiar\s+controlador|controle\s+familiar)\b/i;
+
+/** R3: ausência de módulo/tecnologia → fragilidade operacional derivada. */
+const ABSENCE_DERIVED_WEAKNESS =
+  /\b(ponto\s+de\s+fragilidade|fragilidade\s+operacional|depender\s+de\s+sistemas\s+desconectados\s+ou\s+manuais|depend[eê]ncia\s+de\s+sistemas\s+desconectados|sistemas\s+desconectados\s+ou\s+manuais)\b/i;
 
 interface Measure {
   quantity: string;
@@ -317,6 +334,47 @@ export function verifyGold(
           );
         }
       }
+    }
+
+    // 8) PACK_FORENSIC_REPLAY (Planejador 2026-08-10): promoção de claim
+    //    Pista/Estimativa → "confirmada" por VOCABULÁRIO. O Compact pode
+    //    produzir claims com a palavra "confirmada" mesmo com status
+    //    Pista forte/inicial (caso Colômbia: "Operação internacional
+    //    confirmada em Cumaribo" com status "Pista forte"). O Gold que
+    //    reafirma "confirmada" sobre TEMA SENSÍVEL (internacionalização/
+    //    holding/controle) sem fato Confirmado no safePack é promoção
+    //    indevida → hard fail. Não dispara para "confirmada" sobre temas
+    //    sem sensibilidade (ex.: MT/MA com fato Confirmado).
+    if (CONFIRMED_CLAIM.test(sentenceLower) && !KNOWLEDGE_NEGATION.test(sentenceLower)) {
+      const touchesSensitiveTheme = /col[oó]mbia|cumaribo|internacional|holding|control/i.test(sentenceLower);
+      if (touchesSensitiveTheme) {
+        const hasConfirmedFact = safePack.facts.some(
+          (f) => f.status === 'Confirmado' && /col[oó]mbia|cumaribo|internacional|holding|control/i.test(f.claim),
+        );
+        if (!hasConfirmedFact) {
+          push('PROMOTED_CLAIM', `Frase afirma "confirmada" sobre tema sem fato Confirmado no safePack: "${sentence}"`);
+        }
+      }
+    }
+
+    // 9) PACK_FORENSIC_REPLAY: QSA → governança/estrutura familiar derivada.
+    //    O QSA dá papel cadastral/legal; formulações como "núcleo familiar",
+    //    "decisão concentrada", "envolvimento direto na gestão",
+    //    "transição geracional", "geração mais nova" extrapolam o QSA e
+    //    viraram fato narrativo no Gold (grupo gerações/família só apareceu
+    //    no Gold, nunca no raw/frontier) → hard fail. O gatilho é a presença
+    //    de pessoas QSA no safePack (não precisa estar na MESMA frase — o
+    //    contexto do Gold inteiro já deriva do QSA).
+    if (QSA_GOVERNANCE_CLAIM.test(sentenceLower) && qsaPeople.size > 0) {
+      push('QSA_GOVERNANCE_CLAIM', `Frase deriva governança/família do QSA sem evidência: "${sentence}"`);
+    }
+
+    // 10) PACK_FORENSIC_REPLAY: ausência de módulo/tecnologia → fragilidade
+    //     operacional derivada ("ponto de fragilidade", "depender de sistemas
+    //     desconectados ou manuais"). A ausência no portfólio NÃO prova dor
+    //     operacional (grupo manual_desconectado só apareceu no Gold) → hard fail.
+    if (ABSENCE_DERIVED_WEAKNESS.test(sentenceLower)) {
+      push('ABSENCE_DERIVED_WEAKNESS', `Frase deriva fragilidade operacional de ausência: "${sentence}"`);
     }
   }
 

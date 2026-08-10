@@ -545,3 +545,122 @@ describe('EntityAwareGoldVerifier — medida ancorada na categoria (correção f
     expect(result.hardFails.some((h) => h.code === 'QSA_AS_DECISOR')).toBe(true);
   });
 });
+
+// ─── PACK_FORENSIC_REPLAY (Planejador 2026-08-10) — VERIFIER_HARDENING ───
+
+describe('EntityAwareGoldVerifier — PACK_FORENSIC_REPLAY (3 regras novas)', () => {
+  /** safePack sem nenhum fato Confirmado sobre internacionalização/Colômbia (caso Scheffer real). */
+  function safePackColombiaPista(): SafeFindingPack {
+    const base = safePack();
+    return {
+      ...base,
+      facts: [
+        {
+          id: 'f1',
+          entity: 'SCHEFFER & CIA LTDA',
+          claim: 'Operação internacional confirmada em Cumaribo, Corregimiento de El Viento, Colômbia',
+          status: 'Pista forte',
+          source: 'socio-search',
+          kind: 'operation',
+          process: null,
+        },
+      ],
+    };
+  }
+
+  it('R1 FAIL: Gold afirma "operação internacional confirmada na Colômbia" sem fato Confirmado', () => {
+    const gold = [
+      '# Gold Brief',
+      '### 1. SÍNTESE EXECUTIVA 🎯',
+      'A empresa possui uma operação internacional confirmada na Colômbia.',
+    ].join('\n');
+    const result = verifyGold(gold, canonical, safePackColombiaPista());
+    expect(result.hardFails.some((h) => h.code === 'PROMOTED_CLAIM')).toBe(true);
+  });
+
+  it('R1 PASS: Gold qualifica como "indícios de presença na Colômbia, a validar"', () => {
+    const gold = [
+      '# Gold Brief',
+      '### 1. SÍNTESE EXECUTIVA 🎯',
+      'Há indícios de presença na Colômbia (Cumaribo), ainda a validar.',
+    ].join('\n');
+    const result = verifyGold(gold, canonical, safePackColombiaPista());
+    expect(result.hardFails).toHaveLength(0);
+  });
+
+  it('R1 PASS: "confirmada" sobre tema sem sensibilidade (MT/MA) não dispara', () => {
+    const gold = [
+      '# Gold Brief',
+      'Operação confirmada nos estados de MT e MA.',
+    ].join('\n');
+    const result = verifyGold(gold, canonical, safePack());
+    expect(result.hardFails.some((h) => h.code === 'PROMOTED_CLAIM')).toBe(false);
+  });
+
+  it('R2 FAIL: QSA → "núcleo familiar com decisão concentrada" (governança derivada)', () => {
+    const gold = [
+      '# Gold Brief',
+      'A estrutura sugere decisão concentrada no núcleo familiar, com cinco sócios-administradores no QSA.',
+    ].join('\n');
+    const result = verifyGold(gold, canonical, safePack());
+    expect(result.hardFails.some((h) => h.code === 'QSA_GOVERNANCE_CLAIM')).toBe(true);
+  });
+
+  it('R2 FAIL: "transição geracional em curso" derivada do QSA', () => {
+    const gold = [
+      '# Gold Brief',
+      'Há uma transição geracional em curso entre os sócios-administradores do QSA.',
+    ].join('\n');
+    const result = verifyGold(gold, canonical, safePack());
+    expect(result.hardFails.some((h) => h.code === 'QSA_GOVERNANCE_CLAIM')).toBe(true);
+  });
+
+  it('R2 PASS: QSA como papel legal apenas ("constam como Sócio-Administrador no QSA")', () => {
+    const gold = [
+      '# Gold Brief',
+      'ELIZEU ZULMAR MAGGI SCHEFFER consta no QSA como Sócio-Administrador.',
+    ].join('\n');
+    const result = verifyGold(gold, canonical, safePack());
+    expect(result.hardFails.some((h) => h.code === 'QSA_GOVERNANCE_CLAIM')).toBe(false);
+  });
+
+  it('R3 FAIL: ausência de módulo → "ponto de fragilidade operacional" (dor derivada)', () => {
+    const gold = [
+      '# Gold Brief',
+      'A ausência de confirmação sobre o módulo de Rastreabilidade cria um ponto de fragilidade operacional.',
+    ].join('\n');
+    const result = verifyGold(gold, canonical, safePack());
+    expect(result.hardFails.some((h) => h.code === 'ABSENCE_DERIVED_WEAKNESS')).toBe(true);
+  });
+
+  it('R3 FAIL: "depender de sistemas desconectados ou manuais" derivado de ausência', () => {
+    const gold = [
+      '# Gold Brief',
+      'A gestão pode estar dependente de sistemas desconectados ou manuais.',
+    ].join('\n');
+    const result = verifyGold(gold, canonical, safePack());
+    expect(result.hardFails.some((h) => h.code === 'ABSENCE_DERIVED_WEAKNESS')).toBe(true);
+  });
+
+  it('R3 PASS: ausência expressa como recorte interno, sem dor derivada', () => {
+    const gold = [
+      '# Gold Brief',
+      'WMS/TMS não constam do portfólio contratado; a gestão logística não foi detalhada nas fontes públicas.',
+    ].join('\n');
+    const result = verifyGold(gold, canonical, safePack());
+    expect(result.hardFails.some((h) => h.code === 'ABSENCE_DERIVED_WEAKNESS')).toBe(false);
+  });
+
+  it('FIXTURE NEGATIVA: Gold real do dump (Colômbia confirmada) → FAIL', () => {
+    const gold = [
+      '# Gold Brief',
+      '### 1. SÍNTESE EXECUTIVA 🎯',
+      'A empresa possui uma operação internacional confirmada na Colômbia.',
+      '### 7. SINAIS 🚨',
+      'A estrutura sugere decisão concentrada no núcleo familiar dos sócios-administradores.',
+    ].join('\n');
+    const result = verifyGold(gold, canonical, safePackColombiaPista());
+    expect(result.hardFails.some((h) => h.code === 'PROMOTED_CLAIM')).toBe(true);
+    expect(result.hardFails.some((h) => h.code === 'QSA_GOVERNANCE_CLAIM')).toBe(true);
+  });
+});
