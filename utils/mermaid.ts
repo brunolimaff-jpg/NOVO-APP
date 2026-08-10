@@ -49,9 +49,47 @@ export function normalizeInlineMermaidClasses(chart: string): string {
   return `${normalized}\n${classLines.join('\n')}`;
 }
 
+function collapseMultilineNodeLabels(input: string): string {
+  // Mermaid v10 não aceita newline literal dentro de labels sem aspas
+  // (ex.: A[Produção\nSoja\n10 Unidades]). O Composer pode emitir esse
+  // formato mesmo quando o prompt pede <br/>. Varremos delimitadores para
+  // lidar também com parênteses dentro de labels quadrados.
+  const opens = new Map([['[', ']'], ['{', '}'], ['(', ')']]);
+  let output = '';
+  let index = 0;
+  while (index < input.length) {
+    const open = input[index];
+    const close = opens.get(open);
+    if (!close) {
+      output += open;
+      index += 1;
+      continue;
+    }
+
+    let cursor = index + 1;
+    let quoted = false;
+    while (cursor < input.length) {
+      const char = input[cursor];
+      if (char === '"') quoted = !quoted;
+      if (!quoted && char === close) break;
+      cursor += 1;
+    }
+    if (cursor >= input.length) {
+      output += open;
+      index += 1;
+      continue;
+    }
+
+    const label = input.slice(index + 1, cursor);
+    output += `${open}${label.includes('\n') ? label.replace(/\s+/g, ' ').trim() : label}${close}`;
+    index = cursor + 1;
+  }
+  return output;
+}
+
 function normalizeMermaidText(input: string): string {
-  return input
-    .replace(/<br\s*\/?>\s*/gi, '\n')
+  return collapseMultilineNodeLabels(input)
+    .replace(/<br\s*\/?>(\s*)/gi, '\n')
     .replace(/&lt;br\s*\/?&gt;\s*/gi, '\n')
     .replace(/<!--[\s\S]*?-->/g, '')
     .replace(/[\u{1F000}-\u{1FFFF}]/gu, '')

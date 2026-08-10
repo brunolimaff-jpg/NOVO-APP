@@ -225,6 +225,22 @@ describe('SCOUT-V7-GOLD-RUNTIME-QUALITY-01 — prompts alinhados ao PROMPT_SPEC'
     expect(prompt).toMatch(/individual|nominal|por extenso/i);
   });
 
+  it('EXP-3b: Prompt envia apenas quantidade QSA, preserva pessoa official/report', () => {
+    const frontier = {
+      module: 'gold-compactor',
+      accountIdentity: { inputCnpj: '04.733.767/0001-80', legalName: 'SCHEFFER & CIA LTDA', establishmentType: 'Filial', rootCnpj: '04.733.767', conflicts: [] },
+      facts: [], relationships: [], technologySignals: [], metrics: [], conflicts: [], openQuestions: [], sanitizerEvents: [], sanitized: true,
+      people: [
+        { id: 'qsa-1', personName: 'NOME QSA QUE NAO DEVE ATRAVESSAR', role: 'Sócio', roleBasis: 'qsa', status: 'Confirmado', source: 'QSA oficial' },
+        { id: 'official-1', personName: 'RESPONSAVEL FUNCIONAL CONFIRMADO', role: 'Diretor de Operações', roleBasis: 'official', status: 'Confirmado', source: 'Relatório oficial' },
+      ],
+    } as never;
+    const prompt = buildComposePrompt({ canonical, safePack: frontier });
+    expect(prompt).toContain('👥 1 pessoas no QSA');
+    expect(prompt).not.toContain('NOME QSA QUE NAO DEVE ATRAVESSAR');
+    expect(prompt).toContain('RESPONSAVEL FUNCIONAL CONFIRMADO');
+  });
+
   it('EXP-4: Caminho da Venda contém evidência, hipótese, discovery, validação e movimento comercial', () => {
     const prompt = buildComposePrompt({ canonical, safePack: {} as never });
     expect(prompt).toMatch(/evid[eê]ncia/i);

@@ -338,6 +338,15 @@ const SectionalBotMessage: React.FC<SectionalBotMessageProps> = ({
     () => sections.findIndex(section => shouldShowSocietaryMap(section.title, section.content, cnpj)),
     [sections, cnpj],
   );
+  // Gold já contém sua própria Teia/Tabela de CNPJs segura. O SocietaryMap
+  // legado continua para dossiês antigos, mas não pode ser injetado no Gold:
+  // ele reintroduz lista nominal de QSA e CNPJs laterais fora do Frontier.
+  const isGoldBrief = useMemo(
+    () =>
+      /^#{2,3}\s*1\.\s*s[ií]ntese executiva/im.test(content) &&
+      /^#{2,3}\s*9\.\s*pr[oó]ximos passos/im.test(content),
+    [content],
+  );
   const teiaTraceIdRef = useRef(createScoutTraceId('teia'));
   const teiaTraceEnabled = isScoutTraceEnabled('teia');
 
@@ -507,7 +516,7 @@ const SectionalBotMessage: React.FC<SectionalBotMessageProps> = ({
                   </span>
                 </div>
               )}
-              {idx === societaryMapSectionIndex && !isLoading ? (
+              {idx === societaryMapSectionIndex && !isGoldBrief && !isLoading ? (
                 <SocietaryMap
                   cnpj={cnpj}
                   empresaAlvo={empresaAlvo}
@@ -523,13 +532,17 @@ const SectionalBotMessage: React.FC<SectionalBotMessageProps> = ({
                     section.key === 'intro'
                       ? section.content
                       : `${'#'.repeat(section.level)} ${section.title}\n\n${section.content}`;
-                  if (idx === societaryMapSectionIndex) {
+                  if (idx === societaryMapSectionIndex && !isGoldBrief) {
                     return stripSocietaryMapDuplicates(stripTabelaMestreCnpjs(raw));
                   }
                   // Strip mermaid/duplicate-heading from sub-sections that also match
-                  // the societary map pattern (e.g. ### MAPA DE PODER SOCIETÁRIO split
-                  // by parseMarkdownSections as a separate section entry)
-                  if (societaryMapSectionIndex >= 0 && shouldShowSocietaryMap(section.title, section.content, cnpj)) {
+                  // the societary map pattern in legacy dossiers only. Gold owns its
+                  // Teia/Tabela content and must not be rewritten here.
+                  if (
+                    !isGoldBrief &&
+                    societaryMapSectionIndex >= 0 &&
+                    shouldShowSocietaryMap(section.title, section.content, cnpj)
+                  ) {
                     return stripSocietaryMapDuplicates(raw);
                   }
                   return raw;

@@ -161,6 +161,33 @@ describe('edge cases adversariais', () => {
     expect(result).toBe('');
   });
 
+  it('normaliza labels multilinha do Mapa do Caos sem deixar newline dentro do nó', () => {
+    const input = `graph TD
+    A[ Produção Agrícola
+Soja, Milho, Algodão
+10 Unidades (MT/MA)] --> B[ Beneficiamento Industrial
+UBA de Algodão
+ Confirmado];
+B --> C[ Comercialização/Trading
+ Exportação direta não confirmada];
+A -.-> D[ Logística & Armazenagem
+ Própria não confirmada];
+C -.-> E[ Operação Internacional
+Colômbia - Cumaribo
+Fonte Secundária];
+
+    classDef confirmed fill:#d4f1f9,stroke:#0fa2e6,stroke-width:2px;
+    classDef toValidate fill:#fff9c4,stroke:#f9a825,stroke-width:2px;
+    class A,B confirmed;
+    class C,D,E toValidate;`;
+
+    const result = sanitizeMermaidCode(input);
+
+    expect(result).toContain('A["Produção Agrícola Soja, Milho, Algodão 10 Unidades (MT/MA)"]');
+    expect(result).toMatch(/B\[(?:"Beneficiamento Industrial UBA de Algodão Confirmado"|Beneficiamento Industrial UBA de Algodão Confirmado)\]/);
+    expect(result).not.toMatch(/\\[[^\\]]*\\n/);
+  });
+
   it('lida com diagrama completo combinando múltiplos padrões problemáticos', () => {
     const input = `graph LR
 classDef core fill:#eff6ff,stroke:#3b82f6,stroke-width:2px,color:#1e3a8a;

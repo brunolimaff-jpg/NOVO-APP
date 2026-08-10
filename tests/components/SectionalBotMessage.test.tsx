@@ -116,6 +116,40 @@ describe('SectionalBotMessage', () => {
     expect(container.querySelector('[data-section-kind="cards"]')).toBeInTheDocument();
   });
 
+  it('não injeta SocietaryMap no Gold: Teia/Tabela do Composer permanecem responsáveis pelo visual', () => {
+    const message: Message = {
+      id: 'gold-no-legacy-map',
+      sender: Sender.Bot,
+      timestamp: new Date(),
+      text: [
+        '### 1. SÍNTESE EXECUTIVA 🎯',
+        'Resumo seguro.',
+        '### 2. PERFIL 🏭',
+        'Mapa do Caos.',
+        '### 3. ESTRUTURA SOCIETÁRIA 🏛️',
+        'Teia Societária e Tabela de CNPJs.',
+        '### 4. TECNOLOGIA 💻',
+        'Tecnologia.',
+        '### 5. PESSOAS-CHAVE 👥',
+        '👥 2 pessoas no QSA — papéis cadastrais, não decisores.',
+        '### 6. INDICADORES 📊',
+        'Indicadores.',
+        '### 7. SINAIS 🚨',
+        'Sinais.',
+        '### 8. RISCOS ⚠️',
+        'Riscos.',
+        '### 9. PRÓXIMOS PASSOS 🧭',
+        'Caminho da Venda.',
+      ].join('\\n\\n'),
+    };
+
+    const { container } = render(
+      <SectionalBotMessage message={message} isDarkMode={false} empresaAlvo="Scheffer & Cia" cnpj="04733767000180" />,
+    );
+
+    expect(screen.queryByTestId('societary-map')).not.toBeInTheDocument();
+  });
+
   it('renderiza mapa societário Tipo 5 dentro da seção de teia quando há CNPJ', () => {
     const message: Message = {
       id: 'bot-teia',
