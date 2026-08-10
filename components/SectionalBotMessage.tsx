@@ -295,18 +295,26 @@ const SectionalBotMessage: React.FC<SectionalBotMessageProps> = ({
   const { cleanText, options: parsedOptions } = useMemo(() => {
     return parseSmartOptions(content);
   }, [content]);
-  const displayText = useMemo(() => {
-    return stripUnsafeSocietarySections(cleanText);
-  }, [cleanText]);
 
-  // Errata 5: useDeferredValue evita que parseMarkdownSections + MarkdownRenderer
-  // bloqueiem a main thread em dossiês grandes (>15KB). React 18 processa o valor
-  // deferred em render de baixa prioridade, mantendo a UI responsiva.
+  // RUN_ORPHAN fix (Planejador 2026-08-10, BUG-7 render-blocking): três parsers
+  // síncronos (stripUnsafeSocietarySections, parseTeiaText, parseMarkdownSections)
+  // rodavam sobre cleanText direto — em dossiês grandes (>15KB) bloqueavam a main
+  // thread, o heartbeat do waterfall não conseguia tickar e o lease expirava
+  // (run órfão). useDeferredValue já protegia parseMarkdownSections via
+  // displayText; agora estende a proteção aos outros dois parsers, deferindo
+  // cleanText antes de qualquer consumidor downstream pesado.
   const LARGE_DOSSIER_DEFERRED_CHARS = 15_000;
-  const deferredText = useDeferredValue(displayText);
-  const isDeferredPending = deferredText !== displayText && displayText.length > LARGE_DOSSIER_DEFERRED_CHARS;
+  const deferredCleanText = useDeferredValue(cleanText);
+  const isDeferredPending =
+    deferredCleanText !== cleanText && cleanText.length > LARGE_DOSSIER_DEFERRED_CHARS;
+  const effectiveCleanText = isDeferredPending ? deferredCleanText : cleanText;
 
-  const effectiveText = isDeferredPending ? deferredText : displayText;
+  const displayText = useMemo(() => {
+    return stripUnsafeSocietarySections(effectiveCleanText);
+  }, [effectiveCleanText]);
+
+  const deferredText = useDeferredValue(displayText);
+  const effectiveText = deferredText;
 
   const sections = useMemo(() => {
     return parseMarkdownSections(effectiveText);
@@ -322,12 +330,12 @@ const SectionalBotMessage: React.FC<SectionalBotMessageProps> = ({
   );
 
   const parsedTeiaData = useMemo(() => {
-    return parseTeiaText(cleanText);
-  }, [cleanText]);
+    return parseTeiaText(effectiveCleanText);
+  }, [effectiveCleanText]);
   const llmCnpjsForMap = useMemo(() => {
     if (parsedTeiaData.companies.length === 0) return undefined;
     return parsedTeiaData.companies;
-  }, [cleanText, parsedTeiaData.companies.length]);
+  }, [effectiveCleanText, parsedTeiaData.companies.length]);
   const societaryMapSectionIndex = useMemo(
     () => sections.findIndex(section => shouldShowSocietaryMap(section.title, section.content, cnpj)),
     [sections, cnpj],
