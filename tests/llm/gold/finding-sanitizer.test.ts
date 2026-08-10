@@ -379,4 +379,89 @@ describe('FindingSanitizer — "não há" epistemológico (micro-rodada V5)', ()
     const removed = safe.sanitizerEvents.find((e) => e.findingId === 'f-neg');
     expect(removed?.code).toBe('NEGATIVE_EVIDENCE_AS_ABSENCE');
   });
+
+  // ─── SEMANTICS-FIX (Planejador 2026-08-10) ───
+
+  it('SEMANTICS-FIX 1: accountIdentity é canonical-owned (raw=Matriz + canonical=Filial → safePack=Filial)', () => {
+    const raw = basePack();
+    // Compact erra o tipo cadastral no accountIdentity
+    raw.accountIdentity = {
+      inputCnpj: '04.733.767/0001-80',
+      legalName: 'SCHEFFER PARTICIPACOES LTDA', // nome errado
+      establishmentType: 'Matriz', // erro do Compact
+      rootCnpj: '04.733.767',
+      conflicts: [],
+    };
+    const safe = sanitizeFindingPack(raw, canonical);
+    // safePack deve trazer os valores do CANONICAL, não do raw
+    expect(safe.accountIdentity.establishmentType).toBe('Filial');
+    expect(safe.accountIdentity.legalName).toBe('SCHEFFER & CIA LTDA');
+    expect(safe.accountIdentity.inputCnpj).toBe('04.733.767/0001-80');
+    expect(safe.accountIdentity.rootCnpj).toBe('04.733.767');
+    // conflicts (não-determinístico) preservado do raw
+    expect(safe.accountIdentity.conflicts).toEqual([]);
+  });
+
+  it('SEMANTICS-FIX 1: conflicts do raw são preservados quando accountIdentity é canonicalizado', () => {
+    const raw = basePack();
+    raw.accountIdentity.conflicts = ['Fonte A diz Filial; Fonte B diz Matriz'];
+    const safe = sanitizeFindingPack(raw, canonical);
+    expect(safe.accountIdentity.establishmentType).toBe('Filial');
+    expect(safe.accountIdentity.conflicts).toEqual(['Fonte A diz Filial; Fonte B diz Matriz']);
+  });
+
+  it('SEMANTICS-FIX 2 CLAIM_LEXICAL_PROMOTION: Pista forte + "confirmada" sobre tema sensível → reescreve claim (mantém status)', () => {
+    const raw = basePack();
+    raw.facts.push({
+      id: 'f-col-lex',
+      entity: 'SCHEFFER & CIA LTDA',
+      claim: 'Operação internacional confirmada em Cumaribo, Colômbia',
+      status: 'Pista forte',
+      source: 'Menção em site institucional',
+      kind: 'operation',
+      process: null,
+    });
+    const safe = sanitizeFindingPack(raw, canonical);
+    const fact = safe.facts.find((f) => f.id === 'f-col-lex');
+    // status NÃO muda (diferente do STATUS_PROMOTION que rebaixa Confirmado)
+    expect(fact?.status).toBe('Pista forte');
+    // claim é reescrita — sem a palavra "confirmada"
+    expect(fact?.claim).toMatch(/mencionada|menção/i);
+    expect(fact?.claim).not.toMatch(/confirmada/i);
+    expect(safe.sanitizerEvents.some((e) => e.code === 'CLAIM_LEXICAL_PROMOTION')).toBe(true);
+  });
+
+  it('SEMANTICS-FIX 2: NÃO reescreve claim quando status=Confirmado (STATUS_PROMOTION cuida disso)', () => {
+    const raw = basePack();
+    raw.facts.push({
+      id: 'f-col-conf',
+      entity: 'SCHEFFER & CIA LTDA',
+      claim: 'Operação internacional confirmada em Cumaribo',
+      status: 'Confirmado',
+      source: 'Site institucional Scheffer',
+      kind: 'operation',
+      process: null,
+    });
+    const safe = sanitizeFindingPack(raw, canonical);
+    // STATUS_PROMOTION dispara (Confirmado + sensível + fonte fraca) → rebaixa status
+    expect(safe.sanitizerEvents.some((e) => e.code === 'STATUS_PROMOTION')).toBe(true);
+    expect(safe.sanitizerEvents.some((e) => e.code === 'CLAIM_LEXICAL_PROMOTION')).toBe(false);
+  });
+
+  it('SEMANTICS-FIX 2: NÃO reescreve claim sobre tema não-sensível', () => {
+    const raw = basePack();
+    raw.facts.push({
+      id: 'f-mt-lex',
+      entity: 'SCHEFFER & CIA LTDA',
+      claim: 'Operação confirmada nos estados de Mato Grosso e Maranhão',
+      status: 'Pista forte',
+      source: 'Site institucional',
+      kind: 'operation',
+      process: null,
+    });
+    const safe = sanitizeFindingPack(raw, canonical);
+    const fact = safe.facts.find((f) => f.id === 'f-mt-lex');
+    expect(fact?.claim).toMatch(/confirmada/i); // preservada — tema não-sensível
+    expect(safe.sanitizerEvents.some((e) => e.code === 'CLAIM_LEXICAL_PROMOTION')).toBe(false);
+  });
 });

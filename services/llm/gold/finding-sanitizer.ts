@@ -70,6 +70,15 @@ const SENSITIVE_THEME =
 
 const MODULE_PROOF_SOURCE = /\b(m[óo]dulo\s+contratado|crm interno senior)\b/i;
 
+/** SEMANTICS-FIX (Planejador 2026-08-10): vocabulário de certeza ("confirmada",
+ * "confirmado") em claim quando o status não é Confirmado. O Compact pode
+ * produzir claim="Operação internacional confirmada em Cumaribo" com
+ * status="Pista forte" — o STATUS_PROMOTION não dispara (só pega status=
+ * Confirmado), e o Composer copia a palavra "confirmada" → R8 PROMOTED_CLAIM.
+ * Correção determinística na fronteira: reescrever a claim (NÃO o status)
+ * para linguagem de pista/a validar, eliminando a contradição lexical. */
+const CONFIRMED_VOCABULARY = /\b(confirmad[ao]|confirmadamente)\b/i;
+
 function stripCpf(value: string): string {
   return value.replace(CPF_PATTERN, '[REDIGIDO]');
 }
@@ -212,6 +221,31 @@ export function sanitizeFindingPack(
         reason: 'Status Confirmado sobre tema sensível sustentado só por fonte institucional/release — registro legal não verificado; rebaixado para Pista forte',
       };
     }
+    // CLAIM_LEXICAL_PROMOTION (SEMANTICS-FIX, Planejador 2026-08-10):
+    // tema sensível + status != Confirmado + vocabulário "confirmada/confirmado"
+    // no claim → contradição lexical interna (status diz pista, texto diz
+    // confirmada). O STATUS_PROMOTION acima não pega (status não é Confirmado);
+    // sem esta regra, o Composer copia "confirmada" → verifier R8 PROMOTED_CLAIM.
+    // Reescreve SOMENTE o claim (mantém o status) para eliminar a palavra de
+    // certeza e trocar por linguagem de pista/a validar.
+    if (f.status !== 'Confirmado' && SENSITIVE_THEME.test(claim) && CONFIRMED_VOCABULARY.test(claim)) {
+      const rewrittenClaim = claim
+        .replace(/\bconfirmadamente\b/gi, 'possivelmente')
+        .replace(/\bconfirmad[ao]\b/gi, (m) => {
+          const fem = /a$/i.test(m);
+          return fem ? 'mencionada' : 'mencionado';
+        })
+        .replace(/\b(operaci[oó]n|opera[cç][aã]o)\s+(internacional\s+)?(mencionada|mencionado)\b/gi, 'menção a operação internacional')
+        .trim();
+      return {
+        findingId: f.id,
+        code: 'CLAIM_LEXICAL_PROMOTION',
+        action: 'rewritten',
+        before: claim,
+        after: rewrittenClaim,
+        reason: 'Claim usa vocabulário de certeza ("confirmada") sobre tema sensível com status != Confirmado — reescrita para linguagem de pista (evita promoção pelo Composer)',
+      };
+    }
     // ENTITY_CONFLICT: afirmação de tipo cadastral (matriz/filial) que
     // contradiz o canonical — fonte determinística vence a narrativa.
     // Genérico (sem CNPJ/slug/setor): o padrão "é (a) matriz/filial" + o
@@ -324,7 +358,19 @@ export function sanitizeFindingPack(
 
   return {
     module: raw.module,
-    accountIdentity: raw.accountIdentity,
+    // SEMANTICS-FIX (Planejador 2026-08-10): accountIdentity é canonical-owned.
+    // Antes: raw.accountIdentity atravessava sem canonicalização → se o
+    // Compact errasse establishmentType (ex.: "Matriz" para CNPJ Filial), o
+    // safePack carregava o erro sem barreira. Agora os campos determinísticos
+    // (inputCnpj, legalName, establishmentType, rootCnpj) vêm do canonical;
+    // conflicts (não-determinístico) é preservado do raw.
+    accountIdentity: {
+      inputCnpj: canonical.inputCnpj,
+      legalName: canonical.legalName,
+      establishmentType: canonical.establishmentType,
+      rootCnpj: canonical.rootCnpj,
+      conflicts: raw.accountIdentity.conflicts,
+    },
     facts,
     relationships,
     technologySignals: raw.technologySignals,
@@ -353,5 +399,6 @@ export function isSanitizerEventCode(code: string): code is SanitizerEventCode {
     'ENTITY_CONFLICT',
     'CPF_LEAK',
     'STATUS_PROMOTION',
+    'CLAIM_LEXICAL_PROMOTION',
   ].includes(code);
 }
