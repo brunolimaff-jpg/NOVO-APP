@@ -54,25 +54,53 @@ export interface GuardedGoldPipelineResult {
  * "confirmada/confirmado" para temas sensíveis (Colômbia/Cumaribo/
  * internacional/holding/controle) sem fato Confirmado correspondente no
  * safePack — o verifier R8 marca PROMOTED_CLAIM. Este guard rebaixa o
- * vocabulário para "mencionada/mencionado" nas frases sensíveis SEM fato
- * Confirmado, preservando a informação e o grau de evidência correto.
- * Não remove conteúdo: apenas corrige a semântica de certeza.
+ * vocabulário para "mencionada/mencionado" nas frases sensíveis SEM
+ * autorização local (fato Confirmado que case com o MESMO tema da frase).
+ * Não remove conteúdo: apenas corrige a semântica de certeza. A autorização
+ * é LOCAL à afirmação (mesmo tema), nunca global — um fato Confirmado sobre
+ * holding não autoriza "confirmada" sobre internacionalização (lição da
+ * PR #483: evidência casa por categoria/direção/entidade).
  */
 const SENSITIVE_THEME = /col[oó]mbia|cumaribo|internacional|holding|control/i;
 const CONFIRMED_VOCABULARY = /\bconfirmad(a|o)s?\b/gi;
 
-export function downgradeUnsupportedCertainty(gold: string, safePack: SafeFindingPack): string {
-  const hasSensitiveConfirmedFact = safePack.facts.some(
-    (f) => f.status === 'Confirmado' && SENSITIVE_THEME.test(f.claim),
-  );
-  if (hasSensitiveConfirmedFact) return gold;
+const SENSITIVE_TERMS: Array<[string, RegExp]> = [
+  ['colombia', /col[oó]mbia/i],
+  ['cumaribo', /cumaribo/i],
+  ['internacional', /internacional/i],
+  ['holding', /holding/i],
+  ['controle', /control/i],
+];
 
+function sensitiveThemes(text: string): Set<string> {
+  const found = new Set<string>();
+  for (const [name, re] of SENSITIVE_TERMS) {
+    if (re.test(text)) found.add(name);
+  }
+  return found;
+}
+
+function sharesSensitiveTheme(sentence: string, factClaim: string): boolean {
+  const a = sensitiveThemes(sentence);
+  const b = sensitiveThemes(factClaim);
+  for (const theme of a) {
+    if (b.has(theme)) return true;
+  }
+  return false;
+}
+
+export function downgradeUnsupportedCertainty(gold: string, safePack: SafeFindingPack): string {
   return gold
     .split(/([.;!?\n]+)/)
     .map((part, index) => {
       // Partes ímpares são os separadores — preservados intactos.
       if (index % 2 === 1) return part;
       if (!SENSITIVE_THEME.test(part)) return part;
+      // Autorização LOCAL: fato Confirmado que case com o mesmo tema da frase.
+      const hasMatchingConfirmedFact = safePack.facts.some(
+        (f) => f.status === 'Confirmado' && sharesSensitiveTheme(part, f.claim),
+      );
+      if (hasMatchingConfirmedFact) return part;
       return part.replace(CONFIRMED_VOCABULARY, (match) => {
         const feminine = /a$/i.test(match);
         const plural = /s$/i.test(match);

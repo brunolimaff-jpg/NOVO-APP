@@ -104,6 +104,73 @@ describe('GuardedGoldPipeline', () => {
     expect(result.goldBrief).toMatch(/mencionada.*Cumaribo|mencionada como sócia|mencionad[ao]/i);
   });
 
+  it('BRU-48 RED cruzado: fato Confirmado sensível A NÃO autoriza claim sensível não relacionado B (sem bypass global)', async () => {
+    // SafePack tem fato Confirmado sobre HOLDING (A) — mas o Gold afirma
+    // internacionalização "confirmada" (B), sem fato Confirmado que case
+    // com Colômbia/Cumaribo/internacional. O guard não pode ser desabilitado
+    // globalmente pelo fato A: B deve ser rebaixado.
+    const compact = vi.fn(async (_input: CompactInput) =>
+      rawPack({
+        facts: [
+          {
+            id: 'f1',
+            entity: 'SCHEFFER & CIA LTDA',
+            claim: 'A holding SCHEFFER PARTICIPACOES S/A participa do capital da conta',
+            status: 'Confirmado',
+            source: 'QSA oficial',
+            kind: 'operation',
+          },
+        ],
+      }),
+    );
+    const compose = vi.fn(async (_input: ComposeInput) =>
+      [
+        '# Gold Brief',
+        'Operação internacional confirmada em Cumaribo, Colômbia, mencionada no site institucional.',
+      ].join('\n'),
+    );
+    const deps = { compact, compose };
+
+    const result = await runGuardedGoldPipeline({ canonical, dossier: 'dossiê legado' }, deps);
+
+    expect(result.verification.passed).toBe(true);
+    expect(result.verification.hardFails.some(h => h.code === 'PROMOTED_CLAIM')).toBe(false);
+    // A frase internacional foi rebaixada mesmo existindo fato Confirmado de holding.
+    expect(result.goldBrief).toMatch(/mencionada em Cumaribo/i);
+  });
+
+  it('BRU-48 autorização local: fato Confirmado (fonte forte) que casa com o tema da frase mantém "confirmada"', async () => {
+    // Fato sensível Confirmado com fonte FORTE (registro oficial — não é
+    // rebaixado pelo STATUS_PROMOTION, que só atinge fonte institucional).
+    const compact = vi.fn(async (_input: CompactInput) =>
+      rawPack({
+        facts: [
+          {
+            id: 'f1',
+            entity: 'SCHEFFER & CIA LTDA',
+            claim: 'Operação em Cumaribo, Colômbia, registrada no cadastro oficial',
+            status: 'Confirmado',
+            source: 'registro oficial',
+            kind: 'operation',
+          },
+        ],
+      }),
+    );
+    const compose = vi.fn(async (_input: ComposeInput) =>
+      [
+        '# Gold Brief',
+        'Operação confirmada em Cumaribo, Colômbia, registrada no cadastro oficial.',
+      ].join('\n'),
+    );
+    const deps = { compact, compose };
+
+    const result = await runGuardedGoldPipeline({ canonical, dossier: 'dossiê legado' }, deps);
+
+    expect(result.verification.passed).toBe(true);
+    // Autorizado localmente: o fato Confirmado casa com o tema da frase.
+    expect(result.goldBrief).toMatch(/confirmada em Cumaribo/i);
+  });
+
   it('executa compact → sanitize → compose → verify e retorna o resultado', async () => {
     const compact = vi.fn(async (_input: CompactInput) => rawPack());
     const compose = vi.fn(async (_input: ComposeInput) => cleanGold);
