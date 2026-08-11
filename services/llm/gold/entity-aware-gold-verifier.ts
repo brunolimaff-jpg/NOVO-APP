@@ -435,7 +435,7 @@ export function verifyGold(
     if (CONFIRMED_CLAIM.test(sentenceLower) && !KNOWLEDGE_NEGATION.test(sentenceLower)) {
       const touchesSensitiveTheme = /col[oó]mbia|cumaribo|internacional|holding|control/i.test(sentenceLower);
       if (touchesSensitiveTheme) {
-        push('PROMOTED_CLAIM', `Frase afirma "confirmada" sobre tema sem fato Confirmado no safePack: "${sentence}"`);
+        push('PROMOTED_CLAIM', `Frase afirma "confirmada" sobre tema sensível sem autorização (política conservadora): "${sentence}"`);
       }
     }
 
