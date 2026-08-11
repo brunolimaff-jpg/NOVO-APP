@@ -76,6 +76,24 @@ export function clearActiveDossierRun(sessionId: string, runId?: string): void {
   const current = activeRuns.get(sessionId);
   if (current && (!runId || current.runId === runId)) activeRuns.delete(sessionId);
   persist();
+  // Observabilidade nunca pode bloquear a limpeza do registro.
+  if (typeof window !== 'undefined') {
+    try {
+      window.dispatchEvent(new CustomEvent('scout:dossier-active-run', {
+        detail: {
+          event: 'active-run:clear',
+          sessionId,
+          runId: runId ?? null,
+          clearSucceeded: !activeRuns.has(sessionId),
+          remainingRunId: activeRuns.get(sessionId)?.runId ?? null,
+          visibilityState: document.visibilityState,
+          performanceNow: typeof performance !== 'undefined' ? Math.round(performance.now()) : null,
+        },
+      }));
+    } catch {
+      // Observabilidade nunca pode bloquear a limpeza do registro.
+    }
+  }
 }
 export function clearAllActiveDossierRunsForTest(): void {
   activeRuns.clear();
