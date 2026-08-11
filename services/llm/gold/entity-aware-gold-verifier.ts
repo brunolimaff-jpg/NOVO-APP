@@ -268,6 +268,28 @@ function normalizeName(value: string): string {
   return value.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 }
 
+/**
+ * BRU-48: exceção LOCAL POR TERMO ESPECÍFICO no R8 (PROMOTED_CLAIM).
+ * Um fato Confirmado só autoriza "confirmada" na frase se compartilhar um
+ * termo sensível ESPECÍFICO com ela (cumaribo, colombia, internacional,
+ * holding, controle). "Exportações para a Colômbia" (fato) NÃO autoriza
+ * "Operação industrial confirmada em Cumaribo" (frase) — mesmo tema amplo,
+ * afirmação diferente (padrão do R10: categoria + direção + entidade).
+ */
+function sharesSpecificSensitiveTerm(sentence: string, factClaim: string): boolean {
+  const terms: Array<[string, RegExp]> = [
+    ['cumaribo', /cumaribo/i],
+    ['colombia', /col[oó]mbia/i],
+    ['internacional', /internacional/i],
+    ['holding', /holding/i],
+    ['controle', /control/i],
+  ];
+  for (const [, re] of terms) {
+    if (re.test(sentence) && re.test(factClaim)) return true;
+  }
+  return false;
+}
+
 function splitSentences(goldBrief: string): string[] {
   // Protege CNPJs formatados (contêm pontos) para o split de sentenças
   // não quebrar dentro deles.
@@ -426,13 +448,21 @@ export function verifyGold(
     //    holding/controle) sem fato Confirmado no safePack é promoção
     //    indevida → hard fail. Não dispara para "confirmada" sobre temas
     //    sem sensibilidade (ex.: MT/MA com fato Confirmado).
+    //    BRU-48 (Planejador 2026-08-11): a exceção é LOCAL POR TERMO
+    //    ESPECÍFICO (cumaribo/colombia/internacional/holding/controle) —
+    //    um fato Confirmado sobre exportação para a Colômbia NÃO autoriza
+    //    "Operação industrial confirmada em Cumaribo" (mesmo tema, claim
+    //    diferente). Evidência precisa casar com a mesma afirmação, não
+    //    por palavra compartilhada (padrão do R10).
     if (CONFIRMED_CLAIM.test(sentenceLower) && !KNOWLEDGE_NEGATION.test(sentenceLower)) {
       const touchesSensitiveTheme = /col[oó]mbia|cumaribo|internacional|holding|control/i.test(sentenceLower);
       if (touchesSensitiveTheme) {
-        const hasConfirmedFact = safePack.facts.some(
-          (f) => f.status === 'Confirmado' && /col[oó]mbia|cumaribo|internacional|holding|control/i.test(f.claim),
+        const hasMatchingConfirmedFact = safePack.facts.some(
+          (f) =>
+            f.status === 'Confirmado' &&
+            sharesSpecificSensitiveTerm(sentenceLower, f.claim),
         );
-        if (!hasConfirmedFact) {
+        if (!hasMatchingConfirmedFact) {
           push('PROMOTED_CLAIM', `Frase afirma "confirmada" sobre tema sem fato Confirmado no safePack: "${sentence}"`);
         }
       }

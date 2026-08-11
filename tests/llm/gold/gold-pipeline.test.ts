@@ -139,9 +139,40 @@ describe('GuardedGoldPipeline', () => {
     expect(result.goldBrief).toMatch(/mencionada em Cumaribo/i);
   });
 
-  it('BRU-48 autorização local: fato Confirmado (fonte forte) que casa com o tema da frase mantém "confirmada"', async () => {
-    // Fato sensível Confirmado com fonte FORTE (registro oficial — não é
-    // rebaixado pelo STATUS_PROMOTION, que só atinge fonte institucional).
+  it('BRU-48 RED final (Planejador): fato Confirmado "exportações para a Colômbia" NÃO autoriza "Operação industrial confirmada em Cumaribo"', async () => {
+    const compact = vi.fn(async (_input: CompactInput) =>
+      rawPack({
+        facts: [
+          {
+            id: 'f1',
+            entity: 'SCHEFFER & CIA LTDA',
+            claim: 'Exportações para a Colômbia constam em registro oficial',
+            status: 'Confirmado',
+            source: 'registro oficial',
+            kind: 'operation',
+          },
+        ],
+      }),
+    );
+    const compose = vi.fn(async (_input: ComposeInput) =>
+      [
+        '# Gold Brief',
+        'Operação industrial confirmada em Cumaribo, Colômbia.',
+      ].join('\n'),
+    );
+    const deps = { compact, compose };
+
+    const result = await runGuardedGoldPipeline({ canonical, dossier: 'dossiê legado' }, deps);
+
+    expect(result.verification.passed).toBe(true);
+    expect(result.verification.hardFails.some(h => h.code === 'PROMOTED_CLAIM')).toBe(false);
+    // Mesmo tema (Colômbia), claim diferente (exportação ≠ operação industrial):
+    // a certeza é rebaixada — "confirmada" não pode permanecer.
+    expect(result.goldBrief).toMatch(/mencionada em Cumaribo/i);
+    expect(result.goldBrief).not.toMatch(/confirmada em Cumaribo/i);
+  });
+
+  it('BRU-48 guard conservador: temas sensíveis SEMPRE rebaixam "confirmada" (sem autorização por similaridade)', async () => {
     const compact = vi.fn(async (_input: CompactInput) =>
       rawPack({
         facts: [
@@ -167,8 +198,8 @@ describe('GuardedGoldPipeline', () => {
     const result = await runGuardedGoldPipeline({ canonical, dossier: 'dossiê legado' }, deps);
 
     expect(result.verification.passed).toBe(true);
-    // Autorizado localmente: o fato Confirmado casa com o tema da frase.
-    expect(result.goldBrief).toMatch(/confirmada em Cumaribo/i);
+    // Decisão do Planejador: não autorizar por similaridade — sempre rebaixa.
+    expect(result.goldBrief).toMatch(/mencionada em Cumaribo/i);
   });
 
   it('executa compact → sanitize → compose → verify e retorna o resultado', async () => {

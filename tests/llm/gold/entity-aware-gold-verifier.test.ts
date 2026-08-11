@@ -740,4 +740,55 @@ describe('EntityAwareGoldVerifier — PACK_FORENSIC_REPLAY (3 regras novas)', ()
     const result = verifyGold(gold, canonical, pack);
     expect(result.hardFails.some((h) => h.code === 'ABSENCE_DERIVED_WEAKNESS')).toBe(true);
   });
+
+  it('R8 BRU-48: fato Confirmado "exportações para a Colômbia" NÃO autoriza "Operação industrial confirmada em Cumaribo"', () => {
+    const base = safePack();
+    const pack = {
+      ...base,
+      facts: [
+        {
+          id: 'f-export',
+          entity: 'SCHEFFER & CIA LTDA',
+          claim: 'Exportações para a Colômbia constam em registro oficial',
+          status: 'Confirmado' as const,
+          source: 'registro oficial',
+          kind: 'operation' as const,
+          process: null,
+        },
+      ],
+    };
+    const gold = [
+      '# Gold Brief',
+      'Operação industrial confirmada em Cumaribo, Colômbia.',
+    ].join('\n');
+    const result = verifyGold(gold, canonical, pack);
+    // Mesmo tema (colombia), claim diferente (exportação ≠ operação industrial):
+    // a exceção do R8 é LOCAL POR TERMO — sem termo específico compartilhado
+    // (cumaribo) o verifier reprova (segunda barreira).
+    expect(result.hardFails.some((h) => h.code === 'PROMOTED_CLAIM')).toBe(true);
+  });
+
+  it('R8 BRU-48: fato Confirmado com termo específico compartilhado (Cumaribo) não reprova', () => {
+    const base = safePack();
+    const pack = {
+      ...base,
+      facts: [
+        {
+          id: 'f-cumaribo',
+          entity: 'SCHEFFER & CIA LTDA',
+          claim: 'Operação em Cumaribo registrada no cadastro oficial',
+          status: 'Confirmado' as const,
+          source: 'registro oficial',
+          kind: 'operation' as const,
+          process: null,
+        },
+      ],
+    };
+    const gold = [
+      '# Gold Brief',
+      'Operação confirmada em Cumaribo, Colômbia, consta no registro oficial.',
+    ].join('\n');
+    const result = verifyGold(gold, canonical, pack);
+    expect(result.hardFails.some((h) => h.code === 'PROMOTED_CLAIM')).toBe(false);
+  });
 });
