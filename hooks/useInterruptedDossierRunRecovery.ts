@@ -33,8 +33,24 @@ export function useInterruptedDossierRunRecovery(options: {
     // Só roda quando as sessões já foram carregadas (evita corrida com loadSessions).
     if (!isInitialized) return;
 
+    scoutDiag.info('DossierRunLifecycle', 'recovery:mount', {
+      visibilityState: typeof document !== 'undefined' ? document.visibilityState : 'unknown',
+      performanceNow: typeof performance !== 'undefined' ? Math.round(performance.now()) : null,
+      navigationType:
+        typeof performance !== 'undefined'
+          ? (performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming | undefined)?.type ?? 'unknown'
+          : 'unknown',
+    });
+
     const interruptedRuns = peekPersistedActiveDossierRuns();
     if (interruptedRuns.length === 0) return;
+
+    scoutDiag.warn('DossierRunLifecycle', 'recovery:found-persisted-run', {
+      count: interruptedRuns.length,
+      runIds: interruptedRuns.map(run => run.runId),
+      visibilityState: typeof document !== 'undefined' ? document.visibilityState : 'unknown',
+      performanceNow: typeof performance !== 'undefined' ? Math.round(performance.now()) : null,
+    });
 
     const appliedRunIds: string[] = [];
     const pendingRunIds: string[] = [];

@@ -50,6 +50,22 @@ export function setActiveDossierRun(context: DossierRunContext): void {
   hydrate();
   activeRuns.set(context.sessionId, context);
   persist();
+  // Observabilidade P0 01E: somente metadados do lifecycle; nenhum conteúdo.
+  if (typeof window !== 'undefined') {
+    try {
+      window.dispatchEvent(new CustomEvent('scout:dossier-active-run', {
+        detail: {
+          event: 'active-run:set',
+          sessionId: context.sessionId,
+          runId: context.runId,
+          visibilityState: document.visibilityState,
+          performanceNow: typeof performance !== 'undefined' ? Math.round(performance.now()) : null,
+        },
+      }));
+    } catch {
+      // Observabilidade nunca pode bloquear o registro do run.
+    }
+  }
 }
 export function getActiveDossierRun(sessionId: string): DossierRunContext | null {
   hydrate();

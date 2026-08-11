@@ -32,7 +32,7 @@ import { useToast } from '../../hooks/useToast';
 import { trackOperatorEvent } from '../../services/operatorTracking';
 import { getWaterfallGuardState, isAnyWaterfallActive } from '../dossier/waterfall-guard';
 import { acquireDossierRunLease, createOrGetDossierRun, DOSSIER_RUN_RPC_TIMEOUT_MS } from '../../lib/supabase/dossierRuns';
-import { clearActiveDossierRun, setActiveDossierRun } from '../dossier/active-run-registry';
+import { clearActiveDossierRun, getActiveDossierRun, setActiveDossierRun } from '../dossier/active-run-registry';
 import { startDossierRunHeartbeat } from '../dossier/dossier-run-heartbeat';
 
 interface ResetLoadingProgressOptions {
@@ -794,14 +794,40 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
         }));
       } finally {
         lifecycleHeartbeatCleanup?.();
-        if (lifecycleRunId) clearActiveDossierRun(sessionId, lifecycleRunId);
         const isAbort = !abortControllerRef.current;
 
-        scoutDiag.info('MessageOrchestrator', 'processMessage:finally', {
+        scoutDiag.info('MessageOrchestrator', 'processMessage:finally:entered', {
           sessionId,
           requestKind: resolvedRequestKind,
           isAbort,
+          runId: lifecycleRunId,
+          visibilityState: typeof document !== 'undefined' ? document.visibilityState : 'unknown',
+          performanceNow: typeof performance !== 'undefined' ? Math.round(performance.now()) : null,
+          navigationType:
+            typeof performance !== 'undefined'
+              ? (performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming | undefined)?.type ?? 'unknown'
+              : 'unknown',
         });
+        // clearActiveDossierRun acontece imediatamente depois do marker de entrada;
+        // o par start/end permite distinguir finally ausente de clear sem efeito.
+        if (lifecycleRunId) {
+          scoutDiag.info('DossierRunLifecycle', 'active-run:clear:start', {
+            sessionId,
+            runId: lifecycleRunId,
+            visibilityState: typeof document !== 'undefined' ? document.visibilityState : 'unknown',
+            performanceNow: typeof performance !== 'undefined' ? Math.round(performance.now()) : null,
+          });
+          clearActiveDossierRun(sessionId, lifecycleRunId);
+          const postClearRun = getActiveDossierRun(sessionId);
+          scoutDiag.info('DossierRunLifecycle', 'active-run:clear:end', {
+            sessionId,
+            runId: lifecycleRunId,
+            clearSucceeded: !postClearRun,
+            remainingRunId: postClearRun?.runId ?? null,
+            visibilityState: typeof document !== 'undefined' ? document.visibilityState : 'unknown',
+            performanceNow: typeof performance !== 'undefined' ? Math.round(performance.now()) : null,
+          });
+        }
 
         const t0 = performance.now();
 

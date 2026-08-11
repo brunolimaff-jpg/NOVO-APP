@@ -6,7 +6,7 @@ import type { LoadingVariant, RequestKind } from '../../../utils/loadingVariant'
 
 const uuidv4Mock = vi.hoisted(() => vi.fn());
 const sendMessageToLlmMock = vi.hoisted(() => vi.fn());
-const lifecycleMocks = vi.hoisted(() => ({ create: vi.fn(), acquire: vi.fn(), start: vi.fn(() => vi.fn()), set: vi.fn(), clear: vi.fn() }));
+const lifecycleMocks = vi.hoisted(() => ({ create: vi.fn(), acquire: vi.fn(), start: vi.fn(() => vi.fn()), set: vi.fn(), clear: vi.fn(), get: vi.fn(() => null) }));
 const trackOperatorEventMock = vi.hoisted(() => vi.fn());
 
 vi.mock('uuid', () => ({
@@ -22,7 +22,7 @@ vi.mock('../../../lib/supabase/dossierRuns', () => ({
   acquireDossierRunLease: lifecycleMocks.acquire,
 }));
 vi.mock('../../../features/dossier/dossier-run-heartbeat', () => ({ startDossierRunHeartbeat: lifecycleMocks.start }));
-vi.mock('../../../features/dossier/active-run-registry', () => ({ setActiveDossierRun: lifecycleMocks.set, clearActiveDossierRun: lifecycleMocks.clear }));
+vi.mock('../../../features/dossier/active-run-registry', () => ({ setActiveDossierRun: lifecycleMocks.set, clearActiveDossierRun: lifecycleMocks.clear, getActiveDossierRun: lifecycleMocks.get }));
 vi.mock('../../../services/operatorTracking', () => ({ trackOperatorEvent: trackOperatorEventMock }));
 
 // Outros testes mockam useToast e chatStore globalmente com vi.mock().
