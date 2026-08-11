@@ -314,4 +314,15 @@ describe('SCOUT-V7-GOLD-RUNTIME-QUALITY-01 — prompts alinhados ao PROMPT_SPEC'
     expect(prompt).toMatch(/6 INDICADORES \(tabela/i);
     expect(prompt).toMatch(/8 RISCOS \(tabela/i);
   });
+
+  // ─── BRU-48 (Planejador 2026-08-11) — PROMOTED_CLAIM internacional ───
+
+  it('BRU-48: prompt proíbe "confirmada/✅ Operação confirmada" para internacionalização sem fato Confirmado', () => {
+    const prompt = buildComposePrompt({ canonical, safePack: {} as never });
+    expect(prompt).toMatch(/INTERNACIONALIZA[cÇ][aã]O \(BRU-48\)/i);
+    expect(prompt).toMatch(/fonte institucional\/site ≠ fato Confirmado/i);
+    expect(prompt).toMatch(/nunca escreva "Opera[cç][aã]o confirmada"/i);
+    expect(prompt).toMatch(/🟠 A validar/i);
+    expect(prompt).toMatch(/vale em texto, tabelas E em qualquer diagrama/i);
+  });
 });

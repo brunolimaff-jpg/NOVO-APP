@@ -49,6 +49,41 @@ export interface GuardedGoldPipelineResult {
 }
 
 /**
+ * BRU-48 — Guard estreito de vocabulário de certeza no Gold (correção na
+ * fonte, verifier INTACTO). O Composer escapa do contrato e escreve
+ * "confirmada/confirmado" para temas sensíveis (Colômbia/Cumaribo/
+ * internacional/holding/controle) sem fato Confirmado correspondente no
+ * safePack — o verifier R8 marca PROMOTED_CLAIM. Este guard rebaixa o
+ * vocabulário para "mencionada/mencionado" nas frases sensíveis SEM fato
+ * Confirmado, preservando a informação e o grau de evidência correto.
+ * Não remove conteúdo: apenas corrige a semântica de certeza.
+ */
+const SENSITIVE_THEME = /col[oó]mbia|cumaribo|internacional|holding|control/i;
+const CONFIRMED_VOCABULARY = /\bconfirmad(a|o)s?\b/gi;
+
+export function downgradeUnsupportedCertainty(gold: string, safePack: SafeFindingPack): string {
+  const hasSensitiveConfirmedFact = safePack.facts.some(
+    (f) => f.status === 'Confirmado' && SENSITIVE_THEME.test(f.claim),
+  );
+  if (hasSensitiveConfirmedFact) return gold;
+
+  return gold
+    .split(/([.;!?\n]+)/)
+    .map((part, index) => {
+      // Partes ímpares são os separadores — preservados intactos.
+      if (index % 2 === 1) return part;
+      if (!SENSITIVE_THEME.test(part)) return part;
+      return part.replace(CONFIRMED_VOCABULARY, (match) => {
+        const feminine = /a$/i.test(match);
+        const plural = /s$/i.test(match);
+        const base = feminine ? (plural ? 'mencionadas' : 'mencionada') : (plural ? 'mencionados' : 'mencionado');
+        return /^[A-Z]/.test(match) ? base.charAt(0).toUpperCase() + base.slice(1) : base;
+      });
+    })
+    .join('');
+}
+
+/**
  * BRU-33 — Telemetria por etapa do pipeline (sem conteúdo sensível).
  * Permite ao runtime remoto provar QUAL etapa falhou entre compact e compose
  * (veredito do Planejador 2026-08-09: o reason único "verifier_ou_contract_fail"
@@ -172,12 +207,15 @@ export async function runGuardedGoldPipeline(
   const goldBrief = await deps.compose({ canonical: input.canonical, safePack: frontierInput, segment: input.segment }, signal);
   onStage?.('compose-done', { chars: goldBrief.length });
 
-  // 4b) EXPERIENCE-01C — Mermaid determinístico (CANONICAL MERMAID):
+  // 4b) BRU-48 — rebaixa vocabulário de certeza não sustentado (fonte).
+  const goldDowngraded = downgradeUnsupportedCertainty(goldBrief, safePack);
+
+  // 4c) EXPERIENCE-01C — Mermaid determinístico (CANONICAL MERMAID):
   // o Composer NÃO escreve mais código Mermaid; os 3 mapas são montados
   // aqui com a gramática/paleta literal do Scout (graph LR + classDef
   // core/satellite/danger/warning/neutral). O Verifier roda sobre o Gold
   // JÁ com os mapas finais (contrato do Planejador 2026-08-10).
-  const goldWithMermaids = injectCanonicalGoldMermaids(goldBrief, input.canonical, safePack, input.segment);
+  const goldWithMermaids = injectCanonicalGoldMermaids(goldDowngraded, input.canonical, safePack, input.segment);
   onStage?.('mermaid-inject', { chars: goldWithMermaids.length });
 
   // 5) Verify — barreira final sobre o Gold (com os Mermaid determinísticos).

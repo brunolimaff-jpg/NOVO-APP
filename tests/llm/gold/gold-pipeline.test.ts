@@ -81,6 +81,29 @@ const cleanGold = [
 const trappedGold = ['# Gold Brief', 'Há um gap de WMS confirmado na operação logística.'].join('\n');
 
 describe('GuardedGoldPipeline', () => {
+  it('BRU-48: Gold do Composer com "confirmada" em tema sensível sem fato Confirmado é rebaixado (sem PROMOTED_CLAIM)', async () => {
+    // Caso Scheffer reproduzido: o Composer escapa e escreve "confirmada"
+    // para internacionalização (Colômbia/Cumaribo) sem fato Confirmado no
+    // safePack. O verifier marca PROMOTED_CLAIM (R8) — o guard do pipeline
+    // deve rebaixar o vocabulário para "mencionada" ANTES do verifier.
+    const compact = vi.fn(async (_input: CompactInput) => rawPack());
+    const compose = vi.fn(async (_input: ComposeInput) =>
+      [
+        '# Gold Brief',
+        'Operação internacional confirmada em Cumaribo, Colômbia, mencionada no site institucional.',
+        'A holding SCHEFFER PARTICIPACOES S/A é confirmada como sócia direta.',
+      ].join('\n'),
+    );
+    const deps = { compact, compose };
+
+    const result = await runGuardedGoldPipeline({ canonical, dossier: 'dossiê legado' }, deps);
+
+    expect(result.verification.passed).toBe(true);
+    expect(result.verification.hardFails.some(h => h.code === 'PROMOTED_CLAIM')).toBe(false);
+    // O vocabulário de certeza foi rebaixado na fonte (informação preservada).
+    expect(result.goldBrief).toMatch(/mencionada.*Cumaribo|mencionada como sócia|mencionad[ao]/i);
+  });
+
   it('executa compact → sanitize → compose → verify e retorna o resultado', async () => {
     const compact = vi.fn(async (_input: CompactInput) => rawPack());
     const compose = vi.fn(async (_input: ComposeInput) => cleanGold);
