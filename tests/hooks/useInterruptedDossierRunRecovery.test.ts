@@ -1,7 +1,12 @@
 import { beforeEach, describe, expect, it, vi, afterEach } from 'vitest';
 import { renderHook } from '@testing-library/react';
 import type { ChatSession, Message } from '../../types';
-import { setActiveDossierRun, clearAllActiveDossierRunsForTest, peekPersistedActiveDossierRuns } from '../../features/dossier/active-run-registry';
+import {
+  clearActiveDossierRunsMemoryForTest,
+  setActiveDossierRun,
+  clearAllActiveDossierRunsForTest,
+  peekPersistedActiveDossierRuns,
+} from '../../features/dossier/active-run-registry';
 import { useInterruptedDossierRunRecovery } from '../../hooks/useInterruptedDossierRunRecovery';
 
 function mockSessionStorage(): Storage {
@@ -73,6 +78,8 @@ describe('useInterruptedDossierRunRecovery', () => {
 
   it('não roda antes de isInitialized (aguarda sessões carregadas)', () => {
     setActiveDossierRun({ sessionId: 's1', runId: 'run-1', leaseOwner: 'l', clientAttemptId: 'a' });
+    // Simula reload real: contexto local perdido, sessionStorage preservado.
+    clearActiveDossierRunsMemoryForTest();
     const { updateSessionById } = makeSessionStore({ s1: makeSession('s1') });
     const setIsLoading = vi.fn();
     const resetLoadingProgress = vi.fn();
@@ -95,6 +102,8 @@ describe('useInterruptedDossierRunRecovery', () => {
 
   it('injeta estado explícito de interrupção e reseta loading quando há run persistido e sessão existe', () => {
     setActiveDossierRun({ sessionId: 's1', runId: 'run-1', leaseOwner: 'l', clientAttemptId: 'a' });
+    // Simula reload real: contexto local perdido, sessionStorage preservado.
+    clearActiveDossierRunsMemoryForTest();
     const { updateSessionById } = makeSessionStore({ s1: makeSession('s1') });
     const setIsLoading = vi.fn();
     const resetLoadingProgress = vi.fn();
@@ -123,6 +132,8 @@ describe('useInterruptedDossierRunRecovery', () => {
 
   it('preserva o registro persistido quando a sessão ainda não existe (corrida com loadSessions)', () => {
     setActiveDossierRun({ sessionId: 's1', runId: 'run-1', leaseOwner: 'l', clientAttemptId: 'a' });
+    // Simula reload real: contexto local perdido, sessionStorage preservado.
+    clearActiveDossierRunsMemoryForTest();
     // Nenhuma sessão carregada ainda
     const { updateSessionById } = makeSessionStore({});
     const setIsLoading = vi.fn();
@@ -146,6 +157,8 @@ describe('useInterruptedDossierRunRecovery', () => {
 
   it('não marca COMPLETED e não retoma waterfall (nenhuma chamada de lifecycle)', () => {
     setActiveDossierRun({ sessionId: 's1', runId: 'run-1', leaseOwner: 'l', clientAttemptId: 'a' });
+    // Simula reload real: contexto local perdido, sessionStorage preservado.
+    clearActiveDossierRunsMemoryForTest();
     const { updateSessionById } = makeSessionStore({ s1: makeSession('s1') });
     const setIsLoading = vi.fn();
     const resetLoadingProgress = vi.fn();
@@ -161,5 +174,26 @@ describe('useInterruptedDossierRunRecovery', () => {
     const updated = updater(makeSession('s1'));
     const successLike = updated.messages.filter(m => /complet|sucesso|gerado/i.test(String(m.text || '')));
     expect(successLike).toHaveLength(0);
+  });
+
+  it('Lifecycle D — run vivo no documento NÃO é tratado como interrompido (sem mensagem, sem consumo, sem reset)', () => {
+    // Mesmo documento: run registrado e execução ativa (contexto local presente).
+    setActiveDossierRun({ sessionId: 's1', runId: 'run-1', leaseOwner: 'l', clientAttemptId: 'a' });
+    const { updateSessionById } = makeSessionStore({ s1: makeSession('s1') });
+    const setIsLoading = vi.fn();
+    const resetLoadingProgress = vi.fn();
+
+    renderHook(() => useInterruptedDossierRunRecovery({
+      isInitialized: true,
+      updateSessionById,
+      setIsLoading,
+      resetLoadingProgress,
+    }));
+
+    // Nenhuma mensagem de interrupção, nenhum consumo do registro, nenhum reset.
+    expect(updateSessionById).not.toHaveBeenCalled();
+    expect(peekPersistedActiveDossierRuns().length).toBe(1);
+    expect(setIsLoading).not.toHaveBeenCalled();
+    expect(resetLoadingProgress).not.toHaveBeenCalled();
   });
 });

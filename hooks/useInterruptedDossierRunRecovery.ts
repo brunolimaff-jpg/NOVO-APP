@@ -1,6 +1,10 @@
 import { useEffect } from 'react';
 import { Sender, type ChatSession } from '../types';
-import { peekPersistedActiveDossierRuns, removePersistedActiveDossierRuns } from '../features/dossier/active-run-registry';
+import {
+  isActiveDossierRunLocal,
+  peekPersistedActiveDossierRuns,
+  removePersistedActiveDossierRuns,
+} from '../features/dossier/active-run-registry';
 import { scoutDiag } from '../utils/diagnosticLog';
 
 /**
@@ -42,7 +46,13 @@ export function useInterruptedDossierRunRecovery(options: {
           : 'unknown',
     });
 
-    const interruptedRuns = peekPersistedActiveDossierRuns();
+    // Lifecycle D (BRU-45): um run registrado NESTE documento (contexto local
+    // PRESENTE) está vivo — não é interrupção. Só são interrompidos os runs
+    // persistidos SEM contexto local (RUN_PERSISTED_AS_ACTIVE +
+    // LOCAL_ACTIVE_RUN_CONTEXT_MISSING), ou seja, órfãos de outro ciclo de
+    // página. Sem esse filtro, um remount do effect durante a execução viva
+    // fabricaria a mensagem de reload e consumiria o registro do run ativo.
+    const interruptedRuns = peekPersistedActiveDossierRuns().filter(run => !isActiveDossierRunLocal(run.runId));
     if (interruptedRuns.length === 0) return;
 
     scoutDiag.warn('DossierRunLifecycle', 'recovery:found-persisted-run', {

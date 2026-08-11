@@ -11,6 +11,14 @@ import type { DossierRunContext } from '../../lib/supabase/dossierRuns';
  */
 const activeRuns = new Map<string, DossierRunContext>();
 
+/**
+ * RunIds com contexto de execução VIVO neste documento (setados via
+ * setActiveDossierRun após o boot). Distingue o run do documento atual do
+ * run apenas persistido no sessionStorage (órfão de outro ciclo de página):
+ * RUN_PERSISTED_AS_ACTIVE + LOCAL_ACTIVE_RUN_CONTEXT_PRESENT ≠ interrompido.
+ */
+const locallyActiveRunIds = new Set<string>();
+
 const STORAGE_KEY = 'scout360:active_dossier_run';
 
 function isStorageAvailable(): boolean {
@@ -49,6 +57,7 @@ function hydrate(): void {
 export function setActiveDossierRun(context: DossierRunContext): void {
   hydrate();
   activeRuns.set(context.sessionId, context);
+  locallyActiveRunIds.add(context.runId);
   persist();
   // Observabilidade P0 01E: somente metadados do lifecycle; nenhum conteúdo.
   if (typeof window !== 'undefined') {
@@ -74,7 +83,10 @@ export function getActiveDossierRun(sessionId: string): DossierRunContext | null
 export function clearActiveDossierRun(sessionId: string, runId?: string): void {
   hydrate();
   const current = activeRuns.get(sessionId);
-  if (current && (!runId || current.runId === runId)) activeRuns.delete(sessionId);
+  if (current && (!runId || current.runId === runId)) {
+    activeRuns.delete(sessionId);
+    locallyActiveRunIds.delete(current.runId);
+  }
   persist();
   // Observabilidade nunca pode bloquear a limpeza do registro.
   if (typeof window !== 'undefined') {
@@ -97,6 +109,7 @@ export function clearActiveDossierRun(sessionId: string, runId?: string): void {
 }
 export function clearAllActiveDossierRunsForTest(): void {
   activeRuns.clear();
+  locallyActiveRunIds.clear();
   if (isStorageAvailable()) window.sessionStorage.removeItem(STORAGE_KEY);
 }
 
@@ -106,6 +119,17 @@ export function clearAllActiveDossierRunsForTest(): void {
  */
 export function clearActiveDossierRunsMemoryForTest(): void {
   activeRuns.clear();
+  locallyActiveRunIds.clear();
+}
+
+/**
+ * True quando o run foi registrado neste documento (contexto local PRESENTE).
+ * Um run persistido no sessionStorage SEM contexto local presente é o caso
+ * legítimo de interrupção (reload real); com contexto presente, a execução
+ * continua viva e NÃO deve ser tratada como interrompida.
+ */
+export function isActiveDossierRunLocal(runId: string): boolean {
+  return locallyActiveRunIds.has(runId);
 }
 
 /**
