@@ -429,4 +429,257 @@ describe('GuardedGoldPipeline', () => {
       spy.mockRestore();
     }
   });
+
+  it('POST-MERMAID RED: fato Confirmado sensível no SafePack é injetado pelo Mermaid após o guard → PROMOTED_CLAIM (fronteira pós-Composer)', async () => {
+    // Caso A2 do origin-map: o Composer devolve texto limpo, mas o builder
+    // determinístico injeta fact.claim de fato Confirmado sensível DEPOIS do
+    // guard BRU-48 — o verifier (R8) vê "confirmada" em tema sensível.
+    const compact = vi.fn(async (_input: CompactInput) =>
+      rawPack({
+        facts: [
+          {
+            id: 'f1',
+            entity: 'SCHEFFER & CIA LTDA',
+            claim: 'Operação industrial confirmada em Cumaribo',
+            status: 'Confirmado',
+            source: 'comunicado oficial',
+            kind: 'operation',
+          },
+          {
+            id: 'f2',
+            entity: 'SCHEFFER & CIA LTDA',
+            claim: 'Produção de grãos em Sapezal',
+            status: 'Confirmado',
+            source: 'comunicado oficial',
+            kind: 'operation',
+          },
+        ],
+      }),
+    );
+    const compose = vi.fn(async (_input: ComposeInput) =>
+      [
+        '# Gold Brief',
+        'A empresa opera produção de grãos em Sapezal.',
+        '### 2. PERFIL',
+        'A empresa opera produção de grãos em Sapezal.',
+        '### 3. ESTRUTURA SOCIETÁRIA',
+        'A sócia PJ direta é SCHEFFER PARTICIPACOES S/A.',
+        '### 9. PRÓXIMOS PASSOS',
+        'Nenhum.',
+      ].join('\n'),
+    );
+    const result = await runGuardedGoldPipeline({ canonical, dossier: 'dossiê legado' }, { compact, compose });
+    // O guard (BRU-48) deve proteger TAMBÉM o texto determinístico pós-Composer.
+    expect(result.verification.hardFails.some((h) => h.code === 'PROMOTED_CLAIM')).toBe(false);
+  });
+
+  it('POST-MERMAID RED: claim longo sustentado truncado pelo builder → reconciliação de medida destruída (UNSUPPORTED_PRODUCT_CLAIM)', async () => {
+    // Caso D3 do origin-map: claim Confirmado com fonte externa e medida
+    // válida; o Mermaid corta em 57+"..." e o verifier não reconcilia a
+    // medida com o fato — a representação determinística não pode destruir
+    // a evidência que era válida antes do Mermaid.
+    const longClaim = 'A empresa possui capacidade de produção de 120 mil sacas de soja por ano na unidade industrial de Sapezal';
+    const compact = vi.fn(async (_input: CompactInput) =>
+      rawPack({
+        facts: [
+          {
+            id: 'f1',
+            entity: 'SCHEFFER & CIA LTDA',
+            claim: longClaim,
+            status: 'Confirmado',
+            source: 'notícia oficial',
+            kind: 'operation',
+          },
+          {
+            id: 'f2',
+            entity: 'SCHEFFER & CIA LTDA',
+            claim: 'Operação de esmagamento em Sapezal',
+            status: 'Confirmado',
+            source: 'notícia oficial',
+            kind: 'operation',
+          },
+        ],
+      }),
+    );
+    const compose = vi.fn(async (_input: ComposeInput) =>
+      [
+        '# Gold Brief',
+        'A empresa opera esmagamento em Sapezal.',
+        longClaim + '.',
+        '### 2. PERFIL',
+        'A empresa opera esmagamento em Sapezal.',
+        '### 3. ESTRUTURA SOCIETÁRIA',
+        'A sócia PJ direta é SCHEFFER PARTICIPACOES S/A.',
+        '### 9. PRÓXIMOS PASSOS',
+        'Nenhum.',
+      ].join('\n'),
+    );
+    const result = await runGuardedGoldPipeline({ canonical, dossier: 'dossiê legado' }, { compact, compose });
+    expect(result.verification.hardFails.some((h) => h.code === 'UNSUPPORTED_PRODUCT_CLAIM')).toBe(false);
+  });
+
+  it('PREFLIGHT RED 1: negação de posse do Composer sem suporte é removida do Gold final (NEGATIVE_EVIDENCE_AS_ABSENCE=0)', async () => {
+    // Caso B2 do origin-map: "A empresa não possui WMS." vem do Composer e o
+    // SafePack não fornece prova que legitime a conclusão.
+    const compact = vi.fn(async (_input: CompactInput) =>
+      rawPack({
+        facts: [
+          { id: 'f1', entity: 'SCHEFFER & CIA LTDA', claim: 'Produção de grãos em Sapezal', status: 'Confirmado', source: 'comunicado oficial', kind: 'operation' },
+          { id: 'f2', entity: 'SCHEFFER & CIA LTDA', claim: 'Operação de esmagamento em Sapezal', status: 'Confirmado', source: 'comunicado oficial', kind: 'operation' },
+        ],
+      }),
+    );
+    const compose = vi.fn(async (_input: ComposeInput) =>
+      [
+        '# Gold Brief',
+        'A empresa opera produção de grãos em Sapezal.',
+        'A empresa não possui WMS.',
+        '### 2. PERFIL',
+        'A empresa opera produção de grãos em Sapezal.',
+        '### 3. ESTRUTURA SOCIETÁRIA',
+        'A sócia PJ direta é SCHEFFER PARTICIPACOES S/A.',
+        '### 9. PRÓXIMOS PASSOS',
+        'Nenhum.',
+      ].join('\n'),
+    );
+    const result = await runGuardedGoldPipeline({ canonical, dossier: 'dossiê legado' }, { compact, compose });
+    expect(result.verification.hardFails.some((h) => h.code === 'NEGATIVE_EVIDENCE_AS_ABSENCE')).toBe(false);
+    expect(result.goldBrief).not.toContain('não possui WMS');
+  });
+
+  it('PREFLIGHT RED 2: fraqueza operacional do Composer sem proveniência é removida (ABSENCE_DERIVED_WEAKNESS=0)', async () => {
+    // Família C do origin-map sem proveniência externa correspondente.
+    const compact = vi.fn(async (_input: CompactInput) =>
+      rawPack({
+        facts: [
+          { id: 'f1', entity: 'SCHEFFER & CIA LTDA', claim: 'Produção de grãos em Sapezal', status: 'Confirmado', source: 'comunicado oficial', kind: 'operation' },
+          { id: 'f2', entity: 'SCHEFFER & CIA LTDA', claim: 'Operação de esmagamento em Sapezal', status: 'Confirmado', source: 'comunicado oficial', kind: 'operation' },
+        ],
+      }),
+    );
+    const compose = vi.fn(async (_input: ComposeInput) =>
+      [
+        '# Gold Brief',
+        'A empresa opera com processos manuais.',
+        '### 2. PERFIL',
+        'A empresa opera produção de grãos em Sapezal.',
+        '### 3. ESTRUTURA SOCIETÁRIA',
+        'A sócia PJ direta é SCHEFFER PARTICIPACOES S/A.',
+        '### 9. PRÓXIMOS PASSOS',
+        'Nenhum.',
+      ].join('\n'),
+    );
+    const result = await runGuardedGoldPipeline({ canonical, dossier: 'dossiê legado' }, { compact, compose });
+    expect(result.verification.hardFails.some((h) => h.code === 'ABSENCE_DERIVED_WEAKNESS')).toBe(false);
+    expect(result.goldBrief).not.toContain('processos manuais');
+  });
+
+  it('PREFLIGHT RED 3: claim de capacidade sem suporte é removido (UNSUPPORTED_PRODUCT_CLAIM=0)', async () => {
+    // Caso D1 do origin-map: capacidade sem fato compatível no SafePack.
+    const compact = vi.fn(async (_input: CompactInput) =>
+      rawPack({
+        facts: [
+          { id: 'f1', entity: 'SCHEFFER & CIA LTDA', claim: 'Produção de grãos em Sapezal', status: 'Confirmado', source: 'comunicado oficial', kind: 'operation' },
+          { id: 'f2', entity: 'SCHEFFER & CIA LTDA', claim: 'Operação de esmagamento em Sapezal', status: 'Confirmado', source: 'comunicado oficial', kind: 'operation' },
+        ],
+      }),
+    );
+    const compose = vi.fn(async (_input: ComposeInput) =>
+      [
+        '# Gold Brief',
+        'A empresa tem capacidade de produção de 120 mil sacas.',
+        '### 2. PERFIL',
+        'A empresa opera produção de grãos em Sapezal.',
+        '### 3. ESTRUTURA SOCIETÁRIA',
+        'A sócia PJ direta é SCHEFFER PARTICIPACOES S/A.',
+        '### 9. PRÓXIMOS PASSOS',
+        'Nenhum.',
+      ].join('\n'),
+    );
+    const result = await runGuardedGoldPipeline({ canonical, dossier: 'dossiê legado' }, { compact, compose });
+    expect(result.verification.hardFails.some((h) => h.code === 'UNSUPPORTED_PRODUCT_CLAIM')).toBe(false);
+    expect(result.goldBrief).not.toContain('120 mil sacas');
+  });
+
+  it('PREFLIGHT CP1: fraqueza com proveniência externa válida é PRESERVADA (ABSENCE ausente)', async () => {
+    // B4: fato externo Confirmado, mesma entidade, mesma categoria, direção compatível.
+    const compact = vi.fn(async (_input: CompactInput) =>
+      rawPack({
+        facts: [
+          { id: 'f1', entity: 'SCHEFFER & CIA LTDA', claim: 'Produção de grãos em Sapezal', status: 'Confirmado', source: 'comunicado oficial', kind: 'operation' },
+          { id: 'f2', entity: 'SCHEFFER & CIA LTDA', claim: 'Processos manuais identificados em auditoria externa', status: 'Confirmado', source: 'auditoria externa', kind: 'operation' },
+        ],
+      }),
+    );
+    const compose = vi.fn(async (_input: ComposeInput) =>
+      [
+        '# Gold Brief',
+        'A empresa opera com processos manuais.',
+        '### 2. PERFIL',
+        'A empresa opera produção de grãos em Sapezal.',
+        '### 3. ESTRUTURA SOCIETÁRIA',
+        'A sócia PJ direta é SCHEFFER PARTICIPACOES S/A.',
+        '### 9. PRÓXIMOS PASSOS',
+        'Nenhum.',
+      ].join('\n'),
+    );
+    const result = await runGuardedGoldPipeline({ canonical, dossier: 'dossiê legado' }, { compact, compose });
+    expect(result.verification.hardFails.some((h) => h.code === 'ABSENCE_DERIVED_WEAKNESS')).toBe(false);
+    expect(result.goldBrief).toContain('processos manuais');
+  });
+
+  it('PREFLIGHT CP2: claim quantitativo sustentado é PRESERVADO (UNSUPPORTED ausente)', async () => {
+    // Fato Confirmado, fonte aceitável, mesma entidade, categoria, quantidade e unidade.
+    const compact = vi.fn(async (_input: CompactInput) =>
+      rawPack({
+        facts: [
+          { id: 'f1', entity: 'SCHEFFER & CIA LTDA', claim: 'A empresa possui capacidade de produção de 120 mil sacas por ano', status: 'Confirmado', source: 'notícia oficial', kind: 'operation' },
+          { id: 'f2', entity: 'SCHEFFER & CIA LTDA', claim: 'Operação de esmagamento em Sapezal', status: 'Confirmado', source: 'notícia oficial', kind: 'operation' },
+        ],
+      }),
+    );
+    const compose = vi.fn(async (_input: ComposeInput) =>
+      [
+        '# Gold Brief',
+        'A empresa tem capacidade de produção de 120 mil sacas por ano.',
+        '### 2. PERFIL',
+        'A empresa opera produção de grãos em Sapezal.',
+        '### 3. ESTRUTURA SOCIETÁRIA',
+        'A sócia PJ direta é SCHEFFER PARTICIPACOES S/A.',
+        '### 9. PRÓXIMOS PASSOS',
+        'Nenhum.',
+      ].join('\n'),
+    );
+    const result = await runGuardedGoldPipeline({ canonical, dossier: 'dossiê legado' }, { compact, compose });
+    expect(result.verification.hardFails.some((h) => h.code === 'UNSUPPORTED_PRODUCT_CLAIM')).toBe(false);
+    expect(result.goldBrief).toContain('120 mil sacas por ano');
+  });
+
+  it('PREFLIGHT AM1: linha com alvo + não-alvo NÃO é removida (verifier final continua reprovando com INVENTED_CNPJ)', async () => {
+    // Anti-mascaramento: o preflight não pode virar "apagador de erros".
+    const compact = vi.fn(async (_input: CompactInput) =>
+      rawPack({
+        facts: [
+          { id: 'f1', entity: 'SCHEFFER & CIA LTDA', claim: 'Produção de grãos em Sapezal', status: 'Confirmado', source: 'comunicado oficial', kind: 'operation' },
+          { id: 'f2', entity: 'SCHEFFER & CIA LTDA', claim: 'Operação de esmagamento em Sapezal', status: 'Confirmado', source: 'comunicado oficial', kind: 'operation' },
+        ],
+      }),
+    );
+    const compose = vi.fn(async (_input: ComposeInput) =>
+      [
+        '# Gold Brief',
+        'A empresa não possui WMS e a controlada 99.999.999/0001-00 atua em fertilizantes.',
+        '### 2. PERFIL',
+        'A empresa opera produção de grãos em Sapezal.',
+        '### 3. ESTRUTURA SOCIETÁRIA',
+        'A sócia PJ direta é SCHEFFER PARTICIPACOES S/A.',
+        '### 9. PRÓXIMOS PASSOS',
+        'Nenhum.',
+      ].join('\n'),
+    );
+    const result = await runGuardedGoldPipeline({ canonical, dossier: 'dossiê legado' }, { compact, compose });
+    expect(result.goldBrief).toContain('99.999.999/0001-00');
+    expect(result.verification.passed).toBe(false);
+    expect(result.verification.hardFails.some((h) => h.code === 'INVENTED_CNPJ')).toBe(true);
+  });
 });

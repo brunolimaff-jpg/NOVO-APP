@@ -65,6 +65,38 @@ export interface GuardedGoldPipelineResult {
 const SENSITIVE_THEME = /col[oó]mbia|cumaribo|internacional|holding|control/i;
 const CONFIRMED_VOCABULARY = /\bconfirmad(a|o)s?\b/gi;
 
+/**
+ * BRU44-GOLD-COMPOSER-PREFLIGHT-PRUNE-01 — preflight determinístico da saída
+ * do Composer. Reusa o verifyGold como fonte ÚNICA da política semântica
+ * (não duplica regex nem regras). Remove linhas cujos únicos hard fails
+ * pertencem às três famílias-alvo do Patch B; linhas com qualquer outro hard
+ * fail não são tocadas (anti-mascaramento). PROMOTED_CLAIM é tratado pelo
+ * guard BRU-48 final e não causa remoção aqui.
+ */
+const PREFLIGHT_TARGET_CODES = new Set([
+  'NEGATIVE_EVIDENCE_AS_ABSENCE',
+  'ABSENCE_DERIVED_WEAKNESS',
+  'UNSUPPORTED_PRODUCT_CLAIM',
+]);
+
+export function composerSemanticPreflight(
+  gold: string,
+  canonical: CanonicalAccount,
+  safePack: SafeFindingPack,
+): string {
+  return gold
+    .split('\n')
+    .map((line) => {
+      if (!line.trim()) return line;
+      const codes = verifyGold(line, canonical, safePack).hardFails.map((h) => h.code);
+      const hasTarget = codes.some((c) => PREFLIGHT_TARGET_CODES.has(c));
+      if (!hasTarget) return line;
+      const hasNonTarget = codes.some((c) => !PREFLIGHT_TARGET_CODES.has(c) && c !== 'PROMOTED_CLAIM');
+      return hasNonTarget ? line : '';
+    })
+    .join('\n');
+}
+
 export function downgradeUnsupportedCertainty(gold: string): string {
   return gold
     .split(/([.;!?\n]+)/)
@@ -206,19 +238,28 @@ export async function runGuardedGoldPipeline(
   const goldBrief = await deps.compose({ canonical: input.canonical, safePack: frontierInput, segment: input.segment }, signal);
   onStage?.('compose-done', { chars: goldBrief.length });
 
-  // 4b) BRU-48 — rebaixa vocabulário de certeza não sustentado (fonte).
-  const goldDowngraded = downgradeUnsupportedCertainty(goldBrief);
+  // 4b) Composer semantic preflight (BRU44-GOLD-COMPOSER-PREFLIGHT-PRUNE-01):
+  // remove linhas do Composer cujos únicos hard fails são as três famílias
+  // do Patch B (negação de posse, fraqueza sem proveniência, claim sem
+  // suporte). Reusa o verifyGold — não replica política semântica.
+  const goldPruned = composerSemanticPreflight(goldBrief, input.canonical, safePack);
 
   // 4c) EXPERIENCE-01C — Mermaid determinístico (CANONICAL MERMAID):
   // o Composer NÃO escreve mais código Mermaid; os 3 mapas são montados
   // aqui com a gramática/paleta literal do Scout (graph LR + classDef
   // core/satellite/danger/warning/neutral). O Verifier roda sobre o Gold
   // JÁ com os mapas finais (contrato do Planejador 2026-08-10).
-  const goldWithMermaids = injectCanonicalGoldMermaids(goldDowngraded, input.canonical, safePack, input.segment);
+  const goldWithMermaids = injectCanonicalGoldMermaids(goldPruned, input.canonical, safePack, input.segment);
   onStage?.('mermaid-inject', { chars: goldWithMermaids.length });
 
+  // 4c) BRU-48 — rebaixa vocabulário de certeza não sustentado na FRONTEIRA
+  // FINAL (pós-Mermaid, pré-verifier). Uma única chamada protege o texto do
+  // Composer E o conteúdo determinístico introduzido pelo builder
+  // (POST-MERMAID-INVARIANT-01: PROMOTED_CLAIM pós-guard).
+  const goldDowngraded = downgradeUnsupportedCertainty(goldWithMermaids);
+
   // 5) Verify — barreira final sobre o Gold (com os Mermaid determinísticos).
-  const verification = verifyGold(goldWithMermaids, input.canonical, safePack);
+  const verification = verifyGold(goldDowngraded, input.canonical, safePack);
   const codeCounts = verification.hardFails.reduce<Record<string, number>>((counts, hardFail) => {
     counts[hardFail.code] = (counts[hardFail.code] ?? 0) + 1;
     return counts;
@@ -230,7 +271,7 @@ export async function runGuardedGoldPipeline(
   });
 
   return {
-    goldBrief: goldWithMermaids,
+    goldBrief: goldDowngraded,
     safePack,
     sanitizerEvents: safePack.sanitizerEvents,
     verification,

@@ -114,10 +114,12 @@ function buildChaosMap(safePack: SafeFindingPack): string | null {
 
   // Processos operacionais confirmados como nós independentes (sem arestas
   // inventadas — o contrato não comprova a sequência entre eles).
+  // POST-MERMAID-INVARIANT-01: claim INTEGRAL — truncar em 57+"..." destruía
+  // a reconciliação de medida do verifier (UNSUPPORTED_PRODUCT_CLAIM). A
+  // compactação visual é débito de UX, não regra semântica.
   operationFacts.slice(0, 6).forEach((fact, i) => {
     const id = nodeId('B', i + 1);
-    const label = fact.claim.length > 60 ? `${fact.claim.slice(0, 57)}...` : fact.claim;
-    lines.push(`${id}[${quotedLabel(label)}]`);
+    lines.push(`${id}[${quotedLabel(fact.claim)}]`);
     classes.push(`class ${id} satellite;`);
   });
 
@@ -126,7 +128,7 @@ function buildChaosMap(safePack: SafeFindingPack): string | null {
   if (techFacts.length > 0) {
     const techId = nodeId('C', 1);
     const techLabel = techFacts.map((f) => f.claim).join(' | ');
-    lines.push(`${techId}[${quotedLabel(techLabel.length > 60 ? `${techLabel.slice(0, 57)}...` : techLabel)}]`);
+    lines.push(`${techId}[${quotedLabel(techLabel)}]`);
     classes.push(`class ${techId} warning;`);
   }
 
