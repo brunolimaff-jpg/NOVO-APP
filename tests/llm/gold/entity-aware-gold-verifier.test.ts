@@ -762,21 +762,20 @@ describe('EntityAwareGoldVerifier — PACK_FORENSIC_REPLAY (3 regras novas)', ()
       'Operação industrial confirmada em Cumaribo, Colômbia.',
     ].join('\n');
     const result = verifyGold(gold, canonical, pack);
-    // Mesmo tema (colombia), claim diferente (exportação ≠ operação industrial):
-    // a exceção do R8 é LOCAL POR TERMO — sem termo específico compartilhado
-    // (cumaribo) o verifier reprova (segunda barreira).
+    // Política conservadora: qualquer "confirmada" em tema sensível = hard fail
+    // (sem exceção por similaridade lexical).
     expect(result.hardFails.some((h) => h.code === 'PROMOTED_CLAIM')).toBe(true);
   });
 
-  it('R8 BRU-48: fato Confirmado com termo específico compartilhado (Cumaribo) não reprova', () => {
+  it('R8 BRU-48 RED final: fato Confirmado com Cumaribo sobre OUTRO assunto ainda reprova "Operação industrial confirmada em Cumaribo"', () => {
     const base = safePack();
     const pack = {
       ...base,
       facts: [
         {
-          id: 'f-cumaribo',
+          id: 'f-escritorio',
           entity: 'SCHEFFER & CIA LTDA',
-          claim: 'Operação em Cumaribo registrada no cadastro oficial',
+          claim: 'Escritório cadastrado em Cumaribo, Colômbia',
           status: 'Confirmado' as const,
           source: 'registro oficial',
           kind: 'operation' as const,
@@ -786,9 +785,11 @@ describe('EntityAwareGoldVerifier — PACK_FORENSIC_REPLAY (3 regras novas)', ()
     };
     const gold = [
       '# Gold Brief',
-      'Operação confirmada em Cumaribo, Colômbia, consta no registro oficial.',
+      'Operação industrial confirmada em Cumaribo, Colômbia.',
     ].join('\n');
     const result = verifyGold(gold, canonical, pack);
-    expect(result.hardFails.some((h) => h.code === 'PROMOTED_CLAIM')).toBe(false);
+    // Mesmo termo (cumaribo), assunto diferente (escritório ≠ operação
+    // industrial): sem exceção lexical, o verifier reprova (segunda barreira).
+    expect(result.hardFails.some((h) => h.code === 'PROMOTED_CLAIM')).toBe(true);
   });
 });
