@@ -973,10 +973,34 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
             const { buildEntityResolutionFromContext, planQueries, executeQueryPlan } =
               await import('../../services/llm/query-planner');
 
+            // 01D.1 (Planejador 2026-08-10): o segmento Gold deve refletir o
+            // CNAE real. A entidade era construída com cnaePrincipal: '' →
+            // Scheffer (SCHEFFER & CIA LTDA, CNAE 0115-6/00) caía em
+            // industrial_geral em vez de agropecuaria. Lookup reutiliza a
+            // fronteira existente fetchCompanyByCnpj (browser-safe, com cache)
+            // SOMENTE na trilha Gold habilitada, ANTES do seam; falha é
+            // fail-soft (cnae vazio → segmento default, não derruba o dossiê).
+            let goldCnaePrincipal = '';
+            if (goldSeamDeps.enabled && sessionCnpjDigits) {
+              const segmentCnpjDigits = normalizeCnpj(sessionCnpjDigits);
+              if (segmentCnpjDigits.length === 14) {
+                try {
+                  const segmentCompanyData = await fetchCompanyByCnpj(segmentCnpjDigits, signal);
+                  goldCnaePrincipal = segmentCompanyData.cnae ?? '';
+                } catch (error) {
+                  scoutDiag.warn('GoldSegment', 'lookup de CNAE falhou — segmento default mantido', {
+                    sessionId,
+                    company: resolvedMegaCompany || null,
+                    error: error instanceof Error ? error.message : String(error),
+                  });
+                }
+              }
+            }
+
             const entity = buildEntityResolutionFromContext({
               cnpj: sessionCnpjDigits,
               razaoSocial: resolvedMegaCompany || void 0,
-              cnaePrincipal: '',
+              cnaePrincipal: goldCnaePrincipal,
               clienteSeniorData: waterfallClienteSeniorData
                 ? { encontrado: true, totalModulos: waterfallClienteSeniorData.totalModulos }
                 : void 0,
