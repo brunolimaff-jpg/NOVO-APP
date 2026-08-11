@@ -12,7 +12,7 @@ const STORAGE_KEY = 'scout360:active_dossier_run';
 
 function mockSessionStorage(): Storage {
   const store = new Map<string, string>();
-  const listeners = new Map<string, EventListener[]>();
+  const listeners = new Map<string, Array<(event: unknown) => void>>();
   const storage = {
     getItem: (key: string) => store.get(key) ?? null,
     setItem: (key: string, value: string) => { store.set(key, value); },
@@ -20,11 +20,11 @@ function mockSessionStorage(): Storage {
     clear: () => { store.clear(); },
     key: (index: number) => Array.from(store.keys())[index] ?? null,
     get length() { return store.size; },
-    dispatchEvent: (event: Event) => {
+    dispatchEvent: (event: { type: string }) => {
       for (const listener of listeners.get(event.type) ?? []) listener(event);
       return true;
     },
-    addEventListener: (type: string, listener: EventListener) => {
+    addEventListener: (type: string, listener: (event: unknown) => void) => {
       listeners.set(type, [...(listeners.get(type) ?? []), listener]);
     },
     removeEventListener: () => undefined,
