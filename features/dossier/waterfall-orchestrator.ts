@@ -1313,12 +1313,17 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
                 goldRejectionReason = reason;
                 goldRejectionDetail = detail;
                 if (reason === 'verifier_fail' && detail) {
+                  // BRU-47: serializa codes/codeCounts em strings para o
+                  // console não colapsar Array/Objeto — a próxima execução
+                  // precisa do payload literal (codesJson=[...]).
                   scoutDiag.info('GoldSeam', 'verifier-summary', {
                     sessionId,
                     waterfallRunId,
                     hardFails: detail.hardFails ?? 0,
                     codes: detail.codes ?? [],
                     codeCounts: detail.codeCounts ?? {},
+                    codesJson: JSON.stringify(detail.codes ?? []),
+                    codeCountsJson: JSON.stringify(detail.codeCounts ?? {}),
                   });
                 }
               },
@@ -1345,6 +1350,9 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
                       hardFails: goldRejectionDetail.hardFails ?? 0,
                       codes: goldRejectionDetail.codes ?? [],
                       codeCounts: goldRejectionDetail.codeCounts ?? {},
+                      // BRU-47: strings serializadas — o console não colapsa.
+                      codesJson: JSON.stringify(goldRejectionDetail.codes ?? []),
+                      codeCountsJson: JSON.stringify(goldRejectionDetail.codeCounts ?? {}),
                     }
                   : {}),
                 company: normalizedCompany || resolvedMegaCompany,

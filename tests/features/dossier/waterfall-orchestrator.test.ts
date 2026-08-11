@@ -1581,4 +1581,44 @@ describe('useDossierWaterfallOrchestrator', () => {
       expect.objectContaining({ reason: 'contract_fail' }),
     );
   });
+
+  it('BRU-47: verifier_fail serializa codes/codeCounts em JSON (console não colapsa)', async () => {
+    const detail = {
+      hardFails: 1,
+      codes: ['PROMOTED_CLAIM'],
+      codeCounts: { PROMOTED_CLAIM: 1 },
+    };
+    tryEnhanceDossierWithGoldMock.mockImplementation(
+      async ({ dossierText, onRejected }: { dossierText: string; onRejected?: (r: string, d?: unknown) => void }) => {
+        onRejected?.('verifier_fail', detail);
+        return dossierText;
+      },
+    );
+    const harness = makeHarness({ goldSeamDeps: makeGoldEnabledDeps() });
+
+    const result = await act(async () => harness.result.current.runMegaPromptWaterfall(makeRunArgs()));
+
+    expect(result?.status).toBe('COMPLETED');
+    // verifier-summary com os campos serializados
+    expect(scoutDiagMock.info).toHaveBeenCalledWith(
+      'GoldSeam',
+      'verifier-summary',
+      expect.objectContaining({
+        hardFails: 1,
+        codes: ['PROMOTED_CLAIM'],
+        codesJson: '["PROMOTED_CLAIM"]',
+        codeCountsJson: '{"PROMOTED_CLAIM":1}',
+      }),
+    );
+    // gold-rejeitado-fallback com os campos serializados
+    expect(scoutDiagMock.info).toHaveBeenCalledWith(
+      'GoldSeam',
+      'gold-rejeitado-fallback',
+      expect.objectContaining({
+        reason: 'verifier_fail',
+        codesJson: '["PROMOTED_CLAIM"]',
+        codeCountsJson: '{"PROMOTED_CLAIM":1}',
+      }),
+    );
+  });
 });
