@@ -269,7 +269,7 @@ vi.mock('../lib/supabase/dossierRuns', () => ({
   renewDossierRunLease: lifecycleMocks.renew,
 }));
 vi.mock('../features/dossier/dossier-run-heartbeat', () => ({ startDossierRunHeartbeat: lifecycleMocks.start }));
-vi.mock('../features/dossier/active-run-registry', () => ({ setActiveDossierRun: lifecycleMocks.set, clearActiveDossierRun: lifecycleMocks.clear, peekPersistedActiveDossierRuns: () => [], removePersistedActiveDossierRuns: () => undefined }));
+vi.mock('../features/dossier/active-run-registry', () => ({ setActiveDossierRun: lifecycleMocks.set, clearActiveDossierRun: lifecycleMocks.clear, getActiveDossierRun: () => null, peekPersistedActiveDossierRuns: () => [], removePersistedActiveDossierRuns: () => undefined }));
 
 describe('App loading variant regression', () => {
   beforeEach(() => {
