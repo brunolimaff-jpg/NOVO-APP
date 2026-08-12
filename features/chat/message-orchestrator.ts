@@ -45,6 +45,9 @@ export interface HandleSendMessageOptions {
   requestKind?: RequestKind;
   fixedLoadingLine?: string;
   cnpj?: string | null;
+  /** BRU-81: thread alvo explícita — evita stale closure do currentSessionId quando a
+   * nova pesquisa do zero volta para a thread existente da conta (uma thread por conta). */
+  explicitSessionId?: string | null;
 }
 
 interface ProcessMessageOptions extends HandleSendMessageOptions {
@@ -997,7 +1000,7 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
       options?: HandleSendMessageOptions,
     ): Promise<DossierWaterfallResult | null | undefined> => {
       const resolvedDisplayText = displayText || text;
-      let sessionId = currentSessionId;
+      let sessionId = options?.explicitSessionId ?? currentSessionId;
       let currentHistory: Message[];
       let immediateCompany: string | null;
       let createdInitialSessionId: string | null = null;
@@ -1123,6 +1126,7 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
             isFirstInteraction: previousUserMessages === 0,
             requestKind: resolvedRequestKind,
             fixedLoadingLine: fixedLoadingLine ?? undefined,
+            explicitSessionId: options?.explicitSessionId ?? undefined,
           },
         );
         return result;

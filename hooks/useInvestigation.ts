@@ -27,6 +27,7 @@ interface UseInvestigationParams {
     hiddenPrompt: string,
     companyName: string,
     cnpj?: string,
+    targetSessionId?: string,
   ) => Promise<DossierWaterfallResult | null | undefined>;
   operatorId: string;
   onSelectSession: (sessionId: string) => void;
@@ -45,7 +46,7 @@ export function useInvestigation({
   const processingRef = useRef(false);
 
   const executeInvestigation = useCallback(
-    async (payload: StartInvestigationPayload) => {
+    async (payload: StartInvestigationPayload, targetSessionId?: string) => {
       const prompt = `🔍 Investigando ${payload.companyName}...`;
       const promptMode = resolvePromptMode(mode);
 
@@ -79,7 +80,7 @@ export function useInvestigation({
           promptVersion: PROMPT_VERSION,
         },
       );
-      return onDeepDive(prompt, hiddenPromptBase, payload.companyName, payload.cnpj ?? undefined);
+      return onDeepDive(prompt, hiddenPromptBase, payload.companyName, payload.cnpj ?? undefined, targetSessionId);
     },
     [mode, onDeepDive],
   );
@@ -182,15 +183,18 @@ export function useInvestigation({
 
     try {
       // BRU-81 (P0): mantém uma thread por conta — quando a "nova pesquisa do zero"
-      // parte de um dossiê PRÓPRIO já existente, volta para a thread da conta antes de
-      // executar, para que o handleSendMessage reutilize a sessão existente (novo run
-      // na mesma thread) em vez de criar conversa paralela no sidebar.
+      // parte de um dossiê PRÓPRIO já existente, volta para a thread da conta (UI) e
+      // informa o sessionId alvo como EXPLÍCITO na execução. O targetSessionId flui
+      // por valor até o handleSendMessage (explicitSessionId), sem depender de
+      // "esperar React rerenderizar" — eliminando o risco de stale closure do
+      // currentSessionId apontar para a sessão anterior.
       // Guarda fail-closed preservada: fonte estrangeira nunca é selecionada/lida.
+      const targetSessionId = oldDossierId && !isForeignSource ? oldDossierId : undefined;
       if (oldDossierId && !isForeignSource && currentSessionId !== oldDossierId) {
         await onSelectSession(oldDossierId);
       }
 
-      const result = await executeInvestigation(payload);
+      const result = await executeInvestigation(payload, targetSessionId);
 
       // Só substitui o dossiê anterior quando a nova investigação terminou
       // COMPLETED, o novo dossiê foi persistido e o run foi marcado COMPLETED

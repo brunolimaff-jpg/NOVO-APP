@@ -310,6 +310,7 @@ const App: React.FC = () => {
     hiddenPrompt: string,
     forcedCompanyName?: string,
     cnpj?: string | null,
+    targetSessionId?: string,
   ) => {
     const empresaContext =
       forcedCompanyName?.trim() || currentSession?.empresaAlvo || currentSession?.title || 'a empresa desta conversa';
@@ -336,6 +337,7 @@ const App: React.FC = () => {
               ? 'Deep Dive em andamento'
               : undefined,
         cnpj: cnpj ?? null,
+        explicitSessionId: targetSessionId ?? null,
       },
     );
   };

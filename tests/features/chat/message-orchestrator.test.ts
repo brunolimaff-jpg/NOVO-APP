@@ -772,3 +772,111 @@ describe('BRU-80 — regressão: payload de sistema não inicia esclarecimento (
     expect(botTexts.some((t) => /pesquisar mais o quê/i.test(t))).toBe(false);
   });
 });
+
+
+describe('BRU-81 RED — propriedade central: waterfall roda com a thread da conta (sessionId B), não com a closure stale', () => {
+  it('RED 11: nova pesquisa do zero — explicitSessionId(B) faz o waterfall rodar na thread da conta', async () => {
+    // Reproduz o gap apontado pelo Planejador (BRU81_PARTIAL): a closure do
+    // handleSendMessage captura currentSessionId do render em que foi criado; se a
+    // seleção da thread B depende só de "esperar React rerenderizar", o waterfall
+    // pode rodar na thread errada (A) — ou nunca iniciar (cai como follow-up de A).
+    //
+    // A correção BRU-81 passa o sessionId alvo EXPLICITAMENTE (explicitSessionId),
+    // fluindo por valor: handleNewResearchOverride → executeInvestigation(targetSessionId)
+    // → onDeepDive → handleDeepDive → handleSendMessage({ explicitSessionId }).
+    // Este teste prova a propriedade central diretamente no orchestrator: com
+    // explicitSessionId = 'session-B', o waterfall roda com sessionId B e NENHUMA
+    // terceira sessão é criada.
+    uuidv4Mock
+      .mockReturnValueOnce('message-user')
+      .mockReturnValueOnce('message-bot');
+    const harness = makeHarness({
+      sessions: [
+        makeSession({ id: 'session-A', title: 'Nova Investigação', empresaAlvo: null, cnpj: null, messages: [] }),
+        makeSession({ id: 'session-B', title: 'Grupo Scheffer', empresaAlvo: 'Grupo Scheffer', cnpj: null, messages: [] }),
+      ],
+      currentSessionId: 'session-A',
+    });
+
+    await act(async () => {
+      // Fluxo do handleNewResearchOverride corrigido: alvo B explícito na execução
+      await harness.result.current.handleSendMessage(
+        'Dossiê completo de [Grupo Scheffer]. Protocolo de investigação forense especializada:\n\n<prompt>',
+        '🔍 Investigando Grupo Scheffer...',
+        'Grupo Scheffer',
+        { requestKind: 'default', explicitSessionId: 'session-B' },
+      );
+    });
+
+        // PROPRIEDADE CENTRAL: o waterfall roda com sessionId = 'session-B' (thread da conta).
+    expect(harness.runMegaPromptWaterfall).toHaveBeenCalledWith(
+      expect.objectContaining({ sessionId: 'session-B' }),
+    );
+    // e NENHUMA terceira sessão é criada (A e B permanecem, nada novo).
+    expect(harness.state.sessions.map((s) => s.id).sort()).toEqual(['session-A', 'session-B']);
+  });
+
+  it('RED 12: currentSessionId null + explicitSessionId(B) — waterfall roda em B e não cria terceira sessão', async () => {
+    // Cenário: usuário veio da home/EmptyState (currentSessionId null) e a conta
+    // tem dossiê próprio na thread B. A nova pesquisa deve rodar na thread B
+    // (mesmo sem sessão ativa) — e não criar uma nova conversa paralela.
+    uuidv4Mock
+      .mockReturnValueOnce('message-user')
+      .mockReturnValueOnce('message-bot');
+    const harness = makeHarness({
+      sessions: [
+        makeSession({ id: 'session-B', title: 'Grupo Scheffer', empresaAlvo: 'Grupo Scheffer', cnpj: null, messages: [] }),
+      ],
+      currentSessionId: null,
+    });
+
+    await act(async () => {
+      await harness.result.current.handleSendMessage(
+        'Dossiê completo de [Grupo Scheffer]. Protocolo de investigação forense especializada:\n\n<prompt>',
+        '🔍 Investigando Grupo Scheffer...',
+        'Grupo Scheffer',
+        { requestKind: 'default', explicitSessionId: 'session-B' },
+      );
+    });
+
+    expect(harness.runMegaPromptWaterfall).toHaveBeenCalledWith(
+      expect.objectContaining({ sessionId: 'session-B' }),
+    );
+    // Nenhuma sessão nova: só a thread B da conta.
+    expect(harness.state.sessions.map((s) => s.id).sort()).toEqual(['session-B']);
+  });
+
+  it('RED 13: sem explicitSessionId — o waterfall roda na thread ERRADA (A), não na conta B (gap documentado)', async () => {
+    // Prova o gap do BRU81_PARTIAL no caminho ANTIGO (sem explicitSessionId):
+    // a closure do handleSendMessage aponta para a sessão A ativa ("Nova
+    // Investigação") e o texto de pesquisa dispara o waterfall na thread A —
+    // nunca na thread B da conta. É o RED que motivou a correção: a fronteira
+    // agora exige explicitSessionId B no fluxo de nova pesquisa do zero.
+    uuidv4Mock
+      .mockReturnValueOnce('message-user')
+      .mockReturnValueOnce('message-bot');
+    const harness = makeHarness({
+      sessions: [
+        makeSession({ id: 'session-A', title: 'Nova Investigação', empresaAlvo: null, cnpj: null, messages: [] }),
+        makeSession({ id: 'session-B', title: 'Grupo Scheffer', empresaAlvo: 'Grupo Scheffer', cnpj: null, messages: [] }),
+      ],
+      currentSessionId: 'session-A',
+    });
+
+    await act(async () => {
+      // Comportamento pré-correção: handleSendMessage usa currentSessionId (A) da closure.
+      await harness.result.current.handleSendMessage(
+        'Dossiê completo de [Grupo Scheffer]. Protocolo de investigação forense especializada:\n\n<prompt>',
+        '🔍 Investigando Grupo Scheffer...',
+        'Grupo Scheffer',
+        { requestKind: 'default' },
+      );
+    });
+
+    // O waterfall roda (na thread A — a errada para a conta), nunca em B.
+    expect(harness.runMegaPromptWaterfall).toHaveBeenCalled();
+    const calls: string[] = (harness.runMegaPromptWaterfall.mock.calls as any[]).map((c) => c[0].sessionId);
+    expect(calls).not.toContain('session-B');
+  });
+});
+

@@ -250,6 +250,7 @@ export interface ChatInterfaceProps {
     hiddenPrompt: string,
     forcedCompanyName?: string,
     cnpj?: string | null,
+    targetSessionId?: string,
   ) => Promise<DossierWaterfallResult | null | undefined>;
   isSidebarOpen: boolean;
   onToggleSidebar: () => void;
