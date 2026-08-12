@@ -502,6 +502,7 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
       // local (sem provider, sem waterfall).
       const chatIntent = classifyChatIntent(text);
       if (chatIntent === 'ambiguous' || chatIntent === 'scope-expansion') {
+        try {
         const clarification =
           chatIntent === 'scope-expansion'
             ? 'Isso é uma ampliação material de escopo. Confirme o plano amplo antes de pesquisar: 1) Estrutura societária; 2) Operação e cadeia de valor; 3) Tecnologia e gestão. Responda "sim" para confirmar ou delimite a frente que você quer aprofundar.'
@@ -530,11 +531,28 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
         setRequestKind('default');
         setLoadingPinnedLabel(null);
         abortControllerRef.current = null;
-        scoutDiag.info('MessageOrchestrator', 'processMessage:clarification', {
-          sessionId,
-          intent: chatIntent,
-        });
-        return;
+          scoutDiag.info('MessageOrchestrator', 'processMessage:clarification', {
+            sessionId,
+            intent: chatIntent,
+          });
+          return;
+        } catch (err) {
+          // Fail-closed: se o esclarecimento falhar, finaliza o ciclo de
+          // loading para não travar o chat (mesma sequência do caminho normal).
+          setIsLoading(false);
+          (setLoadingVariant as (v: string | undefined) => void)(undefined);
+          completeLoadingProgress();
+          setRequestKind('default');
+          setLoadingPinnedLabel(null);
+          abortControllerRef.current = null;
+          delete activeGenerationRef.current[sessionId];
+          scoutDiag.error('MessageOrchestrator', 'processMessage:clarification-failed', {
+            sessionId,
+            intent: chatIntent,
+            error: err instanceof Error ? err.message : String(err),
+          });
+          return;
+        }
       }
 
       const normalizedUpperText = text

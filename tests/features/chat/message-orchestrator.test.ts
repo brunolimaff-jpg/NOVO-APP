@@ -677,6 +677,7 @@ describe('BRU-73 — roteamento de intenção de pesquisa no chat', () => {
     const botTexts = botMessages(harness);
     expect(botTexts.some((t) => /pesquisar mais o quê/i.test(t))).toBe(true);
     expect(harness.state.isLoading).toBe(false);
+    expect(sendMessageToLlmMock).not.toHaveBeenCalled();
   });
 
   it('RED 4: "aprofunde" é ambíguo — sem chamada de pesquisa', async () => {
@@ -688,6 +689,7 @@ describe('BRU-73 — roteamento de intenção de pesquisa no chat', () => {
     expect(harness.runMegaPromptWaterfall).not.toHaveBeenCalled();
     expect(botMessages(harness).some((t) => /pesquisar mais o quê/i.test(t))).toBe(true);
     expect(harness.state.isLoading).toBe(false);
+    expect(sendMessageToLlmMock).not.toHaveBeenCalled();
   });
 
   it('RED 5: "pesquise mais sobre a holding" é explícito (RESEARCH_GAP_EXPLICIT)', async () => {
@@ -708,6 +710,7 @@ describe('BRU-73 — roteamento de intenção de pesquisa no chat', () => {
     expect(harness.runMegaPromptWaterfall).not.toHaveBeenCalled();
     expect(botMessages(harness).some((t) => /confirmar|delimita|plano amplo/i.test(t))).toBe(true);
     expect(harness.state.isLoading).toBe(false);
+    expect(sendMessageToLlmMock).not.toHaveBeenCalled();
   });
 
   it('RED 7: "Aprofundar holding agora" é FOLLOWUP_NEXT_STEP — sem disparar dossiê completo', async () => {
@@ -735,6 +738,18 @@ describe('BRU-73 — roteamento de intenção de pesquisa no chat', () => {
         await harness.result.current.handleSendMessage(text);
       });
       expect(harness.runMegaPromptWaterfall, text).not.toHaveBeenCalled();
+    }
+  });
+
+  it('RED 9: negação explícita de pesquisa não dispara pesquisa nem esclarecimento (craft)', async () => {
+    for (const text of ['não pesquise mais sobre a holding', 'não pesquise tudo', 'pare de pesquisar a holding', 'não aprofunde a análise']) {
+      uuidv4Mock.mockReturnValueOnce('session-new').mockReturnValueOnce('message-user').mockReturnValueOnce('message-bot');
+      const harness = makeHarness();
+      await act(async () => {
+        await harness.result.current.handleSendMessage(text);
+      });
+      expect(harness.runMegaPromptWaterfall, text).not.toHaveBeenCalled();
+      expect(sendMessageToLlmMock, text).toHaveBeenCalled();
     }
   });
 });

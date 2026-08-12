@@ -20,6 +20,12 @@ export function classifyChatIntent(text: string): ChatIntent {
     .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase();
 
+  // Negação explícita de pesquisa nunca dispara deep research — o usuário
+  // pediu para NÃO pesquisar; o pedido segue o caminho normal (craft).
+  if (/(?:não|nao|pare de|evite|para de|sem\s+pesquisar)\s+(?:pesquis\w*|aprofund\w*|investig\w*|descubr\w*)/.test(t)) {
+    return 'craft';
+  }
+
   // FOLLOWUP_NEXT_STEP: "aprofundar X agora" / "pesquisar X agora"
   if (/(?:aprofundar|pesquisar|investigar|descobrir)\s+\S+(?:\s+(?:agora|em seguida|na sequencia))/.test(t)) {
     return 'followup';
