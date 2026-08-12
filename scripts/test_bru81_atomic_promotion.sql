@@ -372,6 +372,50 @@ BEGIN
   END IF;
 END $do10$;
 
+-- ============================================================================
+-- 11. P0 TERMINAL SOFT-DELETE OWNERSHIP: dossiê de A soft-deleted → B cria run
+--     com aquele UUID e tenta promover → DEVE FALHAR; A permanece intacto
+-- ============================================================================
+DO $do11$
+DECLARE v_failed boolean := false;
+BEGIN
+  -- A cria um dossiê e o soft-deleta
+  PERFORM test_set_jwt('aaaaaaaa-0000-4000-8000-000000000001');
+  INSERT INTO public.dossies (id, operator_id, title, content, deleted_at)
+  VALUES ('eeeeeeee-0000-4000-8000-000000000005', 'op_a', 'Deletado de A',
+          jsonb_build_object('id','eeeeeeee-0000-4000-8000-000000000005','messages',jsonb_build_array(jsonb_build_object('sender','Bot','text','CONTEUDO-DE-A'))),
+          now())
+  ON CONFLICT (id) DO UPDATE SET deleted_at = now();
+
+  -- B cria run com session_id = UUID do dossiê soft-deleted de A e tenta promover
+  PERFORM test_set_jwt('bbbbbbbb-0000-4000-8000-000000000002');
+  INSERT INTO public.dossier_runs (run_id, owner_id, operator_id, session_id, status, idempotency_key, lease_owner, environment, app_version)
+  VALUES ('aaaaaaaa-0000-4000-8000-0000000000aa', 'bbbbbbbb-0000-4000-8000-000000000002', 'op_b', 'eeeeeeee-0000-4000-8000-000000000005', 'RUNNING', 'idem_11', 'lease-11', 'test', 'test');
+
+  BEGIN
+    PERFORM public.complete_dossier_run_with_dossier(
+      'aaaaaaaa-0000-4000-8000-0000000000aa', 'lease-11',
+      test_snapshot('eeeeeeee-0000-4000-8000-000000000005', 'RESSUSCITADO')
+    );
+  EXCEPTION WHEN OTHERS THEN v_failed := true; END;
+
+  IF NOT v_failed THEN
+    RAISE EXCEPTION 'ASSERT-11-FAIL: promoção ressuscitou dossiê soft-deleted de A';
+  END IF;
+
+  -- A permanece intacto: soft-deleted, mesmo dono, mesmo conteúdo
+  IF NOT EXISTS (
+    SELECT 1 FROM public.dossies
+     WHERE id = 'eeeeeeee-0000-4000-8000-000000000005'
+       AND operator_id = 'op_a' AND deleted_at IS NOT NULL
+  ) THEN
+    RAISE EXCEPTION 'ASSERT-11-FAIL: A foi reatribuído/ressuscitado';
+  END IF;
+  IF (SELECT content->'messages'->0->>'text' FROM public.dossies WHERE id = 'eeeeeeee-0000-4000-8000-000000000005') <> 'CONTEUDO-DE-A' THEN
+    RAISE EXCEPTION 'ASSERT-11-FAIL: conteúdo de A alterado';
+  END IF;
+END $do11$;
+
 ROLLBACK;
 
 SELECT 'BRU81_ATOMIC_PROMOTION_SQL_ALL_ASSERTS_PASSED' AS resultado;

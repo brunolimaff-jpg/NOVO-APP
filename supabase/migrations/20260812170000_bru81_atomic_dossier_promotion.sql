@@ -95,12 +95,12 @@ BEGIN
     RAISE EXCEPTION 'Authenticated profile is required';
   END IF;
 
-  -- Fail-closed explícito: nunca sobrescrever dossiê de OUTRO operador
-  -- (defesa em profundidade além da validação do run/session).
+  -- Fail-closed explícito: nunca sobrescrever dossiê de OUTRO operador —
+  -- INCLUSIVE soft-deleted (sem deleted_at IS NULL: um dossiê soft-deleted de
+  -- outro operador também não pode ser ressuscitado/reatribuído pelo upsert).
   PERFORM 1
     FROM public.dossies d
    WHERE d.id = v_session_id
-     AND d.deleted_at IS NULL
      AND d.operator_id IS DISTINCT FROM v_operator_id
    FOR UPDATE;
   IF FOUND THEN
