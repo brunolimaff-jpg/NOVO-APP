@@ -171,7 +171,7 @@ describe('useInvestigation — handleNewResearchOverride preserva o dossiê ante
     expect(deleteDossierMock).not.toHaveBeenCalled();
   });
 
-  it('COMPLETED com dossierId persistido e confirmado deleta o anterior (override legítimo)', async () => {
+  it('COMPLETED confirmado NÃO deleta o dossiê anterior (opção B: a promoção atômica substitui B na transação)', async () => {
     onDeepDive.mockResolvedValue({ status: 'COMPLETED', dossierId: 'new-1' });
     getDossierMock.mockResolvedValue({ id: 'new-1', messages: [] });
     const hook = setupOverride('old-5');
@@ -181,7 +181,25 @@ describe('useInvestigation — handleNewResearchOverride preserva o dossiê ante
     });
 
     expect(getDossierMock).toHaveBeenCalledWith('new-1');
-    expect(deleteDossierMock).toHaveBeenCalledWith('old-5');
+    // BRU-81 opção B: B antigo → transação → B novo. Sem delete pós-sucesso.
+    expect(deleteDossierMock).not.toHaveBeenCalled();
+  });
+
+  it('RED (P0 BRU-81): oldDossierId === result.dossierId (mesma thread) → NÃO deleta o dossiê recém-gerado (soft-delete)', async () => {
+    // Nova pesquisa do zero na MESMA thread da conta: o waterfall persiste com
+    // id = sessionId = oldDossierId (UPSERT) e retorna esse id como dossierId.
+    // O handleNewResearchOverride não pode deletar oldDossierId — seria o
+    // soft-delete do dossiê que acabamos de gerar.
+    onDeepDive.mockResolvedValue({ status: 'COMPLETED', dossierId: 'old-5' });
+    getDossierMock.mockResolvedValue({ id: 'old-5', messages: [] });
+    const hook = setupOverride('old-5');
+
+    await act(async () => {
+      await hook.result.current.handleNewResearchOverride();
+    });
+
+    expect(getDossierMock).toHaveBeenCalledWith('old-5');
+    expect(deleteDossierMock).not.toHaveBeenCalledWith('old-5');
   });
 
   it('COMPLETED mas novo dossiê não confirmado no storage não deleta o anterior', async () => {
@@ -272,6 +290,101 @@ describe('useInvestigation — BRU-81: nova pesquisa do zero reutiliza a thread 
 
     expect(onSelectSession).toHaveBeenCalledWith('old-thread-81');
     expect(onDeepDive).toHaveBeenCalled();
+  });
+
+  it('BRU-81: duplicata própria + sessão transitória A → limpa A via onCleanupTransientSession', async () => {
+    const onCleanupTransientSession = vi.fn();
+    const hook = renderHook(() =>
+      useInvestigation({
+        mode: 'default',
+        onDeepDive,
+        operatorId: 'op-1',
+        onSelectSession,
+        onCleanupTransientSession,
+        currentSessionId: 'A',
+      } as never),
+    );
+    act(() => {
+      hook.result.current.setDuplicateDossier({
+        id: 'B',
+        empresaAlvo: 'Antiga',
+        cnpj: null,
+        title: 'Antiga',
+        updatedAt: '',
+        operatorId: 'op-1',
+      } as never);
+      hook.result.current.pendingPayloadRef.current = payload as never;
+    });
+
+    await act(async () => {
+      await hook.result.current.handleNewResearchOverride();
+    });
+
+    // A (transitória) é entregue ao chamador para limpeza segura (isSessionReusable)
+    expect(onCleanupTransientSession).toHaveBeenCalledWith('A');
+    expect(onSelectSession).toHaveBeenCalledWith('B');
+  });
+
+  it('BRU-81: já na thread B → NÃO limpa sessão transitória (não há A)', async () => {
+    const onCleanupTransientSession = vi.fn();
+    const hook = renderHook(() =>
+      useInvestigation({
+        mode: 'default',
+        onDeepDive,
+        operatorId: 'op-1',
+        onSelectSession,
+        onCleanupTransientSession,
+        currentSessionId: 'B',
+      } as never),
+    );
+    act(() => {
+      hook.result.current.setDuplicateDossier({
+        id: 'B',
+        empresaAlvo: 'Antiga',
+        cnpj: null,
+        title: 'Antiga',
+        updatedAt: '',
+        operatorId: 'op-1',
+      } as never);
+      hook.result.current.pendingPayloadRef.current = payload as never;
+    });
+
+    await act(async () => {
+      await hook.result.current.handleNewResearchOverride();
+    });
+
+    expect(onCleanupTransientSession).not.toHaveBeenCalled();
+  });
+
+  it('BRU-81: fonte ESTRANGEIRA → NÃO limpa sessão nenhuma (fail-closed)', async () => {
+    const onCleanupTransientSession = vi.fn();
+    const hook = renderHook(() =>
+      useInvestigation({
+        mode: 'default',
+        onDeepDive,
+        operatorId: 'op-1',
+        onSelectSession,
+        onCleanupTransientSession,
+        currentSessionId: 'A',
+      } as never),
+    );
+    act(() => {
+      hook.result.current.setDuplicateDossier({
+        id: 'dossier-estrangeiro-2',
+        empresaAlvo: 'Estrangeira',
+        cnpj: null,
+        title: 'Estrangeira',
+        updatedAt: '',
+        operatorId: 'op-outro',
+      } as never);
+      hook.result.current.pendingPayloadRef.current = payload as never;
+    });
+
+    await act(async () => {
+      await hook.result.current.handleNewResearchOverride();
+    });
+
+    expect(onCleanupTransientSession).not.toHaveBeenCalled();
   });
 
   it('fonte ESTRANGEIRA + currentSessionId nulo → NÃO seleciona a thread do dossiê estrangeiro (fail-closed)', async () => {

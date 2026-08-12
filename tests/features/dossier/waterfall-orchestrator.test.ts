@@ -36,7 +36,7 @@ const scoutDiagMock = vi.hoisted(() => ({
 }));
 const saveDossierMock = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
 const runControlMocks = vi.hoisted(() => ({ assertCanContinue: vi.fn(), assertCanContinueWithRenewal: vi.fn() }));
-const lifecycleRpcMocks = vi.hoisted(() => ({ complete: vi.fn(), failed: vi.fn(), release: vi.fn(), cancelled: vi.fn() }));
+const lifecycleRpcMocks = vi.hoisted(() => ({ complete: vi.fn(), failed: vi.fn(), release: vi.fn(), cancelled: vi.fn(), completeWithDossier: vi.fn(), getRun: vi.fn() }));
 const evidencePipelineMock = vi.hoisted(() => vi.fn(() => false));
 const queryPlannerMocks = vi.hoisted(() => ({ plan: vi.fn(), collect: vi.fn() }));
 const tryEnhanceDossierWithGoldMock = vi.hoisted(() => vi.fn());
@@ -70,6 +70,8 @@ vi.mock('../../../lib/supabase/dossierRuns', () => ({
   markDossierRunCompleted: lifecycleRpcMocks.complete,
   markDossierRunFailed: lifecycleRpcMocks.failed,
   releaseDossierRunLease: lifecycleRpcMocks.release,
+  completeDossierRunWithDossier: lifecycleRpcMocks.completeWithDossier,
+  getDossierRun: lifecycleRpcMocks.getRun,
 }));
 
 vi.mock('../../../utils/feature-flags', () => ({ isEvidencePipelineV2: evidencePipelineMock }));
@@ -131,6 +133,9 @@ vi.mock('../../../services/storage', () => ({
     saveDossier: saveDossierMock,
     saveDossierStrict: saveDossierMock,
   },
+  // BRU-81: transformação pura — passthrough no teste (a transformação real
+  // é coberta por services/storage/dossiers.test.ts).
+  prepareDossierForPersistence: (session: unknown) => session,
 }));
 
 vi.mock('../../../utils/diagnosticLog', () => ({
@@ -374,6 +379,8 @@ describe('useDossierWaterfallOrchestrator', () => {
     lifecycleRpcMocks.failed.mockResolvedValue({ run_id: 'run-1' });
     lifecycleRpcMocks.release.mockResolvedValue({ run_id: 'run-1' });
     lifecycleRpcMocks.cancelled.mockResolvedValue({ run_id: 'run-1' });
+    lifecycleRpcMocks.completeWithDossier.mockResolvedValue({ run_id: 'run-1', status: 'COMPLETED', dossier_id: 'session-1' });
+    lifecycleRpcMocks.getRun.mockResolvedValue(null);
     evidencePipelineMock.mockReturnValue(false);
     queryPlannerMocks.plan.mockResolvedValue({ queries: [] });
     queryPlannerMocks.collect.mockResolvedValue({ items: [], confidenceProfile: { tierACount: 0, tierBCount: 0, modulesCovered: [] } });
@@ -556,9 +563,9 @@ describe('useDossierWaterfallOrchestrator', () => {
     expect(scoutDiagMock.warn).toHaveBeenCalledWith('WaterfallLifecycle', 'terminal-failure-persist-failed', expect.any(Object));
   });
 
-  it('cancelamento após save impede completed e mantém texto final', async () => {
+  it('cancelamento detectado antes da promoção impede a promoção e mantém texto final', async () => {
     runControlMocks.assertCanContinue.mockImplementation(async (input: { stage: string }) => {
-      if (input.stage === 'after_save_dossier_before_complete') throw new DossierRunCancelledError('remote_cancel');
+      if (input.stage === 'save_dossier') throw new DossierRunCancelledError('remote_cancel');
     });
     const dispatchSpy = vi.spyOn(window, 'dispatchEvent');
     const harness = makeHarness();
@@ -566,47 +573,51 @@ describe('useDossierWaterfallOrchestrator', () => {
       makeRunArgs({ dossierRunId: 'run-1', dossierLeaseOwner: 'lease-1' }),
     );
     expect(result).toMatchObject({ status: 'CANCELLED' });
-    expect(saveDossierMock).toHaveBeenCalledOnce();
-    expect(lifecycleRpcMocks.complete).not.toHaveBeenCalled();
+    expect(lifecycleRpcMocks.completeWithDossier).not.toHaveBeenCalled();
     expect(lifecycleRpcMocks.cancelled).toHaveBeenCalledOnce();
     expect(getBotMessage(harness).text).toContain('Porte / Teia Societária consolidado');
     expect(dispatchSpy).not.toHaveBeenCalledWith(expect.objectContaining({ type: 'dossier:completed' }));
     dispatchSpy.mockRestore();
   });
 
-  it('falha de leitura após save impede completed e persiste FAILED', async () => {
+  it('falha de leitura antes da promoção persiste FAILED sem promoção', async () => {
     runControlMocks.assertCanContinue.mockImplementation(async (input: { stage: string }) => {
-      if (input.stage === 'after_save_dossier_before_complete') throw new DossierRunReadError('RPC indisponível após save');
+      if (input.stage === 'save_dossier') throw new DossierRunReadError('RPC indisponível antes da promoção');
     });
     const dispatchSpy = vi.spyOn(window, 'dispatchEvent');
     const harness = makeHarness();
     const result = await harness.result.current.runMegaPromptWaterfall(
       makeRunArgs({ dossierRunId: 'run-1', dossierLeaseOwner: 'lease-1' }),
     );
-    expect(result).toMatchObject({ status: 'FAILED', errorStage: 'after_save_dossier_before_complete' });
-    expect(saveDossierMock).toHaveBeenCalledOnce();
-    expect(lifecycleRpcMocks.complete).not.toHaveBeenCalled();
+    expect(result).toMatchObject({ status: 'FAILED', errorStage: 'save_dossier' });
+    expect(lifecycleRpcMocks.completeWithDossier).not.toHaveBeenCalled();
     expect(lifecycleRpcMocks.failed).toHaveBeenCalledOnce();
     expect(getBotMessage(harness).text).toContain('Porte / Teia Societária consolidado');
     expect(dispatchSpy).not.toHaveBeenCalledWith(expect.objectContaining({ type: 'dossier:completed' }));
     dispatchSpy.mockRestore();
   });
 
-  it('fluxo feliz ordena save, checkpoint pós-save, completed e evento', async () => {
+  it('fluxo feliz ordena assert de liveness, promoção atômica única e evento', async () => {
     const dispatchSpy = vi.spyOn(window, 'dispatchEvent');
     const harness = makeHarness();
     const result = await harness.result.current.runMegaPromptWaterfall(
       makeRunArgs({ dossierRunId: 'run-1', dossierLeaseOwner: 'lease-1' }),
     );
-    const postSaveCall = runControlMocks.assertCanContinue.mock.calls.findIndex(
-      ([input]) => input.stage === 'after_save_dossier_before_complete',
+    const saveAssertCall = runControlMocks.assertCanContinue.mock.calls.findIndex(
+      ([input]) => input.stage === 'save_dossier',
     );
     expect(result).toMatchObject({ status: 'COMPLETED' });
-    expect(postSaveCall).toBeGreaterThanOrEqual(0);
-    expect(saveDossierMock.mock.invocationCallOrder[0]).toBeLessThan(runControlMocks.assertCanContinue.mock.invocationCallOrder[postSaveCall]);
-    expect(runControlMocks.assertCanContinue.mock.invocationCallOrder[postSaveCall]).toBeLessThan(lifecycleRpcMocks.complete.mock.invocationCallOrder[0]);
-    expect(lifecycleRpcMocks.complete.mock.invocationCallOrder[0]).toBeLessThan(dispatchSpy.mock.invocationCallOrder[0]);
-    expect(lifecycleRpcMocks.complete).toHaveBeenCalledOnce();
+    expect(saveAssertCall).toBeGreaterThanOrEqual(0);
+    // BRU-81: zero persistência remota antes da promoção (sem saveDossierStrict)
+    expect(saveDossierMock).not.toHaveBeenCalled();
+    expect(runControlMocks.assertCanContinue.mock.invocationCallOrder[saveAssertCall]).toBeLessThan(lifecycleRpcMocks.completeWithDossier.mock.invocationCallOrder[0]);
+    expect(lifecycleRpcMocks.completeWithDossier.mock.invocationCallOrder[0]).toBeLessThan(dispatchSpy.mock.invocationCallOrder[0]);
+    expect(lifecycleRpcMocks.completeWithDossier).toHaveBeenCalledOnce();
+    expect(lifecycleRpcMocks.completeWithDossier).toHaveBeenCalledWith(
+      'run-1',
+      'lease-1',
+      expect.objectContaining({ id: 'session-1' }),
+    );
     expect(dispatchSpy).toHaveBeenCalledTimes(1);
     dispatchSpy.mockRestore();
   });
@@ -663,15 +674,16 @@ describe('useDossierWaterfallOrchestrator', () => {
     dispatchSpy.mockRestore();
   });
 
-  it('preserva conteúdo quando markCompleted falha, marca FAILED e não libera lease duas vezes', async () => {
-    lifecycleRpcMocks.complete.mockRejectedValueOnce(new Error('completion RPC unavailable'));
+  it('promoção atômica falha sem reconciliação → FAILED promotion_failed e texto final preservado', async () => {
+    lifecycleRpcMocks.completeWithDossier.mockRejectedValueOnce(new Error('promotion RPC unavailable'));
+    lifecycleRpcMocks.getRun.mockResolvedValueOnce(null); // reconciliação não prova commit
     const dispatchSpy = vi.spyOn(window, 'dispatchEvent');
     const harness = makeHarness();
     const result = await harness.result.current.runMegaPromptWaterfall(
       makeRunArgs({ dossierRunId: 'run-1', dossierLeaseOwner: 'lease-1' }),
     );
     const bot = getBotMessage(harness);
-    expect(result).toMatchObject({ status: 'FAILED', errorCode: 'lifecycle_completion_failed', errorStage: 'mark_completed' });
+    expect(result).toMatchObject({ status: 'FAILED', errorCode: 'promotion_failed', errorStage: 'atomic_promotion' });
     expect(bot.text).toContain('Porte / Teia Societária consolidado');
     expect(bot.isThinking).toBe(false);
     expect(bot.suggestions).toEqual(DEFAULT_SUGGESTIONS);
@@ -682,13 +694,45 @@ describe('useDossierWaterfallOrchestrator', () => {
     dispatchSpy.mockRestore();
   });
 
+  it('GREEN (P0 BRU-81): promoção atômica elimina a janela de sobrescrita — zero escrita remota antes do completion', async () => {
+    // BRU-81: quando a promoção falha SEM reconciliação, o dossiê B NÃO foi
+    // sobrescrito (nenhum saveDossierStrict/escrita remota antes da RPC terminal).
+    // O conteúdo antigo de B permanece intacto — contrato da opção B.
+    lifecycleRpcMocks.completeWithDossier.mockRejectedValueOnce(new Error('promotion RPC unavailable'));
+    lifecycleRpcMocks.getRun.mockResolvedValueOnce(null);
+    const harness = makeHarness();
+    const result = await harness.result.current.runMegaPromptWaterfall(
+      makeRunArgs({ dossierRunId: 'run-1', dossierLeaseOwner: 'lease-1' }),
+    );
+
+    expect(result).toMatchObject({ status: 'FAILED', errorCode: 'promotion_failed', errorStage: 'atomic_promotion' });
+    // ZERO escrita remota do snapshot final antes da promoção
+    expect(saveDossierMock).not.toHaveBeenCalled();
+    expect(lifecycleRpcMocks.complete).not.toHaveBeenCalled();
+  });
+
+  it('GREEN (P0 BRU-81): timeout da promoção com reconciliação COMPLETED no run → tratado como sucesso', async () => {
+    // Resultado incerto de rede: a RPC é idempotente; o run consultado está
+    // COMPLETED com a session esperada → commit aconteceu → COMPLETED.
+    lifecycleRpcMocks.completeWithDossier.mockRejectedValueOnce(new Error('timeout'));
+    lifecycleRpcMocks.getRun.mockResolvedValueOnce({ run_id: 'run-1', status: 'COMPLETED', dossier_id: 'session-1' });
+    const harness = makeHarness();
+    const result = await harness.result.current.runMegaPromptWaterfall(
+      makeRunArgs({ dossierRunId: 'run-1', dossierLeaseOwner: 'lease-1' }),
+    );
+
+    expect(result).toMatchObject({ status: 'COMPLETED' });
+    expect(saveDossierMock).not.toHaveBeenCalled();
+    expect(lifecycleRpcMocks.failed).not.toHaveBeenCalled();
+  });
+
   it('COMPLETED persistido não chama release novamente', async () => {
     const harness = makeHarness();
     const result = await harness.result.current.runMegaPromptWaterfall(
       makeRunArgs({ dossierRunId: 'run-1', dossierLeaseOwner: 'lease-1' }),
     );
     expect(result).toMatchObject({ status: 'COMPLETED' });
-    expect(lifecycleRpcMocks.complete).toHaveBeenCalledOnce();
+    expect(lifecycleRpcMocks.completeWithDossier).toHaveBeenCalledOnce();
     expect(lifecycleRpcMocks.release).not.toHaveBeenCalled();
   });
 

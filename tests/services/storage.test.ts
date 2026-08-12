@@ -5,6 +5,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const supabaseMock = vi.hoisted(() => ({
   from: vi.fn(),
+  rpc: vi.fn(),
   upsert: vi.fn(),
   select: vi.fn(),
   update: vi.fn(),
@@ -29,6 +30,7 @@ const getSessionMock = vi.hoisted(() => vi.fn());
 vi.mock('../../lib/supabaseClient', () => ({
   supabase: {
     from: supabaseMock.from,
+    rpc: supabaseMock.rpc,
     auth: { getSession: getSessionMock },
   },
   isSupabaseAvailable: vi.fn(() => true),
@@ -276,20 +278,21 @@ describe('storage (simplificado — Supabase direto)', () => {
   });
 
   describe('saveAllDossiers', () => {
-    it('deve fazer upsert em lote (bulk) para todas as sessões', async () => {
-      supabaseMock.upsert.mockResolvedValue({ error: null });
-      supabaseMock.from.mockReturnValue({ upsert: supabaseMock.upsert });
+    it('delega o lote à RPC save_dossiers_autosave (BRU-81: containment server-side vinculado à escrita)', async () => {
+      supabaseMock.rpc.mockResolvedValue({ error: null });
 
       const sessions = [mockSession, { ...mockSession, id: 'session-2' }];
       await storage.saveAllDossiers(sessions);
 
-      expect(supabaseMock.upsert).toHaveBeenCalledTimes(1);
-      expect(supabaseMock.upsert).toHaveBeenCalledWith(
-        expect.arrayContaining([
+      expect(supabaseMock.rpc).toHaveBeenCalledTimes(1);
+      expect(supabaseMock.rpc).toHaveBeenCalledWith('save_dossiers_autosave', {
+        p_dossiers: expect.arrayContaining([
           expect.objectContaining({ id: 'session-1' }),
           expect.objectContaining({ id: 'session-2' }),
         ]),
-      );
+      });
+      // Zero upsert direto — a RPC filtra threads com run ativo na própria transação.
+      expect(supabaseMock.upsert).not.toHaveBeenCalled();
     });
 
     it('não deve fazer upsert se não houver operatorId', async () => {

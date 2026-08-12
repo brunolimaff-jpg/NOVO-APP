@@ -208,7 +208,7 @@ describe('useInvestigation — BRU-11 camada 1 (dossiê estrangeiro fail-closed)
     );
   });
 
-  it('override de dossiê próprio continua deletando o anterior (sem regressão)', async () => {
+  it('override de dossiê próprio NÃO deleta o anterior (opção B — promoção atômica substitui B na transação)', async () => {
     const { result } = renderHook(() => useInvestigation(baseParams));
 
     act(() => {
@@ -228,7 +228,8 @@ describe('useInvestigation — BRU-11 camada 1 (dossiê estrangeiro fail-closed)
       await result.current.handleNewResearchOverride();
     });
 
-    expect(deleteDossierMock).toHaveBeenCalledWith('dossier-proprio');
+    // BRU-81 opção B: B antigo → transação atômica → B novo. Sem delete pós-sucesso.
+    expect(deleteDossierMock).not.toHaveBeenCalled();
     expect(trackOperatorEventMock).toHaveBeenCalledWith(
       'dossier_override',
       expect.objectContaining({ previousDossierId: 'dossier-proprio' }),
