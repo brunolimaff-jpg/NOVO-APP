@@ -194,3 +194,111 @@ describe('useInvestigation — handleNewResearchOverride preserva o dossiê ante
     expect(deleteDossierMock).not.toHaveBeenCalled();
   });
 });
+
+describe('useInvestigation — BRU-81: nova pesquisa do zero reutiliza a thread da conta', () => {
+  const onSelectSession = vi.fn();
+  const onDeepDive = vi.fn();
+
+  const payload = { companyName: 'Empresa Teste', cnpj: null, city: 'SP', state: 'SP' };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    getDossierMock.mockResolvedValue(null);
+    saveDossierMock.mockResolvedValue(undefined);
+    deleteDossierMock.mockResolvedValue(undefined);
+    maybeSingleMock.mockResolvedValue({ data: null, error: null });
+    vi.spyOn(scoutDiag, 'warn').mockImplementation(() => {});
+    onDeepDive.mockResolvedValue({ status: 'COMPLETED', dossierId: 'new-81', terminalPersisted: true });
+  });
+
+  function setupOverride(params: { oldDossierId: string; currentSessionId?: string | null }) {
+    const { currentSessionId = null } = params;
+    const hook = renderHook(() =>
+      useInvestigation({
+        mode: 'default',
+        onDeepDive,
+        operatorId: 'op-1',
+        onSelectSession,
+        currentSessionId,
+      } as never),
+    );
+    act(() => {
+      hook.result.current.setDuplicateDossier({
+        id: params.oldDossierId,
+        empresaAlvo: 'Antiga',
+        cnpj: null,
+        title: 'Antiga',
+        updatedAt: '',
+        operatorId: 'op-1',
+      } as never);
+      hook.result.current.pendingPayloadRef.current = payload as never;
+    });
+    return hook;
+  }
+
+  it('duplicata própria + currentSessionId nulo → seleciona a thread existente ANTES de executar', async () => {
+    const hook = setupOverride({ oldDossierId: 'old-thread-81' });
+
+    await act(async () => {
+      await hook.result.current.handleNewResearchOverride();
+    });
+
+    // BRU-81: volta para a thread da conta para o handleSendMessage reutilizar a sessão
+    expect(onSelectSession).toHaveBeenCalledWith('old-thread-81');
+    // execução segue normalmente após selecionar a thread
+    expect(onDeepDive).toHaveBeenCalled();
+  });
+
+  it('duplicata própria + currentSessionId já na mesma thread → não seleciona de novo', async () => {
+    const hook = setupOverride({ oldDossierId: 'old-thread-81', currentSessionId: 'old-thread-81' });
+
+    await act(async () => {
+      await hook.result.current.handleNewResearchOverride();
+    });
+
+    // Já estamos na thread da conta — não há o que reutilizar (idempotente)
+    expect(onSelectSession).not.toHaveBeenCalled();
+    expect(onDeepDive).toHaveBeenCalled();
+  });
+
+  it('duplicata própria + currentSessionId de OUTRA conta → seleciona a thread do dossiê', async () => {
+    const hook = setupOverride({ oldDossierId: 'old-thread-81', currentSessionId: 'outra-conta' });
+
+    await act(async () => {
+      await hook.result.current.handleNewResearchOverride();
+    });
+
+    expect(onSelectSession).toHaveBeenCalledWith('old-thread-81');
+    expect(onDeepDive).toHaveBeenCalled();
+  });
+
+  it('fonte ESTRANGEIRA + currentSessionId nulo → NÃO seleciona a thread do dossiê estrangeiro (fail-closed)', async () => {
+    const hook = renderHook(() =>
+      useInvestigation({
+        mode: 'default',
+        onDeepDive,
+        operatorId: 'op-1',
+        onSelectSession,
+        currentSessionId: null,
+      } as never),
+    );
+    act(() => {
+      hook.result.current.setDuplicateDossier({
+        id: 'dossier-estrangeiro',
+        empresaAlvo: 'Estrangeira',
+        cnpj: null,
+        title: 'Estrangeira',
+        updatedAt: '',
+        operatorId: 'op-outro', // != 'op-1' → fail-closed BRU-11
+      } as never);
+      hook.result.current.pendingPayloadRef.current = payload as never;
+    });
+
+    await act(async () => {
+      await hook.result.current.handleNewResearchOverride();
+    });
+
+    expect(onSelectSession).not.toHaveBeenCalled();
+    expect(onDeepDive).toHaveBeenCalled();
+  });
+});

@@ -105,6 +105,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
     onDeepDive,
     operatorId,
     onSelectSession,
+    currentSessionId: currentSession?.id ?? null,
   });
 
   const { handleCopyMarkdown, handlePrefillComposer } = useChatActions(safeMessages);

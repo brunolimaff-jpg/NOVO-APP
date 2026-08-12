@@ -30,6 +30,7 @@ interface UseInvestigationParams {
   ) => Promise<DossierWaterfallResult | null | undefined>;
   operatorId: string;
   onSelectSession: (sessionId: string) => void;
+  currentSessionId?: string | null;
 }
 
 export function useInvestigation({
@@ -37,6 +38,7 @@ export function useInvestigation({
   onDeepDive,
   operatorId,
   onSelectSession,
+  currentSessionId = null,
 }: UseInvestigationParams) {
   const [duplicateDossier, setDuplicateDossier] = useState<ExistingDossier | null>(null);
   const pendingPayloadRef = useRef<StartInvestigationPayload | null>(null);
@@ -179,6 +181,15 @@ export function useInvestigation({
     pendingPayloadRef.current = null;
 
     try {
+      // BRU-81 (P0): mantém uma thread por conta — quando a "nova pesquisa do zero"
+      // parte de um dossiê PRÓPRIO já existente, volta para a thread da conta antes de
+      // executar, para que o handleSendMessage reutilize a sessão existente (novo run
+      // na mesma thread) em vez de criar conversa paralela no sidebar.
+      // Guarda fail-closed preservada: fonte estrangeira nunca é selecionada/lida.
+      if (oldDossierId && !isForeignSource && currentSessionId !== oldDossierId) {
+        await onSelectSession(oldDossierId);
+      }
+
       const result = await executeInvestigation(payload);
 
       // Só substitui o dossiê anterior quando a nova investigação terminou
@@ -220,7 +231,7 @@ export function useInvestigation({
     } finally {
       processingRef.current = false;
     }
-  }, [duplicateDossier, executeInvestigation, operatorId]);
+  }, [duplicateDossier, executeInvestigation, operatorId, currentSessionId, onSelectSession]);
 
   return {
     executeInvestigation,
