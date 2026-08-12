@@ -2,10 +2,13 @@ import { describe, expect, it, vi } from 'vitest';
 import type { CanonicalAccount, RawFindingPack } from '../../../services/llm/gold/gold-contracts';
 import {
   runGuardedGoldPipeline,
+  downgradeUnsupportedCertainty,
   type CompactInput,
   type ComposeInput,
   type GoldPipelineDeps,
 } from '../../../services/llm/gold/gold-pipeline';
+import { sanitizeFindingPack } from '../../../services/llm/gold/finding-sanitizer';
+import { verifyGold } from '../../../services/llm/gold/entity-aware-gold-verifier';
 
 /**
  * T5 — Gold pipeline/composer mínimo (TDD).
@@ -78,7 +81,10 @@ const cleanGold = [
   'A sócia PJ direta é SCHEFFER PARTICIPACOES S/A (11.021.773/0001-70).',
 ].join('\n');
 
-const trappedGold = ['# Gold Brief', 'Há um gap de WMS confirmado na operação logística.'].join('\n');
+// PATCH-C: o trap foi reformulado — o preflight agora trata GAP, então o
+// trap usa um hard fail NÃO pertencente ao preflight (INVENTED_CNPJ) para
+// provar que o verifier final continua fail-closed.
+const trappedGold = ['# Gold Brief', 'A controlada 99.999.999/0001-00 atua no segmento de fertilizantes.'].join('\n');
 
 describe('GuardedGoldPipeline', () => {
   it('BRU-48: Gold do Composer com "confirmada" em tema sensível sem fato Confirmado é rebaixado (sem PROMOTED_CLAIM)', async () => {
@@ -271,7 +277,7 @@ describe('GuardedGoldPipeline', () => {
     expect(compose).not.toHaveBeenCalled();
   });
 
-  it('reprova Gold com trap (verifier captura o que escapar do sanitizer)', async () => {
+  it('reprova Gold com trap (verifier captura o que escapar do preflight)', async () => {
     const compact = vi.fn(async (_input: CompactInput) => rawPack());
     const compose = vi.fn(async (_input: ComposeInput) => trappedGold);
     const deps: GoldPipelineDeps = { compact, compose };
@@ -284,12 +290,12 @@ describe('GuardedGoldPipeline', () => {
       (stage, detail) => stages.push({ stage, detail }),
     );
     expect(result.verification.passed).toBe(false);
-    expect(result.verification.hardFails.some((h) => h.code === 'NEGATIVE_EVIDENCE_AS_GAP')).toBe(true);
+    expect(result.verification.hardFails.some((h) => h.code === 'INVENTED_CNPJ')).toBe(true);
     const verifierStage = stages.find((entry) => entry.stage === 'verifier-done');
     expect(verifierStage?.detail).toMatchObject({
       hardFails: expect.any(Number),
-      codes: expect.arrayContaining(['NEGATIVE_EVIDENCE_AS_GAP']),
-      codeCounts: expect.objectContaining({ NEGATIVE_EVIDENCE_AS_GAP: expect.any(Number) }),
+      codes: expect.arrayContaining(['INVENTED_CNPJ']),
+      codeCounts: expect.objectContaining({ INVENTED_CNPJ: expect.any(Number) }),
     });
     expect(verifierStage?.detail).not.toHaveProperty('reason');
   });
@@ -655,8 +661,9 @@ describe('GuardedGoldPipeline', () => {
     expect(result.goldBrief).toContain('120 mil sacas por ano');
   });
 
-  it('PREFLIGHT AM1: linha com alvo + não-alvo NÃO é removida (verifier final continua reprovando com INVENTED_CNPJ)', async () => {
-    // Anti-mascaramento: o preflight não pode virar "apagador de erros".
+  it('PREFLIGHT AM1: linha com alvo (GAP) + não-alvo NÃO é removida (verifier final continua reprovando com INVENTED_CNPJ)', async () => {
+    // Anti-mascaramento (PATCH-C): adicionar GAP aos targets não pode
+    // transformar o preflight em apagador de hard fails não-alvo.
     const compact = vi.fn(async (_input: CompactInput) =>
       rawPack({
         facts: [
@@ -668,7 +675,7 @@ describe('GuardedGoldPipeline', () => {
     const compose = vi.fn(async (_input: ComposeInput) =>
       [
         '# Gold Brief',
-        'A empresa não possui WMS e a controlada 99.999.999/0001-00 atua em fertilizantes.',
+        'A empresa opera com um gap de automação e a controlada 99.999.999/0001-00 atua em fertilizantes.',
         '### 2. PERFIL',
         'A empresa opera produção de grãos em Sapezal.',
         '### 3. ESTRUTURA SOCIETÁRIA',
@@ -681,5 +688,55 @@ describe('GuardedGoldPipeline', () => {
     expect(result.goldBrief).toContain('99.999.999/0001-00');
     expect(result.verification.passed).toBe(false);
     expect(result.verification.hardFails.some((h) => h.code === 'INVENTED_CNPJ')).toBe(true);
+  });
+
+  it('PATCH-C RED GAP: frase de gap do Composer é removida pelo preflight (NEGATIVE_EVIDENCE_AS_GAP=0)', async () => {
+    // Família GAP (verifier:358 "Frase afirma gap sem evidência positiva"):
+    // o preflight publicado esqueceu NEGATIVE_EVIDENCE_AS_GAP nos TARGET_CODES.
+    const compact = vi.fn(async (_input: CompactInput) =>
+      rawPack({
+        facts: [
+          { id: 'f1', entity: 'SCHEFFER & CIA LTDA', claim: 'Produção de grãos em Sapezal', status: 'Confirmado', source: 'comunicado oficial', kind: 'operation' },
+          { id: 'f2', entity: 'SCHEFFER & CIA LTDA', claim: 'Operação de esmagamento em Sapezal', status: 'Confirmado', source: 'comunicado oficial', kind: 'operation' },
+        ],
+      }),
+    );
+    const compose = vi.fn(async (_input: ComposeInput) =>
+      [
+        '# Gold Brief',
+        'A empresa opera com um gap de automação na operação.',
+        '### 2. PERFIL',
+        'A empresa opera produção de grãos em Sapezal.',
+        '### 3. ESTRUTURA SOCIETÁRIA',
+        'A sócia PJ direta é SCHEFFER PARTICIPACOES S/A.',
+        '### 9. PRÓXIMOS PASSOS',
+        'Nenhum.',
+      ].join('\n'),
+    );
+    const result = await runGuardedGoldPipeline({ canonical, dossier: 'dossiê legado' }, { compact, compose });
+    expect(result.verification.hardFails.some((h) => h.code === 'NEGATIVE_EVIDENCE_AS_GAP')).toBe(false);
+    expect(result.goldBrief).not.toContain('gap de automação');
+  });
+
+  it('PATCH-C RED segmentation: CNPJ formatado + tema + "confirmada" — guard deixa escapar e verifier reprova (PROMOTED_CLAIM)', async () => {
+    // Divergência de segmentação: o guard divide em [.;!?\n] sem proteger CNPJ
+    // formatado; o verifier protege CNPJ antes de dividir sentenças.
+    // Frase: tema ANTES do CNPJ, certeza DEPOIS dele.
+    const sentence = 'Internacionalização da Scheffer CNPJ 04.733.767/0001-80 confirmada por fonte institucional.';
+    const safePack = sanitizeFindingPack(
+      rawPack({
+        facts: [
+          { id: 'f1', entity: 'SCHEFFER & CIA LTDA', claim: 'Produção de grãos em Sapezal', status: 'Confirmado', source: 'comunicado oficial', kind: 'operation' },
+          { id: 'f2', entity: 'SCHEFFER & CIA LTDA', claim: 'Operação de esmagamento em Sapezal', status: 'Confirmado', source: 'comunicado oficial', kind: 'operation' },
+        ],
+      }),
+      canonical,
+    );
+    const downgraded = downgradeUnsupportedCertainty(sentence);
+    // RED: o guard atual deixa "confirmada" escapar (ponto do CNPJ quebra a
+    // sentença antes de o tema se juntar ao vocabulário de certeza).
+    expect(downgraded).not.toContain('confirmada');
+    const verification = verifyGold(downgraded, canonical, safePack);
+    expect(verification.hardFails.some((h) => h.code === 'PROMOTED_CLAIM')).toBe(false);
   });
 });

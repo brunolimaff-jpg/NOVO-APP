@@ -75,6 +75,7 @@ const CONFIRMED_VOCABULARY = /\bconfirmad(a|o)s?\b/gi;
  */
 const PREFLIGHT_TARGET_CODES = new Set([
   'NEGATIVE_EVIDENCE_AS_ABSENCE',
+  'NEGATIVE_EVIDENCE_AS_GAP',
   'ABSENCE_DERIVED_WEAKNESS',
   'UNSUPPORTED_PRODUCT_CLAIM',
 ]);
@@ -97,8 +98,19 @@ export function composerSemanticPreflight(
     .join('\n');
 }
 
+/** CNPJ formatado (mesma regex usada pelo verifier para proteger antes do split). */
+const CNPJ_PATTERN = /\b\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}\b/g;
+
 export function downgradeUnsupportedCertainty(gold: string): string {
-  return gold
+  // PATCH-C — protege CNPJs formatados (contêm pontos) ANTES de segmentar:
+  // o ponto dentro de 04.733.767/0001-80 não pode separar tema sensível de
+  // vocabulário de certeza (mesma semântica de sentença do verifier).
+  const placeholders: string[] = [];
+  const protectedGold = gold.replace(CNPJ_PATTERN, (m) => {
+    placeholders.push(m);
+    return `__CNPJ${placeholders.length - 1}__`;
+  });
+  const downgraded = protectedGold
     .split(/([.;!?\n]+)/)
     .map((part, index) => {
       // Partes ímpares são os separadores — preservados intactos.
@@ -112,6 +124,7 @@ export function downgradeUnsupportedCertainty(gold: string): string {
       });
     })
     .join('');
+  return downgraded.replace(/__CNPJ(\d+)__/g, (_, i) => placeholders[Number(i)]);
 }
 
 /**
