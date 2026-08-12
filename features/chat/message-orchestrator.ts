@@ -6,6 +6,7 @@ import { useMaybeMode } from '../../contexts/ModeContext';
 import { BACKEND_URL } from '../../services/apiConfig';
 import { sendMessageToLlm } from '../../services/llmService';
 import { withAutoRetry } from '../../utils/retry';
+import { classifyChatIntent } from '../../utils/chatIntent';
 import { useMaybeChatStore } from '../../stores/chatStore';
 import { findReusableEmptySession } from './session-reuse';
 import { Sender, type ChatSession, type LastAction, type Message, type RunMegaPromptWaterfallArgs, type DossierWaterfallResult } from '../../types';
@@ -495,6 +496,46 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
         ),
       );
       setVisibleCount(prev => prev + 1);
+
+      // BRU-73 — roteamento de intenção: pedidos vagos ou ampliação material
+      // de escopo NÃO iniciam deep research; respondem com esclarecimento
+      // local (sem provider, sem waterfall).
+      const chatIntent = classifyChatIntent(text);
+      if (chatIntent === 'ambiguous' || chatIntent === 'scope-expansion') {
+        const clarification =
+          chatIntent === 'scope-expansion'
+            ? 'Isso é uma ampliação material de escopo. Confirme o plano amplo antes de pesquisar: 1) Estrutura societária; 2) Operação e cadeia de valor; 3) Tecnologia e gestão. Responda "sim" para confirmar ou delimite a frente que você quer aprofundar.'
+            : 'Pesquisar mais o quê? Frentes disponíveis no contexto:\n1. Estrutura societária — holding, CNPJs e filiais.\n2. Operação — unidades, área, armazenagem, logística e compras.\n3. Tecnologia e gestão — ERP, HCM, sistemas e integração.\n\nEscolha uma frente para eu aprofundar.';
+        setSessions(prev =>
+          prev.map(session =>
+            session.id === sessionId
+              ? {
+                  ...session,
+                  messages: session.messages.map(message =>
+                    message.id === botMessageId
+                      ? { ...message, text: clarification, isThinking: false, loadingVariant: undefined }
+                      : message,
+                  ),
+                  updatedAt: new Date().toISOString(),
+                }
+              : session,
+          ),
+        );
+        delete activeGenerationRef.current[sessionId];
+        // Finaliza o ciclo de loading como o caminho normal — sem isso o chat
+        // fica preso em "Gerando resposta..." com o input travado.
+        setIsLoading(false);
+        (setLoadingVariant as (v: string | undefined) => void)(undefined);
+        completeLoadingProgress();
+        setRequestKind('default');
+        setLoadingPinnedLabel(null);
+        abortControllerRef.current = null;
+        scoutDiag.info('MessageOrchestrator', 'processMessage:clarification', {
+          sessionId,
+          intent: chatIntent,
+        });
+        return;
+      }
 
       const normalizedUpperText = text
         .normalize('NFD')

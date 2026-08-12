@@ -640,3 +640,101 @@ describe('useChatMessageOrchestrator', () => {
     expect(global.fetch).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('BRU-73 — roteamento de intenção de pesquisa no chat', () => {
+  function botMessages(harness: ReturnType<typeof makeHarness>): string[] {
+    return harness.state.sessions[0]?.messages
+      ?.filter((m: { sender: string }) => m.sender === Sender.Bot)
+      .map((m: { text: string }) => m.text ?? '') ?? [];
+  }
+
+  it('RED 1: email/copy não inicia deep research (CRAFT_FROM_CONTEXT)', async () => {
+    uuidv4Mock.mockReturnValueOnce('session-new').mockReturnValueOnce('message-user').mockReturnValueOnce('message-bot');
+    const harness = makeHarness();
+    await act(async () => {
+      await harness.result.current.handleSendMessage('Faça um email para o CFO sobre essa conta');
+    });
+    expect(harness.runMegaPromptWaterfall).not.toHaveBeenCalled();
+    expect(harness.state.sessions[0].messages.some((m: Message) => m.sender === Sender.User && m.text === 'Faça um email para o CFO sobre essa conta')).toBe(true);
+  });
+
+  it('RED 2: script não inicia deep research (CRAFT_FROM_CONTEXT)', async () => {
+    uuidv4Mock.mockReturnValueOnce('session-new').mockReturnValueOnce('message-user').mockReturnValueOnce('message-bot');
+    const harness = makeHarness();
+    await act(async () => {
+      await harness.result.current.handleSendMessage('Me dê um script de ligação para essa conta');
+    });
+    expect(harness.runMegaPromptWaterfall).not.toHaveBeenCalled();
+  });
+
+  it('RED 3: "pesquise mais" é ambíguo — sem chamada de pesquisa e com esclarecimento', async () => {
+    uuidv4Mock.mockReturnValueOnce('session-new').mockReturnValueOnce('message-user').mockReturnValueOnce('message-bot');
+    const harness = makeHarness();
+    await act(async () => {
+      await harness.result.current.handleSendMessage('Pesquise mais');
+    });
+    expect(harness.runMegaPromptWaterfall).not.toHaveBeenCalled();
+    const botTexts = botMessages(harness);
+    expect(botTexts.some((t) => /pesquisar mais o quê/i.test(t))).toBe(true);
+    expect(harness.state.isLoading).toBe(false);
+  });
+
+  it('RED 4: "aprofunde" é ambíguo — sem chamada de pesquisa', async () => {
+    uuidv4Mock.mockReturnValueOnce('session-new').mockReturnValueOnce('message-user').mockReturnValueOnce('message-bot');
+    const harness = makeHarness();
+    await act(async () => {
+      await harness.result.current.handleSendMessage('Aprofunde');
+    });
+    expect(harness.runMegaPromptWaterfall).not.toHaveBeenCalled();
+    expect(botMessages(harness).some((t) => /pesquisar mais o quê/i.test(t))).toBe(true);
+    expect(harness.state.isLoading).toBe(false);
+  });
+
+  it('RED 5: "pesquise mais sobre a holding" é explícito (RESEARCH_GAP_EXPLICIT)', async () => {
+    uuidv4Mock.mockReturnValueOnce('session-new').mockReturnValueOnce('message-user').mockReturnValueOnce('message-bot');
+    const harness = makeHarness();
+    await act(async () => {
+      await harness.result.current.handleSendMessage('Pesquise mais sobre a holding');
+    });
+    expect(harness.runMegaPromptWaterfall).not.toHaveBeenCalled();
+  });
+
+  it('RED 6: "pesquise tudo" exige confirmação/delimitação — não pesquisa automaticamente', async () => {
+    uuidv4Mock.mockReturnValueOnce('session-new').mockReturnValueOnce('message-user').mockReturnValueOnce('message-bot');
+    const harness = makeHarness();
+    await act(async () => {
+      await harness.result.current.handleSendMessage('Pesquise tudo');
+    });
+    expect(harness.runMegaPromptWaterfall).not.toHaveBeenCalled();
+    expect(botMessages(harness).some((t) => /confirmar|delimita|plano amplo/i.test(t))).toBe(true);
+    expect(harness.state.isLoading).toBe(false);
+  });
+
+  it('RED 7: "Aprofundar holding agora" é FOLLOWUP_NEXT_STEP — sem disparar dossiê completo', async () => {
+    uuidv4Mock.mockReturnValueOnce('session-new').mockReturnValueOnce('message-user').mockReturnValueOnce('message-bot');
+    const harness = makeHarness();
+    await act(async () => {
+      await harness.result.current.handleSendMessage('Aprofundar holding agora');
+    });
+    expect(harness.runMegaPromptWaterfall).not.toHaveBeenCalled();
+  });
+
+  it('RED 8: nenhum caso negativo chama runMegaPromptWaterfall indevidamente', async () => {
+    const negativeCases = [
+      'Faça um email para o CFO',
+      'Me dê um script de ligação',
+      'Resuma esse dossiê',
+      'Pesquise mais',
+      'Aprofunde',
+      'Pesquise tudo',
+    ];
+    for (const text of negativeCases) {
+      uuidv4Mock.mockReturnValueOnce('session-new').mockReturnValueOnce('message-user').mockReturnValueOnce('message-bot');
+      const harness = makeHarness();
+      await act(async () => {
+        await harness.result.current.handleSendMessage(text);
+      });
+      expect(harness.runMegaPromptWaterfall, text).not.toHaveBeenCalled();
+    }
+  });
+});
