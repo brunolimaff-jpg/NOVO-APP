@@ -1,6 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
+import { useCallback, useRef, useState } from 'react';
 import { useInvestigation } from '../../hooks/useInvestigation';
+import type { DossierWaterfallResult } from '../../types';
 import { scoutDiag } from '../../utils/diagnosticLog';
 
 const getDossierMock = vi.fn();
@@ -300,5 +302,135 @@ describe('useInvestigation — BRU-81: nova pesquisa do zero reutiliza a thread 
 
     expect(onSelectSession).not.toHaveBeenCalled();
     expect(onDeepDive).toHaveBeenCalled();
+  });
+});
+
+describe('useInvestigation — BRU-81 propriedade central: o waterfall roda com sessionId da thread da conta (B)', () => {
+  const payload = { companyName: 'Empresa Teste', cnpj: null, city: 'SP', state: 'SP' };
+
+  // Harness que reproduz o padrão real do App:
+  // - currentSessionId vive em estado React;
+  // - handleSendMessage (papel do onDeepDive/App.handleSendMessage) captura currentSessionId
+  //   da CLOSURE do render atual — exatamente como message-orchestrator.ts:1003;
+  // - handleSelectSession faz setCurrentSessionId sem await material de re-render —
+  //   exatamente como features/chat/session-controller.ts:222.
+  function useHarness(initialSessionId: string | null) {
+    const [currentSessionId, setCurrentSessionId] = useState<string | null>(initialSessionId);
+    const waterfallSessionIdsRef = useRef<string[]>([]);
+    const selectSessionCallsRef = useRef<string[]>([]);
+
+    // Espelha o App real: handleSendMessage aceita o targetSessionId explícito
+    // (5º arg do onDeepDive) e o usa como sessionId do waterfall — em vez da
+    // closure do currentSessionId, que pode estar stale (BRU-81).
+    const handleSendMessage = useCallback(async (_p: string, _h: string, _c: string, _cnpj?: string, targetSessionId?: string): Promise<DossierWaterfallResult> => {
+      const sessionId = targetSessionId ?? currentSessionId ?? '(null)';
+      waterfallSessionIdsRef.current.push(sessionId);
+      return { status: 'COMPLETED', dossierId: sessionId };
+    }, [currentSessionId]);
+
+    const handleSelectSession = useCallback(async (id: string) => {
+      selectSessionCallsRef.current.push(id);
+      setCurrentSessionId(id);
+    }, []);
+
+    const investigation = useInvestigation({
+      mode: 'default',
+      onDeepDive: handleSendMessage,
+      operatorId: 'op-1',
+      onSelectSession: handleSelectSession,
+      currentSessionId,
+    });
+
+    return { investigation, waterfallSessionIdsRef, selectSessionCallsRef };
+  }
+
+  function setupDuplicate(hook: { current: { investigation: ReturnType<typeof useInvestigation> } }, oldDossierId: string, operatorId = 'op-1') {
+    act(() => {
+      hook.current.investigation.setDuplicateDossier({
+        id: oldDossierId,
+        empresaAlvo: 'Antiga',
+        cnpj: null,
+        title: 'Antiga',
+        updatedAt: '',
+        operatorId,
+      } as never);
+      hook.current.investigation.pendingPayloadRef.current = payload as never;
+    });
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    getDossierMock.mockImplementation((id: string) => Promise.resolve({ id, messages: [] }));
+    saveDossierMock.mockResolvedValue(undefined);
+    deleteDossierMock.mockResolvedValue(undefined);
+    maybeSingleMock.mockResolvedValue({ data: null, error: null });
+    vi.spyOn(scoutDiag, 'warn').mockImplementation(() => {});
+  });
+
+  it('RED (propriedade central): sessão A (Nova Investigação) ativa + duplicata própria B → waterfall roda com sessionId B', async () => {
+    const { result } = renderHook(() => useHarness('A'));
+    setupDuplicate(result, 'B');
+
+    await act(async () => {
+      await result.current.investigation.handleNewResearchOverride();
+    });
+
+    // A seleção da thread da conta aconteceu
+    expect(result.current.selectSessionCallsRef.current).toEqual(['B']);
+    // PROPRIEDADE CENTRAL: o waterfall/processMessage efetivamente rodou com sessionId B
+    expect(result.current.waterfallSessionIdsRef.current).toEqual(['B']);
+    // Nenhuma execução paralela / terceira sessão
+    expect(result.current.waterfallSessionIdsRef.current).toHaveLength(1);
+  });
+
+  it('currentSessionId null + duplicata própria B → waterfall roda com sessionId B', async () => {
+    const { result } = renderHook(() => useHarness(null));
+    setupDuplicate(result, 'B');
+
+    await act(async () => {
+      await result.current.investigation.handleNewResearchOverride();
+    });
+
+    expect(result.current.selectSessionCallsRef.current).toEqual(['B']);
+    expect(result.current.waterfallSessionIdsRef.current).toEqual(['B']);
+  });
+
+  it('currentSessionId de OUTRA conta (C) + duplicata própria B → waterfall roda com sessionId B', async () => {
+    const { result } = renderHook(() => useHarness('C'));
+    setupDuplicate(result, 'B');
+
+    await act(async () => {
+      await result.current.investigation.handleNewResearchOverride();
+    });
+
+    expect(result.current.selectSessionCallsRef.current).toEqual(['B']);
+    expect(result.current.waterfallSessionIdsRef.current).toEqual(['B']);
+  });
+
+  it('já na thread correta (currentSessionId = B) → idempotente, waterfall roda com sessionId B sem selecionar de novo', async () => {
+    const { result } = renderHook(() => useHarness('B'));
+    setupDuplicate(result, 'B');
+
+    await act(async () => {
+      await result.current.investigation.handleNewResearchOverride();
+    });
+
+    expect(result.current.selectSessionCallsRef.current).toEqual([]);
+    expect(result.current.waterfallSessionIdsRef.current).toEqual(['B']);
+  });
+
+  it('fonte ESTRANGEIRA → NUNCA seleciona a thread estrangeira e o waterfall NÃO roda com ela (fail-closed)', async () => {
+    const { result } = renderHook(() => useHarness('A'));
+    setupDuplicate(result, 'dossier-estrangeiro', 'op-outro');
+
+    await act(async () => {
+      await result.current.investigation.handleNewResearchOverride();
+    });
+
+    expect(result.current.selectSessionCallsRef.current).toEqual([]);
+    // fail-closed: a sessão estrangeira nunca entra no waterfall
+    expect(result.current.waterfallSessionIdsRef.current).not.toContain('dossier-estrangeiro');
+    // a execução segue na sessão atual (A)
+    expect(result.current.waterfallSessionIdsRef.current).toEqual(['A']);
   });
 });
