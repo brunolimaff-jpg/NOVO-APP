@@ -5,6 +5,10 @@ import { resolveRuntimeAppVersion, resolveRuntimeEnvironment } from '../runtimeM
 export type DossierRunStatus = 'PENDING' | 'RUNNING' | 'CANCEL_REQUESTED' | 'CANCELLED' | 'COMPLETED' | 'FAILED';
 export interface DossierRun {
   run_id: string; status: DossierRunStatus; cancel_requested_at: string | null; lease_expires_at: string | null; lease_owner?: string | null;
+  /** BRU-81: identidade persistida do dossiê promovido (session_id do run). */
+  dossier_id?: string | null;
+  session_id?: string | null;
+  owner_id?: string | null;
 }
 export interface DossierRunContext { sessionId: string; runId: string; leaseOwner: string; clientAttemptId: string; }
 export type DossierRunTerminalResult = { status: 'COMPLETED' | 'CANCELLED'; runId: string } | { status: 'FAILED'; runId: string; errorCode?: string; errorStage?: string };
@@ -134,4 +138,23 @@ export const releaseDossierRunLease = (runId: string, leaseOwner: string, option
 export const requestDossierRunCancellation = (runId: string, options?: RpcOptions) => rpcRequired<DossierRun>('request_dossier_run_cancel', { p_run_id: runId }, options);
 export const markDossierRunCancelled = (runId: string, leaseOwner: string, options?: RpcOptions) => rpcRequired<DossierRun>('mark_dossier_run_cancelled', { p_run_id: runId, p_lease_owner: leaseOwner }, options);
 export const markDossierRunCompleted = (runId: string, leaseOwner: string, dossierId: string, options?: RpcOptions) => rpcRequired<DossierRun>('complete_dossier_run', { p_run_id: runId, p_lease_owner: leaseOwner, p_dossier_id: dossierId }, options);
+
+/**
+ * BRU-81 (P0) — promoção atômica server-owned (abordagem 2 aprovada).
+ * Uma única RPC valida owner/run/lease/session, grava o dossiê (UPSERT
+ * id = session_id) e marca o run COMPLETED na MESMA transação PostgreSQL.
+ * Idempotente: replay da mesma promoção retorna o terminal sem reescrever;
+ * replay divergente é rejeitado pela RPC.
+ */
+export const completeDossierRunWithDossier = (
+  runId: string,
+  leaseOwner: string,
+  dossierSnapshot: Record<string, unknown>,
+  options?: RpcOptions,
+) =>
+  rpcRequired<DossierRun>('complete_dossier_run_with_dossier', {
+    p_run_id: runId,
+    p_lease_owner: leaseOwner,
+    p_dossier_snapshot: dossierSnapshot,
+  }, options);
 export const markDossierRunFailed = (runId: string, leaseOwner: string, errorCode: string, errorStage: string, options?: RpcOptions) => rpcRequired<DossierRun>('fail_dossier_run', { p_run_id: runId, p_lease_owner: leaseOwner, p_error_code: errorCode, p_error_stage: errorStage }, options);

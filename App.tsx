@@ -7,6 +7,7 @@ import { useInterruptedDossierRunRecovery } from './hooks/useInterruptedDossierR
 import { useEmailModal } from './hooks/useEmailModal';
 import { useFollowUpModal } from './hooks/useFollowUpModal';
 import { useSessionManager, useSessionRemoteSave } from './features/chat/session-controller';
+import { isSessionReusable } from './features/chat/session-reuse';
 import { useChatFeedbackActions } from './features/chat/feedback-actions';
 import ChatErrorBoundary from './features/chat/ChatErrorBoundary';
 import { useChatMessageOrchestrator } from './features/chat/message-orchestrator';
@@ -256,6 +257,22 @@ const App: React.FC = () => {
   }, [mode]);
 
   const { handleNewSession, handleSelectSession, handleDeleteSession } = useSessionManager();
+
+  // BRU-81 (P0): remove a "Nova Investigação" vazia criada apenas para a tentativa
+  // de override — SOMENTE se provar que é vazia/reutilizável (isSessionReusable).
+  // Nunca dispara soft-delete remoto (a sessão vazia nem é persistida).
+  const handleCleanupTransientSession = useCallback(
+    (sessionId: string) => {
+      setSessions(prev => {
+        const target = prev.find(s => s.id === sessionId);
+        if (target && isSessionReusable(target)) {
+          return prev.filter(s => s.id !== sessionId);
+        }
+        return prev;
+      });
+    },
+    [setSessions],
+  );
 
   useAppInitialization({
     loadSessions,
@@ -560,6 +577,7 @@ const App: React.FC = () => {
                 sessions={sessions}
                 onNewSession={handleNewSession}
                 onSelectSession={handleSelectSession}
+                onCleanupTransientSession={handleCleanupTransientSession}
                 onDeleteSession={handleDeleteSession}
                 isSidebarOpen={isSidebarOpen}
                 onToggleSidebar={() => setIsSidebarOpen(previous => !previous)}

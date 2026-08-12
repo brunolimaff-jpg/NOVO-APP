@@ -23,7 +23,7 @@ import { formatarParaPrompt, lookupCliente } from '../../services/clientLookupSe
 import { getContextoConcorrentesRegionais } from '../../services/competitorService';
 import { generatePortaContextForDeepDive } from '../../services/portaStateService';
 import { fetchCompanyByCnpj } from '../../services/brasilApiService';
-import { storage } from '../../services/storage';
+import { storage, prepareDossierForPersistence } from '../../services/storage';
 import { useMaybeChatStore } from '../../stores/chatStore';
 import { type ChatSession, type ClienteSeniorData, Sender, type WebVerificationStatus, type DossierWaterfallResult } from '../../types';
 import { scoutDiag } from '../../utils/diagnosticLog';
@@ -50,7 +50,7 @@ import type { MutableRefObject } from 'react';
 import type { RunMegaPromptWaterfallArgs } from '../../types';
 import { isAbortLikeError } from '../../utils/abortHelpers';
 import { DossierRunCancelledError, assertDossierRunCanContinue, assertDossierRunCanContinueWithRenewal as assertDossierRunCanContinueWithRenewalFn, isDossierRunControlError } from './dossier-run-control';
-import { markDossierRunCancelled, markDossierRunCompleted, markDossierRunFailed, releaseDossierRunLease } from '../../lib/supabase/dossierRuns';
+import { completeDossierRunWithDossier, getDossierRun, markDossierRunCancelled, markDossierRunFailed, releaseDossierRunLease } from '../../lib/supabase/dossierRuns';
 // BRU-33 — seam Gold pós-processamento fail-closed (V7 Preview Wiring).
 import {
   tryEnhanceDossierWithGold,
@@ -524,6 +524,20 @@ function validateTeiaCnpjsOutput(generatedText: string, knownContext: string): C
   }
 
   return { text: generatedText, warnings };
+}
+
+/**
+ * BRU-81 (P0) — reconciliação de resultado incerto na promoção atômica.
+ * A RPC é idempotente; se a chamada terminal perdeu a resposta (timeout/network),
+ * o run é consultado: COMPLETED com o session esperado = commit aconteceu.
+ */
+async function reconcileCompletedPromotion(runId: string, sessionId: string): Promise<boolean> {
+  try {
+    const run = await getDossierRun(runId);
+    return Boolean(run && run.status === 'COMPLETED' && run.dossier_id === sessionId);
+  } catch {
+    return false;
+  }
 }
 
 export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWaterfallOrchestratorOptions> = {}) {
@@ -1707,33 +1721,38 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
 
         {
           const dossier = sessionToPersist;
-          await assertRunCanContinueWithRenewal('save_dossier');
-          try { await storage.saveDossierStrict(dossier); }
-          catch (error) {
-            if (dossierRunId && dossierLeaseOwner) {
-              try {
-                await markDossierRunFailed(dossierRunId, dossierLeaseOwner, 'persist_failed', 'save_dossier');
-                terminalLeaseReleased = true;
-              } catch (markError) {
-                scoutDiag.warn('WaterfallLifecycle', 'mark-failed-after-save-error', { sessionId, dossierRunId, error: markError instanceof Error ? markError.message : String(markError) });
-              }
-            }
-            return { status: 'FAILED', dossierRunId, errorCode: 'persist_failed', errorStage: 'save_dossier', error: error instanceof Error ? error : new Error(String(error)) } satisfies DossierWaterfallResult;
-          }
-          await assertRunCanContinueWithRenewal('after_save_dossier_before_complete');
+          // BRU-81 (P0): promoção atômica server-owned. Com run+lease, o snapshot
+          // final é gravado E o run marcado COMPLETED numa ÚNICA RPC transacional —
+          // nenhuma escrita remota do snapshot final antes dela (o dossiê anterior
+          // da thread permanece intacto durante o RUNNING; falha = ROLLBACK integral).
           if (dossierRunId && dossierLeaseOwner) {
+            await assertRunCanContinueWithRenewal('save_dossier');
             try {
-              await markDossierRunCompleted(dossierRunId, dossierLeaseOwner, dossier.id);
+              await completeDossierRunWithDossier(
+                dossierRunId,
+                dossierLeaseOwner,
+                prepareDossierForPersistence(dossier) as unknown as Record<string, unknown>,
+              );
               terminalLeaseReleased = true;
-            }
-            catch (error) {
-              try {
-                await markDossierRunFailed(dossierRunId, dossierLeaseOwner, 'lifecycle_completion_failed', 'mark_completed');
-                terminalLeaseReleased = true;
-              } catch (markError) {
-                scoutDiag.warn('WaterfallLifecycle', 'mark-failed-after-completion-error', { sessionId, dossierRunId, error: markError instanceof Error ? markError.message : String(markError) });
+            } catch (error) {
+              // Resultado incerto de rede: a RPC é idempotente. Se o run consultado
+              // está COMPLETED com a session esperada, o commit aconteceu — sucesso.
+              if (!(await reconcileCompletedPromotion(dossierRunId, dossier.id))) {
+                try {
+                  await markDossierRunFailed(dossierRunId, dossierLeaseOwner, 'promotion_failed', 'atomic_promotion');
+                  terminalLeaseReleased = true;
+                } catch (markError) {
+                  scoutDiag.warn('WaterfallLifecycle', 'mark-failed-after-promotion-error', { sessionId, dossierRunId, error: markError instanceof Error ? markError.message : String(markError) });
+                }
+                return { status: 'FAILED', dossierRunId, errorCode: 'promotion_failed', errorStage: 'atomic_promotion', error: error instanceof Error ? error : new Error(String(error)) } satisfies DossierWaterfallResult;
               }
-              return { status: 'FAILED', dossierRunId, errorCode: 'lifecycle_completion_failed', errorStage: 'mark_completed', error: error instanceof Error ? error : new Error(String(error)) } satisfies DossierWaterfallResult;
+            }
+          } else {
+            // Sem run/lease (ambiente sem lifecycle de run): caminho persistente clássico.
+            await assertRunCanContinueWithRenewal('save_dossier');
+            try { await storage.saveDossierStrict(dossier); }
+            catch (error) {
+              return { status: 'FAILED', dossierRunId, errorCode: 'persist_failed', errorStage: 'save_dossier', error: error instanceof Error ? error : new Error(String(error)) } satisfies DossierWaterfallResult;
             }
           }
           completedDossierId = dossier.id;

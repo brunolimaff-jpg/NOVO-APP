@@ -1,5 +1,6 @@
 // services/storage/index.ts
 // Barrel re-export — mantém compatibilidade com todos os consumidores.
+export { prepareDossierForPersistence } from './dossiers';
 // Antes: import { storage } from '../services/storage'
 // Depois: import { storage } from '../services/storage' (mesmo import, barrel resolve)
 

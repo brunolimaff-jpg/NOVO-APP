@@ -245,6 +245,9 @@ export interface ChatInterfaceProps {
   onNewSession: () => void;
   onSelectSession: (sessionId: string) => void;
   onDeleteSession: (sessionId: string) => void;
+  /** BRU-81 (P0): remove a "Nova Investigação" vazia criada só para a tentativa
+   *  de override — o implementador valida isSessionReusable antes de remover. */
+  onCleanupTransientSession?: (sessionId: string) => void;
   onDeepDive: (
     displayMessage: string,
     hiddenPrompt: string,

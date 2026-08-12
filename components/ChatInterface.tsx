@@ -22,6 +22,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
   onNewSession,
   onSelectSession,
   onDeleteSession,
+  onCleanupTransientSession,
   isSidebarOpen,
   onToggleSidebar,
   messages,
@@ -105,6 +106,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
     onDeepDive,
     operatorId,
     onSelectSession,
+    onCleanupTransientSession,
     currentSessionId: currentSession?.id ?? null,
   });
 
