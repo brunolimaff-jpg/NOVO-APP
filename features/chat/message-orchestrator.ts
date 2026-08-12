@@ -6,7 +6,7 @@ import { useMaybeMode } from '../../contexts/ModeContext';
 import { BACKEND_URL } from '../../services/apiConfig';
 import { sendMessageToLlm } from '../../services/llmService';
 import { withAutoRetry } from '../../utils/retry';
-import { classifyChatIntent, type ChatIntent } from '../../utils/chatIntent';
+import { resolveResearchIntent, type ChatIntent } from '../../utils/chatIntent';
 import { useMaybeChatStore } from '../../stores/chatStore';
 import { findReusableEmptySession } from './session-reuse';
 import { Sender, type ChatSession, type LastAction, type Message, type RunMegaPromptWaterfallArgs, type DossierWaterfallResult } from '../../types';
@@ -500,7 +500,7 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
       // BRU-73 — roteamento de intenção: pedidos vagos ou ampliação material
       // de escopo NÃO iniciam deep research; respondem com esclarecimento
       // local (sem provider, sem waterfall).
-      const chatIntent = classifyChatIntent(text);
+      const chatIntent = resolveResearchIntent({ text, visibleText: safeVisibleText });
       // BRU-73 — telemetria centralizada dos intents de pesquisa (sem texto
       // bruto): qualquer intent de pesquisa (explicit, ambiguous, followup,
       // scope-expansion) fica observável em um único ponto, independente de

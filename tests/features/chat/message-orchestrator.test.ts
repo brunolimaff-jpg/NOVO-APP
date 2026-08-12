@@ -753,3 +753,22 @@ describe('BRU-73 — roteamento de intenção de pesquisa no chat', () => {
     }
   });
 });
+
+
+describe('BRU-80 — regressão: payload de sistema não inicia esclarecimento (deep dive / nova pesquisa)', () => {
+  it('RED: handleSendMessage com hiddenPrompt grande + visibleText não pode cair em "Pesquisar mais o quê?"', async () => {
+    uuidv4Mock.mockReturnValueOnce('session-new').mockReturnValueOnce('message-user').mockReturnValueOnce('message-bot');
+    const harness = makeHarness();
+    const hiddenPrompt =
+      'Dossiê completo de [Grupo Scheffer]. Protocolo de investigação forense especializada:\n\n' +
+      'Pesquise mais. Aprofunde a análise da operação e da cadeia de valor. Investigue mais a estrutura societária. Descubra mais sobre os sócios.';
+    await act(async () => {
+      await harness.result.current.handleSendMessage(hiddenPrompt, '🔍 Investigando Grupo Scheffer...', 'Grupo Scheffer');
+    });
+    expect(harness.runMegaPromptWaterfall).toHaveBeenCalledTimes(1);
+    const botTexts = harness.state.sessions[0]?.messages
+      ?.filter((m: Message) => m.sender === Sender.Bot)
+      .map((m: Message) => m.text ?? '') ?? [];
+    expect(botTexts.some((t) => /pesquisar mais o quê/i.test(t))).toBe(false);
+  });
+});

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { classifyChatIntent, type ChatIntent } from '../../utils/chatIntent';
+import { classifyChatIntent, resolveResearchIntent, type ChatIntent } from '../../utils/chatIntent';
 
 /**
  * BRU-73 — testes unitários da função pura classifyChatIntent.
@@ -63,5 +63,44 @@ describe('BRU-73 — classifyChatIntent (função pura)', () => {
     expect(classifyChatIntent('PESQUISE MAIS SOBRE A HOLDING')).toBe('explicit');
     expect(classifyChatIntent('pesquise mais sobre a holding')).toBe('explicit');
     expect(classifyChatIntent('Aprofundar Holding Agora')).toBe('followup');
+  });
+});
+describe('BRU-80 — fronteira de roteamento: payload de sistema nunca é intenção do usuário', () => {
+  // Reproduz o cenário de runtime: handleDeepDive/handleNewResearchOverride montam
+  // um text = protocolo interno de investigação com dezenas de milhares de chars
+  // (contendo linguagem de pesquisa) e um visibleText = "🔍 Investigando X...".
+  const researchLanguage = [
+    'Pesquise mais.',
+    'Aprofunde a análise da operação e da cadeia de valor.',
+    'Investigue mais a estrutura societária da empresa.',
+    'Descubra mais sobre os sócios e a tecnologia.',
+    'Continue investigando e aprofunde o que for relevante.',
+    'Tente descobrir novos detalhes sobre a gestão.',
+  ].join(' ');
+  const megaPrompt =
+    `Dossiê completo de [Grupo Scheffer]. Protocolo de investigação forense especializada:\n\n${researchLanguage}`.repeat(300);
+
+  it('RED baseline: classifyChatIntent(megaPrompt) cai em ambiguous (bug reproduzido)', () => {
+    expect(megaPrompt.length).toBeGreaterThan(100_000);
+    expect(classifyChatIntent(megaPrompt)).toBe('ambiguous');
+  });
+
+  it('deep dive com visibleText distinto do payload resolve para pesquisa explícita', () => {
+    const intent = resolveResearchIntent({
+      text: megaPrompt,
+      visibleText: '🔍 Investigando Grupo Scheffer...',
+    });
+    expect(intent).toBe('explicit');
+  });
+
+  it('sem payload de sistema, o texto digitado pelo usuário segue o classificador', () => {
+    expect(resolveResearchIntent({ text: 'Pesquise mais' })).toBe('ambiguous');
+    expect(resolveResearchIntent({ text: 'Pesquise mais sobre a holding' })).toBe('explicit');
+    expect(resolveResearchIntent({ text: 'Pesquise tudo' })).toBe('scope-expansion');
+    expect(resolveResearchIntent({ text: 'Faça um email para o CFO' })).toBe('craft');
+  });
+
+  it('visibleText igual ao text não é payload de sistema — classificação normal', () => {
+    expect(resolveResearchIntent({ text: 'Pesquise mais', visibleText: 'Pesquise mais' })).toBe('ambiguous');
   });
 });

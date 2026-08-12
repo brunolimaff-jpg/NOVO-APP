@@ -49,3 +49,27 @@ export function classifyChatIntent(text: string): ChatIntent {
   // CRAFT_FROM_CONTEXT: qualquer outro pedido usa o contexto já disponível.
   return 'craft';
 }
+
+export type IntentRoutingInput = {
+  /** Texto bruto recebido pelo processMessage — fala do usuário OU payload interno de sistema. */
+  text: string;
+  /** Texto visível fornecido pelo chamador quando difere de text (ex.: "🔍 Investigando X..."). */
+  visibleText?: string;
+};
+
+/**
+ * BRU-80 — fronteira do roteamento de intenção.
+ *
+ * `classifyChatIntent` só deve avaliar a intenção explícita do usuário.
+ * Quando o chamador fornece um `visibleText` distinto do `text` bruto, o
+ * `text` é um payload interno de sistema (ex.: protocolo de investigação com
+ * dezenas de milhares de caracteres acionado por deep dive / nova pesquisa) —
+ * nunca a fala do usuário. Classificar esse payload gera falsos
+ * `ambiguous`/`scope-expansion` que bloqueiam o waterfall antes de começar.
+ * Nesses fluxos a intenção é de pesquisa explícita por construção.
+ */
+export function resolveResearchIntent(input: IntentRoutingInput): ChatIntent {
+  const isSystemPayload = Boolean(input.visibleText && input.visibleText !== input.text);
+  if (isSystemPayload) return 'explicit';
+  return classifyChatIntent(input.text);
+}
