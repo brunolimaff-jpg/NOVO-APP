@@ -6,7 +6,7 @@ import { useMaybeMode } from '../../contexts/ModeContext';
 import { BACKEND_URL } from '../../services/apiConfig';
 import { sendMessageToLlm } from '../../services/llmService';
 import { withAutoRetry } from '../../utils/retry';
-import { classifyChatIntent } from '../../utils/chatIntent';
+import { classifyChatIntent, type ChatIntent } from '../../utils/chatIntent';
 import { useMaybeChatStore } from '../../stores/chatStore';
 import { findReusableEmptySession } from './session-reuse';
 import { Sender, type ChatSession, type LastAction, type Message, type RunMegaPromptWaterfallArgs, type DossierWaterfallResult } from '../../types';
@@ -501,6 +501,17 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
       // de escopo NÃO iniciam deep research; respondem com esclarecimento
       // local (sem provider, sem waterfall).
       const chatIntent = classifyChatIntent(text);
+      // BRU-73 — telemetria centralizada dos intents de pesquisa (sem texto
+      // bruto): qualquer intent de pesquisa (explicit, ambiguous, followup,
+      // scope-expansion) fica observável em um único ponto, independente de
+      // entrar ou não no esclarecimento local.
+      const kIntentsDePesquisa: readonly ChatIntent[] = ['explicit', 'ambiguous', 'followup', 'scope-expansion'];
+      if (kIntentsDePesquisa.includes(chatIntent)) {
+        scoutDiag.info('MessageOrchestrator', 'processMessage:intent', {
+          sessionId,
+          intent: chatIntent,
+        });
+      }
       if (chatIntent === 'ambiguous' || chatIntent === 'scope-expansion') {
         try {
         const clarification =
