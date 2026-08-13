@@ -281,6 +281,7 @@ function makeHarness(
     sessionScore?: number | null;
     messages?: Message[];
     shouldSimulateFallback?: boolean;
+    updateSessionByIdThrows?: boolean;
     activeGenerationRef?: { current: Record<string, string> };
     goldSeamDeps?: GoldSeamDeps;
   } = {},
@@ -299,6 +300,9 @@ function makeHarness(
   };
 
   const updateSessionById = vi.fn((sessionId: string, updater: (session: ChatSession) => ChatSession) => {
+    if (overrides.updateSessionByIdThrows) {
+      throw new Error('render crashed after terminal commit');
+    }
     if (overrides.shouldSimulateFallback) {
       return;
     }
@@ -1736,6 +1740,45 @@ describe('useDossierWaterfallOrchestrator', () => {
       expect.objectContaining({ reason: 'verifier_fail' }),
     );
     expect(lifecycleRpcMocks.release).not.toHaveBeenCalled();
+  });
+
+  it('BRU-62 fix: pós-terminal commit, o checkpoint before_final_session_update NÃO roda (run já COMPLETED no servidor)', async () => {
+    // Regressão real observada em preview: após terminal_commit_ok, o fluxo
+    // chamava assertRunCanContinue('before_final_session_update') que consulta
+    // o run e vê COMPLETED → DossierRunLeaseLostError → cliente retornava FAILED
+    // e o updateSessionById nunca rodava (UI com "Erro no processamento").
+    const harness = makeHarness();
+    const result = await harness.result.current.runMegaPromptWaterfall(
+      makeRunArgs({ dossierRunId: 'run-1', dossierLeaseOwner: 'lease-1' }),
+    );
+
+    expect(result).toMatchObject({ status: 'COMPLETED' });
+    const stages = runControlMocks.assertCanContinue.mock.calls.map(([input]) => input.stage);
+    // checkpoint do terminal commit roda
+    expect(stages).toContain('before_terminal_commit');
+    // checkpoint pós-terminal NÃO roda (run já COMPLETED — fail-closed sem sentido)
+    expect(stages).not.toContain('before_final_session_update');
+    // publicação à UI aconteceu
+    expect(harness.updateSessionById).toHaveBeenCalled();
+    expect(getBotMessage(harness).text).toContain('Porte / Teia Societária consolidado');
+    expect(lifecycleRpcMocks.completeWithDossier).toHaveBeenCalledOnce();
+    expect(lifecycleRpcMocks.release).not.toHaveBeenCalled();
+  });
+
+  it('BRU-62 fix: erro de publicação/render pós-terminal commit → COMPLETED (não FAILED)', async () => {
+    // Invariante do BRU-62: falha de render pós-commit não rebaixa run COMPLETED.
+    const dispatchSpy = vi.spyOn(window, 'dispatchEvent');
+    const harness = makeHarness({ updateSessionByIdThrows: true });
+    const result = await harness.result.current.runMegaPromptWaterfall(
+      makeRunArgs({ dossierRunId: 'run-1', dossierLeaseOwner: 'lease-1' }),
+    );
+
+    expect(result).toMatchObject({ status: 'COMPLETED', dossierId: 'session-1' });
+    expect(lifecycleRpcMocks.completeWithDossier).toHaveBeenCalledOnce();
+    // sem markFailed nem release pós-terminal
+    expect(lifecycleRpcMocks.failed).not.toHaveBeenCalled();
+    expect(lifecycleRpcMocks.release).not.toHaveBeenCalled();
+    dispatchSpy.mockRestore();
   });
 
 });

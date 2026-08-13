@@ -1607,7 +1607,13 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
 
         sessionToPersist = null;
         let originalMsgCount = -1;
-        await assertRunCanContinue('before_final_session_update');
+        // BRU-62: depois do terminal commit o run JÁ está COMPLETED no servidor —
+        // os checkpoints de run-control (que exigem status RUNNING) perderam o
+        // sentido e lançariam DossierRunLeaseLostError, abortando a publicação.
+        // Pós-terminal, a publicação à UI é best-effort e não passa por eles.
+        if (!terminalLeaseReleased) {
+          await assertRunCanContinue('before_final_session_update');
+        }
         const updatedSession = updateSessionById(sessionId, session => {
           originalMsgCount = session.messages?.length ?? 0;
           const finalCompany = normalizedCompany || session.empresaAlvo || pickCompanyLabel(session.title);
@@ -1855,6 +1861,21 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
           return { status: 'CANCELLED', dossierRunId, terminalPersisted: false, reason: 'local_abort' };
         }
         const normalized = error instanceof Error ? error : new Error(String(error));
+        // BRU-62: se o terminal commit já ocorreu (run COMPLETED), um erro
+        // posterior na fase de publicação/render não pode rebaixar o resultado —
+        // o dossiê está persistido e o run terminal. Publicação é best-effort.
+        if (terminalLeaseReleased) {
+          scoutDiag.warn('WaterfallLifecycle', 'ui_publish_failed_run_terminal', {
+            sessionId,
+            waterfallRunId,
+            error: normalized.message,
+          });
+          return {
+            status: 'COMPLETED',
+            dossierRunId,
+            dossierId: sessionId,
+          } satisfies DossierWaterfallResult;
+        }
         if (dossierRunId && dossierLeaseOwner) {
           try {
             await markDossierRunFailed(dossierRunId, dossierLeaseOwner, 'waterfall_failed', currentLifecycleStage);
