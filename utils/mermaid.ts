@@ -91,7 +91,11 @@ function normalizeMermaidText(input: string): string {
   return collapseMultilineNodeLabels(input)
     .replace(/<br\s*\/?>(\s*)/gi, '\n')
     .replace(/&lt;br\s*\/?&gt;\s*/gi, '\n')
-    .replace(/<!--[\s\S]*?-->/g, '')
+    // CodeQL #75 (js/incomplete-multi-character-sanitization): cobre também
+    // abertura de comentário HTML SEM fechamento — remove até `-->` ou, na
+    // ausência dele, até o fim do input (nunca deixa `<!--` residual passar
+    // para a gramática do Mermaid).
+    .replace(/<!--[\s\S]*?(?:-->|$)/g, '')
     .replace(/[\u{1F000}-\u{1FFFF}]/gu, '')
     .replace(/[\u2600-\u27BF]/gu, '')
     .replace(/[\u2013\u2014]/g, '-')

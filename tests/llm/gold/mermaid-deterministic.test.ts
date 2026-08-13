@@ -276,7 +276,11 @@ describe('SCOUT-V7-GOLD-EXPERIENCE-01C — CANONICAL MERMAID', () => {
     // O nó da pista (A3) NÃO tem seta — mas a matriz (A1) e o partner (A2)
     // legítimos têm (==> para a conta alvo)
     const pistaLine = teia.split('\n').find((l) => l.includes('A3'));
-    expect(pistaLine).not.toMatch(/==>|-->|-\.->/);
+    // CodeQL #76 (js/bad-tag-filter): mesma assertion semântica, com `-->`
+    // isolado em toContain para o scanner não interpretar a regex de teste
+    // como sanitizer de comentário HTML.
+    expect(pistaLine).not.toMatch(/==>|-\.->/);
+    expect(pistaLine).not.toContain('-->');
     // SEM declaração duplicada do mesmo nó
     const a3Decls = teia.match(/A3\[/g) ?? [];
     expect(a3Decls.length).toBe(1);
@@ -315,6 +319,25 @@ describe('SCOUT-V7-GOLD-EXPERIENCE-01C — CANONICAL MERMAID', () => {
       expect(sanitized).not.toMatch(/flowchart\s+TD|graph\s+TD|graph\s+TB/);
       expect(sanitized).not.toMatch(/<br\s*\/?>/i);
     }
+  });
+
+  it('RED CodeQL#75: comentário HTML ABERTO sem fechamento é removido até o fim do input', async () => {
+    // Antes do fix, `<!--` sem `-->` sobrevivia à sanitização (regex exigia o
+    // fechamento) — o CodeQL #75 aponta a abertura residual como vetor.
+    const { sanitizeMermaidCode } = await import('../../../utils/mermaid');
+    const sanitized = sanitizeMermaidCode('graph LR\nA[ok] <!-- comentário aberto sem fechar\nB[ok]');
+    expect(sanitized).not.toContain('<!--');
+  });
+
+  it('GREEN CodeQL#75: comentário FECHADO some e comentário ABERTO não deixa resíduo (mesmo input)', async () => {
+    const { sanitizeMermaidCode } = await import('../../../utils/mermaid');
+    const sanitized = sanitizeMermaidCode('graph LR\nA[ok] <!-- fechado -->\nB[ok] <!-- aberto');
+    expect(sanitized).not.toContain('<!--');
+    expect(sanitized).not.toContain('-->');
+    // a gramática sobrevivente continua válida
+    expect(sanitized).toContain('graph LR');
+    expect(sanitized).toContain('A[ok]');
+    expect(sanitized).toContain('B[ok]');
   });
 
   it('GREEN 11: Teia sem nome empresarial usa label "CNPJ ..." (sem duplicar CNPJ no label)', () => {
