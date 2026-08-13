@@ -159,6 +159,7 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
   );
   const setVisibleCount = requireDependency(options.setVisibleCount ?? chatStore?.setVisibleCount, 'setVisibleCount');
   const setLastQuery = requireDependency(options.setLastQuery ?? chatStore?.setLastQuery, 'setLastQuery');
+
   const toast = options.toast ?? fallbackToast;
   const investigationLogged = options.investigationLogged ?? chatStore?.investigationLogged ?? false;
   const setInvestigationLogged = requireDependency(
@@ -477,6 +478,7 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
 
       const botMessageId = uuidv4();
       activeGenerationRef.current[sessionId] = botMessageId;
+
       const placeholderLoadingVariant: LoadingVariant = resolvePlaceholderLoadingVariant({
         requestKind: resolvedRequestKind,
         isFollowUp: options?.isFollowUp,

@@ -2,6 +2,9 @@ import React from 'react';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import MessageTimeline from '../../../components/chat/MessageTimeline';
+
+const scoutDiagMock = vi.hoisted(() => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn() }));
+vi.mock('../../../utils/diagnosticLog', () => ({ scoutDiag: scoutDiagMock }));
 import type { ChatTheme } from '../../../components/chat/contracts';
 import { Sender, type ChatSession, type Message } from '../../../types';
 
@@ -24,10 +27,19 @@ vi.mock('react-virtuoso', async () => {
             Header?: React.ComponentType;
           };
         },
-        ref: React.ForwardedRef<HTMLDivElement>,
-      ) => (
+        ref: React.ForwardedRef<{ scrollToIndex: (opts: { index: number; align?: string; behavior?: string }) => void } | HTMLDivElement>,
+      ) => {
+        const scrollToIndex = (opts: { index: number; align?: string; behavior?: string }) => {
+          const el = document.querySelector('[data-testid="messages-scroller"]');
+          if (el) el.setAttribute('data-scrolled-to', String(opts.index));
+        };
+        if (typeof ref === 'function') {
+          ref({ scrollToIndex });
+        } else if (ref) {
+          (ref as { current?: unknown }).current = { scrollToIndex };
+        }
+        return (
         <div
-          ref={ref}
           data-testid="messages-scroller"
           data-virtuoso-scroller="true"
           data-follow-output={String(followOutput)}
@@ -39,7 +51,8 @@ vi.mock('react-virtuoso', async () => {
             </div>
           ))}
         </div>
-      ),
+        );
+      },
     ),
   };
 });
@@ -105,6 +118,7 @@ vi.mock('../../../components/EmptyStateHome', () => ({
 vi.mock('../../../components/HelpCenterFloating', () => ({
   default: () => <div data-testid="help-center-floating" />,
 }));
+
 
 const theme: ChatTheme = {
   bg: 'bg-slate-950',
@@ -511,6 +525,49 @@ describe('MessageTimeline', () => {
       // Nenhum elemento deve ter style com !important injetado
       const elementsWithImportant = document.querySelectorAll('[style*="important"]');
       expect(elementsWithImportant.length).toBe(0);
+    });
+  });
+
+  describe('BRU-81 F1.2 — NEW_RUN_WAYFINDING', () => {
+    it('chave nova + viewport pronto → scroll one-shot até a última mensagem (nova atividade)', async () => {
+      const messages = [
+        buildMessage('m1', Sender.User, 'Investigação anterior'),
+        buildMessage('m2', Sender.Bot, 'Dossiê grande anterior...'),
+        buildMessage('m3', Sender.User, '🔍 Investigando Grupo Scheffer...'),
+        { ...buildMessage('m4', Sender.Bot, ''), isThinking: true, loadingVariant: 'inline' as const },
+      ];
+      const props = buildProps({
+        messages,
+        currentSession: buildSession(messages),
+        scrollToActivityKey: 'wayfinding-Nova Pesquisa do Zero',
+        isLoading: true,
+      });
+      render(<MessageTimeline {...props} />);
+
+      await waitFor(() => {
+        expect(scoutDiagMock.info).toHaveBeenCalledWith('Virtuoso', 'wayfinding-scroll', expect.objectContaining({ targetIndex: 3 }));
+      });
+    });
+
+    it('chave repetida → NÃO re-dispara o scroll (one-shot, usuário navega livre depois)', async () => {
+      const messages = [
+        buildMessage('m1', Sender.User, 'Ola'),
+        buildMessage('m2', Sender.Bot, 'Resposta'),
+      ];
+      const { rerender } = render(
+        <MessageTimeline
+          {...buildProps({ messages, currentSession: buildSession(messages), scrollToActivityKey: 'wayfinding-X', isLoading: true })}
+        />,
+      );
+      rerender(
+        <MessageTimeline
+          {...buildProps({ messages, currentSession: buildSession(messages), scrollToActivityKey: 'wayfinding-X', isLoading: true })}
+        />,
+      );
+
+      await new Promise(r => setTimeout(r, 50));
+      const calls = scoutDiagMock.info.mock.calls.filter(c => c[1] === 'wayfinding-scroll');
+      expect(calls.length).toBeLessThanOrEqual(1);
     });
   });
 });
