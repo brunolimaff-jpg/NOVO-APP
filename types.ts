@@ -301,6 +301,8 @@ export interface ChatInterfaceProps {
   };
   loadingVariant?: 'hero' | 'inline';
   loadingPinnedLabel?: string | null;
+  /** BRU-81 F1.3: id (botMessageId) da nova execução a levar à viewport 1x. */
+  wayfindingKey?: string | null;
   // Deletar mensagem do usuário
   onDeleteMessage?: (id: string) => void;
 }

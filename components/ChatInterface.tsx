@@ -48,6 +48,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
   processing,
   loadingVariant,
   loadingPinnedLabel,
+  wayfindingKey,
   onDeleteMessage,
   onDeepDive,
 }) => {
@@ -261,7 +262,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
                 canDeepDive={canDeepDive}
                 theme={theme}
                 followOutputOverride={loadingVariant === 'inline' && Boolean(loadingPinnedLabel)}
-                scrollToActivityKey={lastUserQuery ? `wayfinding-${lastUserQuery}` : null}
+                scrollToActivityKey={wayfindingKey ?? null}
               />
             )}
           </div>

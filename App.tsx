@@ -617,6 +617,9 @@ const App: React.FC = () => {
                 canDeepDive={canDeepDive}
                 onClearOperator={clearName}
                 lastUserQuery={lastQuery}
+                wayfindingKey={
+                  currentSessionId ? (activeGenerationRef.current[currentSessionId] ?? null) : null
+                }
                 onDeleteMessage={handleDeleteMessage}
               />
             </ChatErrorBoundary>

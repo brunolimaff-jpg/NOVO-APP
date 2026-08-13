@@ -201,11 +201,13 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
   useEffect(() => {
     if (!scrollToActivityKey || !isMessagesViewportReady) return;
     if (lastScrolledKeyRef.current === scrollToActivityKey) return;
-    if (safeMessages.length === 0) return;
+    // F1.3: só consome quando o item da nova atividade EXISTE no timeline —
+    // se a chave chegou antes do placeholder, espera o próximo render.
+    const targetIndex = safeMessages.findIndex(m => m.id === scrollToActivityKey);
+    if (targetIndex === -1) return;
     lastScrolledKeyRef.current = scrollToActivityKey;
-    const targetIndex = safeMessages.length - 1;
     // one-shot: espera o próximo frame para o Virtuoso medir o item
-    requestAnimationFrame(() => {
+    const rafId = requestAnimationFrame(() => {
       virtuosoRef.current?.scrollToIndex({ index: targetIndex, align: 'end', behavior: 'smooth' });
       scoutDiag.info('Virtuoso', 'wayfinding-scroll', {
         sessionId: currentSession?.id ?? null,
@@ -213,7 +215,8 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
         targetIndex,
       });
     });
-  }, [scrollToActivityKey, isMessagesViewportReady, safeMessages.length, currentSession?.id]);
+    return () => cancelAnimationFrame(rafId);
+  }, [scrollToActivityKey, isMessagesViewportReady, safeMessages, currentSession?.id]);
 
   const handleRangeChanged = useCallback(
     (range: { startIndex: number; endIndex: number }) => {

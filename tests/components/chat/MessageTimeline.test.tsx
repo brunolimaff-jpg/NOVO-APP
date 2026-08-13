@@ -1,5 +1,5 @@
 import React from 'react';
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import MessageTimeline from '../../../components/chat/MessageTimeline';
 
@@ -209,6 +209,7 @@ describe('MessageTimeline', () => {
   });
 
   afterEach(() => {
+    cleanup();
     global.ResizeObserver = originalResizeObserver;
     window.requestAnimationFrame = originalRequestAnimationFrame;
     window.cancelAnimationFrame = originalCancelAnimationFrame;
@@ -539,7 +540,7 @@ describe('MessageTimeline', () => {
       const props = buildProps({
         messages,
         currentSession: buildSession(messages),
-        scrollToActivityKey: 'wayfinding-Nova Pesquisa do Zero',
+        scrollToActivityKey: 'm4',
         isLoading: true,
       });
       render(<MessageTimeline {...props} />);
@@ -556,18 +557,49 @@ describe('MessageTimeline', () => {
       ];
       const { rerender } = render(
         <MessageTimeline
-          {...buildProps({ messages, currentSession: buildSession(messages), scrollToActivityKey: 'wayfinding-X', isLoading: true })}
+          {...buildProps({ messages, currentSession: buildSession(messages), scrollToActivityKey: 'm2', isLoading: true })}
         />,
       );
       rerender(
         <MessageTimeline
-          {...buildProps({ messages, currentSession: buildSession(messages), scrollToActivityKey: 'wayfinding-X', isLoading: true })}
+          {...buildProps({ messages, currentSession: buildSession(messages), scrollToActivityKey: 'm2', isLoading: true })}
         />,
       );
 
       await new Promise(r => setTimeout(r, 50));
       const calls = scoutDiagMock.info.mock.calls.filter(c => c[1] === 'wayfinding-scroll');
       expect(calls.length).toBeLessThanOrEqual(1);
+    });
+
+    it('F1.3: chave chega ANTES do item existir → zero consumo prematuro; consome quando o placeholder aparece', async () => {
+      const messages1 = [buildMessage('m1', Sender.User, 'Ola')];
+      const { rerender } = render(
+        <MessageTimeline
+          {...buildProps({ messages: messages1, currentSession: buildSession(messages1), scrollToActivityKey: 'm2', isLoading: true })}
+        />,
+      );
+      await new Promise(r => setTimeout(r, 50));
+      // item m2 ainda não existe → zero scroll consumido
+      expect(scoutDiagMock.info.mock.calls.filter(c => c[1] === 'wayfinding-scroll').length).toBe(0);
+
+      // placeholder do novo run aparece → consome e scrola exatamente 1x
+      const messages2 = [buildMessage('m1', Sender.User, 'Ola'), { ...buildMessage('m2', Sender.Bot, ''), isThinking: true, loadingVariant: 'inline' as const }];
+      rerender(
+        <MessageTimeline
+          {...buildProps({ messages: messages2, currentSession: buildSession(messages2), scrollToActivityKey: 'm2', isLoading: true })}
+        />,
+      );
+      await waitFor(() => {
+        expect(scoutDiagMock.info).toHaveBeenCalledWith('Virtuoso', 'wayfinding-scroll', expect.objectContaining({ targetIndex: 1 }));
+      });
+      // rerender adicional do mesmo run → zero novo scroll
+      rerender(
+        <MessageTimeline
+          {...buildProps({ messages: messages2, currentSession: buildSession(messages2), scrollToActivityKey: 'm2', isLoading: true })}
+        />,
+      );
+      await new Promise(r => setTimeout(r, 50));
+      expect(scoutDiagMock.info.mock.calls.filter(c => c[1] === 'wayfinding-scroll').length).toBe(1);
     });
   });
 });
