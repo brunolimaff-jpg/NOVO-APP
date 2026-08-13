@@ -287,6 +287,63 @@ describe('useChatMessageOrchestrator', () => {
     expect(harness.state.loadingVariant).toBeUndefined();
   });
 
+  it('BRU-81 F1: isNewRunOverride em thread com histórico → hero-override, isFirstInteraction true, zero sessão paralela', async () => {
+    const deferred = createDeferred<import('../../../types').DossierWaterfallResult>();
+    uuidv4Mock.mockReturnValueOnce('message-user').mockReturnValueOnce('message-bot');
+    const harness = makeHarness({
+      sessions: [
+        makeSession({
+          messages: [
+            makeMessage({ id: 'user-1', sender: Sender.User, text: 'Mensagem inicial' }),
+            makeMessage({ id: 'bot-1', sender: Sender.Bot, text: 'Resposta inicial' }),
+          ],
+        }),
+      ],
+      currentSessionId: 'session-1',
+    });
+    harness.runMegaPromptWaterfall.mockReturnValue(deferred.promise);
+
+    let pendingSend!: Promise<DossierWaterfallResult | null | undefined>;
+    await act(async () => {
+      pendingSend = harness.result.current.handleSendMessage(
+        'DOSSIÊ COMPLETO de Acme Agro',
+        'Nova Pesquisa do Zero',
+        'Acme Agro',
+        { requestKind: 'default', explicitSessionId: 'session-1', isNewRunOverride: true },
+      );
+    });
+    // loading hero-override visível DURANTE o run (representação inequívoca)
+    expect(harness.state.loadingVariant).toBe('hero-override');
+    // nova execução: isFirstInteraction true mesmo com histórico
+    expect(harness.runMegaPromptWaterfall).toHaveBeenCalledWith(
+      expect.objectContaining({ sessionId: 'session-1', isFirstInteraction: true }),
+    );
+    // zero sessão paralela
+    expect(harness.state.sessions.map(s => s.id)).toEqual(['session-1']);
+
+    await act(async () => {
+      deferred.resolve({ status: 'COMPLETED' });
+      await pendingSend;
+    });
+  });
+
+  it('BRU-81 F2: floodgate (geração ativa) → feedback visível e zero segundo run', async () => {
+    const harness = makeHarness({ currentSessionId: 'session-1' });
+    // geração já ativa para a sessão (floodgate 1 do processMessage)
+    harness.activeGenerationRef.current['session-1'] = 'bot-ativo';
+
+    await act(async () => {
+      await harness.result.current.handleSendMessage('Nova pesquisa do zero');
+    });
+
+    // zero segundo run
+    expect(harness.runMegaPromptWaterfall).not.toHaveBeenCalled();
+    // feedback visível (F2)
+    expect(harness.toast.warning).toHaveBeenCalledWith(
+      expect.stringContaining('Já existe uma pesquisa em andamento'),
+    );
+  });
+
   it('insere placeholder thinking antes da resposta padrão', async () => {
     const deferred = createDeferred<Awaited<ReturnType<typeof sendMessageToLlmMock>>>();
     uuidv4Mock

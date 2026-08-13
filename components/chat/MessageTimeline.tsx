@@ -53,6 +53,8 @@ interface MessageTimelineProps {
   loadingPinnedLabel?: string | null;
   canDeepDive: boolean;
   theme: ChatTheme;
+  /** BRU-81: segue a nova atividade quando há novo run na mesma thread. */
+  followOutputOverride?: boolean;
 }
 
 const MessageTimeline: React.FC<MessageTimelineProps> = ({
@@ -86,6 +88,7 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
   loadingPinnedLabel,
   canDeepDive,
   theme,
+  followOutputOverride,
 }) => {
   const messagesViewportRef = useRef<HTMLDivElement>(null);
   const virtuosoRef = useRef<VirtuosoHandle>(null);
@@ -528,8 +531,9 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
               data={safeMessages}
               computeItemKey={(_, message) => message.id}
               itemContent={itemContent}
-              // UX contract: never auto-scroll the main chat timeline on new messages.
-              followOutput={false}
+              // UX contract: never auto-scroll the main chat timeline on new messages —
+              // exceto novo run na mesma thread (BRU-81), que segue suavemente.
+              followOutput={followOutputOverride ? 'smooth' : false}
               increaseViewportBy={{ top: virtuosoOverscan, bottom: virtuosoOverscan }}
               defaultItemHeight={96}
               rangeChanged={handleRangeChanged}

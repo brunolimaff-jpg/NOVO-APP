@@ -260,6 +260,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
                 loadingPinnedLabel={loadingPinnedLabel}
                 canDeepDive={canDeepDive}
                 theme={theme}
+                followOutputOverride={loadingVariant === 'hero-override'}
               />
             )}
           </div>

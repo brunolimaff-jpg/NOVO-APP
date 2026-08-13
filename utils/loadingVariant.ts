@@ -1,11 +1,14 @@
 export type RequestKind = 'default' | 'deep_dive';
-export type LoadingVariant = 'hero' | 'inline';
+export type LoadingVariant = 'hero' | 'inline' | 'hero-override';
 
 import { getFlag } from './featureFlags';
 
 interface ResolveLoadingVariantOptions {
   requestKind: RequestKind;
   isFollowUp?: boolean;
+  /** BRU-81: nova execução explícita na MESMA thread — força o overlay hero
+   * mesmo quando já existe conteúdo de bot renderizado (override de duplicata). */
+  forceHero?: boolean;
 }
 
 type ResolvePlaceholderLoadingVariantOptions = ResolveLoadingVariantOptions;
@@ -13,7 +16,9 @@ type ResolvePlaceholderLoadingVariantOptions = ResolveLoadingVariantOptions;
 export function resolveLoadingVariant({
   requestKind,
   isFollowUp = false,
+  forceHero = false,
 }: ResolveLoadingVariantOptions): LoadingVariant {
+  if (forceHero) return 'hero-override';
   if (isFollowUp) return 'inline';
   if (requestKind === 'deep_dive') return 'hero';
   return 'hero';
@@ -34,12 +39,15 @@ export function shouldShowHeroLoadingOverlay(
   hasRenderableBotMessage = false,
 ): boolean {
   if (!isLoading) return false;
-  if (hasRenderableBotMessage) return false;
+  // BRU-81: hero-override é o único caminho que pode cobrir conteúdo existente
+  // (nova execução na mesma thread precisa de representação inequívoca).
+  if (hasRenderableBotMessage) return loadingVariant === 'hero-override';
   return loadingVariant !== 'inline';
 }
 
 export function resolveEffectiveLoadingVariant(opts: ResolveLoadingVariantOptions): LoadingVariant {
   const base = resolveLoadingVariant(opts);
+  if (base === 'hero-override') return 'hero-override';
   if (base === 'hero' && getFlag('inlineLoading')) return 'inline';
   return base;
 }
@@ -50,7 +58,7 @@ export function shouldSuspendHeroMessageTimeline(
   hasRenderableBotMessage = false,
 ): boolean {
   if (!isLoading) return false;
-  if (hasRenderableBotMessage) return false;
+  if (hasRenderableBotMessage) return loadingVariant === 'hero-override';
   // Cobre hero explícito e janela pós-completeLoadingProgress (variant undefined, isLoading ainda true).
   return loadingVariant !== 'inline';
 }

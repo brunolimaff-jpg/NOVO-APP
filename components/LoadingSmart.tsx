@@ -37,7 +37,7 @@ interface LoadingSmartProps {
   isLoading: boolean;
   mode: ChatMode;
   isDarkMode: boolean;
-  loadingVariant?: 'hero' | 'inline';
+  loadingVariant?: 'hero' | 'inline' | 'hero-override';
   fixedStatusLine?: string;
   onStop?: () => void;
   processing?: {

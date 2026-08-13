@@ -50,6 +50,18 @@ describe('loadingVariant flow rules', () => {
     expect(resolveDeepDiveRequestKind(false)).toBe('default');
   });
 
+  it('BRU-81: forceHero retorna hero-override (nova execução na mesma thread)', () => {
+    expect(resolveLoadingVariant({ requestKind: 'default', isFollowUp: true, forceHero: true })).toBe('hero-override');
+  });
+
+  it('BRU-81: hero-override sobrepõe conteúdo existente (run novo na thread com histórico)', () => {
+    // com conteúdo de bot renderizável, só hero-override mantém o overlay
+    expect(shouldShowHeroLoadingOverlay(true, 'hero', true)).toBe(false);
+    expect(shouldShowHeroLoadingOverlay(true, 'hero-override', true)).toBe(true);
+    expect(shouldShowHeroLoadingOverlay(true, 'hero-override', false)).toBe(true);
+    expect(shouldShowHeroLoadingOverlay(false, 'hero-override', true)).toBe(false);
+  });
+
   it('resolvePlaceholderLoadingVariant é alias de resolveEffectiveLoadingVariant', () => {
     expect(
       resolvePlaceholderLoadingVariant({

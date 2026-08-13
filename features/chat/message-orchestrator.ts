@@ -48,6 +48,9 @@ export interface HandleSendMessageOptions {
   /** BRU-81: thread alvo explícita — evita stale closure do currentSessionId quando a
    * nova pesquisa do zero volta para a thread existente da conta (uma thread por conta). */
   explicitSessionId?: string | null;
+  /** BRU-81: nova execução explícita na MESMA thread (override de duplicata) —
+   * força loading hero-override e isFirstInteraction mesmo com histórico. */
+  isNewRunOverride?: boolean;
 }
 
 interface ProcessMessageOptions extends HandleSendMessageOptions {
@@ -390,6 +393,8 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
           activeBotMessageId: activeGenerationRef.current[sessionId],
           callerStack: new Error().stack?.split('\n').slice(1, 5).join(' <- '),
         });
+        // BRU-81 F2: floodgate fail-closed preservado + feedback visível ao usuário.
+        toast.warning?.('Já existe uma pesquisa em andamento nesta conta. Aguarde a conclusão ou interrompa antes de tentar novamente.');
         return;
       }
 
@@ -400,6 +405,8 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
           activeRunId: anyGuard?.activeRunId ?? 'other-session',
           generationCount: anyGuard?.generationCount ?? 0,
         });
+        // BRU-81 F2: floodgate fail-closed preservado + feedback visível ao usuário.
+        toast.warning?.('Já existe uma pesquisa em andamento. Aguarde a conclusão ou interrompa antes de tentar novamente.');
         return;
       }
 
@@ -408,6 +415,7 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
       const resolvedLoadingVariant = resolveEffectiveLoadingVariant({
         requestKind: resolvedRequestKind,
         isFollowUp: options?.isFollowUp,
+        forceHero: options?.isNewRunOverride === true,
       });
       setRequestKind(resolvedRequestKind);
       setLoadingVariant(resolvedLoadingVariant);
@@ -1113,6 +1121,7 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
 
       const previousUserMessages = currentHistory.filter(message => message.sender === Sender.User).length;
       const isDeepDive = resolvedRequestKind === 'deep_dive';
+      const isNewRunOverride = options?.isNewRunOverride === true;
       try {
         const result = await processMessage(
           text,
@@ -1121,12 +1130,13 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
           resolvedDisplayText,
           hintedCompanyOverride || immediateCompany,
           {
-            isFollowUp: previousUserMessages > 0,
+            isFollowUp: isNewRunOverride ? false : previousUserMessages > 0,
             isDeepDive,
-            isFirstInteraction: previousUserMessages === 0,
+            isFirstInteraction: isNewRunOverride ? true : previousUserMessages === 0,
             requestKind: resolvedRequestKind,
             fixedLoadingLine: fixedLoadingLine ?? undefined,
             explicitSessionId: options?.explicitSessionId ?? undefined,
+            isNewRunOverride: options?.isNewRunOverride ?? undefined,
           },
         );
         return result;

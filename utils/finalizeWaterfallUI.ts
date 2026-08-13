@@ -12,7 +12,7 @@ import * as Sentry from '@sentry/react';
 
 export interface WaterfallUIStore {
   setIsLoading?: (value: boolean) => void;
-  setLoadingVariant?: (variant: 'hero' | 'inline' | undefined) => void;
+  setLoadingVariant?: (variant: 'hero' | 'inline' | 'hero-override' | undefined) => void;
   completeLoadingProgress?: () => void;
   setFailureCount?: (value: number) => void;
   activeGenerationRef?: { current: Record<string, string> };

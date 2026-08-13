@@ -144,7 +144,7 @@ export interface Message {
   text: string;
   timestamp: Date;
   isThinking?: boolean;
-  loadingVariant?: 'hero' | 'inline';
+  loadingVariant?: 'hero' | 'inline' | 'hero-override';
   isDeepDiveResult?: boolean;
   groundingSources?: Array<{
     title: string;
@@ -299,7 +299,7 @@ export interface ChatInterfaceProps {
     failureCount?: number;
     totalStages?: number;
   };
-  loadingVariant?: 'hero' | 'inline';
+  loadingVariant?: 'hero' | 'inline' | 'hero-override';
   loadingPinnedLabel?: string | null;
   // Deletar mensagem do usuário
   onDeleteMessage?: (id: string) => void;

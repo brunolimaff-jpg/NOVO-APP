@@ -355,6 +355,9 @@ const App: React.FC = () => {
               : undefined,
         cnpj: cnpj ?? null,
         explicitSessionId: targetSessionId ?? null,
+        // BRU-81: override de duplicata = nova execução na MESMA thread —
+        // representação inequívoca de novo run (hero + viewport).
+        isNewRunOverride: Boolean(targetSessionId),
       },
     );
   };
