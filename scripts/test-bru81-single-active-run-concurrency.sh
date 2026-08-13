@@ -3,15 +3,18 @@
 #
 # Sobe um cluster PostgreSQL efêmero (initdb + pg_ctl em porta livre), aplica a
 # RPC acquire_dossier_run_lease da migration 20260813190000 com um stub de
-# auth.uid() (GUC app.owner_id) e roda os 6 cenários do contrato congelado
+# auth.uid() (GUC app.owner_id) e roda os 9 cenários do contrato congelado
 # pelo Planejador com conexões REAIS simultâneas:
 #
-#   S1 A e B novos na mesma sessão   → exatamente 1 RUNNING + 1 FAILED, sem deadlock
+#   S1 A e B novos na mesma sessão   → exatamente 1 RUNNING + 1 FAILED, sem deadlock (prova real de término)
 #   S2 A vivo + B novo               → A permanece, B falha (SINGLE_ACTIVE_RUN_BLOCKED)
 #   S3 A expirado + B novo           → A fecha (SUPERSEDED_STALE_RUN), B inicia
 #   S4 múltiplos RUNNING históricos  → nenhum fica ignorado (todos terminalizados)
 #   S5 sessões diferentes            → não se bloqueiam
 #   S6 owners diferentes             → não interferem
+#   S7 cancelamento vivo + B novo    → ocupação preservada, B falha (SINGLE_ACTIVE_RUN_BLOCKED)
+#   S8 cancelamento expirado + B novo→ antigo vira CANCELLED (cancelled_at), B inicia
+#   S9 run alvo sem session_id       → alvo vira FAILED (RUN_SESSION_REQUIRED), nunca PENDING órfão
 #
 # Uso: bash scripts/test-bru81-single-active-run-concurrency.sh
 # Saída: cenário a cenário (PASS/FAIL) + exit code 0 apenas se TODOS passarem.
@@ -125,18 +128,33 @@ check() { # check <label> <expected> <actual>
 R_A="c1aaaaaa-0000-4000-8000-000000000001"; R_B="c1bbbbbb-0000-4000-8000-000000000002"
 new_run "$R_A" "$OWNER1" "$S1S"; new_run "$R_B" "$OWNER1" "$S1S"
 echo "S1: A e B novos na mesma sessão (concorrentes)"
+# Prova REAL do término: mede duração e exit code das DUAS conexões.
+# A abre a transação, adquire o lease e segura o advisory 2s (pg_sleep);
+# B começa 0.4s depois e só pode terminar depois do COMMIT de A.
+T0=$(python3 -c 'import time; print(time.monotonic())')
 acquire_in_session "$OWNER1" "$R_A" "A:lease" "SELECT pg_sleep(2);" >/dev/null 2>&1 &
 PID_A=$!
 sleep 0.4
+T_B0=$(python3 -c 'import time; print(time.monotonic())')
 acquire_in_session "$OWNER1" "$R_B" "B:lease" "" >/dev/null 2>&1
+B_RC=$?
+T_B1=$(python3 -c 'import time; print(time.monotonic())')
 wait "$PID_A"
+A_RC=$?
+T_A1=$(python3 -c 'import time; print(time.monotonic())')
+DUR_A=$(python3 -c "print(round($T_A1 - $T0, 2))")
+DUR_B=$(python3 -c "print(round($T_B1 - $T_B0, 2))")
 ST_A=$(state_of "$R_A"); ST_B=$(state_of "$R_B")
 RUNNING_COUNT=$(sql_run "SELECT count(*) FROM dossier_runs WHERE session_id='$S1S' AND status='RUNNING';")
 FAILED_COUNT=$(sql_run "SELECT count(*) FROM dossier_runs WHERE session_id='$S1S' AND status='FAILED';")
 check "exatamente 1 RUNNING" "1" "$RUNNING_COUNT"
 check "exatamente 1 FAILED" "1" "$FAILED_COUNT"
 check "perdedor com SINGLE_ACTIVE_RUN_BLOCKED" "1" "$(echo "$ST_A|$ST_B" | grep -c 'SINGLE_ACTIVE_RUN_BLOCKED')"
-check "sem deadlock (ambos terminaram)" "ok" "ok"
+check "conexao A terminou com exit 0" "0" "$A_RC"
+check "conexao B terminou com exit 0" "0" "$B_RC"
+check "A segurou a transacao >= 2s (pg_sleep real)" "true" "$(python3 -c "print('true' if $DUR_A >= 2.0 else 'false')")"
+check "B so terminou depois do commit de A (esperou o advisory ~1.6s+)" "true" "$(python3 -c "print('true' if $DUR_B >= 1.5 else 'false')")"
+check "sem deadlock: ambas concluiram dentro de 30s (A=$DUR_A s, B=$DUR_B s)" "true" "$(python3 -c "print('true' if $DUR_A < 30.0 and $DUR_B < 30.0 else 'false')")"
 
 # ---------- S2: A vivo + B novo ----------
 R_A="c2aaaaaa-0000-4000-8000-000000000001"; R_B="c2bbbbbb-0000-4000-8000-000000000002"
@@ -169,7 +187,7 @@ ST_A=$(state_of "$R_A"); ST_B=$(state_of "$R_B"); ST_C=$(state_of "$R_C")
 check "A terminalizado" "FAILED|SUPERSEDED_STALE_RUN|-" "$ST_A"
 check "C terminalizado (não ignorado)" "FAILED|SUPERSEDED_STALE_RUN|-" "$ST_C"
 check "B RUNNING" "RUNNING|-|B:lease" "$ST_B"
-check "nenhum RUNNING órfão restante na sessão" "1" "$(sql_run "SELECT count(*) FROM dossier_runs WHERE session_id='$S1S' AND status='RUNNING';")"
+check "nenhum RUNNING órfão restante na sessão" "1" "$(sql_run "SELECT count(*) FROM dossier_runs WHERE session_id='$S4S' AND status='RUNNING';")"
 
 # ---------- S5: sessões diferentes não se bloqueiam ----------
 R_A="c5aaaaaa-0000-4000-8000-000000000001"; R_B="c5bbbbbb-0000-4000-8000-000000000002"
