@@ -565,7 +565,7 @@ describe('useDossierWaterfallOrchestrator', () => {
 
   it('cancelamento detectado antes da promoção impede a promoção e mantém texto final', async () => {
     runControlMocks.assertCanContinue.mockImplementation(async (input: { stage: string }) => {
-      if (input.stage === 'save_dossier') throw new DossierRunCancelledError('remote_cancel');
+      if (input.stage === 'before_terminal_commit') throw new DossierRunCancelledError('remote_cancel');
     });
     const dispatchSpy = vi.spyOn(window, 'dispatchEvent');
     const harness = makeHarness();
@@ -575,24 +575,28 @@ describe('useDossierWaterfallOrchestrator', () => {
     expect(result).toMatchObject({ status: 'CANCELLED' });
     expect(lifecycleRpcMocks.completeWithDossier).not.toHaveBeenCalled();
     expect(lifecycleRpcMocks.cancelled).toHaveBeenCalledOnce();
-    expect(getBotMessage(harness).text).toContain('Porte / Teia Societária consolidado');
+    // BRU-62: cancelamento na fronteira do terminal commit impede promoção E
+    // publicação — o texto final não chega à UI (fail-closed), pois o abort
+    // ocorre antes do updateSessionById. A mensagem bot segue vazia.
+    expect(getBotMessage(harness).text).not.toContain('Porte / Teia Societária consolidado');
     expect(dispatchSpy).not.toHaveBeenCalledWith(expect.objectContaining({ type: 'dossier:completed' }));
     dispatchSpy.mockRestore();
   });
 
   it('falha de leitura antes da promoção persiste FAILED sem promoção', async () => {
     runControlMocks.assertCanContinue.mockImplementation(async (input: { stage: string }) => {
-      if (input.stage === 'save_dossier') throw new DossierRunReadError('RPC indisponível antes da promoção');
+      if (input.stage === 'before_terminal_commit') throw new DossierRunReadError('RPC indisponível antes da promoção');
     });
     const dispatchSpy = vi.spyOn(window, 'dispatchEvent');
     const harness = makeHarness();
     const result = await harness.result.current.runMegaPromptWaterfall(
       makeRunArgs({ dossierRunId: 'run-1', dossierLeaseOwner: 'lease-1' }),
     );
-    expect(result).toMatchObject({ status: 'FAILED', errorStage: 'save_dossier' });
+    expect(result).toMatchObject({ status: 'FAILED', errorStage: 'before_terminal_commit' });
     expect(lifecycleRpcMocks.completeWithDossier).not.toHaveBeenCalled();
     expect(lifecycleRpcMocks.failed).toHaveBeenCalledOnce();
-    expect(getBotMessage(harness).text).toContain('Porte / Teia Societária consolidado');
+    // BRU-62: fail-closed na fronteira do commit — sem promoção e sem publicação.
+    expect(getBotMessage(harness).text).not.toContain('Porte / Teia Societária consolidado');
     expect(dispatchSpy).not.toHaveBeenCalledWith(expect.objectContaining({ type: 'dossier:completed' }));
     dispatchSpy.mockRestore();
   });
@@ -604,7 +608,7 @@ describe('useDossierWaterfallOrchestrator', () => {
       makeRunArgs({ dossierRunId: 'run-1', dossierLeaseOwner: 'lease-1' }),
     );
     const saveAssertCall = runControlMocks.assertCanContinue.mock.calls.findIndex(
-      ([input]) => input.stage === 'save_dossier',
+      ([input]) => input.stage === 'before_terminal_commit',
     );
     expect(result).toMatchObject({ status: 'COMPLETED' });
     expect(saveAssertCall).toBeGreaterThanOrEqual(0);
@@ -684,10 +688,9 @@ describe('useDossierWaterfallOrchestrator', () => {
     );
     const bot = getBotMessage(harness);
     expect(result).toMatchObject({ status: 'FAILED', errorCode: 'promotion_failed', errorStage: 'atomic_promotion' });
-    expect(bot.text).toContain('Porte / Teia Societária consolidado');
-    expect(bot.isThinking).toBe(false);
-    expect(bot.suggestions).toEqual(DEFAULT_SUGGESTIONS);
-    expect(bot.scorePorta).toBeTruthy();
+    // BRU-62: falha da RPC terminal na fronteira do commit → FAILED sem
+    // publicação à UI (o texto final não é exposto quando o commit falhou).
+    expect(bot.text).not.toContain('Porte / Teia Societária consolidado');
     expect(dispatchSpy).not.toHaveBeenCalledWith(expect.objectContaining({ type: 'dossier:completed' }));
     expect(lifecycleRpcMocks.failed).toHaveBeenCalledTimes(1);
     expect(lifecycleRpcMocks.release).not.toHaveBeenCalled();
@@ -1665,4 +1668,55 @@ describe('useDossierWaterfallOrchestrator', () => {
       }),
     );
   });
+  it('RED (P0 BRU-62): render bloqueado após final_text_ready NÃO deixa o run RUNNING — terminal commit antes de qualquer escrita React pesada', async () => {
+    // BRU-62: o commit terminal (promoção atômica) precisa acontecer ANTES de
+    // expor o texto final ao render pesado. Se o render congelar/travar a main
+    // thread depois de final_text_ready, o run já deve estar COMPLETED.
+    const dispatchSpy = vi.spyOn(window, 'dispatchEvent');
+    const harness = makeHarness({ shouldSimulateFallback: true });
+
+    const result = await harness.result.current.runMegaPromptWaterfall(
+      makeRunArgs({ sessionId: 'session-bru62-red', dossierRunId: 'run-1', dossierLeaseOwner: 'lease-1' }),
+    );
+
+    // run terminal apesar do render/updateSessionById ter falhado
+    expect(result).toMatchObject({ status: 'COMPLETED', dossierId: 'session-bru62-red' });
+    // promoção atômica chamada (terminal commit ocorreu)
+    expect(lifecycleRpcMocks.completeWithDossier).toHaveBeenCalledOnce();
+    // o snapshot promovido carrega o texto final aprovado
+    expect(lifecycleRpcMocks.completeWithDossier).toHaveBeenCalledWith(
+      'run-1',
+      'lease-1',
+      expect.objectContaining({ id: 'session-bru62-red' }),
+    );
+    // release não é chamado após COMPLETED
+    expect(lifecycleRpcMocks.release).not.toHaveBeenCalled();
+    // BRU-62: publicação à UI falhou (render bloqueado), então o evento
+    // dossier:completed NÃO é disparado — mas o run já está terminal. O evento
+    // é best-effort de UI; a terminalidade independe dele.
+    expect(dispatchSpy).not.toHaveBeenCalledWith(expect.objectContaining({ type: 'dossier:completed' }));
+    dispatchSpy.mockRestore();
+  });
+
+  it('RED (P0 BRU-62): Gold FAIL → fallback grande + render bloqueado ainda promove UMA vez antes do render', async () => {
+    // BRU-62: mesmo com Gold rejeitado e fallback grande (cenário do freeze real),
+    // a promoção atômica ocorre antes da exposição à UI.
+    const harness = makeHarness({ shouldSimulateFallback: true, goldSeamDeps: makeGoldEnabledDeps() });
+
+    const result = await harness.result.current.runMegaPromptWaterfall(
+      makeRunArgs({ sessionId: 'session-bru62-red-gold', dossierRunId: 'run-1', dossierLeaseOwner: 'lease-1' }),
+    );
+
+    expect(result).toMatchObject({ status: 'COMPLETED' });
+    // exatamente um terminal commit
+    expect(lifecycleRpcMocks.completeWithDossier).toHaveBeenCalledOnce();
+    // Gold rejeitado observado (fallback grande)
+    expect(scoutDiagMock.info).toHaveBeenCalledWith(
+      'GoldSeam',
+      'gold-rejeitado-fallback',
+      expect.objectContaining({ reason: 'verifier_fail' }),
+    );
+    expect(lifecycleRpcMocks.release).not.toHaveBeenCalled();
+  });
+
 });

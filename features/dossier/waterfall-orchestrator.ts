@@ -648,6 +648,10 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
 
       try {
         await assertRunCanContinue('waterfall_start');
+        // BRU-62: sessão base capturada antes de qualquer updateSessionById —
+        // usada para o snapshot puro do terminal commit (que ocorre antes da
+        // publicação à UI, quando sessionToPersist ainda é null).
+        const baseSession = chatStore?.sessionsRef?.current?.find((s: ChatSession) => s.id === sessionId);
         let accumulatedText = '';
         let previousStageCompleted = false;
         const optionalStepFailures = new Set<string>();
@@ -1525,6 +1529,82 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
           };
         }
 
+        // BRU-62 (P0): terminal commit ANTES da publicação pesada à UI.
+        // Texto final (inclusive Gold/fallback), sugestões e verificação de
+        // geração ativa já estão resolvidos aqui. Se o render pesado seguinte
+        // (updateSessionById + commit React) congelar ou destruir a main thread
+        // (incidente real: Gold FAIL → fallback 44k → freeze → run RUNNING órfão),
+        // o run JÁ precisa estar terminal e o dossiê promovido. A UI abaixo é
+        // puramente publicação; nunca mais chama a RPC terminal (guard por
+        // terminalLeaseReleased).
+        scoutDiag.info('WaterfallLifecycle', 'final_text_ready', {
+          sessionId,
+          waterfallRunId,
+          finalTextLength: waterfallFinalText.length,
+          hasRunLease: Boolean(dossierRunId && dossierLeaseOwner),
+        });
+        if (dossierRunId && dossierLeaseOwner && !terminalLeaseReleased) {
+          const terminalSessionSnapshot: ChatSession = {
+            id: sessionId,
+            title: baseSession?.title ?? (resolvedMegaCompany || normalizedCompany || 'Nova Investigação'),
+            empresaAlvo: baseSession?.empresaAlvo ?? (resolvedMegaCompany || normalizedCompany) ?? null,
+            cnpj: baseSession?.cnpj ?? sessionCnpjDigits ?? null,
+            modoPrincipal: baseSession?.modoPrincipal ?? 'investigacao',
+            scoreOportunidade: baseSession?.scoreOportunidade ?? waterfallScorePorta?.score ?? null,
+            resumoDossie: baseSession?.resumoDossie ?? null,
+            createdAt: baseSession?.createdAt ?? new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            messages: [
+              ...(baseSession?.messages?.filter(m => m.id !== botMessageId) ?? []),
+              {
+                id: botMessageId,
+                sender: Sender.Bot,
+                text: waterfallFinalText,
+                timestamp: new Date(),
+                isThinking: false,
+                scorePorta: waterfallScorePorta ?? undefined,
+                clienteSeniorData: waterfallClienteSeniorData || undefined,
+                groundingSources: waterfallGroundingSources.length ? waterfallGroundingSources : undefined,
+                webVerificationStatus,
+                groundingUsed:
+                  webVerificationStatus === 'not_applicable'
+                    ? undefined
+                    : webVerificationStatus === 'verified' || webVerificationStatus === 'fallback_verified',
+                suggestions: waterfallSuggestions,
+                loadingVariant: undefined,
+                isError: false,
+                errorDetails: undefined,
+              },
+            ],
+          };
+          scoutDiag.info('WaterfallLifecycle', 'before_terminal_commit', { sessionId, waterfallRunId });
+          await assertRunCanContinue('before_terminal_commit');
+          try {
+            await completeDossierRunWithDossier(
+              dossierRunId,
+              dossierLeaseOwner,
+              prepareDossierForPersistence(terminalSessionSnapshot) as unknown as Record<string, unknown>,
+            );
+            terminalLeaseReleased = true;
+            scoutDiag.info('WaterfallLifecycle', 'terminal_commit_ok', { sessionId, waterfallRunId });
+          } catch (error) {
+            // Resultado incerto de rede: a RPC é idempotente. Se o run consultado
+            // está COMPLETED com a session esperada, o commit aconteceu — sucesso.
+            if (await reconcileCompletedPromotion(dossierRunId, sessionId)) {
+              terminalLeaseReleased = true;
+              scoutDiag.info('WaterfallLifecycle', 'terminal_commit_ok', { sessionId, waterfallRunId, reconciled: true });
+            } else {
+              try {
+                await markDossierRunFailed(dossierRunId, dossierLeaseOwner, 'promotion_failed', 'atomic_promotion');
+                terminalLeaseReleased = true;
+              } catch (markError) {
+                scoutDiag.warn('WaterfallLifecycle', 'mark-failed-after-promotion-error', { sessionId, dossierRunId, error: markError instanceof Error ? markError.message : String(markError) });
+              }
+              return { status: 'FAILED', dossierRunId, errorCode: 'promotion_failed', errorStage: 'atomic_promotion', error: error instanceof Error ? error : new Error(String(error)) } satisfies DossierWaterfallResult;
+            }
+          }
+        }
+
         sessionToPersist = null;
         let originalMsgCount = -1;
         await assertRunCanContinue('before_final_session_update');
@@ -1702,6 +1782,20 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
         }
 
         if (!sessionToPersist) {
+          // BRU-62: se o run já foi terminalizado em final_text_ready (COMPLETED),
+          // a falha de publicação à UI não pode rebaixar o resultado — o dossiê
+          // está persistido e o run terminal. Publicação é best-effort.
+          if (dossierRunId && dossierLeaseOwner && terminalLeaseReleased) {
+            scoutDiag.warn('WaterfallLifecycle', 'ui_publish_failed_run_terminal', {
+              sessionId,
+              waterfallRunId,
+            });
+            return {
+              status: 'COMPLETED',
+              dossierRunId,
+              dossierId: sessionId,
+            } satisfies DossierWaterfallResult;
+          }
           if (dossierRunId && dossierLeaseOwner) {
             try {
               await markDossierRunFailed(dossierRunId, dossierLeaseOwner, 'final_session_unavailable', 'before_save');
@@ -1721,32 +1815,18 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
 
         {
           const dossier = sessionToPersist;
-          // BRU-81 (P0): promoção atômica server-owned. Com run+lease, o snapshot
-          // final é gravado E o run marcado COMPLETED numa ÚNICA RPC transacional —
-          // nenhuma escrita remota do snapshot final antes dela (o dossiê anterior
-          // da thread permanece intacto durante o RUNNING; falha = ROLLBACK integral).
+          // BRU-62 (P0): a promoção atômica já ocorreu em final_text_ready (antes
+          // da publicação à UI). Aqui o run já está terminal quando havia lease —
+          // este bloco é APENAS publicação de UI (persistência clássica apenas no
+          // ambiente sem run/lease). Nunca re-chama a RPC terminal.
           if (dossierRunId && dossierLeaseOwner) {
-            await assertRunCanContinueWithRenewal('save_dossier');
-            try {
-              await completeDossierRunWithDossier(
-                dossierRunId,
-                dossierLeaseOwner,
-                prepareDossierForPersistence(dossier) as unknown as Record<string, unknown>,
-              );
-              terminalLeaseReleased = true;
-            } catch (error) {
-              // Resultado incerto de rede: a RPC é idempotente. Se o run consultado
-              // está COMPLETED com a session esperada, o commit aconteceu — sucesso.
-              if (!(await reconcileCompletedPromotion(dossierRunId, dossier.id))) {
-                try {
-                  await markDossierRunFailed(dossierRunId, dossierLeaseOwner, 'promotion_failed', 'atomic_promotion');
-                  terminalLeaseReleased = true;
-                } catch (markError) {
-                  scoutDiag.warn('WaterfallLifecycle', 'mark-failed-after-promotion-error', { sessionId, dossierRunId, error: markError instanceof Error ? markError.message : String(markError) });
-                }
-                return { status: 'FAILED', dossierRunId, errorCode: 'promotion_failed', errorStage: 'atomic_promotion', error: error instanceof Error ? error : new Error(String(error)) } satisfies DossierWaterfallResult;
-              }
-            }
+            // Run já terminal (COMPLETED) em final_text_ready; nada mais a persistir.
+            // O snapshot final da UI (sessionToPersist) segue para publicação local.
+            scoutDiag.info('WaterfallLifecycle', 'ui_publish_start', {
+              sessionId,
+              waterfallRunId,
+              terminalLeaseReleased,
+            });
           } else {
             // Sem run/lease (ambiente sem lifecycle de run): caminho persistente clássico.
             await assertRunCanContinueWithRenewal('save_dossier');
@@ -1754,6 +1834,9 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
             catch (error) {
               return { status: 'FAILED', dossierRunId, errorCode: 'persist_failed', errorStage: 'save_dossier', error: error instanceof Error ? error : new Error(String(error)) } satisfies DossierWaterfallResult;
             }
+          }
+          if (dossierRunId && dossierLeaseOwner) {
+            scoutDiag.info('WaterfallLifecycle', 'ui_publish_done', { sessionId, waterfallRunId });
           }
           completedDossierId = dossier.id;
           window.dispatchEvent(new CustomEvent('dossier:completed', { detail: { dossierId: dossier.id, companyName: resolvedMegaCompany || normalizedCompany || '', cnpj: dossier.cnpj } }));
