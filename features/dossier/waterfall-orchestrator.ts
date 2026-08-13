@@ -1298,6 +1298,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
         // UI/persistência usarem o mesmo texto. Apenas falhas internas do Gold
         // caem silenciosamente no dossiê; abort do usuário e erros de
         // run-control/lease preservam a semântica atual (CANCELLED/FAILED).
+        let goldOutputKind: 'gold_pass' | 'factual_minimal' | 'controlled_unavailable' | undefined;
         if (goldSeamDeps.enabled && sessionCnpjDigits) {
           const goldStartedAt = Date.now();
           scoutDiag.info('GoldSeam', 'gold-start', {
@@ -1313,7 +1314,6 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
             // depender de console externo. Apenas métricas — nunca conteúdo.
             let goldRejectionReason: GoldRejectionReason | undefined;
             let goldRejectionDetail: GoldRejectionDetail | undefined;
-            let goldOutputKind: 'gold_pass' | 'factual_minimal' | 'controlled_unavailable' | undefined;
             const enhancedText = await tryEnhanceDossierWithGold({
               cnpj: sessionCnpjDigits,
               companyName: normalizedCompany || resolvedMegaCompany,
@@ -1422,6 +1422,12 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
             });
           }
         }
+        // BRU-69 (B+): política de metadata do output — boundary único.
+        // Em factual_minimal/controlled_unavailable NENHUMA análise comercial
+        // foi aprovada pelo Gold: o bot final (snapshot terminal + UI) não
+        // pode carregar PORTA/score, cliente Senior nem sugestões comerciais.
+        const suppressCommercialMetadata =
+          goldOutputKind === 'factual_minimal' || goldOutputKind === 'controlled_unavailable';
         const hasFallbackVerified =
           Array.from(waterfallVerificationStatuses.values()).some(status => status === 'fallback_verified') ||
           waterfallGroundingSources.some(source => source.verification === 'fallback');
@@ -1578,7 +1584,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
             empresaAlvo: baseSession?.empresaAlvo ?? (resolvedMegaCompany || normalizedCompany) ?? null,
             cnpj: baseSession?.cnpj ?? sessionCnpjDigits ?? null,
             modoPrincipal: baseSession?.modoPrincipal ?? 'investigacao',
-            scoreOportunidade: baseSession?.scoreOportunidade ?? waterfallScorePorta?.score ?? null,
+            scoreOportunidade: suppressCommercialMetadata ? null : baseSession?.scoreOportunidade ?? waterfallScorePorta?.score ?? null,
             resumoDossie: baseSession?.resumoDossie ?? null,
             createdAt: baseSession?.createdAt ?? new Date().toISOString(),
             updatedAt: new Date().toISOString(),
@@ -1590,15 +1596,15 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
                 text: waterfallFinalText,
                 timestamp: new Date(),
                 isThinking: false,
-                scorePorta: waterfallScorePorta ?? undefined,
-                clienteSeniorData: waterfallClienteSeniorData || undefined,
+                scorePorta: suppressCommercialMetadata ? undefined : waterfallScorePorta ?? undefined,
+                clienteSeniorData: suppressCommercialMetadata ? undefined : waterfallClienteSeniorData || undefined,
                 groundingSources: waterfallGroundingSources.length ? waterfallGroundingSources : undefined,
                 webVerificationStatus,
                 groundingUsed:
                   webVerificationStatus === 'not_applicable'
                     ? undefined
                     : webVerificationStatus === 'verified' || webVerificationStatus === 'fallback_verified',
-                suggestions: waterfallSuggestions,
+                suggestions: suppressCommercialMetadata ? undefined : waterfallSuggestions,
                 loadingVariant: undefined,
                 isError: false,
                 errorDetails: undefined,
@@ -1648,21 +1654,21 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
           const nextSession: ChatSession = {
             ...session,
             empresaAlvo: finalCompany || session.empresaAlvo,
-            scoreOportunidade: waterfallScorePorta?.score ?? session.scoreOportunidade,
+            scoreOportunidade: suppressCommercialMetadata ? null : waterfallScorePorta?.score ?? session.scoreOportunidade,
             messages: session.messages.map(message =>
               message.id === botMessageId
                 ? {
                     ...message,
                     text: waterfallFinalText,
-                    scorePorta: waterfallScorePorta ?? undefined,
-                    clienteSeniorData: waterfallClienteSeniorData || undefined,
+                    scorePorta: suppressCommercialMetadata ? undefined : waterfallScorePorta ?? undefined,
+                    clienteSeniorData: suppressCommercialMetadata ? undefined : waterfallClienteSeniorData || undefined,
                     groundingSources: waterfallGroundingSources.length ? waterfallGroundingSources : undefined,
                     webVerificationStatus,
                     groundingUsed:
                       webVerificationStatus === 'not_applicable'
                         ? undefined
                         : webVerificationStatus === 'verified' || webVerificationStatus === 'fallback_verified',
-                    suggestions: waterfallSuggestions,
+                    suggestions: suppressCommercialMetadata ? undefined : waterfallSuggestions,
                     isThinking: false,
                     loadingVariant: undefined,
                     isError: false,
@@ -1761,21 +1767,21 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
               ...fallbackSession,
               updatedAt: new Date().toISOString(),
               empresaAlvo: finalCompany || fallbackSession.empresaAlvo,
-              scoreOportunidade: waterfallScorePorta?.score ?? fallbackSession.scoreOportunidade,
+              scoreOportunidade: suppressCommercialMetadata ? null : waterfallScorePorta?.score ?? fallbackSession.scoreOportunidade,
               messages: fallbackSession.messages.map(message =>
                 message.id === botMessageId
                   ? {
                       ...message,
                       text: waterfallFinalText,
-                      scorePorta: waterfallScorePorta ?? undefined,
-                      clienteSeniorData: waterfallClienteSeniorData || undefined,
+                      scorePorta: suppressCommercialMetadata ? undefined : waterfallScorePorta ?? undefined,
+                      clienteSeniorData: suppressCommercialMetadata ? undefined : waterfallClienteSeniorData || undefined,
                       groundingSources: waterfallGroundingSources.length ? waterfallGroundingSources : undefined,
                       webVerificationStatus,
                       groundingUsed:
                         webVerificationStatus === 'not_applicable'
                           ? undefined
                           : webVerificationStatus === 'verified' || webVerificationStatus === 'fallback_verified',
-                      suggestions: waterfallSuggestions,
+                      suggestions: suppressCommercialMetadata ? undefined : waterfallSuggestions,
                       isThinking: false,
                       loadingVariant: undefined,
                       isError: false,

@@ -1578,6 +1578,9 @@ describe('useDossierWaterfallOrchestrator', () => {
     expect(result?.status).toBe('COMPLETED');
     expect(getBotMessage(harness).text).toBe(goldText);
     expect(getBotMessage(harness).text).not.toContain('consolidado');
+    // BRU-69 B+: Gold PASS preserva os enriquecimentos comerciais vigentes.
+    expect(getBotMessage(harness).scorePorta).toBeTruthy();
+    expect(getBotMessage(harness).suggestions).toEqual(DEFAULT_SUGGESTIONS);
     // telemetria do kind emitida
     expect(scoutDiagMock.info).toHaveBeenCalledWith('GoldSeam', 'output-selected', expect.objectContaining({ kind: 'gold_pass' }));
   });
@@ -1590,12 +1593,52 @@ describe('useDossierWaterfallOrchestrator', () => {
       return '# Dossiê Cadastral\n\n> Saída factual reduzida — Gold não aprovado';
     });
 
-    const result = await act(async () => harness.result.current.runMegaPromptWaterfall(makeRunArgs()));
+    const result = await act(async () => harness.result.current.runMegaPromptWaterfall(makeRunArgs({ dossierRunId: 'run-1', dossierLeaseOwner: 'lease-1' })));
 
     expect(result?.status).toBe('COMPLETED');
     expect(getBotMessage(harness).text).toContain('Saída factual reduzida');
     expect(getBotMessage(harness).text).not.toContain('consolidado');
     expect(scoutDiagMock.info).toHaveBeenCalledWith('GoldSeam', 'gold-fallback-factual', expect.objectContaining({ reason: 'verifier_fail' }));
+    // BPLUS_METADATA_UI_LEAK: o bot final em factual_minimal NÃO carrega
+    // metadados comerciais não aprovados (PORTA, sugestões, cliente Senior).
+    expect(getBotMessage(harness).scorePorta).toBeUndefined();
+    expect(getBotMessage(harness).suggestions).toBeUndefined();
+    expect(getBotMessage(harness).clienteSeniorData).toBeUndefined();
+    expect(getSession(harness).scoreOportunidade).toBeNull();
+    // snapshot persistido também factual-safe
+    expect(lifecycleRpcMocks.completeWithDossier).toHaveBeenCalledWith(
+      'run-1',
+      'lease-1',
+      expect.objectContaining({ scoreOportunidade: null }),
+    );
+    const snapshot = lifecycleRpcMocks.completeWithDossier.mock.calls[0][2] as { messages: Array<Record<string, unknown>> };
+    const botMsg = snapshot.messages.find(m => m.id === 'bot-1');
+    expect(botMsg?.scorePorta).toBeUndefined();
+    expect(botMsg?.suggestions).toBeUndefined();
+    expect(botMsg?.clienteSeniorData).toBeUndefined();
+  });
+
+  it('BRU-69 leak: controlled_unavailable → bot final sem metadados comerciais e com estado controlado', async () => {
+    const harness = makeHarness({ goldSeamDeps: makeGoldEnabledDeps() });
+    tryEnhanceDossierWithGoldMock.mockImplementation(async (input: { onStage?: (stage: string, detail?: { kind?: string; reason?: string }) => void; onRejected?: (reason: string) => void }) => {
+      input.onRejected?.('canonical_null');
+      input.onStage?.('output-selected', { kind: 'controlled_unavailable', reason: 'canonical_null' });
+      return '**Dossiê indisponível**\n\nO dossiê executivo não foi aprovado pelo processo de validação Gold.';
+    });
+
+    const result = await act(async () => harness.result.current.runMegaPromptWaterfall(makeRunArgs({ dossierRunId: 'run-1', dossierLeaseOwner: 'lease-1' })));
+
+    expect(result?.status).toBe('COMPLETED');
+    expect(getBotMessage(harness).text).toContain('Dossiê indisponível');
+    expect(getBotMessage(harness).scorePorta).toBeUndefined();
+    expect(getBotMessage(harness).suggestions).toBeUndefined();
+    expect(getBotMessage(harness).clienteSeniorData).toBeUndefined();
+    expect(getSession(harness).scoreOportunidade).toBeNull();
+    expect(lifecycleRpcMocks.completeWithDossier).toHaveBeenCalledWith('run-1', 'lease-1', expect.objectContaining({ scoreOportunidade: null }));
+    const snapshot = lifecycleRpcMocks.completeWithDossier.mock.calls[0][2] as { messages: Array<Record<string, unknown>> };
+    const botMsg = snapshot.messages.find(m => m.id === 'bot-1');
+    expect(botMsg?.scorePorta).toBeUndefined();
+    expect(botMsg?.suggestions).toBeUndefined();
   });
 
   it('BRU-69: erro interno do Gold (LLM 502) com Canonical → factual mínimo (não o dossiê)', async () => {
