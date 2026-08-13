@@ -50,16 +50,16 @@ describe('loadingVariant flow rules', () => {
     expect(resolveDeepDiveRequestKind(false)).toBe('default');
   });
 
-  it('BRU-81: forceHero retorna hero-override (nova execução na mesma thread)', () => {
-    expect(resolveLoadingVariant({ requestKind: 'default', isFollowUp: true, forceHero: true })).toBe('hero-override');
+  it('BRU-81: forceInline retorna inline (nova execução na mesma thread — bubble, NUNCA LoadingSmart antigo)', () => {
+    expect(resolveLoadingVariant({ requestKind: 'default', isFollowUp: true, forceInline: true })).toBe('inline');
   });
 
-  it('BRU-81: hero-override sobrepõe conteúdo existente (run novo na thread com histórico)', () => {
-    // com conteúdo de bot renderizável, só hero-override mantém o overlay
+  it('BRU-81: overlay hero nunca cobre conteúdo existente (nem com forceInline)', () => {
+    // com conteúdo de bot renderizável, o overlay hero NUNCA monta — o run
+    // novo na thread usa o InlineLoadingBubble (inline), não o fullscreen.
     expect(shouldShowHeroLoadingOverlay(true, 'hero', true)).toBe(false);
-    expect(shouldShowHeroLoadingOverlay(true, 'hero-override', true)).toBe(true);
-    expect(shouldShowHeroLoadingOverlay(true, 'hero-override', false)).toBe(true);
-    expect(shouldShowHeroLoadingOverlay(false, 'hero-override', true)).toBe(false);
+    expect(shouldShowHeroLoadingOverlay(true, 'inline', true)).toBe(false);
+    expect(shouldShowHeroLoadingOverlay(true, 'inline', false)).toBe(false);
   });
 
   it('resolvePlaceholderLoadingVariant é alias de resolveEffectiveLoadingVariant', () => {

@@ -98,7 +98,7 @@ export interface UseDossierWaterfallOrchestratorOptions {
   operatorSessionId?: string;
   activeGenerationRef?: MutableRefObject<Record<string, string>>;
   setIsLoading?: Dispatch<SetStateAction<boolean>>;
-  setLoadingVariant?: (variant: 'hero' | 'inline' | 'hero-override' | undefined) => void;
+  setLoadingVariant?: (variant: 'hero' | 'inline' | undefined) => void;
   updateSessionById: (id: string, updater: (session: ChatSession) => ChatSession) => ChatSession | null | void;
   resetLoadingProgress: (stage?: string, totalStages?: number, options?: ResetLoadingProgressOptions) => void;
   advanceLoadingProgress: (nextStage: string, totalStages?: number) => void;

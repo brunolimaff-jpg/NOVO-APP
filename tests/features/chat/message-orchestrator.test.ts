@@ -287,7 +287,7 @@ describe('useChatMessageOrchestrator', () => {
     expect(harness.state.loadingVariant).toBeUndefined();
   });
 
-  it('BRU-81 F1: isNewRunOverride em thread com histórico → hero-override, isFirstInteraction true, zero sessão paralela', async () => {
+  it('BRU-81 F1: isNewRunOverride em thread com histórico → inline (bubble), isFirstInteraction true, zero sessão paralela', async () => {
     const deferred = createDeferred<import('../../../types').DossierWaterfallResult>();
     uuidv4Mock.mockReturnValueOnce('message-user').mockReturnValueOnce('message-bot');
     const harness = makeHarness({
@@ -312,8 +312,8 @@ describe('useChatMessageOrchestrator', () => {
         { requestKind: 'default', explicitSessionId: 'session-1', isNewRunOverride: true },
       );
     });
-    // loading hero-override visível DURANTE o run (representação inequívoca)
-    expect(harness.state.loadingVariant).toBe('hero-override');
+    // loading INLINE (bubble) visível DURANTE o run — nunca o LoadingSmart antigo
+    expect(harness.state.loadingVariant).toBe('inline');
     // nova execução: isFirstInteraction true mesmo com histórico
     expect(harness.runMegaPromptWaterfall).toHaveBeenCalledWith(
       expect.objectContaining({ sessionId: 'session-1', isFirstInteraction: true }),

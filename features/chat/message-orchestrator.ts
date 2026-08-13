@@ -49,7 +49,7 @@ export interface HandleSendMessageOptions {
    * nova pesquisa do zero volta para a thread existente da conta (uma thread por conta). */
   explicitSessionId?: string | null;
   /** BRU-81: nova execução explícita na MESMA thread (override de duplicata) —
-   * força loading hero-override e isFirstInteraction mesmo com histórico. */
+   * força loading INLINE (bubble) e isFirstInteraction mesmo com histórico. */
   isNewRunOverride?: boolean;
 }
 
@@ -415,7 +415,7 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
       const resolvedLoadingVariant = resolveEffectiveLoadingVariant({
         requestKind: resolvedRequestKind,
         isFollowUp: options?.isFollowUp,
-        forceHero: options?.isNewRunOverride === true,
+        forceInline: options?.isNewRunOverride === true,
       });
       setRequestKind(resolvedRequestKind);
       setLoadingVariant(resolvedLoadingVariant);
