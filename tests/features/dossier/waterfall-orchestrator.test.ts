@@ -1567,7 +1567,10 @@ describe('useDossierWaterfallOrchestrator', () => {
 
   it('BRU-33: Gold elegível → o usuário recebe o Gold (mesmo texto em UI/persistência)', async () => {
     const goldText = '**GOLD BRIEF EXECUTIVO | SCOUT 360**\n\nGold de teste elegível.';
-    tryEnhanceDossierWithGoldMock.mockResolvedValue(goldText);
+    tryEnhanceDossierWithGoldMock.mockImplementation(async (input: { onStage?: (stage: string, detail?: { kind?: string }) => void }) => {
+      input.onStage?.('output-selected', { kind: 'gold_pass' });
+      return goldText;
+    });
     const harness = makeHarness({ goldSeamDeps: makeGoldEnabledDeps() });
 
     const result = await act(async () => harness.result.current.runMegaPromptWaterfall(makeRunArgs()));
@@ -1575,29 +1578,38 @@ describe('useDossierWaterfallOrchestrator', () => {
     expect(result?.status).toBe('COMPLETED');
     expect(getBotMessage(harness).text).toBe(goldText);
     expect(getBotMessage(harness).text).not.toContain('consolidado');
+    // telemetria do kind emitida
+    expect(scoutDiagMock.info).toHaveBeenCalledWith('GoldSeam', 'output-selected', expect.objectContaining({ kind: 'gold_pass' }));
   });
 
-  it('BRU-33: seam devolve o dossiê (Verifier/Contract FAIL) → dossiê original intacto', async () => {
+  it('BRU-69: seam devolve factual mínimo (Verifier/Contract FAIL) → usuário recebe o factual, NUNCA o pré-Gold', async () => {
     const harness = makeHarness({ goldSeamDeps: makeGoldEnabledDeps() });
-    tryEnhanceDossierWithGoldMock.mockImplementation(
-      async ({ dossierText }: { dossierText: string }) => dossierText,
-    );
+    tryEnhanceDossierWithGoldMock.mockImplementation(async (input: { onStage?: (stage: string, detail?: { kind?: string; reason?: string }) => void; onRejected?: (reason: string) => void }) => {
+      input.onRejected?.('verifier_fail');
+      input.onStage?.('output-selected', { kind: 'factual_minimal', reason: 'verifier_fail' });
+      return '# Dossiê Cadastral\n\n> Saída factual reduzida — Gold não aprovado';
+    });
 
     const result = await act(async () => harness.result.current.runMegaPromptWaterfall(makeRunArgs()));
 
     expect(result?.status).toBe('COMPLETED');
-    expect(getBotMessage(harness).text).toContain('consolidado');
-    expect(getBotMessage(harness).text).not.toContain('GOLD BRIEF');
+    expect(getBotMessage(harness).text).toContain('Saída factual reduzida');
+    expect(getBotMessage(harness).text).not.toContain('consolidado');
+    expect(scoutDiagMock.info).toHaveBeenCalledWith('GoldSeam', 'gold-fallback-factual', expect.objectContaining({ reason: 'verifier_fail' }));
   });
 
-  it('BRU-33: erro interno do Gold (LLM 502) → fallback silencioso no dossiê', async () => {
-    tryEnhanceDossierWithGoldMock.mockRejectedValue(new Error('LiteLLM 502'));
+  it('BRU-69: erro interno do Gold (LLM 502) com Canonical → factual mínimo (não o dossiê)', async () => {
+    tryEnhanceDossierWithGoldMock.mockImplementation(async (input: { onStage?: (stage: string, detail?: { kind?: string; reason?: string }) => void }) => {
+      input.onStage?.('output-selected', { kind: 'factual_minimal', reason: 'internal_error' });
+      return '# Dossiê Cadastral\n\n> Saída factual reduzida — Gold não aprovado';
+    });
     const harness = makeHarness({ goldSeamDeps: makeGoldEnabledDeps() });
 
     const result = await act(async () => harness.result.current.runMegaPromptWaterfall(makeRunArgs()));
 
     expect(result?.status).toBe('COMPLETED');
-    expect(getBotMessage(harness).text).toContain('consolidado');
+    expect(getBotMessage(harness).text).toContain('Saída factual reduzida');
+    expect(getBotMessage(harness).text).not.toContain('consolidado');
   });
 
   it('BRU-33: abort do usuário durante o Gold NÃO vira fallback — preserva CANCELLED', async () => {

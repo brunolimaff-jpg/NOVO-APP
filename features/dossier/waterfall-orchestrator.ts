@@ -1313,6 +1313,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
             // depender de console externo. Apenas métricas — nunca conteúdo.
             let goldRejectionReason: GoldRejectionReason | undefined;
             let goldRejectionDetail: GoldRejectionDetail | undefined;
+            let goldOutputKind: 'gold_pass' | 'factual_minimal' | 'controlled_unavailable' | undefined;
             const enhancedText = await tryEnhanceDossierWithGold({
               cnpj: sessionCnpjDigits,
               companyName: normalizedCompany || resolvedMegaCompany,
@@ -1326,6 +1327,9 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
                   waterfallRunId,
                   ...(detail ?? {}),
                 });
+                if (stage === 'output-selected' && detail && 'kind' in detail) {
+                  goldOutputKind = (detail as { kind: 'gold_pass' | 'factual_minimal' | 'controlled_unavailable' }).kind;
+                }
               },
               onRejected: (reason, detail) => {
                 goldRejectionReason = reason;
@@ -1347,13 +1351,37 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
               },
             });
             const goldDurationMs = Date.now() - goldStartedAt;
-            if (enhancedText !== waterfallFinalText) {
+            if (goldOutputKind === 'gold_pass') {
               scoutDiag.info('GoldSeam', 'gold-elegivel', {
                 sessionId,
                 waterfallRunId,
                 goldChars: enhancedText.length,
                 dossierChars: waterfallFinalText.length,
                 goldDurationMs,
+                company: normalizedCompany || resolvedMegaCompany,
+              });
+              waterfallFinalText = enhancedText;
+            } else if (goldOutputKind === 'factual_minimal') {
+              // BRU-69 (B+): Gold reprovado com Canonical seguro → saída
+              // factual mínima (nunca o dossiê pré-Gold).
+              scoutDiag.info('GoldSeam', 'gold-fallback-factual', {
+                sessionId,
+                waterfallRunId,
+                factualChars: enhancedText.length,
+                dossierChars: waterfallFinalText.length,
+                goldDurationMs,
+                reason: goldRejectionReason ?? 'internal_error',
+                company: normalizedCompany || resolvedMegaCompany,
+              });
+              waterfallFinalText = enhancedText;
+            } else if (goldOutputKind === 'controlled_unavailable') {
+              // BRU-69 (B+): sem Canonical seguro → saída controlada
+              // (fail-closed; nenhum byte do dossiê pré-Gold).
+              scoutDiag.info('GoldSeam', 'gold-controlled-unavailable', {
+                sessionId,
+                waterfallRunId,
+                goldDurationMs,
+                reason: goldRejectionReason ?? 'canonical_null',
                 company: normalizedCompany || resolvedMegaCompany,
               });
               waterfallFinalText = enhancedText;

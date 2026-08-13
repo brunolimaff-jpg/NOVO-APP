@@ -88,7 +88,7 @@ describe('tryEnhanceDossierWithGold — seam fail-closed', () => {
     expect(deps.runGold).not.toHaveBeenCalled();
   });
 
-  it('upstream indisponível (buildCanonical null) → devolve o dossiê original', async () => {
+  it('BRU-69: upstream indisponível (buildCanonical null) → saída controlada, NENHUM byte do dossiê pré-Gold', async () => {
     const deps = makeDeps({ buildCanonical: vi.fn(async () => null) });
     const out = await tryEnhanceDossierWithGold({
       cnpj: '04.733.767/0001-80',
@@ -96,11 +96,14 @@ describe('tryEnhanceDossierWithGold — seam fail-closed', () => {
       dossierText: DOSSIER_TEXT,
       deps,
     });
-    expect(out).toBe(DOSSIER_TEXT);
+    expect(out).not.toBe(DOSSIER_TEXT);
+    expect(out).toContain('Dossiê indisponível');
+    expect(out).toContain('SCHEFFER & CIA LTDA');
+    expect(out).not.toContain('dossiê completo');
     expect(deps.runGold).not.toHaveBeenCalled();
   });
 
-  it('erro técnico no gold (LLM error) → devolve o dossiê original (fallback silencioso)', async () => {
+  it('BRU-69: erro técnico no gold (LLM error) com Canonical → fallback factual mínimo', async () => {
     const deps = makeDeps({ runGold: vi.fn(async () => { throw new Error('LiteLLM 502'); }) });
     const out = await tryEnhanceDossierWithGold({
       cnpj: '04.733.767/0001-80',
@@ -108,10 +111,13 @@ describe('tryEnhanceDossierWithGold — seam fail-closed', () => {
       dossierText: DOSSIER_TEXT,
       deps,
     });
-    expect(out).toBe(DOSSIER_TEXT);
+    expect(out).not.toBe(DOSSIER_TEXT);
+    expect(out).toContain('Saída factual reduzida');
+    expect(out).toContain('SCHEFFER & CIA LTDA');
+    expect(out).not.toContain('dossiê completo');
   });
 
-  it('timeout interno do gold → devolve o dossiê original', async () => {
+  it('BRU-69: timeout interno do gold com Canonical → fallback factual mínimo', async () => {
     const deps = makeDeps({ runGold: vi.fn(async () => { throw Object.assign(new Error('gold timeout'), { name: 'TimeoutError' }); }) });
     const out = await tryEnhanceDossierWithGold({
       cnpj: '04.733.767/0001-80',
@@ -119,10 +125,12 @@ describe('tryEnhanceDossierWithGold — seam fail-closed', () => {
       dossierText: DOSSIER_TEXT,
       deps,
     });
-    expect(out).toBe(DOSSIER_TEXT);
+    expect(out).not.toBe(DOSSIER_TEXT);
+    expect(out).toContain('Saída factual reduzida');
+    expect(out).not.toContain('dossiê completo');
   });
 
-  it('Verifier FAIL (hard fail) → devolve o dossiê original', async () => {
+  it('BRU-69: Verifier FAIL (hard fail) → fallback factual mínimo, zero vazamento do pré-Gold', async () => {
     const deps = makeDeps({
       runGold: vi.fn(async () =>
         makeGoldResult({ verification: { passed: false, hardFails: [{ code: 'UNSUPPORTED_PRODUCT_CLAIM', reason: 'x' }] } }),
@@ -134,10 +142,12 @@ describe('tryEnhanceDossierWithGold — seam fail-closed', () => {
       dossierText: DOSSIER_TEXT,
       deps,
     });
-    expect(out).toBe(DOSSIER_TEXT);
+    expect(out).not.toBe(DOSSIER_TEXT);
+    expect(out).toContain('Saída factual reduzida');
+    expect(out).not.toContain('dossiê completo');
   });
 
-  it('GoldContractValidator FAIL → devolve o dossiê original', async () => {
+  it('BRU-69: GoldContractValidator FAIL → fallback factual mínimo', async () => {
     const deps = makeDeps({
       runGold: vi.fn(async () =>
         makeGoldResult({
@@ -151,7 +161,9 @@ describe('tryEnhanceDossierWithGold — seam fail-closed', () => {
       dossierText: DOSSIER_TEXT,
       deps,
     });
-    expect(out).toBe(DOSSIER_TEXT);
+    expect(out).not.toBe(DOSSIER_TEXT);
+    expect(out).toContain('Saída factual reduzida');
+    expect(out).not.toContain('dossiê completo');
   });
 
   it('gold elegível (Verifier + Contract PASS) → devolve o Gold', async () => {
@@ -224,8 +236,9 @@ describe('tryEnhanceDossierWithGold — seam fail-closed', () => {
       onRejected: (reason) => rejected.push(reason),
     });
 
-    expect(out).toBe(DOSSIER_TEXT);
-    expect(stages).toEqual(['canonical-done:false']);
+    expect(out).toContain('Dossiê indisponível');
+    expect(out).not.toContain('dossiê completo');
+    expect(stages).toEqual(['canonical-done:false', 'output-selected:-']);
     expect(rejected).toEqual(['canonical_null']);
     expect(deps.runGold).not.toHaveBeenCalled();
   });
@@ -248,7 +261,8 @@ describe('tryEnhanceDossierWithGold — seam fail-closed', () => {
       onRejected: (reason, detail) => rejected.push({ reason, detail }),
     });
 
-    expect(out).toBe(DOSSIER_TEXT);
+    expect(out).toContain('Saída factual reduzida');
+    expect(out).not.toContain('dossiê completo');
     expect(rejected).toEqual([
       {
         reason: 'verifier_fail',
@@ -283,7 +297,8 @@ describe('tryEnhanceDossierWithGold — seam fail-closed', () => {
       onRejected: (reason) => rejected.push(reason),
     });
 
-    expect(out).toBe(DOSSIER_TEXT);
+    expect(out).toContain('Saída factual reduzida');
+    expect(out).not.toContain('dossiê completo');
     expect(rejected).toEqual(['contract_fail']);
     expect(contractStages).toEqual(['contract-done:false']);
   });
@@ -304,8 +319,122 @@ describe('tryEnhanceDossierWithGold — seam fail-closed', () => {
 
     expect(out).toBe(GOLD_TEXT);
     expect(rejected).toEqual([]);
-    expect(stages).toEqual(['canonical-done:true', 'contract-done:true']);
+    expect(stages).toEqual(['canonical-done:true', 'contract-done:true', 'output-selected:-']);
     // o onStage do chamador atravessa o runGold (3º argumento) — telemetria do pipeline
     expect(deps.runGold.mock.calls[0][2]).toBeDefined();
+  });
+
+  // ─── BRU-69 (B+): adversariais do contrato congelado ───
+
+  it('BRU-69 val.1: verifier_fail com classes reais Scheffer → factual mínimo, zero vazamento do conteúdo reprovado', async () => {
+    const deps = makeDeps({
+      runGold: vi.fn(async () =>
+        makeGoldResult({
+          verification: {
+            passed: false,
+            hardFails: [
+              { code: 'PROMOTED_CLAIM', reason: 'Colômbia confirmada' },
+              { code: 'NEGATIVE_EVIDENCE_AS_ABSENCE', reason: 'ausência de ERP vira dor' },
+              { code: 'QSA_AS_DECISOR', reason: 'sócio como decisor' },
+            ],
+          },
+        }),
+      ),
+    });
+    const out = await tryEnhanceDossierWithGold({
+      cnpj: '04.733.767/0001-80',
+      companyName: 'SCHEFFER & CIA LTDA',
+      dossierText: DOSSIER_TEXT,
+      deps,
+    });
+    expect(out).toContain('Saída factual reduzida');
+    // zero vazamento: nada do dossiê pré-Gold nem do Gold reprovado
+    expect(out).not.toContain('dossiê completo');
+    expect(out).not.toContain('Colômbia');
+    expect(out).not.toContain('ausência');
+  });
+
+  it('BRU-69 val.5: factual mínimo NÃO contém PORTA/score/oportunidade/recomendação/ROI/urgência', async () => {
+    const deps = makeDeps({
+      runGold: vi.fn(async () =>
+        makeGoldResult({ verification: { passed: false, hardFails: [{ code: 'PROMOTED_CLAIM', reason: 'x' }] } }),
+      ),
+    });
+    const out = await tryEnhanceDossierWithGold({
+      cnpj: '04.733.767/0001-80',
+      companyName: 'SCHEFFER & CIA LTDA',
+      dossierText: DOSSIER_TEXT,
+      deps,
+    });
+    for (const forbidden of ['PORTA', 'score', 'Score', 'oportunidade', 'recomendação', 'ROI', 'urgência', 'impacto', 'decisor', 'confirmado']) {
+      expect(out).not.toContain(forbidden);
+    }
+    // conteúdo oficial presente
+    expect(out).toContain('SCHEFFER & CIA LTDA');
+    expect(out).toContain('04.733.767/0001-80');
+    expect(out).toContain('SCHEFFER PARTICIPACOES S/A');
+    expect(out).toContain('ELIZEU ZULMAR MAGGI SCHEFFER');
+    expect(out).toContain('Sócio-Administrador');
+    expect(out).toContain('Não verificado nesta execução');
+    expect(out).toContain('Gold não aprovado');
+  });
+
+  it('BRU-69 val.4: canonical_null → saída controlada, nenhum byte do dossierText vaza', async () => {
+    const deps = makeDeps({ buildCanonical: vi.fn(async () => null) });
+    const out = await tryEnhanceDossierWithGold({
+      cnpj: '04.733.767/0001-80',
+      companyName: 'SCHEFFER & CIA LTDA',
+      dossierText: DOSSIER_TEXT,
+      deps,
+    });
+    expect(out).toContain('Dossiê indisponível');
+    for (const word of ['dossiê completo', 'Empresa alvo', 'DOSSIÊ SCOUT']) {
+      expect(out).not.toContain(word);
+    }
+  });
+
+  it('BRU-69: buildCanonical LANÇA erro interno → saída controlada (sem Canonical seguro)', async () => {
+    const deps = makeDeps({ buildCanonical: vi.fn(async () => { throw new Error('upstream down'); }) });
+    const out = await tryEnhanceDossierWithGold({
+      cnpj: '04.733.767/0001-80',
+      companyName: 'SCHEFFER & CIA LTDA',
+      dossierText: DOSSIER_TEXT,
+      deps,
+    });
+    expect(out).toContain('Dossiê indisponível');
+    expect(out).not.toContain('dossiê completo');
+    expect(deps.runGold).not.toHaveBeenCalled();
+  });
+
+  it('BRU-69 telemetria: output-selected distingue gold_pass | factual_minimal | controlled_unavailable', async () => {
+    const kinds: Array<string | undefined> = [];
+    const collect = (stage: string, detail?: { kind?: string }) => {
+      if (stage === 'output-selected') kinds.push(detail?.kind);
+    };
+    await tryEnhanceDossierWithGold({
+      cnpj: '04.733.767/0001-80', companyName: 'SCHEFFER & CIA LTDA', dossierText: DOSSIER_TEXT,
+      deps: makeDeps(), onStage: collect as never,
+    });
+    await tryEnhanceDossierWithGold({
+      cnpj: '04.733.767/0001-80', companyName: 'SCHEFFER & CIA LTDA', dossierText: DOSSIER_TEXT,
+      deps: makeDeps({ runGold: vi.fn(async () => makeGoldResult({ verification: { passed: false, hardFails: [{ code: 'PROMOTED_CLAIM', reason: 'x' }] } })) }),
+      onStage: collect as never,
+    });
+    await tryEnhanceDossierWithGold({
+      cnpj: '04.733.767/0001-80', companyName: 'SCHEFFER & CIA LTDA', dossierText: DOSSIER_TEXT,
+      deps: makeDeps({ buildCanonical: vi.fn(async () => null) }), onStage: collect as never,
+    });
+    expect(kinds).toEqual(['gold_pass', 'factual_minimal', 'controlled_unavailable']);
+  });
+
+  it('BRU-69: abort do usuário continua propagando (sem factual nem controlled)', async () => {
+    const abortError = new Error('The operation was aborted');
+    abortError.name = 'AbortError';
+    const deps = makeDeps({ buildCanonical: vi.fn(async () => { throw abortError; }) });
+    await expect(
+      tryEnhanceDossierWithGold({
+        cnpj: '04.733.767/0001-80', companyName: 'SCHEFFER & CIA LTDA', dossierText: DOSSIER_TEXT, deps,
+      }),
+    ).rejects.toMatchObject({ name: 'AbortError' });
   });
 });

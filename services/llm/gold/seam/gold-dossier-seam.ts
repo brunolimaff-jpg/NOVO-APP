@@ -73,6 +73,77 @@ export interface GoldSeamDeps {
   ) => Promise<GuardedGoldPipelineResult>;
 }
 
+/** BRU-69 — tipo de saída final selecionada pelo seam (telemetria obrigatória). */
+export type GoldOutputKind = 'gold_pass' | 'factual_minimal' | 'controlled_unavailable';
+
+export interface GoldOutputSelection {
+  kind: GoldOutputKind;
+  reason?: GoldRejectionReason | 'internal_error';
+}
+
+const CONTROLLED_UNAVAILABLE_PREFIX =
+  '**Dossiê indisponível**\n\nO dossiê executivo não foi aprovado pelo processo de validação Gold e não está disponível nesta execução.';
+
+/**
+ * BRU-69 (política B+) — saída controlada quando não há Canonical seguro.
+ * Nenhum byte do dossiê pré-Gold entra aqui: apenas a identidade do alvo
+ * (parâmetros de entrada, nunca conteúdo do `dossierText`).
+ */
+export function buildControlledUnavailableOutput(companyName: string, cnpj: string | null | undefined): string {
+  const header = cnpj ? `${companyName} — CNPJ ${cnpj}` : companyName;
+  return `${CONTROLLED_UNAVAILABLE_PREFIX}\n\n**Alvo:** ${header}`;
+}
+
+/**
+ * BRU-69 (política B+) — fallback factual mínimo determinístico montado
+ * EXCLUSIVAMENTE de dados oficiais do CanonicalAccount. Sem LLM, sem
+ * PORTA/score, sem oportunidade/recomendação/ROI/urgência, sem conteúdo
+ * livre do dossiê pré-Gold. QSA aparece estritamente como QSA.
+ */
+export function buildFactualMinimalDossier(canonical: CanonicalAccount): string {
+  const lines: string[] = [];
+  lines.push('# Dossiê Cadastral');
+  lines.push('');
+  lines.push('> Saída factual reduzida — Gold não aprovado');
+  lines.push('');
+  lines.push('## Identidade legal');
+  lines.push('');
+  lines.push(`- **Razão social:** ${canonical.legalName}`);
+  lines.push(`- **CNPJ:** ${canonical.inputCnpj}`);
+  lines.push(`- **Tipo de estabelecimento:** ${canonical.establishmentType}`);
+  lines.push(`- **CNPJ raiz:** ${canonical.rootCnpj}`);
+  lines.push('');
+  if (canonical.headOfficeLegalName || canonical.headOfficeCnpj) {
+    lines.push('## Matriz');
+    lines.push('');
+    lines.push(`- ${canonical.headOfficeLegalName ?? '—'}${canonical.headOfficeCnpj ? ` — ${canonical.headOfficeCnpj}` : ''}`);
+    lines.push('');
+  }
+  if (canonical.directPjPartners.length > 0) {
+    lines.push('## Relações societárias diretas (PJ)');
+    lines.push('');
+    for (const partner of canonical.directPjPartners) {
+      lines.push(`- ${partner.legalName} — ${partner.cnpj}`);
+    }
+    lines.push('');
+  }
+  if (canonical.qsaPeople.length > 0) {
+    lines.push('## QSA (conforme registro cadastral)');
+    lines.push('');
+    for (const person of canonical.qsaPeople) {
+      lines.push(`- ${person.name} — ${person.role}`);
+    }
+    lines.push('');
+  }
+  lines.push('## Não verificado nesta execução');
+  lines.push('');
+  lines.push(
+    'Os demais itens do dossiê executivo não foram aprovados pelo processo de validação Gold e foram omitidos desta saída.',
+  );
+  lines.push('');
+  return lines.join('\n');
+}
+
 /**
  * Deadline total do pós-processamento Gold (PACOTE 1 — SCOUT-V7-GOLD-BUDGET-
  * LAYERED-01, Planejador 2026-08-09). Orçamentos por camada, sem alterar
@@ -89,10 +160,15 @@ export interface GoldSeamDeps {
 export const GOLD_DEADLINE_MS = 330_000;
 
 /**
- * Pós-processamento fail-closed: devolve `dossierText` intacto em qualquer
- * falha interna do Gold (incluindo TimeoutError do deadline de 330s);
- * devolve o Gold apenas quando elegível (Verifier sem hard fails +
- * GoldContractValidator PASS). Abort do usuário NÃO é fallback — propaga.
+ * Pós-processamento fail-closed (política B+ — BRU-69):
+ * - Gold elegível (Verifier sem hard fails + GoldContractValidator PASS) →
+ *   devolve o Gold.
+ * - Qualquer non-PASS COM Canonical seguro (verifier_fail, contract_fail,
+ *   erro interno/timeout) → fallback factual mínimo determinístico (nunca o
+ *   dossiê pré-Gold).
+ * - canonical_null ou falha SEM Canonical seguro → saída controlada
+ *   (fail-closed), sem devolver o pré-Gold como seguro.
+ * - Abort do usuário NÃO é fallback — propaga.
  */
 export async function tryEnhanceDossierWithGold(input: GoldSeamInput): Promise<string> {
   const { cnpj, companyName, dossierText, deps, signal, onStage, onRejected } = input;
@@ -102,15 +178,22 @@ export async function tryEnhanceDossierWithGold(input: GoldSeamInput): Promise<s
   const goldSignal = signal
     ? AbortSignal.any([signal, AbortSignal.timeout(GOLD_DEADLINE_MS)])
     : AbortSignal.timeout(GOLD_DEADLINE_MS);
+  let canonical: CanonicalAccount | null = null;
   try {
-    const canonical = await deps.buildCanonical(cnpj, companyName, goldSignal);
-    if (!canonical) {
-      onStage?.('canonical-done', { resolved: false });
-      onRejected?.('canonical_null');
-      return dossierText;
-    }
-    onStage?.('canonical-done', { resolved: true });
+    canonical = await deps.buildCanonical(cnpj, companyName, goldSignal);
+  } catch (error) {
+    if (isAbortLikeError(error)) throw error;
+    // canonical permanece null → saída controlada (fail-closed).
+  }
+  if (!canonical) {
+    onStage?.('canonical-done', { resolved: false });
+    onRejected?.('canonical_null');
+    onStage?.('output-selected', { kind: 'controlled_unavailable', reason: 'canonical_null' } satisfies GoldOutputSelection);
+    return buildControlledUnavailableOutput(companyName, cnpj);
+  }
+  onStage?.('canonical-done', { resolved: true });
 
+  try {
     const result = await deps.runGold({ canonical, dossier: dossierText, segment: input.segment }, goldSignal, onStage);
     if (result.verification.hardFails.length > 0) {
       const codes = result.verification.hardFails.map((hardFail) => hardFail.code);
@@ -123,22 +206,26 @@ export async function tryEnhanceDossierWithGold(input: GoldSeamInput): Promise<s
         codes,
         codeCounts,
       });
-      return dossierText;
+      onStage?.('output-selected', { kind: 'factual_minimal', reason: 'verifier_fail' } satisfies GoldOutputSelection);
+      return buildFactualMinimalDossier(canonical);
     }
 
     const contract = validateGoldContract(result.goldBrief);
     onStage?.('contract-done', { passed: contract.passed });
     if (!contract.passed) {
       onRejected?.('contract_fail');
-      return dossierText;
+      onStage?.('output-selected', { kind: 'factual_minimal', reason: 'contract_fail' } satisfies GoldOutputSelection);
+      return buildFactualMinimalDossier(canonical);
     }
 
+    onStage?.('output-selected', { kind: 'gold_pass' } satisfies GoldOutputSelection);
     return result.goldBrief;
   } catch (error) {
     // Abort do usuário NÃO é fallback: propaga para o fluxo preservar
     // CANCELLED. Qualquer outra falha interna (incl. TimeoutError do
-    // deadline) cai silenciosamente no dossiê.
+    // deadline) com Canonical disponível → factual mínimo (B+).
     if (isAbortLikeError(error)) throw error;
-    return dossierText;
+    onStage?.('output-selected', { kind: 'factual_minimal', reason: 'internal_error' } satisfies GoldOutputSelection);
+    return buildFactualMinimalDossier(canonical);
   }
 }

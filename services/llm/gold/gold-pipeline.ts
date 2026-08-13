@@ -149,7 +149,9 @@ export type GoldStage =
   | 'verifier-done'
   // Emitidos pelo seam (fora do pipeline): cadastro canônico e contrato.
   | 'canonical-done'
-  | 'contract-done';
+  | 'contract-done'
+  // BRU-69 (B+): tipo de saída final selecionada pelo seam.
+  | 'output-selected';
 
 export interface GoldStageDetail {
   chars?: number;
@@ -164,6 +166,10 @@ export interface GoldStageDetail {
   resolved?: boolean;
   passed?: boolean;
   detail?: string;
+  /** BRU-69 (B+): kind da saída final (gold_pass | factual_minimal | controlled_unavailable). */
+  kind?: 'gold_pass' | 'factual_minimal' | 'controlled_unavailable';
+  /** BRU-69 (B+): razão da rejeição quando a saída não é gold_pass. */
+  reason?: string;
 }
 
 export type GoldStageHandler = (stage: GoldStage, detail?: GoldStageDetail) => void;
