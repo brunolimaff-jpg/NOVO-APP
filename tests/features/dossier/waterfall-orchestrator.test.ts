@@ -1698,6 +1698,25 @@ describe('useDossierWaterfallOrchestrator', () => {
     dispatchSpy.mockRestore();
   });
 
+  it('BRU-62 Prova 5: recovery após terminal commit com UI bloqueada NÃO gera segundo terminal commit', async () => {
+    const dispatchSpy = vi.spyOn(window, 'dispatchEvent');
+    const harness = makeHarness({ shouldSimulateFallback: true });
+    const result = await harness.result.current.runMegaPromptWaterfall(
+      makeRunArgs({ sessionId: 'session-bru62-rec', dossierRunId: 'run-1', dossierLeaseOwner: 'lease-1' }),
+    );
+    expect(result).toMatchObject({ status: 'COMPLETED', dossierId: 'session-bru62-rec' });
+    // exatamente UM terminal commit (a RPC é idempotente e o run já COMPLETED)
+    expect(lifecycleRpcMocks.completeWithDossier).toHaveBeenCalledTimes(1);
+    // recovery consulta o run → COMPLETED com a session esperada → não re-chama a RPC
+    lifecycleRpcMocks.getRun.mockResolvedValueOnce({ run_id: 'run-1', status: 'COMPLETED', dossier_id: 'session-bru62-rec' });
+    const run = await lifecycleRpcMocks.getRun('run-1');
+    expect(run.status).toBe('COMPLETED');
+    expect(run.dossier_id).toBe('session-bru62-rec');
+    expect(lifecycleRpcMocks.completeWithDossier).toHaveBeenCalledTimes(1);
+    expect(lifecycleRpcMocks.release).not.toHaveBeenCalled();
+    dispatchSpy.mockRestore();
+  });
+
   it('RED (P0 BRU-62): Gold FAIL → fallback grande + render bloqueado ainda promove UMA vez antes do render', async () => {
     // BRU-62: mesmo com Gold rejeitado e fallback grande (cenário do freeze real),
     // a promoção atômica ocorre antes da exposição à UI.
