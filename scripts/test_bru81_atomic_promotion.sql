@@ -416,6 +416,39 @@ BEGIN
   END IF;
 END $do11$;
 
+-- ============================================================================
+-- 12. ACL LEAST PRIVILEGE: as 2 RPCs novas SEM service_role (só authenticated)
+-- ============================================================================
+DO $do12$
+BEGIN
+  IF has_function_privilege('service_role', 'public.complete_dossier_run_with_dossier'::regproc, 'EXECUTE') THEN
+    RAISE EXCEPTION 'ASSERT-12-FAIL: service_role tem EXECUTE na promoção';
+  END IF;
+  IF has_function_privilege('service_role', 'public.save_dossiers_autosave'::regproc, 'EXECUTE') THEN
+    RAISE EXCEPTION 'ASSERT-12-FAIL: service_role tem EXECUTE no autosave';
+  END IF;
+  IF NOT has_function_privilege('authenticated', 'public.complete_dossier_run_with_dossier'::regproc, 'EXECUTE') THEN
+    RAISE EXCEPTION 'ASSERT-12-FAIL: authenticated perdeu EXECUTE na promoção';
+  END IF;
+  IF NOT has_function_privilege('authenticated', 'public.save_dossiers_autosave'::regproc, 'EXECUTE') THEN
+    RAISE EXCEPTION 'ASSERT-12-FAIL: authenticated perdeu EXECUTE no autosave';
+  END IF;
+  IF has_function_privilege('anon', 'public.complete_dossier_run_with_dossier'::regproc, 'EXECUTE') THEN
+    RAISE EXCEPTION 'ASSERT-12-FAIL: anon tem EXECUTE na promoção';
+  END IF;
+  IF has_function_privilege('anon', 'public.save_dossiers_autosave'::regproc, 'EXECUTE') THEN
+    RAISE EXCEPTION 'ASSERT-12-FAIL: anon tem EXECUTE no autosave';
+  END IF;
+  -- PUBLIC (role 0) sem privilégios
+  IF has_function_privilege(0, 'public.complete_dossier_run_with_dossier'::regproc, 'EXECUTE') THEN
+    RAISE EXCEPTION 'ASSERT-12-FAIL: PUBLIC tem EXECUTE na promoção';
+  END IF;
+  -- acquire_dossier_run_lease PRESERVADA (ACL histórico não alterado)
+  IF NOT has_function_privilege('service_role', 'public.acquire_dossier_run_lease'::regproc, 'EXECUTE') THEN
+    RAISE EXCEPTION 'ASSERT-12-FAIL: ACL histórico de acquire foi alterado';
+  END IF;
+END $do12$;
+
 ROLLBACK;
 
 SELECT 'BRU81_ATOMIC_PROMOTION_SQL_ALL_ASSERTS_PASSED' AS resultado;

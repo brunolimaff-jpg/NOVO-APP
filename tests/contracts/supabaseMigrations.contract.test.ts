@@ -32,7 +32,7 @@ describe('supabaseMigrations contract — estrutura', () => {
 
   it('contém exatamente 24 arquivos .sql', () => {
     const files = readdirSync(MIGRATIONS_DIR).filter(f => f.endsWith('.sql'));
-    expect(files.length).toBe(28);
+    expect(files.length).toBe(29);
   });
 
   it('baseline é o primeiro arquivo e existe', () => {
