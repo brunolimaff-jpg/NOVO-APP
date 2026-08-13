@@ -64,6 +64,13 @@ export interface GuardedGoldPipelineResult {
  */
 const SENSITIVE_THEME = /col[oó]mbia|cumaribo|internacional|holding|control/i;
 const CONFIRMED_VOCABULARY = /\bconfirmad(a|o)s?\b/gi;
+/**
+ * LOTE GOLD P0 (RED C): sentenças com NEGAÇÃO explícita já são
+ * epistemicamente seguras — reescrever "confirmada" nelas fabricaria uma
+ * afirmação ("não está mencionada" deixa de ser negação reconhecida pelo
+ * verifier). Negação nunca é tocada pelo downgrade de certeza.
+ */
+const NEGATION_PATTERN = /\b(n[aã]o|nunca|jamais|sem|aus[eê]ncia)\b/i;
 
 /**
  * BRU44-GOLD-COMPOSER-PREFLIGHT-PRUNE-01 — preflight determinístico da saída
@@ -116,6 +123,7 @@ export function downgradeUnsupportedCertainty(gold: string): string {
       // Partes ímpares são os separadores — preservados intactos.
       if (index % 2 === 1) return part;
       if (!SENSITIVE_THEME.test(part)) return part;
+      if (NEGATION_PATTERN.test(part)) return part;
       return part.replace(CONFIRMED_VOCABULARY, (match) => {
         const feminine = /a$/i.test(match);
         const plural = /s$/i.test(match);

@@ -53,6 +53,7 @@ import { DossierRunCancelledError, assertDossierRunCanContinue, assertDossierRun
 import { completeDossierRunWithDossier, getDossierRun, markDossierRunCancelled, markDossierRunFailed, releaseDossierRunLease } from '../../lib/supabase/dossierRuns';
 // BRU-33 — seam Gold pós-processamento fail-closed (V7 Preview Wiring).
 import {
+  buildControlledUnavailableOutput,
   tryEnhanceDossierWithGold,
   type GoldRejectionDetail,
   type GoldRejectionReason,
@@ -1338,12 +1339,18 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
                   // BRU-47: serializa codes/codeCounts em strings para o
                   // console não colapsar Array/Objeto — a próxima execução
                   // precisa do payload literal (codesJson=[...]).
+                  // LOTE GOLD P0 (TAREFA 4): dossierRunId + estágio + razões
+                  // sanitizadas — o evento é persistido de forma GARANTIDA
+                  // (exceção explícita no shouldBufferDiagnostic).
                   scoutDiag.info('GoldSeam', 'verifier-summary', {
                     sessionId,
                     waterfallRunId,
+                    dossierRunId: dossierRunId ?? null,
+                    stage: 'final-verifier',
                     hardFails: detail.hardFails ?? 0,
                     codes: detail.codes ?? [],
                     codeCounts: detail.codeCounts ?? {},
+                    reasons: detail.reasons ?? [],
                     codesJson: JSON.stringify(detail.codes ?? []),
                     codeCountsJson: JSON.stringify(detail.codeCounts ?? {}),
                   });
@@ -1420,6 +1427,16 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
               goldDurationMs: Date.now() - goldStartedAt,
               error: error instanceof Error ? error.message : String(error),
             });
+            // LOTE GOLD P0 (escape B+): exceção EXTERNA ao seam nunca pode
+            // deixar o dossiê pré-Gold ser publicado como saída segura. Aqui
+            // só chegam falhas do call site (sem Canonical seguro em mãos) —
+            // o seam já retorna factual/controlled para falhas internas.
+            // Saída controlada determinística + metadata comercial suprimida.
+            waterfallFinalText = buildControlledUnavailableOutput(
+              normalizedCompany || resolvedMegaCompany || 'empresa',
+              sessionCnpjDigits,
+            );
+            goldOutputKind = 'controlled_unavailable';
           }
         }
         // BRU-69 (B+): política de metadata do output — boundary único.

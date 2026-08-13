@@ -80,6 +80,23 @@ function confirmedFacts(safePack: SafeFindingPack) {
   return (safePack.facts ?? []).filter((f) => f.status === 'Confirmado');
 }
 
+/** Normalização simples de nome de entidade (mesma semântica do verifier). */
+function normalizeEntityName(value: string): string {
+  return value.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
+
+/**
+ * LOTE GOLD P0 (RED A): fatos Confirmados de OUTRA entidade carregam a
+ * identidade da entidade no conteúdo determinístico. Sem isso, o verifier
+ * interpreta a frase como claim da CONTA canônica e a reconciliação falha
+ * por entidade (UNSUPPORTED_PRODUCT_CLAIM fabricado por conteúdo que nós
+ * mesmos injetamos). Fato da própria conta permanece como hoje.
+ */
+function withEntityIdentity(claim: string, entity: string, accountName: string | undefined): string {
+  const isAccount = Boolean(accountName) && normalizeEntityName(entity) === normalizeEntityName(accountName ?? '');
+  return isAccount ? claim : `${entity}: ${claim}`;
+}
+
 /**
  * Mapa 1 — Mapa do Caos Operacional (seção 2 PERFIL).
  *
@@ -119,7 +136,7 @@ function buildChaosMap(safePack: SafeFindingPack): string | null {
   // compactação visual é débito de UX, não regra semântica.
   operationFacts.slice(0, 6).forEach((fact, i) => {
     const id = nodeId('B', i + 1);
-    lines.push(`${id}[${quotedLabel(fact.claim)}]`);
+    lines.push(`${id}[${quotedLabel(withEntityIdentity(fact.claim, fact.entity, safePack.accountIdentity?.legalName))}]`);
     classes.push(`class ${id} satellite;`);
   });
 
@@ -127,7 +144,9 @@ function buildChaosMap(safePack: SafeFindingPack): string | null {
   const techFacts = facts.filter((f) => f.kind === 'technology');
   if (techFacts.length > 0) {
     const techId = nodeId('C', 1);
-    const techLabel = techFacts.map((f) => f.claim).join(' | ');
+    const techLabel = techFacts
+      .map((f) => withEntityIdentity(f.claim, f.entity, safePack.accountIdentity?.legalName))
+      .join(' | ');
     lines.push(`${techId}[${quotedLabel(techLabel)}]`);
     classes.push(`class ${techId} warning;`);
   }
@@ -387,7 +406,10 @@ export function buildDynamicValueChainTable(
       elo: valueChainElo(dimension),
       dimension,
       status: statusBadge(fact.status),
-      evidence: truncateCell(fact.claim),
+      // LOTE GOLD P0 (RED A/B): claim INTEGRAL com identidade da entidade —
+      // o texto validado pelo verifier nunca sofre truncamento semântico
+      // (compactação visual pertence ao renderer, não a esta representação).
+      evidence: withEntityIdentity(fact.claim, fact.entity, safePack.accountIdentity?.legalName).replace(/\|/g, '/'),
       commercialReading: `Base confirmada para entender o elo de ${dimension.toLowerCase()}.`,
       validate: validationForDimension(openQuestions, dimension),
     });
@@ -399,7 +421,7 @@ export function buildDynamicValueChainTable(
       elo: valueChainElo(dimension),
       dimension: signal.technology,
       status: statusBadge(signal.status),
-      evidence: truncateCell(signal.observedFact),
+      evidence: signal.observedFact.replace(/\|/g, '/'),
       commercialReading: 'Escopo observado; confirmar cobertura antes de recomendar qualquer solução.',
       validate: truncateCell(signal.validationQuestion, 140),
     });

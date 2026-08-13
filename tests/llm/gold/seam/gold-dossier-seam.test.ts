@@ -246,7 +246,14 @@ describe('tryEnhanceDossierWithGold — seam fail-closed', () => {
   it('Verifier hard fail → onRejected(verifier_fail), contract-done NÃO é emitido', async () => {
     const deps = makeDeps({
       runGold: vi.fn(async () =>
-        makeGoldResult({ verification: { passed: false, hardFails: [{ code: 'UNSUPPORTED_PRODUCT_CLAIM', reason: 'x' }] } }),
+        makeGoldResult({
+          verification: {
+            passed: false,
+            hardFails: [
+              { code: 'UNSUPPORTED_PRODUCT_CLAIM', reason: 'Frase afirma capacidade/produto/prazo/ROI sem fonte: "Capacidade de armazenagem de 120 mil sacas"' },
+            ],
+          },
+        }),
       ),
     });
     const stages: string[] = [];
@@ -270,11 +277,15 @@ describe('tryEnhanceDossierWithGold — seam fail-closed', () => {
           hardFails: 1,
           codes: ['UNSUPPORTED_PRODUCT_CLAIM'],
           codeCounts: { UNSUPPORTED_PRODUCT_CLAIM: 1 },
+          // LOTE GOLD P0 (TAREFA 4): razão SANITIZADA — prefixo da regra,
+          // nunca a frase comercial anexada pelo verifier.
+          reasons: ['Frase afirma capacidade/produto/prazo/ROI sem fonte'],
         },
       },
     ]);
     expect(rejected[0].detail).not.toHaveProperty('reason');
     expect(rejected[0].detail).not.toHaveProperty('claim');
+    expect(JSON.stringify(rejected[0].detail)).not.toContain('120 mil sacas');
     expect(stages).not.toContain('contract-done:true');
     expect(stages).not.toContain('contract-done:false');
   });

@@ -93,6 +93,11 @@ function shouldBufferDiagnostic(area: string, event: string, severity: string, r
   }
   if (severity === 'error' || severity === 'warn') return true;
   if (area === 'DossierModule' && event === 'usage metadata') return true;
+  // LOTE GOLD P0 (TAREFA 4): o resumo da verificação Gold é evento crítico
+  // de lifecycle — não pode depender do sampling de 10% de info. Exceção
+  // explícita (mesmo padrão de `DossierModule/usage metadata`), sem elevar
+  // a severidade para warn apenas para burlar o sampling.
+  if (area === 'GoldSeam' && event === 'verifier-summary') return true;
   if (BUSINESS_DIAGNOSTIC_AREA.test(area) || BUSINESS_DIAGNOSTIC_EVENT.test(`${area}:${event}`)) return true;
   if (severity !== 'info') return false;
   return stableDiagnosticBucket(`${runId}:${area}:${event}`) < INFO_SAMPLE_PERCENT;

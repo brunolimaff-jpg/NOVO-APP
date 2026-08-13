@@ -1585,6 +1585,38 @@ describe('useDossierWaterfallOrchestrator', () => {
     expect(scoutDiagMock.info).toHaveBeenCalledWith('GoldSeam', 'output-selected', expect.objectContaining({ kind: 'gold_pass' }));
   });
 
+  it('LOTE GOLD P0 (TAREFA 4): verifier-summary persiste dossierRunId + estágio + razões sanitizadas', async () => {
+    const harness = makeHarness({ goldSeamDeps: makeGoldEnabledDeps() });
+    tryEnhanceDossierWithGoldMock.mockImplementation(
+      async (input: {
+        onStage?: (stage: string, detail?: { kind?: string; reason?: string }) => void;
+        onRejected?: (reason: string, detail?: { hardFails?: number; codes?: string[]; codeCounts?: Record<string, number>; reasons?: string[] }) => void;
+      }) => {
+        input.onRejected?.('verifier_fail', {
+          hardFails: 1,
+          codes: ['UNSUPPORTED_PRODUCT_CLAIM'],
+          codeCounts: { UNSUPPORTED_PRODUCT_CLAIM: 1 },
+          reasons: ['Frase afirma capacidade/produto/prazo/ROI sem fonte'],
+        });
+        input.onStage?.('output-selected', { kind: 'factual_minimal', reason: 'verifier_fail' });
+        return '# Dossiê Cadastral\n\n> Saída factual reduzida — Gold não aprovado';
+      },
+    );
+
+    await act(async () => harness.result.current.runMegaPromptWaterfall(makeRunArgs({ dossierRunId: 'run-1', dossierLeaseOwner: 'lease-1' })));
+
+    expect(scoutDiagMock.info).toHaveBeenCalledWith(
+      'GoldSeam',
+      'verifier-summary',
+      expect.objectContaining({
+        dossierRunId: 'run-1',
+        stage: 'final-verifier',
+        codesJson: '["UNSUPPORTED_PRODUCT_CLAIM"]',
+        reasons: ['Frase afirma capacidade/produto/prazo/ROI sem fonte'],
+      }),
+    );
+  });
+
   it('BRU-69: seam devolve factual mínimo (Verifier/Contract FAIL) → usuário recebe o factual, NUNCA o pré-Gold', async () => {
     const harness = makeHarness({ goldSeamDeps: makeGoldEnabledDeps() });
     tryEnhanceDossierWithGoldMock.mockImplementation(async (input: { onStage?: (stage: string, detail?: { kind?: string; reason?: string }) => void; onRejected?: (reason: string) => void }) => {
@@ -1639,6 +1671,24 @@ describe('useDossierWaterfallOrchestrator', () => {
     const botMsg = snapshot.messages.find(m => m.id === 'bot-1');
     expect(botMsg?.scorePorta).toBeUndefined();
     expect(botMsg?.suggestions).toBeUndefined();
+  });
+
+  it('LOTE GOLD P0 (escape B+): exceção EXTERNA ao seam nunca publica o dossiê pré-Gold', async () => {
+    const harness = makeHarness({ goldSeamDeps: makeGoldEnabledDeps() });
+    tryEnhanceDossierWithGoldMock.mockImplementation(async () => {
+      throw new Error('explosão externa fora do fallback interno do seam');
+    });
+
+    const result = await act(async () =>
+      harness.result.current.runMegaPromptWaterfall(makeRunArgs({ dossierRunId: 'run-1', dossierLeaseOwner: 'lease-1' })),
+    );
+
+    expect(result?.status).toBe('COMPLETED');
+    // nenhum byte do dossiê pré-Gold (o fixture usa 'consolidado')
+    expect(getBotMessage(harness).text).not.toContain('consolidado');
+    // saída controlada B+ no lugar do pré-Gold
+    expect(getBotMessage(harness).text).toContain('Dossiê indisponível');
+    expect(scoutDiagMock.warn).toHaveBeenCalledWith('GoldSeam', 'gold-falha-fallback-dossier', expect.anything());
   });
 
   it('BRU-69: erro interno do Gold (LLM 502) com Canonical → factual mínimo (não o dossiê)', async () => {
