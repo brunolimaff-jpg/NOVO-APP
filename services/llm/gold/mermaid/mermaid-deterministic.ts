@@ -410,6 +410,12 @@ const PROTECTED_CLAIM_VOCAB_REPLACEMENTS: Array<[RegExp, string]> = [
   [/\bretorno\s+sobre\b/gi, 'resultado sobre'],
   [/\bintegra[cç][aã]o\s+nativa\b/gi, 'integração'],
   [/\bmiddleware\b/gi, 'plataforma'],
+  // RCA-03 (QUESTION MODALITY): vocabulário de certeza em PERGUNTAS de
+  // discovery não pode virar afirmação — o verifier perde o "?" na
+  // segmentação e leria "possui registro legal confirmado" como claim
+  // declarativa (PROMOTED_CLAIM em tema sensível). A pergunta preserva o
+  // sentido sem a palavra de certeza ("possui registro legal?").
+  [/\bconfirmad(a|o)s?\b/gi, ''],
 ];
 
 /** Marcadores de pergunta (interrogativa) — a normalização só se aplica a
@@ -417,7 +423,7 @@ const PROTECTED_CLAIM_VOCAB_REPLACEMENTS: Array<[RegExp, string]> = [
  *  ao verifier — um claim de capacidade sem prova deve continuar FAIL). */
 const INTERROGATIVE_MARKER = /\?|\b(qual|como|quando|onde|por\s+que|existe|h[aá]|é\s+poss[ií]vel|pode|seria|quanto|qual\s+é)\b/i;
 
-function normalizeDiscoveryQuestion(question: string): string {
+export function normalizeDiscoveryQuestion(question: string): string {
   if (!INTERROGATIVE_MARKER.test(question.trim())) return question;
   let normalized = question
     .replace(PROTECTED_CLAIM_VALUE_PATTERN, '')

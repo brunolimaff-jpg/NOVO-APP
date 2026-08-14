@@ -20,7 +20,7 @@ import {
 import { normalizeCnpj, resolveCanonicalRelations } from './canonical-relation-resolver';
 import { sanitizeFindingPack } from './finding-sanitizer';
 import { verifyGold, type GoldVerificationResult } from './entity-aware-gold-verifier';
-import { injectCanonicalGoldMermaids } from './mermaid/mermaid-deterministic';
+import { injectCanonicalGoldMermaids, normalizeDiscoveryQuestion } from './mermaid/mermaid-deterministic';
 import type { ScoutSegment } from '../query-planner';
 
 export interface CompactInput {
@@ -117,32 +117,37 @@ const CNPJ_PATTERN = /\b\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}\b/g;
  * estrutura JSON ficam FORA (não fabricam semântica); people fica fora
  * (papel sem frase não carrega material das famílias-alvo e nomes de
  * pessoas não atravessam nem o probe).
+ *
+ * RCA-03 (QUESTION MODALITY): cada linha passa por normalizeDiscoveryQuestion
+ * (guard de interrogativa) — perguntas de discovery NÃO podem virar claims
+ * declarativas quando o verifier perde o "?" na segmentação; afirmações não
+ * são tocadas e continuam sujeitas ao verifier.
  */
 export function buildFrontierProbeText(frontier: FrontierPack): string {
   const lines: string[] = [];
   for (const fact of frontier.facts ?? []) {
-    if (fact.claim?.trim()) lines.push(fact.claim);
+    if (fact.claim?.trim()) lines.push(normalizeDiscoveryQuestion(fact.claim));
   }
   for (const signal of frontier.technologySignals ?? []) {
-    if (signal.observedFact?.trim()) lines.push(signal.observedFact);
-    if (signal.validationQuestion?.trim()) lines.push(signal.validationQuestion);
-    if (signal.whatIsNotKnown?.trim()) lines.push(signal.whatIsNotKnown);
+    if (signal.observedFact?.trim()) lines.push(normalizeDiscoveryQuestion(signal.observedFact));
+    if (signal.validationQuestion?.trim()) lines.push(normalizeDiscoveryQuestion(signal.validationQuestion));
+    if (signal.whatIsNotKnown?.trim()) lines.push(normalizeDiscoveryQuestion(signal.whatIsNotKnown));
   }
   for (const question of frontier.openQuestions ?? []) {
-    if (question.trim()) lines.push(question);
+    if (question.trim()) lines.push(normalizeDiscoveryQuestion(question));
   }
   for (const relationship of frontier.relationships ?? []) {
-    if (relationship.evidence?.trim()) lines.push(relationship.evidence);
+    if (relationship.evidence?.trim()) lines.push(normalizeDiscoveryQuestion(relationship.evidence));
   }
   for (const metric of frontier.metrics ?? []) {
     const value = [metric.metric, metric.value].filter((part) => part?.trim()).join(': ');
-    if (value.trim()) lines.push(value);
+    if (value.trim()) lines.push(normalizeDiscoveryQuestion(value));
   }
   for (const conflict of frontier.conflicts ?? []) {
-    if (conflict.trim()) lines.push(conflict);
+    if (conflict.trim()) lines.push(normalizeDiscoveryQuestion(conflict));
   }
   for (const event of frontier.sanitizerEvents ?? []) {
-    if (event.after?.trim()) lines.push(event.after);
+    if (event.after?.trim()) lines.push(normalizeDiscoveryQuestion(event.after));
   }
   return lines.join('\n');
 }
