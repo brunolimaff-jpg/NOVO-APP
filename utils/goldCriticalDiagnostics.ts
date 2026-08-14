@@ -17,6 +17,11 @@ export const GOLD_CRITICAL_DIAGNOSTIC_EVENTS: ReadonlySet<string> = new Set([
   'diagnostics-post-preflight',
   'diagnostics-post-mermaid',
   'diagnostics-post-certainty',
+  // RCA-07 (BRU-101): a razão do fallback pós-verifier precisa ser verificável
+  // em TODO run — output-selected (kind/reason de estado, sem texto) e
+  // contract-done (passed) são estruturais e entram na persistência garantida.
+  'output-selected',
+  'contract-done',
 ]);
 
 export function isGoldCriticalDiagnosticEvent(area: string, event: string): boolean {
