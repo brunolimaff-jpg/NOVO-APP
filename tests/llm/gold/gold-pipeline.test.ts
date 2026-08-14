@@ -86,6 +86,55 @@ const cleanGold = [
 // provar que o verifier final continua fail-closed.
 const trappedGold = ['# Gold Brief', 'A controlada 99.999.999/0001-00 atua no segmento de fertilizantes.'].join('\n');
 
+describe('LOTE GOLD P0 R2-B — fronteiras estruturais de diagnóstico', () => {
+  it('emite post-preflight/post-mermaid/post-certainty com codes/counts e SEM conteúdo sensível', async () => {
+    const compact = vi.fn(async (_input: CompactInput) => rawPack());
+    const compose = vi.fn(async (_input: ComposeInput) => trappedGold);
+    const deps = { compact, compose };
+    const stages: Array<{ stage: string; detail?: unknown }> = [];
+    const onStage = vi.fn((stage: string, detail?: unknown) => {
+      stages.push({ stage, detail });
+    });
+
+    await runGuardedGoldPipeline({ canonical, dossier: 'dossiê legado' }, deps, undefined, onStage as never);
+
+    const frontierStages = ['diagnostics-post-preflight', 'diagnostics-post-mermaid', 'diagnostics-post-certainty'];
+    for (const stage of frontierStages) {
+      const emitted = stages.find(s => s.stage === stage);
+      expect(emitted).toBeDefined();
+      expect(emitted?.detail).toHaveProperty('hardFails');
+      expect(emitted?.detail).toHaveProperty('codes');
+      expect(emitted?.detail).toHaveProperty('codeCounts');
+      // NUNCA reason/claim/conteúdo
+      expect(JSON.stringify(emitted?.detail)).not.toContain('reason');
+      expect(JSON.stringify(emitted?.detail)).not.toContain('99.999.999');
+      expect(JSON.stringify(emitted?.detail)).not.toContain('fertilizantes');
+    }
+
+    // localização: a falha INVENTED_CNPJ já existe pós-preflight
+    const postPreflight = stages.find(s => s.stage === 'diagnostics-post-preflight');
+    expect((postPreflight?.detail as { codes?: string[] } | undefined)?.codes ?? []).toContain('INVENTED_CNPJ');
+  });
+
+  it('fronteiras limpas emitem hardFails 0 e codes vazio (não fabrica falha)', async () => {
+    const compact = vi.fn(async (_input: CompactInput) => rawPack());
+    const compose = vi.fn(async (_input: ComposeInput) => cleanGold);
+    const deps = { compact, compose };
+    const stages: Array<{ stage: string; detail?: unknown }> = [];
+
+    await runGuardedGoldPipeline({ canonical, dossier: 'dossiê legado' }, deps, undefined, (stage, detail) => {
+      stages.push({ stage, detail });
+    });
+
+    for (const stage of ['diagnostics-post-preflight', 'diagnostics-post-mermaid', 'diagnostics-post-certainty']) {
+      const emitted = stages.find(s => s.stage === stage);
+      const detail = emitted?.detail as { hardFails?: number; codes?: string[] } | undefined;
+      expect(detail?.hardFails).toBe(0);
+      expect(detail?.codes).toEqual([]);
+    }
+  });
+});
+
 describe('GuardedGoldPipeline', () => {
   it('BRU-48: Gold do Composer com "confirmada" em tema sensível sem fato Confirmado é rebaixado (sem PROMOTED_CLAIM)', async () => {
     // Caso Scheffer reproduzido: o Composer escapa e escreve "confirmada"
@@ -346,7 +395,11 @@ describe('GuardedGoldPipeline', () => {
       'frontier-schema-ok',
       'compose-start',
       'compose-done',
+      // LOTE GOLD P0 R2-B — fronteiras estruturais entre as transformações
+      'diagnostics-post-preflight',
       'mermaid-inject',
+      'diagnostics-post-mermaid',
+      'diagnostics-post-certainty',
       'verifier-done',
     ]);
     // métricas presentes, conteúdo nunca (sem dados sensíveis)

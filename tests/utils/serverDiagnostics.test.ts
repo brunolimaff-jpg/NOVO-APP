@@ -77,6 +77,23 @@ describe('serverDiagnostics payload sanitizer', () => {
     expect(rows[0].payload).not.toHaveProperty('textPreview');
   });
 
+  it('LOTE GOLD P0 R2-B: paridade — os 4 eventos críticos Gold persistem SEMPRE no servidor (buckets >=10 cairiam no sampling)', () => {
+    // runId fixo: buckets = preflight 19, mermaid 55, certainty 45, summary 91
+    const base = { at: '', t: 0, runId: 'fixo-teste-r2b', severity: 'info', area: 'GoldSeam' };
+    const criticalEvents = [
+      'diagnostics-post-preflight',
+      'diagnostics-post-mermaid',
+      'diagnostics-post-certainty',
+      'verifier-summary',
+    ];
+    for (const event of criticalEvents) {
+      expect(shouldPersistDiagnostic({ ...base, event })).toBe(true);
+    }
+    // infos comuns da MESMA área continuam amostrados (buckets 95 e 31)
+    expect(shouldPersistDiagnostic({ ...base, event: 'gold-start' })).toBe(false);
+    expect(shouldPersistDiagnostic({ ...base, event: 'mermaid-inject' })).toBe(false);
+  });
+
   it('LOTE GOLD P0 R2: verifier-summary do GoldSeam persiste SEMPRE no servidor (bucket 61 cairia no sampling)', () => {
     // runId fixo: bucket de GoldSeam:verifier-summary = 61 (>=10 — sem a
     // exceção, o evento seria descartado pelo sampling de info de 10%)

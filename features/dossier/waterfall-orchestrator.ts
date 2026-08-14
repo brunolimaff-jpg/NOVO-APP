@@ -1326,6 +1326,9 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
                 scoutDiag.info('GoldSeam', stage, {
                   sessionId,
                   waterfallRunId,
+                  // LOTE GOLD P0 R2-B: identidade do run de lifecycle em todos
+                  // os eventos de fronteira (localização no scout_diagnostics).
+                  dossierRunId: dossierRunId ?? null,
                   ...(detail ?? {}),
                 });
                 if (stage === 'output-selected' && detail && 'kind' in detail) {

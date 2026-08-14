@@ -290,11 +290,27 @@ describe('LOTE GOLD P0 R2 — verifier-summary chega ao buffer mesmo com verbose
     delete process.env.VITE_VERBOSE_LOGS;
     const fresh = await import('../../utils/diagnosticLog');
 
-    fresh.scoutDiag.info('GoldSeam', 'verifier-summary', { hardFails: 1, codesJson: '["X"]' });
+    // LOTE GOLD P0 R2-B: os 4 eventos críticos chegam ao buffer mesmo com
+    // verbose DESLIGADO (produção).
+    for (const event of [
+      'diagnostics-post-preflight',
+      'diagnostics-post-mermaid',
+      'diagnostics-post-certainty',
+      'verifier-summary',
+    ]) {
+      fresh.scoutDiag.info('GoldSeam', event, { hardFails: 1, codes: ['X'] });
+    }
 
     const history = (window as typeof window & { __SCOUT_DIAG_HISTORY__?: Array<{ area: string; event: string }> })
       .__SCOUT_DIAG_HISTORY__ ?? [];
-    expect(history.some(e => e.area === 'GoldSeam' && e.event === 'verifier-summary')).toBe(true);
+    for (const event of [
+      'diagnostics-post-preflight',
+      'diagnostics-post-mermaid',
+      'diagnostics-post-certainty',
+      'verifier-summary',
+    ]) {
+      expect(history.some(e => e.area === 'GoldSeam' && e.event === event)).toBe(true);
+    }
 
     randomSpy.mockRestore();
     nowSpy.mockRestore();

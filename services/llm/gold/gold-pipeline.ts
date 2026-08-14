@@ -155,6 +155,11 @@ export type GoldStage =
   | 'compose-done'
   | 'mermaid-inject'
   | 'verifier-done'
+  // LOTE GOLD P0 R2-B — fronteiras estruturais de diagnóstico (telemetria
+  // pura: hardFails/codes/codeCounts; nunca reason/claim/conteúdo).
+  | 'diagnostics-post-preflight'
+  | 'diagnostics-post-mermaid'
+  | 'diagnostics-post-certainty'
   // Emitidos pelo seam (fora do pipeline): cadastro canônico e contrato.
   | 'canonical-done'
   | 'contract-done'
@@ -181,6 +186,19 @@ export interface GoldStageDetail {
 }
 
 export type GoldStageHandler = (stage: GoldStage, detail?: GoldStageDetail) => void;
+
+/**
+ * LOTE GOLD P0 R2-B — resumo estrutural de uma fronteira do verifier para
+ * TELEMETRIA: somente contagem e códigos, sem reason/claim/conteúdo.
+ */
+function frontierSummary(verification: GoldVerificationResult): GoldStageDetail {
+  const codes = verification.hardFails.map((hardFail) => hardFail.code);
+  const codeCounts = codes.reduce<Record<string, number>>((counts, code) => {
+    counts[code] = (counts[code] ?? 0) + 1;
+    return counts;
+  }, {});
+  return { hardFails: verification.hardFails.length, codes, codeCounts };
+}
 
 export async function runGuardedGoldPipeline(
   input: { canonical: CanonicalAccount; dossier: string; segment?: ScoutSegment },
@@ -270,6 +288,12 @@ export async function runGuardedGoldPipeline(
   // do Patch B (negação de posse, fraqueza sem proveniência, claim sem
   // suporte). Reusa o verifyGold — não replica política semântica.
   const goldPruned = composerSemanticPreflight(goldBrief, input.canonical, safePack);
+  // LOTE GOLD P0 R2-B — diagnóstico estrutural de fronteira (SEM mudança
+  // semântica): o verifyGold roda aqui apenas para TELEMETRIA — codes/counts
+  // por fronteira, sem reason/claim/conteúdo. Permite localizar onde um hard
+  // fail nasce/sobrevive sem nova rodada cega.
+  const postPreflightVerification = verifyGold(goldPruned, input.canonical, safePack);
+  onStage?.('diagnostics-post-preflight', frontierSummary(postPreflightVerification));
 
   // 4c) EXPERIENCE-01C — Mermaid determinístico (CANONICAL MERMAID):
   // o Composer NÃO escreve mais código Mermaid; os 3 mapas são montados
@@ -278,6 +302,8 @@ export async function runGuardedGoldPipeline(
   // JÁ com os mapas finais (contrato do Planejador 2026-08-10).
   const goldWithMermaids = injectCanonicalGoldMermaids(goldPruned, input.canonical, safePack, input.segment);
   onStage?.('mermaid-inject', { chars: goldWithMermaids.length });
+  const postMermaidVerification = verifyGold(goldWithMermaids, input.canonical, safePack);
+  onStage?.('diagnostics-post-mermaid', frontierSummary(postMermaidVerification));
 
   // 4c) BRU-48 — rebaixa vocabulário de certeza não sustentado na FRONTEIRA
   // FINAL (pós-Mermaid, pré-verifier). Uma única chamada protege o texto do
@@ -291,6 +317,9 @@ export async function runGuardedGoldPipeline(
     counts[hardFail.code] = (counts[hardFail.code] ?? 0) + 1;
     return counts;
   }, {});
+  // R2-B: post-certainty É a mesma fronteira do verifier final (mesmo input
+  // goldDowngraded) — emitido do MESMO resultado, sem chamada extra.
+  onStage?.('diagnostics-post-certainty', { hardFails: verification.hardFails.length, codes: verification.hardFails.map((hardFail) => hardFail.code), codeCounts });
   onStage?.('verifier-done', {
     hardFails: verification.hardFails.length,
     codes: verification.hardFails.map((hardFail) => hardFail.code),
