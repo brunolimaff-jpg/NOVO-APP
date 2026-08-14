@@ -191,13 +191,73 @@ export function stripInternalMarkers(text: string): string {
     .trim();
 }
 
+/**
+ * BRU-99 — allowlist estrita de markers internos legítimos (Reconciliação PORTA).
+ *
+ * O shield genérico bloqueia o caminho marker-only legítimo: `stripInternalMarkers`
+ * esvazia a resposta composta somente por markers, o sample volta ao texto bruto
+ * e o detector classifica o próprio marker esperado como leak (falso positivo
+ * determinístico). Este contrato permite SOMENTE markers `[[<prefix>_<DIM>:...]]`
+ * com prefixo e dimensão autorizados, sem relaxar o shield global — qualquer
+ * outro conteúdo (marker de outro tipo, texto de prompt, marker malformado ou
+ * conteúdo misto) continua sujeito à detecção normal.
+ */
+export interface InternalMarkerAllowlist {
+  prefix: string;
+  dimensions: string[];
+}
+
+export function isOnlyAllowedInternalMarkers(raw: string, allowlist: InternalMarkerAllowlist): boolean {
+  const lines = raw
+    .split(/\r?\n/)
+    .map(line => line.trim())
+    .filter(Boolean);
+  if (lines.length === 0) return false;
+
+  const dimensions = new Set(allowlist.dimensions);
+  const prefix = allowlist.prefix;
+
+  for (const line of lines) {
+    const match = /^\[\[([A-Z_]+):(.+)\]\]$/.exec(line);
+    if (!match) return false;
+    const name = match[1];
+    const body = match[2];
+    if (!name.startsWith(`${prefix}_`)) return false;
+    const dimension = name.slice(prefix.length + 1);
+    if (!dimensions.has(dimension)) return false;
+    if (!body || body.trim() === '') return false;
+  }
+  return true;
+}
+
 export function applyPromptLeakShield(
   text: string,
-  options: { companyHint?: string; fallbackText?: string; preserveInternalMarkersWhenSafe?: boolean } = {},
+  options: {
+    companyHint?: string;
+    fallbackText?: string;
+    preserveInternalMarkersWhenSafe?: boolean;
+    internalMarkerAllowlist?: InternalMarkerAllowlist;
+  } = {},
 ): PromptLeakShieldResult {
   const raw = (text || '').trim();
   const cleaned = stripInternalMarkers(raw);
   const sample = cleaned || raw;
+
+  // BRU-99: contrato explícito para caminhos marker-only legítimos (ex:
+  // Reconciliação PORTA). Se o texto após strip está vazio E o raw é composto
+  // SOMENTE por markers da allowlist (prefixo + dimensão autorizados), NÃO é
+  // leak — preserva o raw. Qualquer outro conteúdo segue a detecção normal.
+  const allowlist = options.internalMarkerAllowlist;
+  if (allowlist && cleaned === '' && isOnlyAllowedInternalMarkers(raw, allowlist)) {
+    return {
+      text: raw,
+      blocked: false,
+      detected: false,
+      indicators: [],
+      fingerprint: null,
+    };
+  }
+
   const detection = detectPromptLeakIndicators(sample);
 
   if (!detection.detected) {
