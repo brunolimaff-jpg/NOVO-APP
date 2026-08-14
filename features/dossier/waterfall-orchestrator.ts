@@ -1339,9 +1339,11 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
                   // BRU-47: serializa codes/codeCounts em strings para o
                   // console não colapsar Array/Objeto — a próxima execução
                   // precisa do payload literal (codesJson=[...]).
-                  // LOTE GOLD P0 (TAREFA 4): dossierRunId + estágio + razões
-                  // sanitizadas — o evento é persistido de forma GARANTIDA
-                  // (exceção explícita no shouldBufferDiagnostic).
+                  // LOTE GOLD P0 (TAREFA 4, delta R1): dossierRunId + estágio
+                  // + contagem. SOMENTE code/stage/count são persistidos —
+                  // razões humanas do verifier carregam CNPJ/nomes/frases e
+                  // não atravessam para a telemetria. O evento é persistido
+                  // de forma GARANTIDA (exceção no shouldBufferDiagnostic).
                   scoutDiag.info('GoldSeam', 'verifier-summary', {
                     sessionId,
                     waterfallRunId,
@@ -1350,7 +1352,6 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
                     hardFails: detail.hardFails ?? 0,
                     codes: detail.codes ?? [],
                     codeCounts: detail.codeCounts ?? {},
-                    reasons: detail.reasons ?? [],
                     codesJson: JSON.stringify(detail.codes ?? []),
                     codeCountsJson: JSON.stringify(detail.codeCounts ?? {}),
                   });

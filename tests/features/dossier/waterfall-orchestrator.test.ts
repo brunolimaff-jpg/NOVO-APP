@@ -1590,13 +1590,12 @@ describe('useDossierWaterfallOrchestrator', () => {
     tryEnhanceDossierWithGoldMock.mockImplementation(
       async (input: {
         onStage?: (stage: string, detail?: { kind?: string; reason?: string }) => void;
-        onRejected?: (reason: string, detail?: { hardFails?: number; codes?: string[]; codeCounts?: Record<string, number>; reasons?: string[] }) => void;
+        onRejected?: (reason: string, detail?: { hardFails?: number; codes?: string[]; codeCounts?: Record<string, number> }) => void;
       }) => {
         input.onRejected?.('verifier_fail', {
           hardFails: 1,
           codes: ['UNSUPPORTED_PRODUCT_CLAIM'],
           codeCounts: { UNSUPPORTED_PRODUCT_CLAIM: 1 },
-          reasons: ['Frase afirma capacidade/produto/prazo/ROI sem fonte'],
         });
         input.onStage?.('output-selected', { kind: 'factual_minimal', reason: 'verifier_fail' });
         return '# Dossiê Cadastral\n\n> Saída factual reduzida — Gold não aprovado';
@@ -1612,7 +1611,6 @@ describe('useDossierWaterfallOrchestrator', () => {
         dossierRunId: 'run-1',
         stage: 'final-verifier',
         codesJson: '["UNSUPPORTED_PRODUCT_CLAIM"]',
-        reasons: ['Frase afirma capacidade/produto/prazo/ROI sem fonte'],
       }),
     );
   });

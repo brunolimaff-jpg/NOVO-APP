@@ -246,14 +246,7 @@ describe('tryEnhanceDossierWithGold — seam fail-closed', () => {
   it('Verifier hard fail → onRejected(verifier_fail), contract-done NÃO é emitido', async () => {
     const deps = makeDeps({
       runGold: vi.fn(async () =>
-        makeGoldResult({
-          verification: {
-            passed: false,
-            hardFails: [
-              { code: 'UNSUPPORTED_PRODUCT_CLAIM', reason: 'Frase afirma capacidade/produto/prazo/ROI sem fonte: "Capacidade de armazenagem de 120 mil sacas"' },
-            ],
-          },
-        }),
+        makeGoldResult({ verification: { passed: false, hardFails: [{ code: 'UNSUPPORTED_PRODUCT_CLAIM', reason: 'x' }] } }),
       ),
     });
     const stages: string[] = [];
@@ -277,17 +270,67 @@ describe('tryEnhanceDossierWithGold — seam fail-closed', () => {
           hardFails: 1,
           codes: ['UNSUPPORTED_PRODUCT_CLAIM'],
           codeCounts: { UNSUPPORTED_PRODUCT_CLAIM: 1 },
-          // LOTE GOLD P0 (TAREFA 4): razão SANITIZADA — prefixo da regra,
-          // nunca a frase comercial anexada pelo verifier.
-          reasons: ['Frase afirma capacidade/produto/prazo/ROI sem fonte'],
         },
       },
     ]);
     expect(rejected[0].detail).not.toHaveProperty('reason');
     expect(rejected[0].detail).not.toHaveProperty('claim');
-    expect(JSON.stringify(rejected[0].detail)).not.toContain('120 mil sacas');
     expect(stages).not.toContain('contract-done:true');
     expect(stages).not.toContain('contract-done:false');
+  });
+
+  it('LOTE GOLD P0 (delta R1): reason com CNPJ (INVENTED_CNPJ) NÃO vaza para o GoldRejectionDetail', async () => {
+    const deps = makeDeps({
+      runGold: vi.fn(async () =>
+        makeGoldResult({
+          verification: {
+            passed: false,
+            hardFails: [{ code: 'INVENTED_CNPJ', reason: 'CNPJ 12.345.678/0001-90 não pertence ao canonical nem às relações conhecidas' }],
+          },
+        }),
+      ),
+    });
+    const rejected: Array<{ reason: string; detail?: GoldRejectionDetail }> = [];
+
+    await tryEnhanceDossierWithGold({
+      cnpj: '04.733.767/0001-80',
+      companyName: 'SCHEFFER & CIA LTDA',
+      dossierText: DOSSIER_TEXT,
+      deps,
+      onStage: () => undefined,
+      onRejected: (reason, detail) => rejected.push({ reason, detail }),
+    });
+
+    expect(rejected[0].detail?.codes).toEqual(['INVENTED_CNPJ']);
+    expect(JSON.stringify(rejected[0].detail)).not.toContain('12.345.678');
+    expect(JSON.stringify(rejected[0].detail)).not.toContain('não pertence');
+  });
+
+  it('LOTE GOLD P0 (delta R1): reason com pessoa/frase (QSA_AS_DECISOR) NÃO vaza para o GoldRejectionDetail', async () => {
+    const deps = makeDeps({
+      runGold: vi.fn(async () =>
+        makeGoldResult({
+          verification: {
+            passed: false,
+            hardFails: [{ code: 'QSA_AS_DECISOR', reason: 'Frase atribui cargo funcional a pessoa do QSA: "CAROLINA SCHEFFER é CEO"' }],
+          },
+        }),
+      ),
+    });
+    const rejected: Array<{ reason: string; detail?: GoldRejectionDetail }> = [];
+
+    await tryEnhanceDossierWithGold({
+      cnpj: '04.733.767/0001-80',
+      companyName: 'SCHEFFER & CIA LTDA',
+      dossierText: DOSSIER_TEXT,
+      deps,
+      onStage: () => undefined,
+      onRejected: (reason, detail) => rejected.push({ reason, detail }),
+    });
+
+    expect(rejected[0].detail?.codes).toEqual(['QSA_AS_DECISOR']);
+    expect(JSON.stringify(rejected[0].detail)).not.toContain('CAROLINA');
+    expect(JSON.stringify(rejected[0].detail)).not.toContain('CEO');
   });
 
   it('GoldContractValidator FAIL → onRejected(contract_fail) e contract-done passed:false', async () => {

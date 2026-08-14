@@ -32,13 +32,6 @@ export interface GoldRejectionDetail {
   hardFails?: number;
   codes?: string[];
   codeCounts?: Record<string, number>;
-  /**
-   * LOTE GOLD P0 (TAREFA 4): razões SANITIZADAS por hard fail — apenas o
-   * prefixo identificador da regra (até ':'), nunca a frase comercial que o
-   * verifier anexa ao reason. Suficiente para localizar a regra originadora
-   * sem persistir conteúdo do dossiê.
-   */
-  reasons?: string[];
 }
 
 export interface GoldSeamInput {
@@ -212,7 +205,6 @@ export async function tryEnhanceDossierWithGold(input: GoldSeamInput): Promise<s
         hardFails: codes.length,
         codes,
         codeCounts,
-        reasons: result.verification.hardFails.map((hardFail) => hardFail.reason.split(':')[0]),
       });
       onStage?.('output-selected', { kind: 'factual_minimal', reason: 'verifier_fail' } satisfies GoldOutputSelection);
       return buildFactualMinimalDossier(canonical);
