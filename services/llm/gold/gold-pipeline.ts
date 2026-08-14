@@ -201,6 +201,7 @@ export type GoldStage =
   // pura: hardFails/codes/codeCounts; nunca reason/claim/conteúdo).
   | 'diagnostics-pre-compose'
   | 'diagnostics-post-preflight'
+  | 'i7-fail-closed'
   | 'diagnostics-post-mermaid'
   | 'diagnostics-post-certainty'
   // Emitidos pelo seam (fora do pipeline): cadastro canônico e contrato.
@@ -352,6 +353,16 @@ export async function runGuardedGoldPipeline(
   // fail nasce/sobrevive sem nova rodada cega.
   const postPreflightVerification = verifyGold(goldClean, input.canonical, safePack);
   onStage?.('diagnostics-post-preflight', frontierSummary(postPreflightVerification));
+  // BRU-102 (I7 hardening, KEEP_NARROW — despacho do Planejador): fail-closed.
+  // Um PROMOTED_CLAIM residual pós-normalização impede o Mermaid — o residual
+  // indica que a boundary do Composer falhou (ex.: guard pula parte com
+  // negação ampla que o verifier ainda reconhece) e a amplificação
+  // determinística não pode rodar sobre texto inválido. O seam captura o
+  // erro e cai em saída factual (fail-closed preservado).
+  if (postPreflightVerification.hardFails.some((hardFail) => hardFail.code === 'PROMOTED_CLAIM')) {
+    onStage?.('i7-fail-closed', { hardFails: postPreflightVerification.hardFails.length });
+    throw new Error('GoldI7FailClosed: PROMOTED_CLAIM residual após normalização — Mermaid não executado');
+  }
 
   // 4c) EXPERIENCE-01C — Mermaid determinístico (CANONICAL MERMAID):
   // o Composer NÃO escreve mais código Mermaid; os 3 mapas são montados
