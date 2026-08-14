@@ -18,6 +18,7 @@ import type {
   SafeFindingPack,
   SanitizerEvent,
   SanitizerEventCode,
+  TechnologySignal,
 } from './gold-contracts';
 
 const CPF_PATTERN = /\b\d{3}\.\d{3}\.\d{3}-\d{2}\b/g;
@@ -64,9 +65,13 @@ const WEAK_SOURCE_FOR_SENSITIVE =
   /\b(site\s+institucional|release|comunicado\s+de\s+imprensa|site\s+oficial|men[cç][aã]o)\b/i;
 
 /** PACK_FORENSIC_REPLAY: temas onde promoção de status é perigosa
- * (internacionalização/Colômbia, holding/controle). */
+ * (internacionalização/Colômbia, holding/controle).
+ * RCA-04 (F1 — paridade de tema sensível): "colombiana/colombiano" (e
+ * plurais), derivados de Colômbia, também são tema sensível — o verifier R8
+ * os acusa via substring de "colombia"; o sanitizer deve reconhecê-los antes,
+ * sem transformar substring arbitrária em tema sensível (\b preservado). */
 const SENSITIVE_THEME =
-  /\b(col[oó]mbia|cumaribo|internacional|exterior|holding|controladora|controle\s+societ[aá]rio)\b/i;
+  /\b(col[oó]mbia|colombian[ao]s?|cumaribo|internacional|exterior|holding|controladora|controle\s+societ[aá]rio)\b/i;
 
 const MODULE_PROOF_SOURCE = /\b(m[óo]dulo\s+contratado|crm interno senior)\b/i;
 
@@ -349,6 +354,28 @@ export function sanitizeFindingPack(
     relationships.push(r);
   }
 
+  // === technologySignals (RCA-04 F2): observedFact é superfície ASSERTIVA —
+  // recebe a MESMA neutralização de certeza/tema sensível das claims (evita
+  // que o Composer copie "confirmada" e o verifier acuse R8). validationQuestion
+  // e whatIsNotKnown NÃO são tocados (modalidade interrogativa é tratada pelo
+  // determinístico — RCA-03; escopo assertivo apenas). ===
+  const technologySignals: TechnologySignal[] = [];
+  for (const signal of raw.technologySignals) {
+    if (SENSITIVE_THEME.test(signal.observedFact) && CONFIRMED_VOCABULARY.test(signal.observedFact)) {
+      const neutralized = rewriteConfirmedVocabulary(signal.observedFact);
+      sanitizerEvents.push({
+        code: 'CLAIM_LEXICAL_PROMOTION',
+        action: 'rewritten',
+        before: signal.observedFact,
+        after: neutralized,
+        reason: 'observedFact usa vocabulário de certeza ("confirmada") sobre tema sensível — reescrita para linguagem de pista (evita promoção pelo Composer)',
+      });
+      technologySignals.push({ ...signal, observedFact: neutralized });
+      continue;
+    }
+    technologySignals.push(signal);
+  }
+
   // === openQuestions: pergunta com pressuposto → pergunta neutra ===
   const openQuestions: string[] = [];
   for (const q of raw.openQuestions) {
@@ -390,7 +417,7 @@ export function sanitizeFindingPack(
     },
     facts,
     relationships,
-    technologySignals: raw.technologySignals,
+    technologySignals,
     people,
     metrics: raw.metrics,
     conflicts: raw.conflicts,
