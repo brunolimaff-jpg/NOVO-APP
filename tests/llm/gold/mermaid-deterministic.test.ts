@@ -594,8 +594,8 @@ describe('SCOUT-V7-GOLD-EXPERIENCE-01C — CANONICAL MERMAID', () => {
   it('01D-6: tabela de elos com segmento construcao usa vocabulário de obra/licenças', () => {
     const pack = makeSafePack({
       facts: [
-        { id: 'f-obra', entity: 'CONSTRUTORA LTDA', claim: 'Empreendimento residencial em execução confirmado em registro.', status: 'Confirmado', source: 'Registro', kind: 'operation', process: null },
-        { id: 'f-lic', entity: 'CONSTRUTORA LTDA', claim: 'Licenças de obra em dia confirmadas em alvará.', status: 'Confirmado', source: 'Alvará', kind: 'operation', process: null },
+        { id: 'f-obra', entity: 'SCHEFFER & CIA LTDA', claim: 'Empreendimento residencial em execução confirmado em registro.', status: 'Confirmado', source: 'Registro', kind: 'operation', process: null },
+        { id: 'f-lic', entity: 'SCHEFFER & CIA LTDA', claim: 'Licenças de obra em dia confirmadas em alvará.', status: 'Confirmado', source: 'Alvará', kind: 'operation', process: null },
       ],
       relationships: [], technologySignals: [], openQuestions: [],
     });
@@ -609,8 +609,8 @@ describe('SCOUT-V7-GOLD-EXPERIENCE-01C — CANONICAL MERMAID', () => {
   it('01D-7: tabela de elos com segmento hcm_intensivo usa vocabulário de pessoas/plataforma', () => {
     const pack = makeSafePack({
       facts: [
-        { id: 'f-aqu', entity: 'SERVICOS LTDA', claim: 'Aquisição de talentos em plataforma confirmada em comunicado oficial.', status: 'Confirmado', source: 'Comunicado', kind: 'operation', process: null },
-        { id: 'f-folha', entity: 'SERVICOS LTDA', claim: 'Folha de pagamento processada na plataforma confirmada em relatório.', status: 'Confirmado', source: 'Relatório', kind: 'technology', process: null },
+        { id: 'f-aqu', entity: 'SCHEFFER & CIA LTDA', claim: 'Aquisição de talentos em plataforma confirmada em comunicado oficial.', status: 'Confirmado', source: 'Comunicado', kind: 'operation', process: null },
+        { id: 'f-folha', entity: 'SCHEFFER & CIA LTDA', claim: 'Folha de pagamento processada na plataforma confirmada em relatório.', status: 'Confirmado', source: 'Relatório', kind: 'technology', process: null },
       ],
       relationships: [], technologySignals: [], openQuestions: [],
     });
@@ -623,8 +623,8 @@ describe('SCOUT-V7-GOLD-EXPERIENCE-01C — CANONICAL MERMAID', () => {
   it('01D-8: tabela de elos com segmento industrial_geral (default) usa vocabulário de planta/processo', () => {
     const pack = makeSafePack({
       facts: [
-        { id: 'f-prod', entity: 'INDUSTRIA LTDA', claim: 'Produção de fertilizantes confirmada em laudo técnico.', status: 'Confirmado', source: 'Laudo', kind: 'operation', process: null },
-        { id: 'f-sup', entity: 'INDUSTRIA LTDA', claim: 'Suprimentos críticos confirmados em contrato de fornecimento.', status: 'Confirmado', source: 'Contrato', kind: 'operation', process: null },
+        { id: 'f-prod', entity: 'SCHEFFER & CIA LTDA', claim: 'Produção de fertilizantes confirmada em laudo técnico.', status: 'Confirmado', source: 'Laudo', kind: 'operation', process: null },
+        { id: 'f-sup', entity: 'SCHEFFER & CIA LTDA', claim: 'Suprimentos críticos confirmados em contrato de fornecimento.', status: 'Confirmado', source: 'Contrato', kind: 'operation', process: null },
       ],
       relationships: [], technologySignals: [], openQuestions: [],
     });
@@ -637,5 +637,26 @@ describe('SCOUT-V7-GOLD-EXPERIENCE-01C — CANONICAL MERMAID', () => {
     const pack = makeSafePack({ facts: [], relationships: [], technologySignals: [], openQuestions: [] });
     const table = buildDynamicValueChainTable(pack, 'agropecuaria');
     expect(table).toBeNull();
+  });
+
+  it('BRU-100 (RED): fato de entidade FORA das relationships NÃO é injetado — não gera UNSUPPORTED no pós-mermaid', () => {
+    // Mecanismo do run 86850904: o verifier reconhece a entidade mencionada
+    // apenas via safePack.relationships (relatedEntity); um fato Confirmado de
+    // outra entidade que NÃO está nas relationships gera
+    // UNSUPPORTED_PRODUCT_CLAIM determinístico após o inject.
+    const pack = makeSafePack({
+      facts: [
+        { id: 'f-conta-1', entity: 'SCHEFFER & CIA LTDA', claim: 'Cultivo próprio de soja, milho e algodão confirmado.', status: 'Confirmado', source: 'Fonte externa', kind: 'operation', process: null },
+        { id: 'f-conta-2', entity: 'SCHEFFER & CIA LTDA', claim: 'Beneficiamento em 10 UBAs confirmado.', status: 'Confirmado', source: 'Fonte externa', kind: 'operation', process: null },
+        { id: 'f-holding', entity: 'SCHEFFER PARTICIPACOES S/A', claim: 'Capacidade estática de 1,2 milhão de sacas confirmada.', status: 'Confirmado', source: 'Fonte externa', kind: 'operation', process: null },
+      ],
+      relationships: [], technologySignals: [], openQuestions: [],
+    });
+
+    const injected = injectCanonicalGoldMermaids(BAD_GOLD, canonical, pack);
+    const result = verifyGold(injected, canonical, pack);
+
+    expect(result.hardFails.some((h) => h.code === 'UNSUPPORTED_PRODUCT_CLAIM')).toBe(false);
+    expect(injected).not.toContain('SCHEFFER PARTICIPACOES S/A: Capacidade estática');
   });
 });

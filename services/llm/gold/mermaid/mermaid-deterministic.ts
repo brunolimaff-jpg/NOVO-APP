@@ -76,8 +76,27 @@ function quotedLabel(label: string): string {
 }
 
 /** Fatos confirmados do SafePack agrupados por tipo de claim. */
+function verifierRecognizableEntities(safePack: SafeFindingPack): Set<string> {
+  const set = new Set<string>();
+  const account = safePack.accountIdentity?.legalName;
+  if (account) set.add(normalizeEntityName(account));
+  for (const rel of safePack.relationships ?? []) {
+    set.add(normalizeEntityName(rel.relatedEntity));
+  }
+  return set;
+}
+
 function confirmedFacts(safePack: SafeFindingPack) {
-  return (safePack.facts ?? []).filter((f) => f.status === 'Confirmado');
+  // BRU-100 (run 86850904): o verifier reconhece a entidade mencionada apenas
+  // via CONTA canônica (referência implícita) e safePack.relationships
+  // (mentionedEntity = relatedEntity). Um fato Confirmado de OUTRA entidade que
+  // não está nas relationships gera UNSUPPORTED_PRODUCT_CLAIM determinístico
+  // após o inject. Fatos de entidades não reconhecíveis NÃO são injetados no
+  // conteúdo determinístico (permanecem no texto do dossiê e no SafePack).
+  const recognizable = verifierRecognizableEntities(safePack);
+  return (safePack.facts ?? []).filter(
+    (f) => f.status === 'Confirmado' && recognizable.has(normalizeEntityName(f.entity)),
+  );
 }
 
 /** Normalização simples de nome de entidade (mesma semântica do verifier). */
@@ -399,8 +418,10 @@ export function buildDynamicValueChainTable(
   const rows: ValueChainRow[] = [];
   const openQuestions = safePack.openQuestions ?? [];
 
+  const recognizableEntities = verifierRecognizableEntities(safePack);
   for (const fact of safePack.facts ?? []) {
     if (fact.status !== 'Confirmado') continue;
+    if (!recognizableEntities.has(normalizeEntityName(fact.entity))) continue;
     const dimension = valueChainDimension(fact.claim, fact.kind, segment);
     rows.push({
       elo: valueChainElo(dimension),
