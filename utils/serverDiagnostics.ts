@@ -82,6 +82,12 @@ export function shouldPersistDiagnostic(event: DiagnosticEvent): boolean {
   }
   if (severity === 'error' || severity === 'warn') return true;
   if (area === 'DossierModule' && name === 'usage metadata') return true;
+  // LOTE GOLD P0 R2: o resumo da verificação Gold é evento crítico de
+  // lifecycle — mesmo padrão do DossierModule/usage metadata. Sem esta
+  // exceção, o servidor descartaria o evento no sampling de 10% de info
+  // (observado na validação E2E: raw-schema-ok persistiu, verifier-summary
+  // não). A exceção espelhada existe no buffer do cliente.
+  if (area === 'GoldSeam' && name === 'verifier-summary') return true;
   if (BUSINESS_AREA_PATTERN.test(area) || BUSINESS_EVENT_PATTERN.test(`${area}:${name}`)) return true;
   if (severity !== 'info') return false;
   return stableBucket(`${event.runId}:${area}:${name}`) < INFO_SAMPLE_PERCENT;

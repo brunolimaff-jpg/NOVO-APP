@@ -77,6 +77,15 @@ describe('serverDiagnostics payload sanitizer', () => {
     expect(rows[0].payload).not.toHaveProperty('textPreview');
   });
 
+  it('LOTE GOLD P0 R2: verifier-summary do GoldSeam persiste SEMPRE no servidor (bucket 61 cairia no sampling)', () => {
+    // runId fixo: bucket de GoldSeam:verifier-summary = 61 (>=10 — sem a
+    // exceção, o evento seria descartado pelo sampling de info de 10%)
+    const event = { at: '', t: 0, runId: 'fixo-teste-r2', severity: 'info', area: 'GoldSeam', event: 'verifier-summary' };
+    expect(shouldPersistDiagnostic(event)).toBe(true);
+    // controle: infos comuns da MESMA área continuam amostradas (bucket 89)
+    expect(shouldPersistDiagnostic({ ...event, event: 'gold-start' })).toBe(false);
+  });
+
   it('bloqueia heartbeat e eventos ruidosos de UI antes do Supabase', () => {
     const base = { at: '', t: 0, runId: 'run-1', severity: 'info' };
     expect(shouldPersistDiagnostic({ ...base, area: 'Diagnostic', event: 'heartbeat' })).toBe(false);

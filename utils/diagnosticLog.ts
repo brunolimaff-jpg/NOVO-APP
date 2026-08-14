@@ -546,8 +546,15 @@ export const scoutDiag = {
   },
 
   info(scope: string, message: string, details?: Record<string, unknown>): void {
-    if (!isVerboseEnabled()) return;
-    console.info(`${PREFIX}[${scope}] ${message}`, safeDetails(details));
+    // LOTE GOLD P0 R2: o resumo da verificação Gold NÃO pode depender do
+    // verbose (em produção isVerboseEnabled é falso e o evento morreria
+    // antes do buffer). Console continua condicionado ao verbose; o buffer
+    // garante o evento crítico (a exceção do shouldBufferDiagnostic decide).
+    const isGuaranteedCriticalEvent = scope === 'GoldSeam' && message === 'verifier-summary';
+    if (!isVerboseEnabled() && !isGuaranteedCriticalEvent) return;
+    if (isVerboseEnabled()) {
+      console.info(`${PREFIX}[${scope}] ${message}`, safeDetails(details));
+    }
     diagEntry(scope, message, 'info', details);
   },
 
