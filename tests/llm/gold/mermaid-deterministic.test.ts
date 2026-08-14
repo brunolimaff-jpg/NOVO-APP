@@ -685,6 +685,61 @@ describe('SCOUT-V7-GOLD-EXPERIENCE-01C — CANONICAL MERMAID', () => {
     expect(result.hardFails.some((h) => h.code === 'UNSUPPORTED_PRODUCT_CLAIM')).toBe(true);
   });
 
+  it('BRU-100 RED (despacho do Planejador): openQuestion de capacidade na coluna Validar gera UNSUPPORTED no pós-mermaid', () => {
+    const pack = makeSafePack({
+      facts: [
+        { id: 'f1', entity: 'SCHEFFER & CIA LTDA', claim: 'Cultivo próprio de soja, milho e algodão confirmado.', status: 'Confirmado', source: 'Fonte externa', kind: 'operation', process: null },
+      ],
+      openQuestions: ['Qual é a capacidade estática total de armazenagem?'],
+      relationships: [], technologySignals: [],
+    });
+    const injected = injectCanonicalGoldMermaids(BAD_GOLD, canonical, pack);
+    const result = verifyGold(injected, canonical, pack);
+    expect(result.hardFails.some((h) => h.code === 'UNSUPPORTED_PRODUCT_CLAIM')).toBe(false);
+  });
+
+  it('BRU-100 adv-openQ: pergunta de capacidade SEM valor permanece como discovery segura (vocabulário neutro)', () => {
+    const pack = makeSafePack({
+      facts: [
+        { id: 'f1', entity: 'SCHEFFER & CIA LTDA', claim: 'Cultivo próprio de soja confirmado.', status: 'Confirmado', source: 'Fonte externa', kind: 'operation', process: null },
+      ],
+      openQuestions: ['Qual é o volume total de armazenagem?'],
+      relationships: [], technologySignals: [],
+    });
+    const injected = injectCanonicalGoldMermaids(BAD_GOLD, canonical, pack);
+    const result = verifyGold(injected, canonical, pack);
+    expect(result.hardFails.some((h) => h.code === 'UNSUPPORTED_PRODUCT_CLAIM')).toBe(false);
+    expect(injected).toContain('Qual é o volume total de armazenagem');
+  });
+
+  it('BRU-100 adv-openQ-valor: pergunta de capacidade COM valor não vira bypass (valor removido na normalização)', () => {
+    const pack = makeSafePack({
+      facts: [
+        { id: 'f1', entity: 'SCHEFFER & CIA LTDA', claim: 'Cultivo próprio de soja confirmado.', status: 'Confirmado', source: 'Fonte externa', kind: 'operation', process: null },
+      ],
+      openQuestions: ['A capacidade estática é 900 mil sacas?'],
+      relationships: [], technologySignals: [],
+    });
+    const injected = injectCanonicalGoldMermaids(BAD_GOLD, canonical, pack);
+    const result = verifyGold(injected, canonical, pack);
+    // a pergunta reformulada (sem o valor) é aceita; o valor não comprovado não entra no texto
+    expect(result.hardFails.some((h) => h.code === 'UNSUPPORTED_PRODUCT_CLAIM')).toBe(false);
+    expect(injected).not.toContain('900 mil');
+  });
+
+  it('BRU-100 adv-openQ-afirmacao: AFIRMAÇÃO de capacidade sem prova continua UNSUPPORTED (não é pergunta)', () => {
+    const pack = makeSafePack({
+      facts: [
+        { id: 'f1', entity: 'SCHEFFER & CIA LTDA', claim: 'Cultivo próprio de soja confirmado.', status: 'Confirmado', source: 'Fonte externa', kind: 'operation', process: null },
+      ],
+      openQuestions: ['A capacidade estática de 900 mil sacas é confirmada.'],
+      relationships: [], technologySignals: [],
+    });
+    const injected = injectCanonicalGoldMermaids(BAD_GOLD, canonical, pack);
+    const result = verifyGold(injected, canonical, pack);
+    expect(result.hardFails.some((h) => h.code === 'UNSUPPORTED_PRODUCT_CLAIM')).toBe(true);
+  });
+
   it('BRU-100 adv3: conta NÃO empresta evidência da parceira (frase da conta com capacidade da holding)', () => {
     const pack = makeSafePack({
       facts: [

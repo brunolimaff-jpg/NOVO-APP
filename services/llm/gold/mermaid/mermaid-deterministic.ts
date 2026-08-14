@@ -384,12 +384,57 @@ function valueChainElo(dimension: string): string {
   return dimension.toLowerCase();
 }
 
+/**
+ * BRU-100 (despacho do Planejador, run 59d210b0): a coluna Validar da tabela
+ * de elos copia as perguntas abertas CRUAS para o conteúdo determinístico.
+ * O verifier quebra o texto por pontuação e avalia cada trecho contra o padrão
+ * de claim protegido — uma pergunta legítima ("Qual é a capacidade de
+ * armazenagem?") perde o "?" e vira afirmação de capacidade sem fonte →
+ * UNSUPPORTED_PRODUCT_CLAIM. A correção é fazer o determinístico obedecer ao
+ * contrato semântico do Composer (não resolver no verifier): a coluna Validar
+ * preserva a intenção de discovery com vocabulário NEUTRO e SEM valores não
+ * comprovados — ex.: "Qual é a capacidade estática total de armazenagem?" →
+ * "Qual é o volume total de armazenagem?".
+ */
+const PROTECTED_CLAIM_VALUE_PATTERN =
+  /(?:\d+(?:[.,]\d+)?\s*(?:milh[oõ]es?|mil|sacas|toneladas|t\b|m³|m3|litros|kg))\b/gi;
+
+const PROTECTED_CLAIM_VOCAB_REPLACEMENTS: Array<[RegExp, string]> = [
+  [/\bcapacidade\s+est[áa]tica\b/gi, 'volume'],
+  [/\bcapacidade\s+produtiva\b/gi, 'volume'],
+  [/\bcapacidade\s+de\s+armazenagem\b/gi, 'volume de armazenagem'],
+  [/\bcapacidade\s+de\s+(produ[cç][aã]o|fabrica[cç][aã]o|processamento|esmagamento|moagem|refino|opera[cç][aã]o|atendimento|estocagem|est[óo]cagem)\b/gi, 'volume de $1'],
+  [/\bcapacidade\s+(anual|mensal)\b/gi, 'volume $1'],
+  [/\bprodu[cç][aã]o\s+de\b/gi, 'volume de'],
+  [/\broi\b/gi, 'resultado'],
+  [/\bretorno\s+sobre\b/gi, 'resultado sobre'],
+  [/\bintegra[cç][aã]o\s+nativa\b/gi, 'integração'],
+  [/\bmiddleware\b/gi, 'plataforma'],
+];
+
+/** Marcadores de pergunta (interrogativa) — a normalização só se aplica a
+ *  perguntas de discovery; afirmações NÃO são mascaradas (continuam sujeitas
+ *  ao verifier — um claim de capacidade sem prova deve continuar FAIL). */
+const INTERROGATIVE_MARKER = /\?|\b(qual|como|quando|onde|por\s+que|existe|h[aá]|é\s+poss[ií]vel|pode|seria|quanto|qual\s+é)\b/i;
+
+function normalizeDiscoveryQuestion(question: string): string {
+  if (!INTERROGATIVE_MARKER.test(question.trim())) return question;
+  let normalized = question
+    .replace(PROTECTED_CLAIM_VALUE_PATTERN, '')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+  for (const [pattern, replacement] of PROTECTED_CLAIM_VOCAB_REPLACEMENTS) {
+    normalized = normalized.replace(pattern, replacement);
+  }
+  return normalized.replace(/\s{2,}/g, ' ').trim();
+}
+
 function validationForDimension(openQuestions: string[], dimension: string): string {
   const match = openQuestions.find((question) => {
     const questionLower = question.toLowerCase();
     return dimension.toLowerCase().split(/\s+e\s+|\s+/).some((token) => token.length > 4 && questionLower.includes(token));
   });
-  return match ? truncateCell(match, 140) : '—';
+  return match ? truncateCell(normalizeDiscoveryQuestion(match), 140) : '—';
 }
 
 export function buildDynamicValueChainTable(
@@ -423,19 +468,20 @@ export function buildDynamicValueChainTable(
       status: statusBadge(signal.status),
       evidence: signal.observedFact.replace(/\|/g, '/'),
       commercialReading: 'Escopo observado; confirmar cobertura antes de recomendar qualquer solução.',
-      validate: truncateCell(signal.validationQuestion, 140),
+      validate: truncateCell(normalizeDiscoveryQuestion(signal.validationQuestion), 140),
     });
   }
 
   for (const question of openQuestions) {
-    if (rows.some((row) => row.validate === question)) continue;
+    const normalizedQuestion = normalizeDiscoveryQuestion(question);
+    if (rows.some((row) => row.validate === normalizedQuestion)) continue;
     rows.push({
       elo: 'discovery',
       dimension: 'Discovery',
       status: '🟠 A validar',
       evidence: 'Pergunta aberta do dossiê',
       commercialReading: 'Tema ainda não comprovado; manter a conversa investigativa.',
-      validate: truncateCell(question, 140),
+      validate: truncateCell(normalizedQuestion, 140),
     });
   }
 
