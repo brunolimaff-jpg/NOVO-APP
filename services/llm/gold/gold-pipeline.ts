@@ -108,6 +108,45 @@ export function composerSemanticPreflight(
 /** CNPJ formatado (mesma regex usada pelo verifier para proteger antes do split). */
 const CNPJ_PATTERN = /\b\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}\b/g;
 
+/**
+ * RCA-02 — representação TEXTUAL do Frontier para o probe pré-Composer.
+ * O Composer consome o FrontierPack serializado; o probe reúne apenas os
+ * VALORES textuais semanticamente avaliáveis (frases de claims, sinais,
+ * perguntas abertas, evidências de relação, métricas, conflitos e claims
+ * reescritas pelo sanitizer) — uma linha por item. Nomes de campos e
+ * estrutura JSON ficam FORA (não fabricam semântica); people fica fora
+ * (papel sem frase não carrega material das famílias-alvo e nomes de
+ * pessoas não atravessam nem o probe).
+ */
+export function buildFrontierProbeText(frontier: FrontierPack): string {
+  const lines: string[] = [];
+  for (const fact of frontier.facts ?? []) {
+    if (fact.claim?.trim()) lines.push(fact.claim);
+  }
+  for (const signal of frontier.technologySignals ?? []) {
+    if (signal.observedFact?.trim()) lines.push(signal.observedFact);
+    if (signal.validationQuestion?.trim()) lines.push(signal.validationQuestion);
+    if (signal.whatIsNotKnown?.trim()) lines.push(signal.whatIsNotKnown);
+  }
+  for (const question of frontier.openQuestions ?? []) {
+    if (question.trim()) lines.push(question);
+  }
+  for (const relationship of frontier.relationships ?? []) {
+    if (relationship.evidence?.trim()) lines.push(relationship.evidence);
+  }
+  for (const metric of frontier.metrics ?? []) {
+    const value = [metric.metric, metric.value].filter((part) => part?.trim()).join(': ');
+    if (value.trim()) lines.push(value);
+  }
+  for (const conflict of frontier.conflicts ?? []) {
+    if (conflict.trim()) lines.push(conflict);
+  }
+  for (const event of frontier.sanitizerEvents ?? []) {
+    if (event.after?.trim()) lines.push(event.after);
+  }
+  return lines.join('\n');
+}
+
 export function downgradeUnsupportedCertainty(gold: string): string {
   // PATCH-C — protege CNPJs formatados (contêm pontos) ANTES de segmentar:
   // o ponto dentro de 04.733.767/0001-80 não pode separar tema sensível de
@@ -157,6 +196,7 @@ export type GoldStage =
   | 'verifier-done'
   // LOTE GOLD P0 R2-B — fronteiras estruturais de diagnóstico (telemetria
   // pura: hardFails/codes/codeCounts; nunca reason/claim/conteúdo).
+  | 'diagnostics-pre-compose'
   | 'diagnostics-post-preflight'
   | 'diagnostics-post-mermaid'
   | 'diagnostics-post-certainty'
@@ -279,6 +319,15 @@ export async function runGuardedGoldPipeline(
     throw error;
   }
   onStage?.('frontier-schema-ok');
+  // RCA-02 — fronteira discriminante PRÉ-COMPOSER (observabilidade pura):
+  // mede o conteúdo TEXTUAL do Frontier (o mesmo material consumido pelo
+  // Composer) com o verifyGold — fonte única da política semântica. Permite
+  // atribuir PROMOTED_CLAIM/RELATIONSHIP_INVERTED a H1 (a entrada segura já
+  // carrega o material) ou H2 (nasce no texto do Composer). Telemetria
+  // estrutural apenas (frontierSummary); o probe não altera goldBrief,
+  // safePack, verifier nem a decisão final.
+  const preComposeVerification = verifyGold(buildFrontierProbeText(frontierInput), input.canonical, safePack);
+  onStage?.('diagnostics-pre-compose', frontierSummary(preComposeVerification));
   onStage?.('compose-start', { chars: JSON.stringify(frontierInput).length });
   const goldBrief = await deps.compose({ canonical: input.canonical, safePack: frontierInput, segment: input.segment }, signal);
   onStage?.('compose-done', { chars: goldBrief.length });

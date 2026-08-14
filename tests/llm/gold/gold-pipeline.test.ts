@@ -393,6 +393,8 @@ describe('GuardedGoldPipeline', () => {
       'raw-schema-ok',
       'sanitize-done',
       'frontier-schema-ok',
+      // RCA-02 — fronteira discriminante pré-Composer (probe semântico)
+      'diagnostics-pre-compose',
       'compose-start',
       'compose-done',
       // LOTE GOLD P0 R2-B — fronteiras estruturais entre as transformações

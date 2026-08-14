@@ -13,6 +13,7 @@
  */
 export const GOLD_CRITICAL_DIAGNOSTIC_EVENTS: ReadonlySet<string> = new Set([
   'verifier-summary',
+  'diagnostics-pre-compose',
   'diagnostics-post-preflight',
   'diagnostics-post-mermaid',
   'diagnostics-post-certainty',
