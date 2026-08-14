@@ -60,3 +60,19 @@ export function shouldSuspendHeroMessageTimeline(
   // Cobre hero explícito e janela pós-completeLoadingProgress (variant undefined, isLoading ainda true).
   return loadingVariant !== 'inline';
 }
+
+/**
+ * BRU-81 (regressão de scroll): auto-follow do Virtuoso durante a geração.
+ * O follow acompanha a thread quando há atividade ativa — loading inline com
+ * o bot da geração presente (wayfindingKey) OU deep-dive com label fixo.
+ * Sem chave ativa (fim da geração ou acesso a dossiê existente), o usuário
+ * navega livremente (espírito do F1.2: sem auto-follow permanente).
+ */
+export function shouldFollowGenerationOutput(
+  loadingVariant: LoadingVariant | undefined,
+  loadingPinnedLabel: string | null | undefined,
+  wayfindingKey: string | null | undefined,
+): boolean {
+  if (loadingVariant !== 'inline') return false;
+  return Boolean(loadingPinnedLabel || wayfindingKey);
+}

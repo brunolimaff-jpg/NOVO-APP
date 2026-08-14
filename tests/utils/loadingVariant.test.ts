@@ -3,6 +3,7 @@ import {
   resolveDeepDiveRequestKind,
   resolveLoadingVariant,
   resolvePlaceholderLoadingVariant,
+  shouldFollowGenerationOutput,
   shouldShowHeroLoadingOverlay,
   shouldSuspendHeroMessageTimeline,
 } from '../../utils/loadingVariant';
@@ -148,5 +149,20 @@ describe('shouldSuspendHeroMessageTimeline', () => {
     // Mesmo com loadingVariant undefined (pós-completeLoadingProgress)
     expect(shouldShowHeroLoadingOverlay(isLoading, undefined, hasContent)).toBe(false);
     expect(shouldSuspendHeroMessageTimeline(isLoading, undefined, hasContent)).toBe(false);
+  });
+});
+
+describe('shouldFollowGenerationOutput — auto-follow do scroll durante a geração (BRU-81 regressão de scroll)', () => {
+  it('RED: fluxo default com loading inline + wayfindingKey ativo → follow ATIVO (a parte nova desce)', () => {
+    expect(shouldFollowGenerationOutput('inline', null, 'bot-123')).toBe(true);
+  });
+  it('deep-dive com label fixo → follow ativo (comportamento preservado)', () => {
+    expect(shouldFollowGenerationOutput('inline', 'Analisando...', 'bot-123')).toBe(true);
+  });
+  it('fim da geração (sem wayfindingKey) → follow DESLIGADO (usuário navega livre)', () => {
+    expect(shouldFollowGenerationOutput('inline', null, null)).toBe(false);
+  });
+  it('loading hero → sem follow (overlay central, sem thread inline)', () => {
+    expect(shouldFollowGenerationOutput('hero', null, 'bot-123')).toBe(false);
   });
 });

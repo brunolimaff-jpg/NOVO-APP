@@ -3,6 +3,7 @@ import { useMode } from '../contexts/ModeContext';
 import { useOperator } from '../contexts/OperatorContext';
 import { storage } from '../services/storage';
 import { scoutDiag } from '../utils/diagnosticLog';
+import { shouldFollowGenerationOutput } from '../utils/loadingVariant';
 import { DuplicateDossierModal } from './DuplicateDossierModal';
 
 import ChatPanels from './chat/ChatPanels';
@@ -261,7 +262,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
                 loadingPinnedLabel={loadingPinnedLabel}
                 canDeepDive={canDeepDive}
                 theme={theme}
-                followOutputOverride={loadingVariant === 'inline' && Boolean(loadingPinnedLabel)}
+                followOutputOverride={shouldFollowGenerationOutput(loadingVariant, loadingPinnedLabel, wayfindingKey)}
                 scrollToActivityKey={wayfindingKey ?? null}
               />
             )}
