@@ -21,7 +21,7 @@ import { normalizeCnpj, resolveCanonicalRelations } from './canonical-relation-r
 import { sanitizeFindingPack } from './finding-sanitizer';
 import { verifyGold, type GoldVerificationResult } from './entity-aware-gold-verifier';
 import { injectCanonicalGoldMermaids } from './mermaid/mermaid-deterministic';
-import { matchesSensitiveTheme, confirmedVocabularyReplacementPattern, normalizeDiscoveryQuestion } from './gold-policy';
+import { matchesSensitiveTheme, neutralizeConfirmedVocabularyInText, normalizeDiscoveryQuestion } from './gold-policy';
 import type { ScoutSegment } from '../query-planner';
 
 export interface CompactInput {
@@ -167,12 +167,11 @@ export function downgradeUnsupportedCertainty(gold: string): string {
       if (index % 2 === 1) return part;
       if (!matchesSensitiveTheme(part)) return part;
       if (NEGATION_PATTERN.test(part)) return part;
-      return part.replace(confirmedVocabularyReplacementPattern, (match) => {
-        const feminine = /a$/i.test(match);
-        const plural = /s$/i.test(match);
-        const base = feminine ? (plural ? 'mencionadas' : 'mencionada') : (plural ? 'mencionados' : 'mencionado');
-        return /^[A-Z]/.test(match) ? base.charAt(0).toUpperCase() + base.slice(1) : base;
-      });
+      // I7: transformação canônica completa (gold-policy) — equivalente ao
+      // detector (confirmado/confirmada/confirmados/confirmadas/
+      // confirmadamente). O replacement parcial antigo deixava
+      // "confirmadamente" atravessar (gap apontado pelo Planejador).
+      return neutralizeConfirmedVocabularyInText(part);
     })
     .join('');
   return downgraded.replace(/__CNPJ(\d+)__/g, (_, i) => placeholders[Number(i)]);
@@ -341,11 +340,17 @@ export async function runGuardedGoldPipeline(
   // do Patch B (negação de posse, fraqueza sem proveniência, claim sem
   // suporte). Reusa o verifyGold — não replica política semântica.
   const goldPruned = composerSemanticPreflight(goldBrief, input.canonical, safePack);
+  // I7 (POST-COMPOSER CLEAN BOUNDARY — despacho do Planejador 2026-08-14):
+  // a saída do Composer é uma trust boundary explícita — NENHUM
+  // PROMOTED_CLAIM fabricado pelo Composer pode atravessar. O guard de
+  // certeza roda ANTES do Mermaid (e antes da fronteira post-preflight);
+  // o downgrade final pós-Mermaid permanece como defesa em profundidade.
+  const goldClean = downgradeUnsupportedCertainty(goldPruned);
   // LOTE GOLD P0 R2-B — diagnóstico estrutural de fronteira (SEM mudança
   // semântica): o verifyGold roda aqui apenas para TELEMETRIA — codes/counts
   // por fronteira, sem reason/claim/conteúdo. Permite localizar onde um hard
   // fail nasce/sobrevive sem nova rodada cega.
-  const postPreflightVerification = verifyGold(goldPruned, input.canonical, safePack);
+  const postPreflightVerification = verifyGold(goldClean, input.canonical, safePack);
   onStage?.('diagnostics-post-preflight', frontierSummary(postPreflightVerification));
 
   // 4c) EXPERIENCE-01C — Mermaid determinístico (CANONICAL MERMAID):
@@ -353,7 +358,7 @@ export async function runGuardedGoldPipeline(
   // aqui com a gramática/paleta literal do Scout (graph LR + classDef
   // core/satellite/danger/warning/neutral). O Verifier roda sobre o Gold
   // JÁ com os mapas finais (contrato do Planejador 2026-08-10).
-  const goldWithMermaids = injectCanonicalGoldMermaids(goldPruned, input.canonical, safePack, input.segment);
+  const goldWithMermaids = injectCanonicalGoldMermaids(goldClean, input.canonical, safePack, input.segment);
   onStage?.('mermaid-inject', { chars: goldWithMermaids.length });
   const postMermaidVerification = verifyGold(goldWithMermaids, input.canonical, safePack);
   onStage?.('diagnostics-post-mermaid', frontierSummary(postMermaidVerification));

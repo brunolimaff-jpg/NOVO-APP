@@ -67,6 +67,26 @@ export function neutralizeConfirmedVocabulary(claim: string): string {
     .trim();
 }
 
+/**
+ * I7 — variante de substituição para TEXTO do Gold (guard de certeza):
+ * mesma cobertura de formas do detector (confirmado/confirmada/confirmados/
+ * confirmadas/confirmadamente), SEM a fusão "operação internacional
+ * mencionada → menção a operação internacional" (que é uma semântica de
+ * claim do sanitizer; aplicá-la ao texto executivo mudaria frases além do
+ * necessário). Equivalência de cobertura garantida por teste (detector ⇒
+ * transformação para todas as formas do corpus).
+ */
+export function neutralizeConfirmedVocabularyInText(text: string): string {
+  return text
+    .replace(/\bconfirmadamente\b/gi, 'possivelmente')
+    .replace(/\bconfirmad[ao]s?\b/gi, (m) => {
+      const plural = /s$/i.test(m);
+      const fem = /as?$/i.test(m);
+      return fem ? (plural ? 'mencionadas' : 'mencionada') : plural ? 'mencionados' : 'mencionado';
+    })
+    .trim();
+}
+
 // ─── CAPACIDADE / PRODUTO / PRAZO / ROI / INTEGRAÇÃO ───────────────────────
 
 /**

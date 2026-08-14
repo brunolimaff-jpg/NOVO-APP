@@ -85,7 +85,7 @@ const NEUTRAL_FACT = {
 };
 
 describe('RCA-02 — fronteira diagnostics-pre-compose (probe semântico pré-Composer)', () => {
-  it('RED 1 (H2): Frontier limpo + Composer introduz "confirmada" sensível → pre-compose = 0 e post-preflight acusa PROMOTED_CLAIM', async () => {
+  it('RED 1 (H2 + I7): Frontier limpo + Composer fabrica "confirmada" sensível → pre-compose = 0 e a clean boundary neutraliza (post-preflight sem PROMOTED)', async () => {
     const stages = await runStages(
       [NEUTRAL_FACT],
       '### 1. SÍNTESE EXECUTIVA\nOperação internacional confirmada em Cumaribo.\n',
@@ -95,8 +95,11 @@ describe('RCA-02 — fronteira diagnostics-pre-compose (probe semântico pré-Co
     expect(pre).toBeDefined();
     expect(pre?.detail?.hardFails).toBe(0);
 
+    // I7 (POST-COMPOSER CLEAN BOUNDARY): a fabricação do Composer é
+    // neutralizada na saída — o PROMOTED não atravessa a fronteira
+    // (o contrato mudou: o verifier vira barreira residual, não a detecção).
     const post = findStage(stages, 'diagnostics-post-preflight');
-    expect(post?.detail?.codes).toContain('PROMOTED_CLAIM');
+    expect(post?.detail?.codes ?? []).not.toContain('PROMOTED_CLAIM');
   });
 
   it('RED 2 (H1 PROMOTED): claim Confirmado com "confirmada" em tema sensível chega ao Frontier → pre-compose acusa PROMOTED_CLAIM', async () => {
