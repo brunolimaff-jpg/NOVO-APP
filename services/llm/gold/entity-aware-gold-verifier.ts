@@ -8,7 +8,7 @@
  */
 import type { CanonicalAccount, SafeFindingPack } from './gold-contracts';
 import { normalizeCnpj } from './canonical-relation-resolver';
-import { matchesSensitiveTheme, matchesConfirmedVocabulary } from './gold-policy';
+import { matchesSensitiveTheme, matchesConfirmedVocabulary, matchesSafeKnowledgeNegation } from './gold-policy';
 
 export type GoldHardFailCode =
   | 'WRONG_ESTABLISHMENT_TYPE'
@@ -64,10 +64,6 @@ const EXECUTIVE_ROLE =
  */
 const UNSUPPORTED_CLAIM =
   /\b(capacidade\s+(est[áa]tica|produtiva|de\s+(produ[cç][aã]o|fabrica[cç][aã]o|armazenagem|estocagem|processamento|esmagamento|moagem|refino|opera[cç][aã]o|atendimento|est[óo]cagem|anual|mensal|(?=\d+(?:[.,]\d+)?\s*(?:milh[oõ]es?|mil|sacas|toneladas|t\b|m³|m3|litros|kg))))|produ[cç][aã]o\s+de|roi|retorno\s+sobre|prazo\s+de\s+\d+|integra[cç][aã]o\s+nativa|middleware)\b/i;
-
-/** Frase que nega conhecimento (não é afirmação de fato) — não dispara hard fail. */
-const KNOWLEDGE_NEGATION =
-  /\b(n[aã]o\s+(est[áa]|foi|é)\s+(dispon[ií]vel|identificad[oa]s?|poss[ií]vel|confirmad[oa]s?)|deve\s+ser\s+confirmad[oa]s?|sem\s+evid[êe]ncia)\b/i;
 
 /** Fonte não aceitável como prova externa (estimativa/inferência/recorte interno). */
 const NON_EXTERNAL_SOURCE =
@@ -414,7 +410,7 @@ export function verifyGold(
     //    e fonte aceitável (proveniência real, não linguagem).
     if (
       UNSUPPORTED_CLAIM.test(sentenceLower) &&
-      !KNOWLEDGE_NEGATION.test(sentenceLower) &&
+      !matchesSafeKnowledgeNegation(sentenceLower) &&
       !isSupportedBySafePack(sentenceLower, sentence, safePack, canonical)
     ) {
       push('UNSUPPORTED_PRODUCT_CLAIM', `Frase afirma capacidade/produto/prazo/ROI sem fonte: "${sentence}"`);
@@ -456,7 +452,7 @@ export function verifyGold(
     //    RCA-05: tema sensível e vocabulário de certeza usam as primitivas
     //    canônicas de gold-policy (fonte única — o "control" substring
     //    genérico saiu; formas de governança são explícitas).
-    if (matchesConfirmedVocabulary(sentenceLower) && !KNOWLEDGE_NEGATION.test(sentenceLower)) {
+    if (matchesConfirmedVocabulary(sentenceLower) && !matchesSafeKnowledgeNegation(sentenceLower)) {
       if (matchesSensitiveTheme(sentenceLower)) {
         push('PROMOTED_CLAIM', `Frase afirma "confirmada" sobre tema sensível sem autorização (política conservadora): "${sentence}"`);
       }

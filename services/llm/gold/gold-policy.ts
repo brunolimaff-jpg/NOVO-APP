@@ -43,6 +43,22 @@ export function matchesConfirmedVocabulary(text: string): boolean {
 }
 
 /**
+ * Frase que nega conhecimento (não é afirmação de fato) — não dispara hard
+ * fail e o guard de certeza NÃO a neutraliza. Definição canônica única
+ * (BRU-103): o guard usava um padrão amplo (qualquer "não" pulava a
+ * neutralização), deixando "Operação internacional confirmada, mas não há
+ * registro em Cumaribo." passar sem neutralizar — o verifier acusava e o
+ * fail-closed (BRU-102) segurava no factual. Alinhar guard↔verifier na
+ * MESMA definição de negação segura.
+ */
+const SAFE_KNOWLEDGE_NEGATION_PATTERN =
+  /\b(n[aã]o\s+(est[áa]|foi|é)\s+(dispon[ií]vel|identificad[oa]s?|poss[ií]vel|confirmad[oa]s?)|deve\s+ser\s+confirmad[oa]s?|sem\s+evid[êe]ncia)\b/i;
+
+export function matchesSafeKnowledgeNegation(text: string): boolean {
+  return SAFE_KNOWLEDGE_NEGATION_PATTERN.test(text);
+}
+
+/**
  * Variante de REPLACE do vocabulário de certeza (sem o advérbio
  * "confirmadamente", que o guard de certeza trata como ocorrência separada).
  * Definida aqui para que nenhuma camada reescreva a regex à mão.

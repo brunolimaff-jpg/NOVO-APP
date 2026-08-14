@@ -44,10 +44,15 @@ async function runPipeline(composeText: string) {
 }
 
 describe('BRU-102 — I7 hardening: fail-closed pós-Composer antes do Mermaid', () => {
-  it('RED: PROMOTED residual (guard pula por negação ampla) → pipeline REJEITA fail-closed antes do Mermaid', async () => {
-    await expect(
-      runPipeline('### 1. SÍNTESE EXECUTIVA\nOperação internacional confirmada, mas não há registro em Cumaribo.\n'),
-    ).rejects.toThrow(/I7FailClosed|PROMOTED_CLAIM residual/i);
+  it('BRU-103 (alinhamento): "confirmada, mas não há registro em Cumaribo" agora é NEUTRALIZADO pelo guard (negação canônica) → pipeline completa', async () => {
+    // O guard antigo pulava a neutralização por qualquer "não" (NEGATION_PATTERN
+    // amplo) e o verifier acusava PROMOTED → fail-closed (BRU-102). Com o
+    // alinhamento guard↔verifier (matchesSafeKnowledgeNegation — gold-policy),
+    // a frase é neutralizada na saída e o pipeline completa sem residual.
+    const stages = await runPipeline('### 1. SÍNTESE EXECUTIVA\nOperação internacional confirmada, mas não há registro em Cumaribo.\n');
+    expect(stages.some((s) => s.stage === 'mermaid-inject')).toBe(true);
+    expect(stages.some((s) => s.stage === 'verifier-done')).toBe(true);
+    expect(stages.some((s) => s.stage === 'i7-fail-closed')).toBe(false);
   });
 
   it('GREEN não-regressão: Composer fabrica certeza sem negação → guard neutraliza → pipeline completa (0 residual)', async () => {

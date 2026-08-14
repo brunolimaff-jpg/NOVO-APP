@@ -21,7 +21,7 @@ import { normalizeCnpj, resolveCanonicalRelations } from './canonical-relation-r
 import { sanitizeFindingPack } from './finding-sanitizer';
 import { verifyGold, type GoldVerificationResult } from './entity-aware-gold-verifier';
 import { injectCanonicalGoldMermaids } from './mermaid/mermaid-deterministic';
-import { matchesSensitiveTheme, neutralizeConfirmedVocabularyInText, normalizeDiscoveryQuestion } from './gold-policy';
+import { matchesSensitiveTheme, matchesSafeKnowledgeNegation, neutralizeConfirmedVocabularyInText, normalizeDiscoveryQuestion } from './gold-policy';
 import type { ScoutSegment } from '../query-planner';
 
 export interface CompactInput {
@@ -64,12 +64,12 @@ export interface GuardedGoldPipelineResult {
  * compartilhada.
  */
 /**
- * LOTE GOLD P0 (RED C): sentenças com NEGAÇÃO explícita já são
- * epistemicamente seguras — reescrever "confirmada" nelas fabricaria uma
- * afirmação ("não está mencionada" deixa de ser negação reconhecida pelo
- * verifier). Negação nunca é tocada pelo downgrade de certeza.
+ * LOTE GOLD P0 (RED C) + BRU-103: a negação que protege a certeza é a MESMA
+ * que o verifier reconhece como segura (matchesSafeKnowledgeNegation —
+ * gold-policy). O padrão antigo (qualquer "não") pulava a neutralização em
+ * "confirmada, mas não há registro em Cumaribo", que o verifier acusa →
+ * PROMOTED residual → fail-closed (BRU-102). Alinhado à fonte canônica.
  */
-const NEGATION_PATTERN = /\b(n[aã]o|nunca|jamais|sem|aus[eê]ncia)\b/i;
 
 /**
  * BRU44-GOLD-COMPOSER-PREFLIGHT-PRUNE-01 — preflight determinístico da saída
@@ -166,7 +166,7 @@ export function downgradeUnsupportedCertainty(gold: string): string {
       // Partes ímpares são os separadores — preservados intactos.
       if (index % 2 === 1) return part;
       if (!matchesSensitiveTheme(part)) return part;
-      if (NEGATION_PATTERN.test(part)) return part;
+      if (matchesSafeKnowledgeNegation(part)) return part;
       // I7: transformação canônica completa (gold-policy) — equivalente ao
       // detector (confirmado/confirmada/confirmados/confirmadas/
       // confirmadamente). O replacement parcial antigo deixava
