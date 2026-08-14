@@ -227,6 +227,9 @@ export interface GoldStageDetail {
   kind?: 'gold_pass' | 'factual_minimal' | 'controlled_unavailable';
   /** BRU-69 (B+): razão da rejeição quando a saída não é gold_pass. */
   reason?: string;
+  /** BRU-103 (RCA-07): result estrutural do contract (sem detail de texto). */
+  violations?: string[];
+  wordCount?: number;
 }
 
 export type GoldStageHandler = (stage: GoldStage, detail?: GoldStageDetail) => void;

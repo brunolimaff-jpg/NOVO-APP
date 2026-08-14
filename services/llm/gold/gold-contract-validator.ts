@@ -124,7 +124,10 @@ export function validateGoldContract(goldBrief: string): GoldContractResult {
     .replace(/^\s*\**Frente\s+Principal:?.*$/gim, '');
   const namedActions = (actionClean.match(/\b(?:a[cç][aã]o|passo)\s+\d/gi) || []).length;
   const tableActions = (actionClean.match(/^\|\s*\*{0,2}\s*\d{1,2}\s*\*{0,2}\s*\|/gm) || []).length;
-  const numberedActions = (actionClean.match(/(?:^|\s)(\d{1,2})[.)]\s*[*_]*\s*[A-ZÀ-Ú]/gm) || []).length;
+  // BRU-103 (RCA-07): o prompt orienta "negrito nos números-chave" — ações
+  // numeradas podem sair como "**1.** Definir..." e o regex antigo não casava
+  // (contava 1 → ACTION_COUNT_MISMATCH). Remove asteriscos antes de contar.
+  const numberedActions = (actionClean.replace(/\*+/g, '').match(/(?:^|\s)(\d{1,2})[.)]\s*[*_]*\s*[A-ZÀ-Ú]/gm) || []).length;
   const actionCount = Math.max(
     1,
     namedActions > 0 ? namedActions : tableActions > 0 ? tableActions : numberedActions,

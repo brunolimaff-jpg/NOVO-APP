@@ -211,7 +211,14 @@ export async function tryEnhanceDossierWithGold(input: GoldSeamInput): Promise<s
     }
 
     const contract = validateGoldContract(result.goldBrief);
-    onStage?.('contract-done', { passed: contract.passed });
+    // BRU-103 (RCA-07): contract-done carrega violações ESTRUTURAIS (codes +
+    // wordCount) — sem detail de texto Gold — para o reason exato do
+    // contract_fail ser verificável em todo run (medir antes de corrigir).
+    onStage?.('contract-done', {
+      passed: contract.passed,
+      violations: contract.violations.map((v) => v.code),
+      wordCount: contract.metrics.wordCount,
+    });
     if (!contract.passed) {
       onRejected?.('contract_fail');
       onStage?.('output-selected', { kind: 'factual_minimal', reason: 'contract_fail' } satisfies GoldOutputSelection);
