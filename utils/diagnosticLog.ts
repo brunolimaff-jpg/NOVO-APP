@@ -16,7 +16,7 @@
  *   Se a API falhar, eventos são salvos em localStorage para retry.
  */
 
-import { isGoldCriticalDiagnosticEvent } from './goldCriticalDiagnostics';
+import { isGoldCriticalDiagnosticEvent } from './goldCriticalDiagnostics.js';
 
 const PREFIX = '\u{1F985} [Scout360]';
 const TRACE_STORAGE_KEY = 'scoutTrace';

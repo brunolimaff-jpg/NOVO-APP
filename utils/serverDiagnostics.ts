@@ -5,7 +5,7 @@
  * NÃO importar no frontend — este módulo usa process.env diretamente.
  */
 
-import { isGoldCriticalDiagnosticEvent } from './goldCriticalDiagnostics';
+import { isGoldCriticalDiagnosticEvent } from './goldCriticalDiagnostics.js';
 
 interface DiagnosticEvent {
   at: string;
