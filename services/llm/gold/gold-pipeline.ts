@@ -20,7 +20,8 @@ import {
 import { normalizeCnpj, resolveCanonicalRelations } from './canonical-relation-resolver';
 import { sanitizeFindingPack } from './finding-sanitizer';
 import { verifyGold, type GoldVerificationResult } from './entity-aware-gold-verifier';
-import { injectCanonicalGoldMermaids, normalizeDiscoveryQuestion } from './mermaid/mermaid-deterministic';
+import { injectCanonicalGoldMermaids } from './mermaid/mermaid-deterministic';
+import { matchesSensitiveTheme, confirmedVocabularyReplacementPattern, normalizeDiscoveryQuestion } from './gold-policy';
 import type { ScoutSegment } from '../query-planner';
 
 export interface CompactInput {
@@ -62,8 +63,6 @@ export interface GuardedGoldPipelineResult {
  * estruturado (mesma entidade + categoria + direção) — não palavra
  * compartilhada.
  */
-const SENSITIVE_THEME = /col[oó]mbia|cumaribo|internacional|holding|control/i;
-const CONFIRMED_VOCABULARY = /\bconfirmad(a|o)s?\b/gi;
 /**
  * LOTE GOLD P0 (RED C): sentenças com NEGAÇÃO explícita já são
  * epistemicamente seguras — reescrever "confirmada" nelas fabricaria uma
@@ -166,9 +165,9 @@ export function downgradeUnsupportedCertainty(gold: string): string {
     .map((part, index) => {
       // Partes ímpares são os separadores — preservados intactos.
       if (index % 2 === 1) return part;
-      if (!SENSITIVE_THEME.test(part)) return part;
+      if (!matchesSensitiveTheme(part)) return part;
       if (NEGATION_PATTERN.test(part)) return part;
-      return part.replace(CONFIRMED_VOCABULARY, (match) => {
+      return part.replace(confirmedVocabularyReplacementPattern, (match) => {
         const feminine = /a$/i.test(match);
         const plural = /s$/i.test(match);
         const base = feminine ? (plural ? 'mencionadas' : 'mencionada') : (plural ? 'mencionados' : 'mencionado');

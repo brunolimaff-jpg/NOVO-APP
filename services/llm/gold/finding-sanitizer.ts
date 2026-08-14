@@ -20,6 +20,12 @@ import type {
   SanitizerEventCode,
   TechnologySignal,
 } from './gold-contracts';
+import {
+  matchesSensitiveTheme,
+  matchesConfirmedVocabulary,
+  neutralizeConfirmedVocabulary,
+  matchesUnsupportedOperationalClaim,
+} from './gold-policy';
 
 const CPF_PATTERN = /\b\d{3}\.\d{3}\.\d{3}-\d{2}\b/g;
 
@@ -51,10 +57,8 @@ const GROUP_PROMOTION_CLAIM = /\b(grupo econ[oô]mico|integra o grupo|controlada
 const EXECUTIVE_ROLE =
   /\b(cfo|ceo|coo|cio|cto|diretor|diretora|presidente|decisor|head\s+de|gerente\s+geral|vice-presidente)\b/i;
 
-/** Capacidade/produto/ROI/prazo/integração afirmados sem validação. */
-const UNSUPPORTED_CLAIM =
-  /\b(capacidade\s+(est[áa]tica|de|produtiva)|produ[cç][aã]o\s+de\s+\d+|roi|retorno\s+sobre|prazo\s+de\s+\d+|integra[cç][aã]o\s+nativa|middleware)\b/i;
-
+/** Capacidade/produto/ROI/prazo/integração afirmados sem validação —
+ * definição canônica em gold-policy (RCA-05): união verifier+sanitizer. */
 const NON_EXTERNAL_SOURCE =
   /\b(estimativa|infer[êe]ncia|an[áa]lise de m[óo]dulos|dossi[êe] legado|crm interno)\b/i;
 
@@ -64,42 +68,7 @@ const NON_EXTERNAL_SOURCE =
 const WEAK_SOURCE_FOR_SENSITIVE =
   /\b(site\s+institucional|release|comunicado\s+de\s+imprensa|site\s+oficial|men[cç][aã]o)\b/i;
 
-/** PACK_FORENSIC_REPLAY: temas onde promoção de status é perigosa
- * (internacionalização/Colômbia, holding/controle).
- * RCA-04 (F1 — paridade de tema sensível): "colombiana/colombiano" (e
- * plurais), derivados de Colômbia, também são tema sensível — o verifier R8
- * os acusa via substring de "colombia"; o sanitizer deve reconhecê-los antes,
- * sem transformar substring arbitrária em tema sensível (\b preservado). */
-const SENSITIVE_THEME =
-  /\b(col[oó]mbia|colombian[ao]s?|cumaribo|internacional|exterior|holding|controladora|controle\s+societ[aá]rio)\b/i;
-
 const MODULE_PROOF_SOURCE = /\b(m[óo]dulo\s+contratado|crm interno senior)\b/i;
-
-/** SEMANTICS-FIX (Planejador 2026-08-10): vocabulário de certeza ("confirmada",
- * "confirmado") em claim quando o status não é Confirmado. O Compact pode
- * produzir claim="Operação internacional confirmada em Cumaribo" com
- * status="Pista forte" — o STATUS_PROMOTION não dispara (só pega status=
- * Confirmado), e o Composer copia a palavra "confirmada" → R8 PROMOTED_CLAIM.
- * Correção determinística na fronteira: reescrever a claim (NÃO o status)
- * para linguagem de pista/a validar, eliminando a contradição lexical. */
-const CONFIRMED_VOCABULARY = /\b(confirmad[ao]|confirmadamente)\b/i;
-
-/** Reescreve vocabulário de certeza em claim de tema sensível para linguagem
- * de pista ("confirmada/confirmado" → "mencionada/mencionado", com fusão do
- * padrão "operação internacional mencionada" → "menção a operação
- * internacional"). Usada pelo CLAIM_LEXICAL_PROMOTION e pelo STATUS_PROMOTION
- * (que rebaixa o status MAS também precisa neutralizar o claim — senão o fato
- * rebaixado continua carregando "confirmada" e o Composer copia → R8). */
-function rewriteConfirmedVocabulary(claim: string): string {
-  return claim
-    .replace(/\bconfirmadamente\b/gi, 'possivelmente')
-    .replace(/\bconfirmad[ao]\b/gi, (m) => {
-      const fem = /a$/i.test(m);
-      return fem ? 'mencionada' : 'mencionado';
-    })
-    .replace(/\b(operaci[oó]n|opera[cç][aã]o)\s+(internacional\s+)?(mencionada|mencionado)\b/gi, 'menção a operação internacional')
-    .trim();
-}
 
 function stripCpf(value: string): string {
   return value.replace(CPF_PATTERN, '[REDIGIDO]');
@@ -204,7 +173,7 @@ export function sanitizeFindingPack(
         reason: 'Presença de módulo contratado usada como prova de processo/uso',
       };
     }
-    if (UNSUPPORTED_CLAIM.test(claim) && (f.status !== 'Confirmado' || NON_EXTERNAL_SOURCE.test(f.source))) {
+    if (matchesUnsupportedOperationalClaim(claim) && (f.status !== 'Confirmado' || NON_EXTERNAL_SOURCE.test(f.source))) {
       return {
         findingId: f.id,
         code: 'UNSUPPORTED_PRODUCT_CLAIM',
@@ -231,15 +200,15 @@ export function sanitizeFindingPack(
     // Confirmado — Caso B do dump).
     if (
       f.status === 'Confirmado' &&
-      SENSITIVE_THEME.test(claim) &&
+      matchesSensitiveTheme(claim) &&
       WEAK_SOURCE_FOR_SENSITIVE.test(f.source)
     ) {
       // Micro-patch (Planejador 2026-08-10): o downgrade do status NÃO basta —
       // se o claim continuar com "confirmada", o fato rebaixado (Pista forte +
       // "confirmada") vira exatamente a contradição lexical que o Composer copia
       // → R8 PROMOTED_CLAIM. Neutraliza o vocabulário de certeza no MESMO evento.
-      const neutralizedClaim = CONFIRMED_VOCABULARY.test(claim)
-        ? rewriteConfirmedVocabulary(claim)
+      const neutralizedClaim = matchesConfirmedVocabulary(claim)
+        ? neutralizeConfirmedVocabulary(claim)
         : claim;
       return {
         findingId: f.id,
@@ -257,13 +226,13 @@ export function sanitizeFindingPack(
     // sem esta regra, o Composer copia "confirmada" → verifier R8 PROMOTED_CLAIM.
     // Reescreve SOMENTE o claim (mantém o status) para eliminar a palavra de
     // certeza e trocar por linguagem de pista/a validar.
-    if (f.status !== 'Confirmado' && SENSITIVE_THEME.test(claim) && CONFIRMED_VOCABULARY.test(claim)) {
+    if (f.status !== 'Confirmado' && matchesSensitiveTheme(claim) && matchesConfirmedVocabulary(claim)) {
       return {
         findingId: f.id,
         code: 'CLAIM_LEXICAL_PROMOTION',
         action: 'rewritten',
         before: claim,
-        after: rewriteConfirmedVocabulary(claim),
+        after: neutralizeConfirmedVocabulary(claim),
         reason: 'Claim usa vocabulário de certeza ("confirmada") sobre tema sensível com status != Confirmado — reescrita para linguagem de pista (evita promoção pelo Composer)',
       };
     }
@@ -337,6 +306,9 @@ export function sanitizeFindingPack(
   }
 
   // === relationships (lateral permanece lateral) ===
+  // RCA-05 (I6 — paridade de cobertura): evidence é superfície ASSERTIVA —
+  // mesma neutralização de certeza/tema sensível das claims (evita que o
+  // texto final que deriva da evidence acuse R8 no verifier).
   const relationships: RelationshipFinding[] = [];
   for (const r of raw.relationships) {
     if (r.relationType === 'partner_other_cnpj' && GROUP_PROMOTION_CLAIM.test(r.evidence ?? '')) {
@@ -351,6 +323,19 @@ export function sanitizeFindingPack(
       relationships.push({ ...r, evidence: 'Compartilhamento de sócio (relação lateral)' });
       continue;
     }
+    if (r.evidence && matchesSensitiveTheme(r.evidence) && matchesConfirmedVocabulary(r.evidence)) {
+      const neutralized = neutralizeConfirmedVocabulary(r.evidence);
+      sanitizerEvents.push({
+        findingId: r.id,
+        code: 'CLAIM_LEXICAL_PROMOTION',
+        action: 'rewritten',
+        before: r.evidence,
+        after: neutralized,
+        reason: 'evidence usa vocabulário de certeza sobre tema sensível — reescrita para linguagem de pista (evita promoção pelo Composer)',
+      });
+      relationships.push({ ...r, evidence: neutralized });
+      continue;
+    }
     relationships.push(r);
   }
 
@@ -361,8 +346,8 @@ export function sanitizeFindingPack(
   // determinístico — RCA-03; escopo assertivo apenas). ===
   const technologySignals: TechnologySignal[] = [];
   for (const signal of raw.technologySignals) {
-    if (SENSITIVE_THEME.test(signal.observedFact) && CONFIRMED_VOCABULARY.test(signal.observedFact)) {
-      const neutralized = rewriteConfirmedVocabulary(signal.observedFact);
+    if (matchesSensitiveTheme(signal.observedFact) && matchesConfirmedVocabulary(signal.observedFact)) {
+      const neutralized = neutralizeConfirmedVocabulary(signal.observedFact);
       sanitizerEvents.push({
         code: 'CLAIM_LEXICAL_PROMOTION',
         action: 'rewritten',

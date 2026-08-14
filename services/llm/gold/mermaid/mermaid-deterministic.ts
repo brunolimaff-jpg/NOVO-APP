@@ -395,45 +395,11 @@ function valueChainElo(dimension: string): string {
  * preserva a intenção de discovery com vocabulário NEUTRO e SEM valores não
  * comprovados — ex.: "Qual é a capacidade estática total de armazenagem?" →
  * "Qual é o volume total de armazenagem?".
+ * RCA-05: a normalização de discovery (e seu vocabulário protegido) vive na
+ * fonte canônica gold-policy.ts — re-exportada aqui para compatibilidade.
  */
-const PROTECTED_CLAIM_VALUE_PATTERN =
-  /(?:\d+(?:[.,]\d+)?\s*(?:milh[oõ]es?|mil|sacas|toneladas|t\b|m³|m3|litros|kg))\b/gi;
-
-const PROTECTED_CLAIM_VOCAB_REPLACEMENTS: Array<[RegExp, string]> = [
-  [/\bcapacidade\s+est[áa]tica\b/gi, 'volume'],
-  [/\bcapacidade\s+produtiva\b/gi, 'volume'],
-  [/\bcapacidade\s+de\s+armazenagem\b/gi, 'volume de armazenagem'],
-  [/\bcapacidade\s+de\s+(produ[cç][aã]o|fabrica[cç][aã]o|processamento|esmagamento|moagem|refino|opera[cç][aã]o|atendimento|estocagem|est[óo]cagem)\b/gi, 'volume de $1'],
-  [/\bcapacidade\s+(anual|mensal)\b/gi, 'volume $1'],
-  [/\bprodu[cç][aã]o\s+de\b/gi, 'volume de'],
-  [/\broi\b/gi, 'resultado'],
-  [/\bretorno\s+sobre\b/gi, 'resultado sobre'],
-  [/\bintegra[cç][aã]o\s+nativa\b/gi, 'integração'],
-  [/\bmiddleware\b/gi, 'plataforma'],
-  // RCA-03 (QUESTION MODALITY): vocabulário de certeza em PERGUNTAS de
-  // discovery não pode virar afirmação — o verifier perde o "?" na
-  // segmentação e leria "possui registro legal confirmado" como claim
-  // declarativa (PROMOTED_CLAIM em tema sensível). A pergunta preserva o
-  // sentido sem a palavra de certeza ("possui registro legal?").
-  [/\bconfirmad(a|o)s?\b/gi, ''],
-];
-
-/** Marcadores de pergunta (interrogativa) — a normalização só se aplica a
- *  perguntas de discovery; afirmações NÃO são mascaradas (continuam sujeitas
- *  ao verifier — um claim de capacidade sem prova deve continuar FAIL). */
-const INTERROGATIVE_MARKER = /\?|\b(qual|como|quando|onde|por\s+que|existe|h[aá]|é\s+poss[ií]vel|pode|seria|quanto|qual\s+é)\b/i;
-
-export function normalizeDiscoveryQuestion(question: string): string {
-  if (!INTERROGATIVE_MARKER.test(question.trim())) return question;
-  let normalized = question
-    .replace(PROTECTED_CLAIM_VALUE_PATTERN, '')
-    .replace(/\s{2,}/g, ' ')
-    .trim();
-  for (const [pattern, replacement] of PROTECTED_CLAIM_VOCAB_REPLACEMENTS) {
-    normalized = normalized.replace(pattern, replacement);
-  }
-  return normalized.replace(/\s{2,}/g, ' ').trim();
-}
+import { normalizeDiscoveryQuestion } from '../gold-policy';
+export { normalizeDiscoveryQuestion };
 
 function validationForDimension(openQuestions: string[], dimension: string): string {
   const match = openQuestions.find((question) => {

@@ -8,6 +8,7 @@
  */
 import type { CanonicalAccount, SafeFindingPack } from './gold-contracts';
 import { normalizeCnpj } from './canonical-relation-resolver';
+import { matchesSensitiveTheme, matchesConfirmedVocabulary } from './gold-policy';
 
 export type GoldHardFailCode =
   | 'WRONG_ESTABLISHMENT_TYPE'
@@ -73,10 +74,6 @@ const NON_EXTERNAL_SOURCE =
   /\b(estimativa|infer[êe]ncia|an[áa]lise de m[óo]dulos|dossi[êe] legado|crm interno)\b/i;
 
 // ─── PACK_FORENSIC_REPLAY (Planejador 2026-08-10) — 3 regras determinísticas ───
-
-/** R1: frase afirma "confirmada/o" como fato (promoção de claim Pista→Confirmado por vocabulário). */
-const CONFIRMED_CLAIM =
-  /\b(confirmad[oa]|confirmad[oa]s?)\b/i;
 
 /** R2: formulações semânticas que derivam governança/família/decisão do QSA. */
 const QSA_GOVERNANCE_CLAIM =
@@ -456,9 +453,11 @@ export function verifyGold(
     //    "Operação industrial confirmada em Cumaribo"). O pipeline rebaixa
     //    antes; o verifier é a segunda barreira para texto introduzido
     //    depois (ex.: etapa determinística de Mermaid).
-    if (CONFIRMED_CLAIM.test(sentenceLower) && !KNOWLEDGE_NEGATION.test(sentenceLower)) {
-      const touchesSensitiveTheme = /col[oó]mbia|cumaribo|internacional|holding|control/i.test(sentenceLower);
-      if (touchesSensitiveTheme) {
+    //    RCA-05: tema sensível e vocabulário de certeza usam as primitivas
+    //    canônicas de gold-policy (fonte única — o "control" substring
+    //    genérico saiu; formas de governança são explícitas).
+    if (matchesConfirmedVocabulary(sentenceLower) && !KNOWLEDGE_NEGATION.test(sentenceLower)) {
+      if (matchesSensitiveTheme(sentenceLower)) {
         push('PROMOTED_CLAIM', `Frase afirma "confirmada" sobre tema sensível sem autorização (política conservadora): "${sentence}"`);
       }
     }
