@@ -639,11 +639,10 @@ describe('SCOUT-V7-GOLD-EXPERIENCE-01C — CANONICAL MERMAID', () => {
     expect(table).toBeNull();
   });
 
-  it('BRU-100 (RED): fato de entidade FORA das relationships NÃO é injetado — não gera UNSUPPORTED no pós-mermaid', () => {
-    // Mecanismo do run 86850904: o verifier reconhece a entidade mencionada
-    // apenas via safePack.relationships (relatedEntity); um fato Confirmado de
-    // outra entidade que NÃO está nas relationships gera
-    // UNSUPPORTED_PRODUCT_CLAIM determinístico após o inject.
+  it('BRU-100 (RED do auditor): fato de sócia PJ CANÔNICA sem relationships É injetado com identidade e NÃO gera UNSUPPORTED no pós-mermaid', () => {
+    // Despacho do auditor (run 86850904): a entidade canonical.directPjPartners
+    // é CANÔNICA — o verifier deve reconhecer a identidade canônica (resolver
+    // de identidade), não remover o fato do determinístico.
     const pack = makeSafePack({
       facts: [
         { id: 'f-conta-1', entity: 'SCHEFFER & CIA LTDA', claim: 'Cultivo próprio de soja, milho e algodão confirmado.', status: 'Confirmado', source: 'Fonte externa', kind: 'operation', process: null },
@@ -656,7 +655,46 @@ describe('SCOUT-V7-GOLD-EXPERIENCE-01C — CANONICAL MERMAID', () => {
     const injected = injectCanonicalGoldMermaids(BAD_GOLD, canonical, pack);
     const result = verifyGold(injected, canonical, pack);
 
+    // a holding canônica permanece presente com identidade explícita
+    expect(injected).toContain('SCHEFFER PARTICIPACOES S/A: Capacidade estática');
+    // e o verifier reconhece a entidade canônica — zero UNSUPPORTED determinístico
     expect(result.hardFails.some((h) => h.code === 'UNSUPPORTED_PRODUCT_CLAIM')).toBe(false);
-    expect(injected).not.toContain('SCHEFFER PARTICIPACOES S/A: Capacidade estática');
+  });
+
+  it('BRU-100 adv1: valor DIVERGENTE entre frase e fato continua UNSUPPORTED (política de suporte intacta)', () => {
+    const pack = makeSafePack({
+      facts: [
+        { id: 'f-holding', entity: 'SCHEFFER PARTICIPACOES S/A', claim: 'Capacidade estática de 1,2 milhão de sacas confirmada.', status: 'Confirmado', source: 'Fonte externa', kind: 'operation', process: null },
+      ],
+      relationships: [], technologySignals: [], openQuestions: [],
+    });
+    const divergente = 'SCHEFFER PARTICIPACOES S/A: Capacidade estática de 900 mil sacas confirmada.';
+    const result = verifyGold(divergente, canonical, pack);
+    expect(result.hardFails.some((h) => h.code === 'UNSUPPORTED_PRODUCT_CLAIM')).toBe(true);
+  });
+
+  it('BRU-100 adv2: entidade ARBITRÁRIA não vinculada continua UNSUPPORTED', () => {
+    const pack = makeSafePack({
+      facts: [
+        { id: 'f-arb', entity: 'FORNECEDOR ARBITRARIO LTDA', claim: 'Capacidade estática de 1,2 milhão de sacas confirmada.', status: 'Confirmado', source: 'Fonte externa', kind: 'operation', process: null },
+      ],
+      relationships: [], technologySignals: [], openQuestions: [],
+    });
+    const frase = 'FORNECEDOR ARBITRARIO LTDA: Capacidade estática de 1,2 milhão de sacas confirmada.';
+    const result = verifyGold(frase, canonical, pack);
+    expect(result.hardFails.some((h) => h.code === 'UNSUPPORTED_PRODUCT_CLAIM')).toBe(true);
+  });
+
+  it('BRU-100 adv3: conta NÃO empresta evidência da parceira (frase da conta com capacidade da holding)', () => {
+    const pack = makeSafePack({
+      facts: [
+        { id: 'f-holding', entity: 'SCHEFFER PARTICIPACOES S/A', claim: 'Capacidade estática de 1,2 milhão de sacas confirmada.', status: 'Confirmado', source: 'Fonte externa', kind: 'operation', process: null },
+      ],
+      relationships: [], technologySignals: [], openQuestions: [],
+    });
+    // a frase atribui a capacidade à CONTA (referência implícita) — o fato é da holding
+    const frase = 'Capacidade estática de 1,2 milhão de sacas confirmada na operação da conta.';
+    const result = verifyGold(frase, canonical, pack);
+    expect(result.hardFails.some((h) => h.code === 'UNSUPPORTED_PRODUCT_CLAIM')).toBe(true);
   });
 });

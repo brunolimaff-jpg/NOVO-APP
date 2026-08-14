@@ -133,9 +133,21 @@ function hasMatchingWeaknessProvenance(
   //    entidade conhecida (relação do SafePack), a evidência deve ser dela;
   //    caso contrário, da conta canônica.
   const accountName = normalizeName(canonical.legalName);
-  const mentionedEntity = [...safePack.relationships]
-    .map((r) => normalizeName(r.relatedEntity))
-    .find((name) => sentenceLower.includes(name));
+  // BRU-100 (auditor, run 86850904): a resolução de entidade também reconhece
+  // as entidades JÁ CANÔNICAS (directPjPartners + matriz) — não apenas as
+  // relações do SafePack. Um fato Confirmado de sócia PJ canônica com a
+  // identidade explícita na frase (com prefixo do determinístico) precisa
+  // reconciliar com o fato DELA, e não cair na referência implícita da conta.
+  // Resolver de identidade apenas — regex/códigos/política de suporte intactos.
+  const canonicalEntityNames = [
+    ...canonical.directPjPartners.map((p) => p.legalName),
+    ...(canonical.headOfficeLegalName ? [canonical.headOfficeLegalName] : []),
+  ].map(normalizeName);
+  const mentionedEntity =
+    [...safePack.relationships]
+      .map((r) => normalizeName(r.relatedEntity))
+      .find((name) => sentenceLower.includes(name)) ??
+    canonicalEntityNames.find((name) => sentenceLower.includes(name));
   const referredEntity = mentionedEntity ?? accountName;
 
   // 3) TODAS as categorias presentes na frase precisam de evidência — uma
@@ -238,9 +250,21 @@ function isSupportedBySafePack(
   // Entidade referida na frase: menção explícita de entidade conhecida;
   // caso contrário, a referência é a CONTA CANÔNICA.
   const accountName = normalizeName(canonical.legalName);
-  const mentionedEntity = [...safePack.relationships]
-    .map((r) => normalizeName(r.relatedEntity))
-    .find((name) => sentenceLower.includes(name));
+  // BRU-100 (auditor, run 86850904): a resolução de entidade também reconhece
+  // as entidades JÁ CANÔNICAS (directPjPartners + matriz) — não apenas as
+  // relações do SafePack. Um fato Confirmado de sócia PJ canônica com a
+  // identidade explícita na frase (com prefixo do determinístico) precisa
+  // reconciliar com o fato DELA, e não cair na referência implícita da conta.
+  // Resolver de identidade apenas — regex/códigos/política de suporte intactos.
+  const canonicalEntityNames = [
+    ...canonical.directPjPartners.map((p) => p.legalName),
+    ...(canonical.headOfficeLegalName ? [canonical.headOfficeLegalName] : []),
+  ].map(normalizeName);
+  const mentionedEntity =
+    [...safePack.relationships]
+      .map((r) => normalizeName(r.relatedEntity))
+      .find((name) => sentenceLower.includes(name)) ??
+    canonicalEntityNames.find((name) => sentenceLower.includes(name));
   const referredEntity = mentionedEntity ?? accountName;
 
   return safePack.facts.some((f) => {
