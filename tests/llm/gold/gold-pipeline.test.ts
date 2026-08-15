@@ -96,24 +96,34 @@ describe('LOTE GOLD P0 R2-B — fronteiras estruturais de diagnóstico', () => {
       stages.push({ stage, detail });
     });
 
-    await runGuardedGoldPipeline({ canonical, dossier: 'dossiê legado' }, deps, undefined, onStage as never);
+    // ARCH-B (BRU-111): INVENTED_CNPJ residual pós-normalização impede o
+    // builder (fail-closed com códigos observáveis) — o trap não chega ao
+    // mermaid nem ao verifier final.
+    await expect(
+      runGuardedGoldPipeline({ canonical, dossier: 'dossiê legado' }, deps, undefined, onStage as never),
+    ).rejects.toThrow(/GoldI7FailClosed/);
 
-    const frontierStages = ['diagnostics-post-preflight', 'diagnostics-post-mermaid', 'diagnostics-post-certainty'];
-    for (const stage of frontierStages) {
-      const emitted = stages.find(s => s.stage === stage);
-      expect(emitted).toBeDefined();
-      expect(emitted?.detail).toHaveProperty('hardFails');
-      expect(emitted?.detail).toHaveProperty('codes');
-      expect(emitted?.detail).toHaveProperty('codeCounts');
-      // NUNCA reason/claim/conteúdo
-      expect(JSON.stringify(emitted?.detail)).not.toContain('reason');
-      expect(JSON.stringify(emitted?.detail)).not.toContain('99.999.999');
-      expect(JSON.stringify(emitted?.detail)).not.toContain('fertilizantes');
-    }
+    // o post-preflight continua sendo emitido com a fronteira estrutural
+    const postPreflight = stages.find(s => s.stage === 'diagnostics-post-preflight');
+    expect(postPreflight).toBeDefined();
+    expect(postPreflight?.detail).toHaveProperty('hardFails');
+    expect(postPreflight?.detail).toHaveProperty('codes');
+    expect(postPreflight?.detail).toHaveProperty('codeCounts');
+    // NUNCA reason/claim/conteúdo
+    expect(JSON.stringify(postPreflight?.detail)).not.toContain('reason');
+    expect(JSON.stringify(postPreflight?.detail)).not.toContain('99.999.999');
+    expect(JSON.stringify(postPreflight?.detail)).not.toContain('fertilizantes');
 
     // localização: a falha INVENTED_CNPJ já existe pós-preflight
-    const postPreflight = stages.find(s => s.stage === 'diagnostics-post-preflight');
     expect((postPreflight?.detail as { codes?: string[] } | undefined)?.codes ?? []).toContain('INVENTED_CNPJ');
+
+    // ARCH-B: fail-closed com códigos/counts, SEM conteúdo; builder NÃO roda
+    const failClosed = stages.find(s => s.stage === 'i7-fail-closed');
+    expect(failClosed).toBeDefined();
+    expect(failClosed?.detail).toHaveProperty('codes');
+    expect(failClosed?.detail).toHaveProperty('codeCounts');
+    expect(JSON.stringify(failClosed?.detail)).not.toContain('99.999.999');
+    expect(stages.some(s => s.stage === 'mermaid-inject')).toBe(false);
   });
 
   it('fronteiras limpas emitem hardFails 0 e codes vazio (não fabrica falha)', async () => {
@@ -326,27 +336,28 @@ describe('GuardedGoldPipeline', () => {
     expect(compose).not.toHaveBeenCalled();
   });
 
-  it('reprova Gold com trap (verifier captura o que escapar do preflight)', async () => {
+  it('reprova Gold com trap (ARCH-B: INVENTED_CNPJ residual cai fail-closed antes do builder)', async () => {
     const compact = vi.fn(async (_input: CompactInput) => rawPack());
     const compose = vi.fn(async (_input: ComposeInput) => trappedGold);
     const deps: GoldPipelineDeps = { compact, compose };
 
     const stages: Array<{ stage: string; detail?: unknown }> = [];
-    const result = await runGuardedGoldPipeline(
-      { canonical, dossier: 'dossiê' },
-      deps,
-      undefined,
-      (stage, detail) => stages.push({ stage, detail }),
-    );
-    expect(result.verification.passed).toBe(false);
-    expect(result.verification.hardFails.some((h) => h.code === 'INVENTED_CNPJ')).toBe(true);
-    const verifierStage = stages.find((entry) => entry.stage === 'verifier-done');
-    expect(verifierStage?.detail).toMatchObject({
+    await expect(
+      runGuardedGoldPipeline(
+        { canonical, dossier: 'dossiê' },
+        deps,
+        undefined,
+        (stage, detail) => stages.push({ stage, detail }),
+      ),
+    ).rejects.toThrow(/GoldI7FailClosed/);
+    const failClosed = stages.find((entry) => entry.stage === 'i7-fail-closed');
+    expect(failClosed?.detail).toMatchObject({
       hardFails: expect.any(Number),
       codes: expect.arrayContaining(['INVENTED_CNPJ']),
       codeCounts: expect.objectContaining({ INVENTED_CNPJ: expect.any(Number) }),
     });
-    expect(verifierStage?.detail).not.toHaveProperty('reason');
+    expect(failClosed?.detail).not.toHaveProperty('reason');
+    expect(stages.some((s) => s.stage === 'mermaid-inject')).toBe(false);
   });
 
   it('reclassifica relação lateral pela precedência canônica antes do sanitizer', async () => {
@@ -739,10 +750,12 @@ describe('GuardedGoldPipeline', () => {
         'Nenhum.',
       ].join('\n'),
     );
-    const result = await runGuardedGoldPipeline({ canonical, dossier: 'dossiê legado' }, { compact, compose });
-    expect(result.goldBrief).toContain('99.999.999/0001-00');
-    expect(result.verification.passed).toBe(false);
-    expect(result.verification.hardFails.some((h) => h.code === 'INVENTED_CNPJ')).toBe(true);
+    // ARCH-B (BRU-111): a linha com alvo (GAP) + não-alvo (INVENTED_CNPJ)
+    // NÃO é removida pelo preflight (anti-mascaramento) e o residual
+    // INVENTED_CNPJ cai fail-closed antes do builder.
+    await expect(
+      runGuardedGoldPipeline({ canonical, dossier: 'dossiê legado' }, { compact, compose }),
+    ).rejects.toThrow(/GoldI7FailClosed.*INVENTED_CNPJ/);
   });
 
   it('PATCH-C RED GAP: frase de gap do Composer é removida pelo preflight (NEGATIVE_EVIDENCE_AS_GAP=0)', async () => {

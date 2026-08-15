@@ -365,15 +365,26 @@ export async function runGuardedGoldPipeline(
   // fail nasce/sobrevive sem nova rodada cega.
   const postPreflightVerification = verifyGold(goldClean, input.canonical, safePack);
   onStage?.('diagnostics-post-preflight', frontierSummary(postPreflightVerification));
-  // BRU-102 (I7 hardening, KEEP_NARROW — despacho do Planejador): fail-closed.
-  // Um PROMOTED_CLAIM residual pós-normalização impede o Mermaid — o residual
-  // indica que a boundary do Composer falhou (ex.: guard pula parte com
-  // negação ampla que o verifier ainda reconhece) e a amplificação
+  // BRU-102 (I7 hardening) + BRU-111 (ARCH-B, Pre-deterministic Trust
+  // Boundary): fail-closed. QUALQUER hard fail residual pós-normalização
+  // impede o Mermaid — o residual indica que a boundary do Composer falhou
+  // (ex.: guard pula parte com negação ampla que o verifier ainda reconhece;
+  // ou família verifier-only — WRONG_ESTABLISHMENT_TYPE, RELATIONSHIP_INVERTED
+  // etc. — que o preflight preserva por anti-mascaramento) e a amplificação
   // determinística não pode rodar sobre texto inválido. O seam captura o
-  // erro e cai em saída factual (fail-closed preservado).
-  if (postPreflightVerification.hardFails.some((hardFail) => hardFail.code === 'PROMOTED_CLAIM')) {
-    onStage?.('i7-fail-closed', { hardFails: postPreflightVerification.hardFails.length });
-    throw new Error('GoldI7FailClosed: PROMOTED_CLAIM residual após normalização — Mermaid não executado');
+  // erro e cai em saída factual (fail-closed preservado). Telemetria registra
+  // códigos/contagens sem conteúdo sensível.
+  if (postPreflightVerification.hardFails.length > 0) {
+    const codes = postPreflightVerification.hardFails.map((hardFail) => hardFail.code);
+    onStage?.('i7-fail-closed', {
+      hardFails: postPreflightVerification.hardFails.length,
+      codes,
+      codeCounts: codes.reduce<Record<string, number>>((counts, code) => {
+        counts[code] = (counts[code] ?? 0) + 1;
+        return counts;
+      }, {}),
+    });
+    throw new Error(`GoldI7FailClosed: ${codes.join(',')} residual após normalização — Mermaid não executado`);
   }
 
   // 4c) EXPERIENCE-01C — Mermaid determinístico (CANONICAL MERMAID):
