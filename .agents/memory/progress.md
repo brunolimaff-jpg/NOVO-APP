@@ -304,3 +304,12 @@
 - RERUN GOLDEN (b075a025) → DISCRIMINANTE: faltou greetingAbsent + operatorNameReady. sessionReady/shellReady/headerReady/menuReady PASSAM.
 - CAUSA RAIZ: showOperatorGate = !operatorLoading && !hasOperatorName (usePanelState.ts:48) → conta QA autentica mas sem operatorName → app fica na tela de onboarding (GreetingWelcomeScreen) e menu sem nome real.
 - CONDIÇÃO DE PARADA acionada: resolver exige (A) mutação de dados/conta QA (preencher nome do operador da conta teste@senior.com.br) ou (B) completar onboarding no E2E pós-login. Aguardando despacho Planejador/Bruno. PR #483 OPEN/DRAFT, merge LOCKED.
+
+## 2026-08-15 (fim) — BRU-117: opção B implementada; gate Golden PULADO por decisão do Bruno (validação manual)
+
+- Fix de vínculo (cc93e876): trace do run 29492403 revelou que o email do secret (e2e.golden@senior.com.br) JÁ existe no user_context (display_name vazio) — o app troca o form pelo card "Vincular este dispositivo". completeOperatorOnboarding agora roda em loop (15s) e clica no vínculo quando o checkEmailExists troca form→link.
+- CI cc93e876: 11/11 SUCCESS; Preview Smoke SUCCESS.
+- Rerun Golden (31910272670): NÃO falhou em ~2 min por precondição — EXCEDEU o tempo máximo do job (20 min). Ou seja: onboarding funcionou, precondição passou e as 2 rodadas Gold reais começaram (cada uma ~5-6 min). Blocker agora é LIMITE DE JOB do GitHub Actions, não código.
+- DECISÃO DO BRUNO (2026-08-15): "quero pular esse se nao for agora, eu deixo a validacao comigo manual mesmo meu prazo esta curto" → gate Golden Dossier Live fica documentado como limitação de job; validação final do runtime (Gold pass no preview, contrato/verifier/artifact/render) fica com o Bruno, manual, no preview do SHA cc93e876.
+- Registrado no BRU-117 (Linear). PR #483: OPEN/DRAFT/NOT MERGED, head cc93e876, merge LOCKED.
+- PRÓXIMO: Bruno valida manualmente no preview; depois revisão formal da PR (dependências → conflito → baseline → CI → Preview → regressões → READY FOR MERGE, sem merge automático).
