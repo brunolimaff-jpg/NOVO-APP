@@ -58,6 +58,94 @@ export function matchesSafeKnowledgeNegation(text: string): boolean {
   return SAFE_KNOWLEDGE_NEGATION_PATTERN.test(text);
 }
 
+// ─── NEGAÇÃO DE POSSE (ARCH-A/BRU-110: definição canônica unificada) ────────
+
+/**
+ * ARCH-A (BRU-110): o sanitizer tinha "há"/"opera com" (com lookahead) e o
+ * verifier não — "não há WMS" era removido pelo sanitizer mas não era hard
+ * fail no verifier. Definição canônica única: união das formas observadas
+ * (possui/possue/tem/há/utiliza/usa/adota/contratou/opera com), com lookahead
+ * em vez de \b final (acentuação não é \w no JS).
+ */
+const POSSESSION_NEGATION_PATTERN =
+  /\bn[aã]o\s+(possui|possue|tem|h[áa]|utiliza|usa|adota|contratou|opera\s+com)(?=\s|[.,;!?]|$)/i;
+
+export function matchesPossessionNegation(text: string): boolean {
+  return POSSESSION_NEGATION_PATTERN.test(text);
+}
+
+/**
+ * Formas epistemológicas de "não há" — NÃO são negação de posse:
+ * "não há evidência/informação/registro disponível sobre X" sobrevive;
+ * "não há WMS na empresa" continua bloqueado.
+ */
+const EPISTEMIC_ABSENCE_PATTERN =
+  /\bn[aã]o\s+h[áa]\s+(evid[êe]ncia|informa[cç][aã]o|registro|dados?|dispon[ií]vel|men[cç][aã]o|prova|ind[ií]cio|como)\b/i;
+
+export function matchesEpistemicAbsence(text: string): boolean {
+  return EPISTEMIC_ABSENCE_PATTERN.test(text);
+}
+
+// ─── GAP/LACUNA OPERACIONAL (ARCH-A/BRU-110) ────────────────────────────────
+
+/**
+ * Gap/lacuna OPERACIONAL ou TECNOLÓGICO (política B congelada): reprova
+ * somente quando ausência de tecnologia/processo é convertida em deficiência
+ * operacional ("gap de WMS", "lacuna operacional de TMS"). Lacuna de
+ * INFORMAÇÃO é permitida. Definição canônica = a do verifier (lista de
+ * tecnologia após a forma do gap) — NÃO inclui "sem <tecnologia>", que é
+ * coberto por matchesAbsenceClaim (ação do sanitizer) e, no Gold, pela R10
+ * (fraqueza derivada com exceção de proveniência).
+ */
+const OPERATIONAL_GAP_PATTERN =
+  /\b(gap|gaps|lacuna|lacunas)\s+(de|em|operacional\s+de|confirmad[oa]\s+em|identificad[oa]\s+em)\s+(?:(gest[aã]o|controle|gerenciamento|monitoramento|administra[cç][aã]o)\s+(?:de\s+)?)?(wms|tms|erp|crm|automa[cç][aã]o|sistema|sistemas|software|tecnologia|processo|opera[cç][aã]o|produ[cç][aã]o|log[ií]stica|estoque|fabrica[cç][aã]o|integra[cç][aã]o|infraestrutura)\b/i;
+
+export function matchesOperationalGap(text: string): boolean {
+  return OPERATIONAL_GAP_PATTERN.test(text);
+}
+
+/**
+ * Afirmação de AUSÊNCIA de tecnologia/processo ("sem WMS", "sem sistema",
+ * "sem solução") — o sanitizer remove claims que afirmam ausência sem
+ * evidência positiva. NO Gold final, "sem X" NÃO é gap: é tratado pela R10
+ * (ABSENCE_DERIVED_WEAKNESS) com exceção de proveniência por categoria.
+ * Detector canônico na policy (RCA-05), mas de uso exclusivo do sanitizer.
+ */
+const ABSENCE_CLAIM_PATTERN = /\b(sem\s+(wms|tms|erp|sistema|solu[cç][aã]o))\b/i;
+
+export function matchesAbsenceClaim(text: string): boolean {
+  return ABSENCE_CLAIM_PATTERN.test(text);
+}
+
+// ─── PAPEL EXECUTIVO (ARCH-A/BRU-110) ───────────────────────────────────────
+
+/** Cargos funcionais que QSA não prova (união verifier + sanitizer — o
+ *  sanitizer tinha "gerente geral" que o verifier não reconhecia). */
+const EXECUTIVE_ROLE_PATTERN =
+  /\b(cfo|ceo|coo|cio|cto|diretor|diretora|presidente|decisor|head\s+de|gerente\s+geral|vice-presidente)\b/i;
+
+export function matchesExecutiveRole(text: string): boolean {
+  return EXECUTIVE_ROLE_PATTERN.test(text);
+}
+
+// ─── PROMOÇÃO DE LATERAL A GRUPO (ARCH-A/BRU-110) ───────────────────────────
+
+const GROUP_PROMOTION_PATTERN = /\b(grupo econ[oô]mico|integra o grupo|controlada|controladora|consolidada)\b/i;
+
+export function matchesGroupPromotion(text: string): boolean {
+  return GROUP_PROMOTION_PATTERN.test(text);
+}
+
+// ─── FONTE NÃO-EXTERNA (ARCH-A/BRU-110) ─────────────────────────────────────
+
+const NON_EXTERNAL_SOURCE_PATTERN =
+  /\b(estimativa|infer[êe]ncia|an[áa]lise de m[óo]dulos|dossi[êe] legado|crm interno)\b/i;
+
+export function matchesNonExternalSource(text: string): boolean {
+  return NON_EXTERNAL_SOURCE_PATTERN.test(text);
+}
+
+
 /**
  * Variante de REPLACE do vocabulário de certeza (sem o advérbio
  * "confirmadamente", que o guard de certeza trata como ocorrência separada).
@@ -158,9 +246,13 @@ const INTERROGATIVE_MARKER = /\?|\b(qual|como|quando|onde|por\s+que|existe|h[aá
  * nunca vire claim factual (RCA-03): remove valores não comprovados e troca
  * vocabulário protegido por termo neutro. Aplica-se SOMENTE a interrogativas.
  *
- * BRU-108 (4): single-pass com alternância — cada regra casa UMA VEZ no texto
- * original; a saída de uma regra NÃO é re-processada pelas seguintes (o loop
- * sequencial antigo produzia "volume de volume" e "a volume").
+ * BRU-108 (4): o loop sequencial aplica as regras na ordem (mais específica
+ * primeiro) e o COLAPSO final de "volume de volume" elimina a duplicação que a
+ * cascata de substituições produzia ("capacidade de produção" → "volume de
+ * produção" → regra "produção de" → "volume de volume"). Manter a cascata é
+ * intencional: sem ela, "volume DE produção de algodão" sobra com "produção de"
+ * (vocabulário protegido do verifier → UNSUPPORTED_PRODUCT_CLAIM no run
+ * b3294247). O colapso entrega texto limpo e inofensivo à régua.
  */
 export function normalizeDiscoveryQuestion(question: string): string {
   if (!INTERROGATIVE_MARKER.test(question.trim())) return question;
@@ -168,24 +260,13 @@ export function normalizeDiscoveryQuestion(question: string): string {
     .replace(PROTECTED_CLAIM_VALUE_PATTERN, '')
     .replace(/\s{2,}/g, ' ')
     .trim();
-  // Single-pass: a alternância tenta todas as regras em cada posição; o
-  // primeiro match (ordem do array, mais específica primeiro) vence e o
-  // motor avança além dele — a substituição não realimenta o resto.
-  const alternation = new RegExp(
-    PROTECTED_CLAIM_VOCAB_REPLACEMENTS.map(([pattern]) => `(?:${pattern.source})`).join('|'),
-    'gi',
-  );
-  normalized = normalized.replace(alternation, (match) => {
-    for (const [pattern, replacement] of PROTECTED_CLAIM_VOCAB_REPLACEMENTS) {
-      if (!pattern.test(match)) continue;
-      // Aplica o replacement da regra sobre o trecho casado (preserva $1).
-      return match.replace(pattern, replacement);
-    }
-    return match;
-  });
-  // BRU-108 (4): o artigo feminino do original ("a capacidade") sobrevive à
-  // troca por "volume" (masculino) — "a volume"/"à volume" → "o volume"/"ao volume".
+  for (const [pattern, replacement] of PROTECTED_CLAIM_VOCAB_REPLACEMENTS) {
+    normalized = normalized.replace(pattern, replacement);
+  }
+  // BRU-108 (4): colapso da duplicação da cascata + correção de gênero do
+  // artigo ("a capacidade" → "o volume") + espaço antes de pontuação.
   normalized = normalized
+    .replace(/\bvolume\s+de\s+volume\b/gi, 'volume')
     .replace(/\b(a|à)\s+(?=volume\b)/gi, (article) => (article.toLowerCase() === 'à' ? 'ao ' : 'o '))
     .replace(/\s+([?.!,;:])/g, '$1')
     .replace(/\s{2,}/g, ' ')

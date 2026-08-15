@@ -25,42 +25,20 @@ import {
   matchesConfirmedVocabulary,
   neutralizeConfirmedVocabulary,
   matchesUnsupportedOperationalClaim,
+  matchesPossessionNegation,
+  matchesEpistemicAbsence,
+  matchesOperationalGap,
+  matchesAbsenceClaim,
+  matchesGroupPromotion,
+  matchesExecutiveRole,
+  matchesNonExternalSource,
 } from './gold-policy';
 
 const CPF_PATTERN = /\b\d{3}\.\d{3}\.\d{3}-\d{2}\b/g;
 
-/** Verbos de posse/uso: negação deles afirma ausência na empresa. */
-// Lookahead no lugar de \b final: "há"/"á" não são \w no JS (acentuação).
-const POSSESSION_NEGATION =
-  /\bn[aã]o\s+(possui|possue|tem|h[áa]|utiliza|usa|adota|contratou|opera\s+com)(?=\s|[.,;!?]|$)/i;
-
-/**
- * Formas epistemológicas de "não há" — NÃO são negação de posse:
- * "não há evidência/informação/registro disponível sobre X" sobrevive;
- * "não há WMS na empresa" continua bloqueado.
- */
-const EPISTEMIC_ABSENCE =
-  /\bn[aã]o\s+h[áa]\s+(evid[êe]ncia|informa[cç][aã]o|registro|dados?|dispon[ií]vel|men[cç][aã]o|prova|ind[ií]cio|como)\b/i;
-
-/** Afirmação de gap sem evidência positiva do gap. */
-const GAP_CLAIM =
-  /\b(gap|gaps|lacuna|lacunas)\s+(de|em|confirmado|identificado)|(sem\s+(wms|tms|erp|sistema|solu[cç][aã]o))\b/i;
-
 /** Processo manual/planilha afirmado como processo da empresa. */
 const MANUAL_PROCESS_CLAIM =
   /\b(processo\s+(é|e)\s+manual|feito\s+em\s+planilha|planilha\s+(de\s+)?(excel|controle)|controle\s+manual|romaneio\s+manual|feito\s+à\s+m[aã]o|manualmente)\b/i;
-
-/** Promoção de lateral a grupo/controlada. */
-const GROUP_PROMOTION_CLAIM = /\b(grupo econ[oô]mico|integra o grupo|controlada|controladora|consolidada)\b/i;
-
-/** Cargos funcionais que QSA não prova. */
-const EXECUTIVE_ROLE =
-  /\b(cfo|ceo|coo|cio|cto|diretor|diretora|presidente|decisor|head\s+de|gerente\s+geral|vice-presidente)\b/i;
-
-/** Capacidade/produto/ROI/prazo/integração afirmados sem validação —
- * definição canônica em gold-policy (RCA-05): união verifier+sanitizer. */
-const NON_EXTERNAL_SOURCE =
-  /\b(estimativa|infer[êe]ncia|an[áa]lise de m[óo]dulos|dossi[êe] legado|crm interno)\b/i;
 
 /** PACK_FORENSIC_REPLAY: fontes institucionais/releases NÃO provam registro
  * legal ou operação oficial (caso Colômbia: site institucional menciona
@@ -122,7 +100,7 @@ export function sanitizeFindingPack(
         reason: 'CPF presente em claim — nunca expor CPF em payload de LLM',
       };
     }
-    if (POSSESSION_NEGATION.test(claim) && !EPISTEMIC_ABSENCE.test(claim)) {
+    if (matchesPossessionNegation(claim) && !matchesEpistemicAbsence(claim)) {
       return {
         findingId: f.id,
         code: 'NEGATIVE_EVIDENCE_AS_ABSENCE',
@@ -131,7 +109,7 @@ export function sanitizeFindingPack(
         reason: 'Negação de posse sem evidência positiva — ausência no recorte não prova ausência na empresa',
       };
     }
-    if (GAP_CLAIM.test(claim)) {
+    if (matchesOperationalGap(claim) || matchesAbsenceClaim(claim)) {
       return {
         findingId: f.id,
         code: 'NEGATIVE_EVIDENCE_AS_GAP',
@@ -149,7 +127,7 @@ export function sanitizeFindingPack(
         reason: 'Processo manual/planilha inferido sem evidência de processo',
       };
     }
-    if (f.kind === 'relationship' && GROUP_PROMOTION_CLAIM.test(claim)) {
+    if (f.kind === 'relationship' && matchesGroupPromotion(claim)) {
       const mentionedLateral = lateralEntities.has(normalizeForCanonical(f.entity));
       if (mentionedLateral || /socio-search/i.test(f.source)) {
         return {
@@ -173,7 +151,7 @@ export function sanitizeFindingPack(
         reason: 'Presença de módulo contratado usada como prova de processo/uso',
       };
     }
-    if (matchesUnsupportedOperationalClaim(claim) && (f.status !== 'Confirmado' || NON_EXTERNAL_SOURCE.test(f.source))) {
+    if (matchesUnsupportedOperationalClaim(claim) && (f.status !== 'Confirmado' || matchesNonExternalSource(f.source))) {
       return {
         findingId: f.id,
         code: 'UNSUPPORTED_PRODUCT_CLAIM',
@@ -290,7 +268,7 @@ export function sanitizeFindingPack(
   for (const p of raw.people) {
     // "Sócio-Administrador" não é cargo funcional — excluir títulos de sócio
     // (o padrão "cio" casaria dentro de "Sócio" com acentuação).
-    if (p.roleBasis === 'qsa' && EXECUTIVE_ROLE.test(p.role) && !/s[óo]cio/i.test(p.role)) {
+    if (p.roleBasis === 'qsa' && matchesExecutiveRole(p.role) && !/s[óo]cio/i.test(p.role)) {
       sanitizerEvents.push({
         findingId: p.id,
         code: 'QSA_AS_DECISOR',
@@ -311,7 +289,7 @@ export function sanitizeFindingPack(
   // texto final que deriva da evidence acuse R8 no verifier).
   const relationships: RelationshipFinding[] = [];
   for (const r of raw.relationships) {
-    if (r.relationType === 'partner_other_cnpj' && GROUP_PROMOTION_CLAIM.test(r.evidence ?? '')) {
+    if (r.relationType === 'partner_other_cnpj' && matchesGroupPromotion(r.evidence ?? '')) {
       sanitizerEvents.push({
         findingId: r.id,
         code: 'LATERAL_PROMOTED',

@@ -8,7 +8,17 @@
  */
 import type { CanonicalAccount, SafeFindingPack } from './gold-contracts';
 import { normalizeCnpj } from './canonical-relation-resolver';
-import { matchesSensitiveTheme, matchesConfirmedVocabulary, matchesSafeKnowledgeNegation } from './gold-policy';
+import {
+  matchesSensitiveTheme,
+  matchesConfirmedVocabulary,
+  matchesSafeKnowledgeNegation,
+  matchesPossessionNegation,
+  matchesOperationalGap,
+  matchesGroupPromotion,
+  matchesExecutiveRole,
+  matchesUnsupportedOperationalClaim,
+  matchesNonExternalSource,
+} from './gold-policy';
 
 export type GoldHardFailCode =
   | 'WRONG_ESTABLISHMENT_TYPE'
@@ -36,38 +46,10 @@ export interface GoldVerificationResult {
 
 const CNPJ_PATTERN = /\b\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}\b/g;
 
-const POSSESSION_NEGATION =
-  /\bn[aã]o\s+(possui|possue|tem|utiliza|usa|adota|contratou)\b/i;
-
-/**
- * Gap/lacuna OPERACIONAL ou TECNOLÓGICO (política B congelada pelo
- * Planejador): reprova somente quando ausência de tecnologia/processo é
- * convertida em deficiência operacional ("gap de WMS", "lacuna operacional
- * de TMS"). Lacuna de INFORMAÇÃO ("lacuna de dados financeiros", "lacuna
- * de informação") é PERMITIDA — não é gap operacional.
- */
-const GAP_CLAIM =
-  /\b(gap|gaps|lacuna|lacunas)\s+(de|em|operacional\s+de|confirmad[oa]\s+em|identificad[oa]\s+em)\s+(wms|tms|erp|crm|automa[cç][aã]o|sistema|sistemas|software|tecnologia|processo|opera[cç][aã]o|produ[cç][aã]o|log[ií]stica|estoque|fabrica[cç][aã]o|integra[cç][aã]o|infraestrutura)\b/i;
-
-const GROUP_PROMOTION_CLAIM = /\b(grupo econ[oô]mico|integra o grupo|controlada|controladora|consolidada)\b/i;
-
-const EXECUTIVE_ROLE =
-  /\b(cfo|ceo|coo|cio|cto|diretor|diretora|presidente|decisor|head\s+de|vice-presidente)\b/i;
-
-/**
- * Claim de capacidade PRODUTIVA/OPERACIONAL não sustentado (política do
- * Planejador): reprova "capacidade estática/produtiva/de produção/
- * armazenagem/estocagem/processamento/...", "capacidade de <medida>"
- * (ex.: "capacidade de 120 mil sacas"), "ROI", "prazo de N",
- * "integração nativa", "middleware". NÃO reprova "capacidade de
- * investimento/absorção/atender" (uso financeiro/gerencial).
- */
-const UNSUPPORTED_CLAIM =
-  /\b(capacidade\s+(est[áa]tica|produtiva|de\s+(produ[cç][aã]o|fabrica[cç][aã]o|armazenagem|estocagem|processamento|esmagamento|moagem|refino|opera[cç][aã]o|atendimento|est[óo]cagem|anual|mensal|(?=\d+(?:[.,]\d+)?\s*(?:milh[oõ]es?|mil|sacas|toneladas|t\b|m³|m3|litros|kg))))|produ[cç][aã]o\s+de|roi|retorno\s+sobre|prazo\s+de\s+\d+|integra[cç][aã]o\s+nativa|middleware)\b/i;
-
-/** Fonte não aceitável como prova externa (estimativa/inferência/recorte interno). */
-const NON_EXTERNAL_SOURCE =
-  /\b(estimativa|infer[êe]ncia|an[áa]lise de m[óo]dulos|dossi[êe] legado|crm interno)\b/i;
+// Detectores semânticos canônicos (ARCH-A/BRU-110): definições unificadas
+// em gold-policy.ts — POSSESSION_NEGATION, GAP_CLAIM, GROUP_PROMOTION_CLAIM,
+// EXECUTIVE_ROLE, UNSUPPORTED_CLAIM e NON_EXTERNAL_SOURCE não têm mais cópia
+// local aqui (RCA-05: fonte única de significado, ação própria por boundary).
 
 // ─── PACK_FORENSIC_REPLAY (Planejador 2026-08-10) — 3 regras determinísticas ───
 
@@ -151,7 +133,7 @@ function hasMatchingWeaknessProvenance(
     safePack.facts.some(
       (f) =>
         f.status === 'Confirmado' &&
-        !NON_EXTERNAL_SOURCE.test(f.source) &&
+        !matchesNonExternalSource(f.source) &&
         normalizeName(f.entity) === referredEntity &&
         needed.match.test(f.claim),
     ),
@@ -262,7 +244,7 @@ function isSupportedBySafePack(
 
   return safePack.facts.some((f) => {
     if (f.status !== 'Confirmado') return false;
-    if (NON_EXTERNAL_SOURCE.test(f.source)) return false;
+    if (matchesNonExternalSource(f.source)) return false;
     if (!hit.match(f.claim.toLowerCase())) return false;
     // Mesma entidade: o fato precisa pertencer à entidade referida na frase.
     if (normalizeName(f.entity) !== referredEntity) return false;
@@ -371,17 +353,17 @@ export function verifyGold(
     }
 
     // 2) Ausência → gap.
-    if (GAP_CLAIM.test(sentence)) {
+    if (matchesOperationalGap(sentence)) {
       push('NEGATIVE_EVIDENCE_AS_GAP', `Frase afirma gap sem evidência positiva: "${sentence}"`);
     }
 
     // 3) Ausência → tecnologia inexistente (negação de posse).
-    if (POSSESSION_NEGATION.test(sentence)) {
+    if (matchesPossessionNegation(sentence)) {
       push('NEGATIVE_EVIDENCE_AS_ABSENCE', `Frase nega posse sem evidência positiva: "${sentence}"`);
     }
 
     // 4) Lateral promovida a grupo.
-    if (GROUP_PROMOTION_CLAIM.test(sentence)) {
+    if (matchesGroupPromotion(sentence)) {
       const hasLateralName = [...lateralNames].some((name) => sentenceLower.includes(name));
       if (hasLateralName) {
         push('LATERAL_PROMOTED', `Frase promove relação lateral a grupo: "${sentence}"`);
@@ -389,7 +371,7 @@ export function verifyGold(
     }
 
     // 5) QSA → decisor funcional.
-    if (EXECUTIVE_ROLE.test(sentenceLower)) {
+    if (matchesExecutiveRole(sentenceLower)) {
       const mentionsQsaPerson = [...qsaPeople].some((name) => sentenceLower.includes(name));
       if (mentionsQsaPerson) {
         // legalRole (decisão congelada do Planejador 2026-08-08):
@@ -409,7 +391,7 @@ export function verifyGold(
     //    RECONCILIADA com um fato do SafeFindingPack com status Confirmado
     //    e fonte aceitável (proveniência real, não linguagem).
     if (
-      UNSUPPORTED_CLAIM.test(sentenceLower) &&
+      matchesUnsupportedOperationalClaim(sentenceLower) &&
       !matchesSafeKnowledgeNegation(sentenceLower) &&
       !isSupportedBySafePack(sentenceLower, sentence, safePack, canonical)
     ) {
