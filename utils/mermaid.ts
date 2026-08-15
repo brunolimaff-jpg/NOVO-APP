@@ -246,13 +246,28 @@ function quoteRoundAndCurlyLabels(input: string): string {
 // the ( inside a |...| context can still trigger PS token depending on lex state.
 // Fix: wrap the label in double-quotes: |"label with (parens)"|
 function quotePipeEdgeLabelSpecialChars(input: string): string {
-  return input.replace(/\|([^|\n"]+)\|/g, (_full, label: string) => {
+  // BRU-108 (1a): pipes dentro de labels JÁ citados com aspas duplas
+  // (ex.: C1["... | GATec (Gestão Agrícola, ...) | ..."]) são separadores do
+  // builder determinístico, NÃO rótulos de aresta. Aplicar a regra de
+  // citação nesses pipes fecha a string no meio e expõe `(` ao parser
+  // (parse error "got 'PS'"). Preserva os labels citados, transforma apenas
+  // os pares `|...|` fora deles (rótulos de aresta reais).
+  const quoted = new Map<string, string>();
+  const withoutQuoted = input.replace(/"([^"\n]+)"/g, (_full, label: string) => {
+    const key = `\uE000Q${quoted.size}\uE000`;
+    quoted.set(key, `"${label}"`);
+    return key;
+  });
+
+  const transformed = withoutQuoted.replace(/\|([^|\n\uE000]+)\|/g, (_full, label: string) => {
     if (/[(){}]/.test(label)) {
       const safeLabel = label.trim().replace(/"/g, "'");
       return `|"${safeLabel}"|`;
     }
     return _full;
   });
+
+  return transformed.replace(/\uE000Q(\d+)\uE000/g, (_full, index: string) => quoted.get(`\uE000Q${index}\uE000`) ?? _full);
 }
 
 export function normalizeMermaidBlocks(markdown: string): string {

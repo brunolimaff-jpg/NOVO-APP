@@ -127,7 +127,10 @@ export function matchesUnsupportedOperationalClaim(text: string): boolean {
 const PROTECTED_CLAIM_VALUE_PATTERN =
   /(?:\d+(?:[.,]\d+)?\s*(?:milh[oõ]es?|mil|sacas|toneladas|t\b|m³|m3|litros|kg))\b/gi;
 
-/** Vocabulário protegido substituído por termo neutro em perguntas de discovery. */
+/** Vocabulário protegido substituído por termo neutro em perguntas de discovery.
+ *  BRU-108 (4): as regras são aplicadas em SINGLE-PASS (alternância) — o loop
+ *  sequencial re-processava a saída da regra anterior ("capacidade de produção"
+ *  → "volume de produção" → "produção de" → "volume de volume de"). */
 const PROTECTED_CLAIM_VOCAB_REPLACEMENTS: Array<[RegExp, string]> = [
   [/\bcapacidade\s+est[áa]tica\b/gi, 'volume'],
   [/\bcapacidade\s+produtiva\b/gi, 'volume'],
@@ -154,6 +157,10 @@ const INTERROGATIVE_MARKER = /\?|\b(qual|como|quando|onde|por\s+que|existe|h[aá
  * Normaliza uma pergunta de discovery para que a modalidade interrogativa
  * nunca vire claim factual (RCA-03): remove valores não comprovados e troca
  * vocabulário protegido por termo neutro. Aplica-se SOMENTE a interrogativas.
+ *
+ * BRU-108 (4): single-pass com alternância — cada regra casa UMA VEZ no texto
+ * original; a saída de uma regra NÃO é re-processada pelas seguintes (o loop
+ * sequencial antigo produzia "volume de volume" e "a volume").
  */
 export function normalizeDiscoveryQuestion(question: string): string {
   if (!INTERROGATIVE_MARKER.test(question.trim())) return question;
@@ -161,10 +168,29 @@ export function normalizeDiscoveryQuestion(question: string): string {
     .replace(PROTECTED_CLAIM_VALUE_PATTERN, '')
     .replace(/\s{2,}/g, ' ')
     .trim();
-  for (const [pattern, replacement] of PROTECTED_CLAIM_VOCAB_REPLACEMENTS) {
-    normalized = normalized.replace(pattern, replacement);
-  }
-  return normalized.replace(/\s{2,}/g, ' ').trim();
+  // Single-pass: a alternância tenta todas as regras em cada posição; o
+  // primeiro match (ordem do array, mais específica primeiro) vence e o
+  // motor avança além dele — a substituição não realimenta o resto.
+  const alternation = new RegExp(
+    PROTECTED_CLAIM_VOCAB_REPLACEMENTS.map(([pattern]) => `(?:${pattern.source})`).join('|'),
+    'gi',
+  );
+  normalized = normalized.replace(alternation, (match) => {
+    for (const [pattern, replacement] of PROTECTED_CLAIM_VOCAB_REPLACEMENTS) {
+      if (!pattern.test(match)) continue;
+      // Aplica o replacement da regra sobre o trecho casado (preserva $1).
+      return match.replace(pattern, replacement);
+    }
+    return match;
+  });
+  // BRU-108 (4): o artigo feminino do original ("a capacidade") sobrevive à
+  // troca por "volume" (masculino) — "a volume"/"à volume" → "o volume"/"ao volume".
+  normalized = normalized
+    .replace(/\b(a|à)\s+(?=volume\b)/gi, (article) => (article.toLowerCase() === 'à' ? 'ao ' : 'o '))
+    .replace(/\s+([?.!,;:])/g, '$1')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+  return normalized;
 }
 
 // ─── CORPUS CANÔNICO (incidentes reais + variantes adversariais) ──────────

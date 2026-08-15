@@ -171,7 +171,14 @@ export function downgradeUnsupportedCertainty(gold: string): string {
       // detector (confirmado/confirmada/confirmados/confirmadas/
       // confirmadamente). O replacement parcial antigo deixava
       // "confirmadamente" atravessar (gap apontado pelo Planejador).
-      return neutralizeConfirmedVocabularyInText(part);
+      //
+      // BRU-108 (5): neutralizeConfirmedVocabularyInText termina em .trim(),
+      // o que removia o espaço inicial do fragmento pós-ponto transformado
+      // ("verticalizado. A operação confirmada" → "verticalizado.A operação
+      // mencionada"). Preserva o whitespace de borda do fragmento original.
+      const leading = part.match(/^\s+/)?.[0] ?? '';
+      const trailing = part.match(/\s+$/)?.[0] ?? '';
+      return leading + neutralizeConfirmedVocabularyInText(part) + trailing;
     })
     .join('');
   return downgraded.replace(/__CNPJ(\d+)__/g, (_, i) => placeholders[Number(i)]);

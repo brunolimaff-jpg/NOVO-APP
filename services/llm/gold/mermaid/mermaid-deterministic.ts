@@ -289,10 +289,13 @@ function buildSalesPathMap(): string {
     'A["Evidência segura"] ==> B["Hipótese comercial"]',
     'B ==> C["Discovery: validar dor"]',
     'C ==> D{"Problema confirmado?"}',
-    'D -- Sim ==> E["Definir sponsor e owner"]',
+    // BRU-108 (1b): `D -- Sim ==> E` é sintaxe inválida no Mermaid 10.9.6
+    // (mistura `--` com `==>` — parse error "got 'STR'"). A forma canônica de
+    // aresta grossa com rótulo é `== texto ==>`.
+    'D ==> Sim ==> E["Definir sponsor e owner"]',
     'E ==> F["Dimensionar impacto"]',
     'F ==> G["Movimento comercial"]',
-    'D -- Não ==> H["Nutrir ou encerrar hipótese"]',
+    'D ==> Não ==> H["Nutrir ou encerrar hipótese"]',
   ];
   const classes = [
     'class A core;',
@@ -364,7 +367,14 @@ const SEGMENT_VALUE_CHAIN: Record<ScoutSegment, Array<{ pattern: RegExp; label: 
 
 function truncateCell(value: string, max = 180): string {
   const normalized = value.replace(/\s+/g, ' ').replace(/\|/g, '/').trim();
-  return normalized.length > max ? `${normalized.slice(0, max - 3)}...` : normalized;
+  if (normalized.length <= max) return normalized;
+  // BRU-108 (2): truncar em limite de palavra — o corte cru anterior produzia
+  // "certificações BC..." (palavra partida) e "Existe um sistema e..." (sem
+  // completar a ideia) na coluna Validar.
+  const cut = normalized.slice(0, max - 1);
+  const lastSpace = cut.lastIndexOf(' ');
+  const boundary = lastSpace > max * 0.6 ? lastSpace : max - 1;
+  return `${cut.slice(0, boundary).replace(/[\s,;:—–-]+$/, '')}...`;
 }
 
 function statusBadge(status: string): string {
@@ -401,12 +411,28 @@ function valueChainElo(dimension: string): string {
 import { normalizeDiscoveryQuestion } from '../gold-policy';
 export { normalizeDiscoveryQuestion };
 
-function validationForDimension(openQuestions: string[], dimension: string): string {
-  const match = openQuestions.find((question) => {
+/**
+ * BRU-108 (3): a coluna Validar distribuía a MESMA pergunta para todas as
+ * linhas da dimensão (validationForDimension usava find() → sempre a primeira
+ * compatível; o run 2fe72ab3 repetiu "Qual é o volume..." em 4 linhas de
+ * produção). Agora cada pergunta compatível é consumida uma única vez; quando
+ * esgota, a linha fica sem pergunta ("—") em vez de duplicar.
+ */
+function validationForDimension(
+  openQuestions: string[],
+  dimension: string,
+  usedQuestions: Set<string>,
+): string {
+  const dimensionTokens = dimension.toLowerCase().split(/\s+e\s+|\s+/);
+  const compatible = openQuestions.filter((question) => {
     const questionLower = question.toLowerCase();
-    return dimension.toLowerCase().split(/\s+e\s+|\s+/).some((token) => token.length > 4 && questionLower.includes(token));
+    return dimensionTokens.some((token) => token.length > 4 && questionLower.includes(token));
   });
-  return match ? truncateCell(normalizeDiscoveryQuestion(match), 140) : '—';
+  const available = compatible.find((question) => !usedQuestions.has(normalizeDiscoveryQuestion(question)));
+  if (!available) return '—';
+  const normalized = normalizeDiscoveryQuestion(available);
+  usedQuestions.add(normalized);
+  return truncateCell(normalized, 140);
 }
 
 export function buildDynamicValueChainTable(
@@ -415,6 +441,9 @@ export function buildDynamicValueChainTable(
 ): string | null {
   const rows: ValueChainRow[] = [];
   const openQuestions = safePack.openQuestions ?? [];
+  // BRU-108 (3): pool de perguntas já consumidas pela coluna Validar —
+  // impede a mesma pergunta em múltiplas linhas da dimensão.
+  const usedQuestions = new Set<string>();
 
   for (const fact of safePack.facts ?? []) {
     if (fact.status !== 'Confirmado') continue;
@@ -428,25 +457,29 @@ export function buildDynamicValueChainTable(
       // (compactação visual pertence ao renderer, não a esta representação).
       evidence: withEntityIdentity(fact.claim, fact.entity, safePack.accountIdentity?.legalName).replace(/\|/g, '/'),
       commercialReading: `Base confirmada para entender o elo de ${dimension.toLowerCase()}.`,
-      validate: validationForDimension(openQuestions, dimension),
+      validate: validationForDimension(openQuestions, dimension, usedQuestions),
     });
   }
 
   for (const signal of safePack.technologySignals ?? []) {
     const dimension = valueChainDimension(signal.technology, 'technology', segment);
+    const normalizedSignalQuestion = normalizeDiscoveryQuestion(signal.validationQuestion);
+    usedQuestions.add(normalizedSignalQuestion);
     rows.push({
       elo: valueChainElo(dimension),
       dimension: signal.technology,
       status: statusBadge(signal.status),
       evidence: signal.observedFact.replace(/\|/g, '/'),
       commercialReading: 'Escopo observado; confirmar cobertura antes de recomendar qualquer solução.',
-      validate: truncateCell(normalizeDiscoveryQuestion(signal.validationQuestion), 140),
+      validate: truncateCell(normalizedSignalQuestion, 140),
     });
   }
 
   for (const question of openQuestions) {
     const normalizedQuestion = normalizeDiscoveryQuestion(question);
+    if (usedQuestions.has(normalizedQuestion)) continue;
     if (rows.some((row) => row.validate === normalizedQuestion)) continue;
+    usedQuestions.add(normalizedQuestion);
     rows.push({
       elo: 'discovery',
       dimension: 'Discovery',
