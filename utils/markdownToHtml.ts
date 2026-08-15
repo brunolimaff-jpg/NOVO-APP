@@ -23,7 +23,7 @@ export function convertMarkdownToHTML(
 ): string {
   const safeMarkdown = sanitizeSensitivePersonalData(md);
   const allLinks = extractValidLinks(safeMarkdown);
-  const markdownHttpLinkRegex = /\[([^\]]+)\]\((https?:\/\/(?:[^\s()]+|\([^\s()]*\))+)\)/g;
+  const markdownHttpLinkRegex = /\[([^\]]+)\]\((https?:\/\/[^\s()]+(?:\([^\s()]*\)[^\s()]*)*)\)/g;
   const porta = parsePortaMarkerV2(safeMarkdown);
   const portaHtml = porta
     ? (() => {

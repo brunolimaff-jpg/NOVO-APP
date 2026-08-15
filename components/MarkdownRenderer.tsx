@@ -76,15 +76,15 @@ function isCitationOnlyLabel(value: string): boolean {
   return /^\[?\d+(?:\.\d+)?\]?$/.test((value || '').trim());
 }
 
-function normalizeCitationArtifacts(input: string): string {
+export function normalizeCitationArtifacts(input: string): string {
   if (!input) return '';
   return (
     input
       // Remove numeric plain reference artifacts that often follow generated
       // source links in tables, e.g. `[1.4](url) [4]`.
-      .replace(/(\[\d+(?:\.\d+)?\]\(https?:\/\/(?:[^\s()]+|\([^\s()]*\))+\))(?:\s+\[\d+(?:\.\d+)?\])+/gi, '$1')
+      .replace(/(\[\d+(?:\.\d+)?\]\(https?:\/\/[^\s()]+(?:\([^\s()]*\)[^\s()]*)*\))(?:\s+\[\d+(?:\.\d+)?\])+/gi, '$1')
       // Collapse repeated numeric markdown citations that point to the same URL.
-      .replace(/(\[\d+(?:\.\d+)?\]\((https?:\/\/(?:[^\s()]+|\([^\s()]*\))+)\))(?:\s+\[\d+(?:\.\d+)?\]\(\2\))+/gi, '$1')
+      .replace(/(\[\d+(?:\.\d+)?\]\((https?:\/\/[^\s()]+(?:\([^\s()]*\)[^\s()]*)*)\))(?:\s+\[\d+(?:\.\d+)?\]\(\2\))+/gi, '$1')
   );
 }
 

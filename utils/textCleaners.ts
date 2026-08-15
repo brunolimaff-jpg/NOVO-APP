@@ -13,7 +13,7 @@ export function stripMarkdown(text: string): string {
     .replace(/^#+\s+/gm, '')
     .replace(/(\*\*|__)(.*?)\1/g, '$2')
     .replace(/(\*|_)(.*?)\1/g, '$2')
-    .replace(/\[([^\]]+)\]\((?:https?:\/\/(?:[^\s()]+|\([^\s()]*\))+|[^)]+)\)/g, '$1')
+    .replace(/\[([^\]]+)\]\((?:https?:\/\/[^\s()]+(?:\([^\s()]*\)[^\s()]*)*|[^)]+)\)/g, '$1')
     .replace(/`([^`]+)`/g, '$1')
     .replace(/^>\s+/gm, '')
     .trim();
@@ -28,7 +28,7 @@ export function cleanTitle(title: string | null | undefined): string {
     .replace(/\*\*/g, '')
     .replace(/\*/g, '')
     .replace(/^#+\s*/g, '')
-    .replace(/\[([^\]]+)\]\((?:https?:\/\/(?:[^\s()]+|\([^\s()]*\))+|[^)]+)\)/g, '$1')
+    .replace(/\[([^\]]+)\]\((?:https?:\/\/[^\s()]+(?:\([^\s()]*\)[^\s()]*)*|[^)]+)\)/g, '$1')
     .replace(/`/g, '')
     .replace(/\s+/g, ' ')
     .trim();
@@ -335,7 +335,7 @@ export function extractSources(text: string): SourceRef[] {
     /\[\^(\d+)\]:\s*(https?:\/\/\S+)\s*[-–—]?\s*(.*)?$/,
     /^[¹²³⁴⁵⁶⁷⁸⁹⁰]+\s*(https?:\/\/\S+)\s*[-–—]?\s*(.*)?$/,
     /^(\d+)\.\s+(.*?)(?:\s*[-–—]\s*)?(https?:\/\/\S+)?$/,
-    /\[([^\]]+)\]\((https?:\/\/(?:[^\s()]+|\([^\s()]*\))+)\)/,
+    /\[([^\]]+)\]\((https?:\/\/[^\s()]+(?:\([^\s()]*\)[^\s()]*)*)\)/,
   ];
 
   let inSourcesBlock = false;
@@ -405,7 +405,7 @@ export function extractAllLinksFromMarkdown(text: string): SourceRef[] {
   const links: SourceRef[] = [];
   if (!text) return links;
 
-  const linkRegex = /\[([^\]]+)\]\((https?:\/\/(?:[^\s()]+|\([^\s()]*\))+)\)/g;
+  const linkRegex = /\[([^\]]+)\]\((https?:\/\/[^\s()]+(?:\([^\s()]*\)[^\s()]*)*)\)/g;
   let match;
   let id = 1;
 
@@ -421,7 +421,7 @@ export function extractAllLinksFromMarkdown(text: string): SourceRef[] {
   return links;
 }
 
-const MARKDOWN_LINK_REGEX = /\[([^\]]+)\]\((https?:\/\/(?:[^\s()]+|\([^\s()]*\))+)\)/gi;
+const MARKDOWN_LINK_REGEX = /\[([^\]]+)\]\((https?:\/\/[^\s()]+(?:\([^\s()]*\)[^\s()]*)*)\)/gi;
 
 export function normalizeSourceUrl(url: string): string {
   const raw = (url || '').trim();
