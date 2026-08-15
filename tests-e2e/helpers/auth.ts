@@ -108,9 +108,17 @@ export async function setupRealSupabaseAuthFromEnv(page: Page, options: { email?
       await page.waitForTimeout(Math.min(250, remainingMs));
     }
 
-    throw new Error(
-      `${GOLDEN_OPERATOR_PRECONDITION_FAILED}: precondições do operador não satisfeitas dentro de ${preconditionTimeoutMs}ms`,
-    );
+    // O loop pode sair por expiração sem o corpo ter visto remainingMs <= 0
+    // (ex.: o waitForTimeout estourou o deadline). Avalia UMA última vez para
+    // a falha continuar discriminante (nunca a mensagem genérica antiga).
+    const finalObservation = await readGoldenPreconditionObservation(page, {
+      appShell,
+      appHeader,
+      operatorMenu,
+      greetingCard,
+    });
+    const finalReport = evaluateGoldenOperatorPreconditions(finalObservation);
+    throw new Error(formatGoldenPreconditionFailure(finalReport));
   } catch (error) {
     // Erro já discriminante (formatGoldenPreconditionFailure) propaga intacto;
     // qualquer outro erro vira falha genérica SEM PII.
