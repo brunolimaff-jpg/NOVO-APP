@@ -145,7 +145,12 @@ export function validateGoldContract(goldBrief: string): GoldContractResult {
   const actionClean = actionSection
     .replace(/```mermaid[\s\S]*?```/gi, '')
     .replace(/^\s*\**Adjac[êe]ncias?:?.*$/gim, '')
-    .replace(/^\s*\**Frente\s+Principal:?.*$/gim, '');
+    .replace(/^\s*\**Frente\s+Principal:?.*$/gim, '')
+    // BRU-103 (run 20573b42): o Composer pode descrever o fluxo conceitual do
+    // Caminho da Venda como lista numerada ("1. Evidência → 2. Hipótese → ...")
+    // — linhas numeradas com seta (→) são FLUXO, não ação; remover antes de
+    // contar (assinatura estrutural, sem ler conteúdo semântico).
+    .replace(/^\s*\*{0,2}\s*\d{1,2}\s*[.)]\s*[*_]*[^\n]*→[^\n]*$/gim, '');
   const namedActions = (actionClean.match(/\b(?:a[cç][aã]o|passo)\s+\d/gi) || []).length;
   const tableActions = (actionClean.match(/^\|\s*\*{0,2}\s*\d{1,2}\s*\*{0,2}\s*\|/gm) || []).length;
   // BRU-103 (RCA-07): o prompt orienta "negrito nos números-chave" — ações

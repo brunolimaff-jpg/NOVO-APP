@@ -155,7 +155,7 @@ export function buildComposePrompt(input: ComposeInput): string {
     'INCERTEZAS: quando o conteúdo seguro não confirmar um fato (ex.: internacionalização, área, headcount), apresente como estimativa/indício com ressalva explícita — nunca como confirmado.',
     'INTERNACIONALIZAÇÃO (BRU-48): fonte institucional/site ≠ fato Confirmado. NUNCA escreva "Operação confirmada", "internacionalização CONFIRMADA", "✅ Operação confirmada" nem use a palavra "confirmada/confirmado" para Colômbia/Cumaribo/internacional/holding/controle quando o conteúdo seguro não tiver o fato com status Confirmado — escreva "Operação em Cumaribo, Colômbia (fonte institucional)" ou "🟠 A validar". Isso vale em texto, tabelas E em qualquer diagrama.',
     'IDENTIDADE CANÔNICA — NÃO ALTERAR (identity lock): o CNPJ alvo é ' + composeCanonical.inputCnpj + ' e o tipo cadastral é "' + composeCanonical.establishmentType + '". Para este CNPJ, use SOMENTE este tipo cadastral. As palavras "Matriz", "Matriz Operacional" e "Unidade Matriz" são PROIBIDAS para este CNPJ quando o tipo canônico for "Filial". "Tabela de CNPJs" é o nome de uma tabela do dossiê, NÃO uma classificação cadastral — não confunda a tabela com o tipo do estabelecimento. O nome legal e a raiz de CNPJ também vêm do CANONICAL.',
-    '3 ações numeradas na seção 9.',
+    '3 ações numeradas na seção 9 — e o fluxo conceitual do Caminho da Venda NUNCA como lista numerada: descreva-o em 1 linha com setas (ex.: "Evidência segura → Hipótese comercial → Discovery → Decisão"). As únicas linhas numeradas de TODA a seção 9 são os 3 movimentos (1. / 2. / 3.), sem seta. Se você numerar o fluxo, o contrato conta como ação e reprova.',
     'CANONICAL:',
     JSON.stringify(composeCanonical),
     'SAFE PACK (Frontier):',
