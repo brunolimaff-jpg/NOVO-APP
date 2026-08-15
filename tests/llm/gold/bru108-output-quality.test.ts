@@ -19,10 +19,16 @@ const CANONICAL: CanonicalAccount = {
  * Cada defeito do run 2fe72ab3 tem mecanismo determinístico no pipeline;
  * estes testes fixam o comportamento corrigido.
  */
-describe('BRU-108 — defeito 4: normalizeDiscoveryQuestion sem cascata', () => {
-  it('"capacidade de produção" não vira "volume de volume" (single-pass)', () => {
+describe('BRU-108 — defeito 4: normalizeDiscoveryQuestion sem cascata nem vocabulário protegido', () => {
+  it('"capacidade de produção de algodão" → "volume de algodão" (sem "volume de volume" nem "produção de")', () => {
     expect(normalizeDiscoveryQuestion('Qual é a capacidade de produção de algodão?')).toBe(
-      'Qual é o volume de produção de algodão?',
+      'Qual é o volume de algodão?',
+    );
+  });
+
+  it('"capacidade de fabricação de ração" → "volume de fabricação de ração" (sem cascata)', () => {
+    expect(normalizeDiscoveryQuestion('Qual é a capacidade de fabricação de ração?')).toBe(
+      'Qual é o volume de fabricação de ração?',
     );
   });
 
