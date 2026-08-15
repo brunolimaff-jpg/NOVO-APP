@@ -5,7 +5,8 @@
  * INVARIANTES SEMÂNTICOS (não inventar, não promover, não inverter), este
  * valida o CONTRATO ESTRUTURAL do Gold Brief (o que o verifier não cobre):
  *
- *  - 900–1500 palavras
+ *  - 900–1500 palavras da NARRATIVA humana (exclui os blocos determinísticos
+ *    injetados pós-Composer: Mermaid + tabela de elos)
  *  - 9 seções obrigatórias
  *  - 0–3 diagramas Mermaid
  *  - ≤ 3 sinais
@@ -41,6 +42,8 @@ export interface GoldContractResult {
     adjacencyCount: number;
     questionCount: number;
     actionCount: number;
+    /** BRU-103: assinatura estrutural das ações (somente contagens, sem texto). */
+    actionFormats: { named: number; tableRows: number; numbered: number };
   };
 }
 
@@ -94,9 +97,30 @@ function countPattern(text: string, patterns: RegExp[]): number {
   return total;
 }
 
+/**
+ * BRU-103 (design congelado — Planejador 2026-08-14): 900–1500 é o orçamento
+ * da NARRATIVA HUMANA do Gold. O builder injeta pós-Composer componentes
+ * determinísticos (3 mapas Mermaid + tabela de elos) que inflam o artefato
+ * final sem serem narrativa. O validator continua rodando no artefato final,
+ * mas a contagem de palavras exclui SOMENTE esses blocos determinísticos —
+ * tabelas escritas pelo Composer continuam contando.
+ */
+function stripDeterministicBlocks(text: string): string {
+  let narrative = text.replace(/```mermaid\n?[\s\S]*?```\n?/gi, '');
+  // Legenda dos mapas (parte do componente Mermaid, gerada fora do fence).
+  narrative = narrative.replace(/^\s*\*Legenda:.*$/gim, '');
+  // Tabela determinística de elos: heading único + linhas `|` consecutivas
+  // (o builder troca `|` cru por "/" dentro das células).
+  narrative = narrative.replace(
+    /###\s*[^\n]*MAPA DE ELOS DA CADEIA DE VALOR[^\n]*(?:\n|$)(?:(?:\n)*\|[^\n]*(?:\n|$))*/g,
+    '',
+  );
+  return narrative;
+}
+
 export function validateGoldContract(goldBrief: string): GoldContractResult {
   const violations: GoldContractViolation[] = [];
-  const wordCount = countWords(goldBrief);
+  const wordCount = countWords(stripDeterministicBlocks(goldBrief));
   const mermaidCount = countMermaid(goldBrief);
 
   // Seções presentes (tolerante)
@@ -132,6 +156,10 @@ export function validateGoldContract(goldBrief: string): GoldContractResult {
     1,
     namedActions > 0 ? namedActions : tableActions > 0 ? tableActions : numberedActions,
   );
+  // BRU-103: assinatura estrutural não sensível da seção 9 — contagens por
+  // formato (nomeado / tabela / numerado) para identificar a classe real do
+  // ACTION_COUNT_MISMATCH sem regex cega nem conteúdo do Gold.
+  const actionFormats = { named: namedActions, tableRows: tableActions, numbered: numberedActions };
 
   // 1) Palavras
   if (wordCount < MIN_WORDS || wordCount > MAX_WORDS) {
@@ -189,6 +217,7 @@ export function validateGoldContract(goldBrief: string): GoldContractResult {
       adjacencyCount,
       questionCount,
       actionCount,
+      actionFormats,
     },
   };
 }

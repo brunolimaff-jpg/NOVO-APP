@@ -218,6 +218,7 @@ export async function tryEnhanceDossierWithGold(input: GoldSeamInput): Promise<s
       passed: contract.passed,
       violations: contract.violations.map((v) => v.code),
       wordCount: contract.metrics.wordCount,
+      actionFormats: contract.metrics.actionFormats,
     });
     if (!contract.passed) {
       onRejected?.('contract_fail');

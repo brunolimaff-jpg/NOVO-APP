@@ -230,6 +230,8 @@ export interface GoldStageDetail {
   /** BRU-103 (RCA-07): result estrutural do contract (sem detail de texto). */
   violations?: string[];
   wordCount?: number;
+  /** BRU-103: assinatura estrutural das ações da seção 9 (somente contagens). */
+  actionFormats?: { named: number; tableRows: number; numbered: number };
 }
 
 export type GoldStageHandler = (stage: GoldStage, detail?: GoldStageDetail) => void;
