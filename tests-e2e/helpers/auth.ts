@@ -194,30 +194,50 @@ export async function readGoldenPreconditionObservation(
 
 /**
  * BRU-117 lote 2 (opção B): completa o onboarding do operador no greeting-card
- * como um usuário real faria. Dois caminhos possíveis:
- * 1) email desconhecido → formulário (nome + email + "Continuar");
- * 2) email já cadastrado no user_context → botão "Vincular este dispositivo"
- *    (preserva o display_name existente — ex.: a conta QA já tem "Bruno Teste").
+ * como um usuário real faria. O greeting tem DOIS estados possíveis após o
+ * login real — e o `checkEmailExists` do app pode trocar de um para o outro
+ * durante o fluxo (mostra "Verificando email..." e depois decide):
+ * 1) email já cadastrado no user_context → card "Já existe um cadastro com
+ *    este email" com o botão "Vincular este dispositivo" (greeting-link-button,
+ *    preserva o display_name existente);
+ * 2) email desconhecido → formulário (nome + email + "Continuar").
+ * Este helper resolve o estado ATUAL e continua enquanto o greeting persistir
+ * (cobre a troca form→link quando o check resolve DEPOIS do submit).
  * Nome fixo com 2+ palavras (o form exige nome e sobrenome); nenhum dado novo
  * externo é criado manualmente — o app persiste via fluxo normal.
  */
 export async function completeOperatorOnboarding(page: Page, email: string): Promise<void> {
-  const nameInput = page.getByTestId('greeting-name-input');
-  if (await nameInput.isVisible({ timeout: 3_000 }).catch(() => false)) {
-    // Caminho 1: email não cadastrado → preenche o formulário e submete.
-    await nameInput.fill('Operador QA');
-    await page.getByTestId('greeting-email-input').fill(email);
-    const submit = page.getByTestId('greeting-submit-button');
-    if (await submit.isVisible({ timeout: 2_000 }).catch(() => false)) {
-      await submit.click();
-    }
-    return;
-  }
+  const greetingCard = page.getByTestId('greeting-card');
+  const deadline = Date.now() + 15_000;
 
-  // Caminho 2: email já cadastrado → vincula este dispositivo ao operador
-  // existente (o app usa o display_name já salvo no user_context).
-  const linkButton = page.getByTestId('greeting-link-button');
-  if (await linkButton.isVisible({ timeout: 3_000 }).catch(() => false)) {
-    await linkButton.click();
+  while (Date.now() < deadline) {
+    const cardVisible = await greetingCard.isVisible({ timeout: 500 }).catch(() => false);
+    if (!cardVisible) return; // greeting resolvido
+
+    // Estado 1: email já cadastrado → vincula este dispositivo.
+    const linkButton = page.getByTestId('greeting-link-button');
+    if (await linkButton.isVisible({ timeout: 500 }).catch(() => false)) {
+      await linkButton.click();
+      await page.waitForTimeout(800);
+      continue;
+    }
+
+    // Estado 2: formulário → preenche nome (2+ palavras) + email e submete.
+    const nameInput = page.getByTestId('greeting-name-input');
+    if (await nameInput.isVisible({ timeout: 500 }).catch(() => false)) {
+      await nameInput.fill('Operador QA');
+      await page.getByTestId('greeting-email-input').fill(email);
+      const submit = page.getByTestId('greeting-submit-button');
+      if (await submit.isVisible({ timeout: 500 }).catch(() => false)) {
+        await submit.click();
+      }
+      // O checkEmailExists pode trocar o form pelo card de vincular depois do
+      // submit — o loop acima resolve esse estado na próxima iteração.
+      await page.waitForTimeout(800);
+      continue;
+    }
+
+    // Transição (ex.: "Verificando email..." no ar) — aguarda estabilizar.
+    await page.waitForTimeout(400);
   }
 }
