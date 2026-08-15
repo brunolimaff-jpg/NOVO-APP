@@ -10,8 +10,7 @@
  */
 import { execFileSync } from 'node:child_process';
 import { callLiteLLM } from '../../../../api/_llm-client.js';
-import type { CompactInput, ComposeInput, GoldPipelineDeps } from '../gold-pipeline.js';
-import type { RawFindingPack } from '../gold-contracts.js';
+import type { CompactInput, ComposeInput, GoldPipelineDeps, CompactOutcome } from '../gold-pipeline.js';
 import type { CxBArm } from './cxb-arms.js';
 // Prompts do contrato compartilhados com o seam de produção (browser-safe).
 import { buildCompactPrompt, buildComposePrompt, parseJsonPayload } from '../prompts/gold-contract-prompts.js';
@@ -76,7 +75,7 @@ export function createCxbAdapters(arm: CxBArm): CxbAdapters {
   const apiKey = resolveApiKey();
   const lastMetrics: CxbAdapters['lastMetrics'] = {};
 
-  async function compact(input: CompactInput): Promise<RawFindingPack> {
+  async function compact(input: CompactInput): Promise<CompactOutcome> {
     const startedAt = Date.now();
     let lastError: Error | undefined;
     // O DeepSeek pode truncar/errar campos em dossiês longos — retry com
@@ -107,7 +106,14 @@ export function createCxbAdapters(arm: CxBArm): CxbAdapters {
           { input: arm.refPricePerM.input, output: arm.refPricePerM.output },
         );
         lastMetrics.compact.attempt = attempt;
-        return parsed;
+        // BRU-109 (A): contrato GoldPipelineDeps.compact agora exige
+        // CompactOutcome (pack + metadados da resposta crua).
+        return {
+          pack: parsed,
+          responseChars: (result.text || '').length,
+          finishReason: result.finishReason ?? null,
+          hasObjectBoundary: /[{]/.test(result.text || '') && /[}]/.test(result.text || ''),
+        };
       } catch (e) {
         lastError = e instanceof Error ? e : new Error(String(e));
         if (attempt < 3) {

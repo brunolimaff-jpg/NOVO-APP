@@ -8,8 +8,9 @@
  * verifier-summary tinha exceção só no cliente e morria no servidor).
  *
  * Payload permitido nesses eventos: SOMENTE stage/hardFails/codes/codeCounts/
- * dossierRunId. Nunca reason, claim, texto Gold, CNPJ, pessoa ou conteúdo do
- * SafePack.
+ * dossierRunId e, nos eventos do compact (BRU-109 A), errorClass/
+ * responseChars/finishReason/hasObjectBoundary. Nunca reason, claim, texto
+ * Gold, CNPJ, pessoa ou conteúdo do SafePack.
  */
 export const GOLD_CRITICAL_DIAGNOSTIC_EVENTS: ReadonlySet<string> = new Set([
   'verifier-summary',
@@ -22,6 +23,13 @@ export const GOLD_CRITICAL_DIAGNOSTIC_EVENTS: ReadonlySet<string> = new Set([
   // contract-done (passed) são estruturais e entram na persistência garantida.
   'output-selected',
   'contract-done',
+  // BRU-109 DECISÃO 1 (A): a fronteira do compact vira crítica — compact-error
+  // (errorClass estruturado) não pode mais cair no sampling de 10% de info
+  // (foi o gap que cegou o diagnóstico do run 817d3bd0). Eventos estruturais.
+  'compact-start',
+  'compact-response',
+  'compact-error',
+  'raw-schema-fail',
 ]);
 
 export function isGoldCriticalDiagnosticEvent(area: string, event: string): boolean {

@@ -419,7 +419,8 @@ describe('GuardedGoldPipeline', () => {
     ]);
     // métricas presentes, conteúdo nunca (sem dados sensíveis)
     expect(stages[0].detail).toMatchObject({ chars: 'dossiê legado'.length });
-    expect(stages[1].detail).toMatchObject({ chars: expect.any(Number) });
+    // BRU-109 (A): compact-response carrega os metadados da resposta crua
+    expect(stages[1].detail).toMatchObject({ responseChars: expect.any(Number), hasObjectBoundary: false });
     expect(stages[stages.length - 1].detail).toMatchObject({ hardFails: 0, codes: [], codeCounts: {} });
     expect(stages[stages.length - 1].detail).not.toHaveProperty('reason');
     expect(stages[stages.length - 1].detail).not.toHaveProperty('claim');
@@ -448,7 +449,7 @@ describe('GuardedGoldPipeline', () => {
     expect(compose).not.toHaveBeenCalled();
   });
 
-  it('emite compact-error com a mensagem curta quando o compact lança (ex.: parseJsonPayload)', async () => {
+  it('emite compact-error com errorClass estruturado quando o compact lança (ex.: parseJsonPayload)', async () => {
     const compact = vi.fn(async () => {
       throw new Error('JSON inválido: esperado objeto na resposta do compactor');
     });
@@ -461,13 +462,13 @@ describe('GuardedGoldPipeline', () => {
         { canonical, dossier: 'dossiê' },
         deps,
         undefined,
-        (stage, detail) => stages.push(`${stage}:${detail?.detail ?? '-'}`),
+        (stage, detail) => stages.push(`${stage}:${detail?.errorClass ?? '-'}`),
       ),
     ).rejects.toThrow('JSON inválido');
 
     expect(stages).toEqual([
       'compact-start:-',
-      'compact-error:JSON inválido: esperado objeto na resposta do compactor',
+      'compact-error:JSON_NOT_FOUND',
     ]);
     expect(compose).not.toHaveBeenCalled();
   });

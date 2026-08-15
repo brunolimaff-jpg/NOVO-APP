@@ -20,8 +20,9 @@ import { proxyChatSendMessage } from '../../../llmProxy';
 import { isAbortLikeError } from '../../../../utils/abortHelpers';
 import { GOLD_COMPACT_MODEL_ID, GOLD_COMPOSE_MODEL_ID } from '../../../../config/models';
 import type { CanonicalAccount } from '../gold-contracts';
-import { runGuardedGoldPipeline, type GoldPipelineDeps } from '../gold-pipeline';
-import { buildCompactPrompt, buildComposePrompt, parseJsonPayload } from '../prompts/gold-contract-prompts';
+import { runGuardedGoldPipeline, type GoldPipelineDeps, type CompactOutcome } from '../gold-pipeline';
+import { buildCompactPrompt, buildComposePrompt } from '../prompts/gold-contract-prompts';
+import { tryParseCompactPayload } from '../compact-error';
 import type { GoldSeamDeps } from './gold-dossier-seam';
 
 const GOLD_CANONICAL_ENDPOINT = '/api/gold-canonical';
@@ -72,7 +73,7 @@ export function createGoldSeamDeps(options: GoldBrowserAdapterOptions = {}): Gol
   const chatSendMessage = options.chatSendMessage ?? proxyChatSendMessage;
 
   const pipelineDeps: GoldPipelineDeps = {
-    async compact(input, signal) {
+    async compact(input, signal): Promise<CompactOutcome> {
       const result = await chatSendMessage(
         {
           model: GOLD_COMPACT_MODEL_ID,
@@ -88,7 +89,17 @@ export function createGoldSeamDeps(options: GoldBrowserAdapterOptions = {}): Gol
         // no browser (> 240s server, < 300s Vercel). Default 210s inalterado.
         { timeoutMs: GOLD_BROWSER_CALL_BUDGET_MS },
       );
-      return parseJsonPayload(result.text);
+      // BRU-109 (A): tenta parsear a resposta CRUA; em falha, lança
+      // CompactPayloadError com errorClass + responseChars + finishReason +
+      // hasObjectBoundary (telemetria estruturada, sem texto livre). O pack
+      // retorna junto com os metadados para o compact-response medir o PASS.
+      const pack = tryParseCompactPayload(result.text, { finishReason: result.finishReason });
+      return {
+        pack,
+        responseChars: (result.text || '').length,
+        finishReason: result.finishReason ?? null,
+        hasObjectBoundary: /[{]/.test(result.text || '') && /[}]/.test(result.text || ''),
+      };
     },
     async compose(input, signal) {
       const result = await chatSendMessage(

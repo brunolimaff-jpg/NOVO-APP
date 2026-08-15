@@ -3,6 +3,13 @@
  * VERSÃO CONSOLIDADA: Remove duplicações com linkFixer.ts
  */
 
+// BRU-109 DECISÃO 3 (C): os PATTERNS de leak vêm do módulo canônico
+// compartilhado (utils/leakShieldPolicy.ts) — api/llm.ts (serverless) e este
+// cliente usam a mesma definição. As AÇÕES continuam específicas da boundary:
+// este módulo mantém o fingerprint, o strip com SENSITIVE_INTERNAL_PATTERNS e
+// o allowlist da PORTA; o serverless preserva o comportamento JSON-safe.
+import { detectPromptLeakIndicators as detectCanonicalPromptLeakIndicators } from './leakShieldPolicy';
+
 /**
  * Remove formatação Markdown básica de uma string para exibição em texto puro.
  */
@@ -98,26 +105,6 @@ const SENSITIVE_INTERNAL_PATTERNS: RegExp[] = [
   /\[\[\s*competitor/i,
 ];
 
-const HARD_PROMPT_LEAK_PATTERNS: Array<{ id: string; regex: RegExp }> = [
-  { id: 'internal_markers', regex: INTERNAL_MARKER_TEST_REGEX },
-  { id: 'internal_marker_tail', regex: INTERNAL_MARKER_OPEN_TAIL_REGEX },
-  { id: 'investigacao_integrada', regex: /investigacao_completa_integrada/i },
-  { id: 'forense_protocol', regex: /protocolo de investiga[çc][aã]o forense/i },
-  { id: 'system_urgente', regex: /urgente:\s*ignore\s+metadiscuss[õo]es/i },
-  { id: 'absolute_mission', regex: /sua miss[aã]o absoluta/i },
-  { id: 'dont_discuss_internal', regex: /n[aã]o discuta o funcionamento interno do modelo/i },
-  { id: 'contexto_cadastral', regex: /contexto cadastral obrigat[oó]rio/i },
-  { id: 'nota_de_escopo', regex: /nota de escopo:\s*este m[óo]dulo/i },
-  { id: 'aviso_metodologico', regex: /aviso metodol[óo]gico:\s*(este m[óo]dulo|este dossi[eê]|esta an[áa]lise)/i },
-];
-
-const SOFT_PROMPT_LEAK_PATTERNS: Array<{ id: string; regex: RegExp }> = [
-  { id: 'urgente_dossie', regex: /urgente:.*dossi[eê]\s+de\s+agroneg[oó]cio/i },
-  { id: 'score_porta_cnpj', regex: /score porta.*preciso.*cnpj/i },
-  { id: 'protocolos_combinados', regex: /execute um dossi[eê] completo combinando os protocolos/i },
-  { id: 'priorize_objetividade_fontes', regex: /priorize objetividade.*fontes audit[aá]veis/i },
-];
-
 export interface PromptLeakDetection {
   detected: boolean;
   indicators: string[];
@@ -155,14 +142,14 @@ export function detectPromptLeakIndicators(text: string): PromptLeakDetection {
     return { detected: false, indicators: [], fingerprint: null };
   }
 
-  const hardHits = HARD_PROMPT_LEAK_PATTERNS.filter(pattern => pattern.regex.test(sample)).map(pattern => pattern.id);
-  const softHits = SOFT_PROMPT_LEAK_PATTERNS.filter(pattern => pattern.regex.test(sample)).map(pattern => pattern.id);
-  const detected = hardHits.length > 0 || softHits.length >= 2;
+  // BRU-109 (C): detecção via módulo canônico compartilhado; o fingerprint é
+  // ação específica desta boundary (auditoria de duplicatas no cliente).
+  const { detected, indicators } = detectCanonicalPromptLeakIndicators(sample);
   const fingerprint = detected ? hashTextFNV1a(normalizeForFingerprint(sample)) : null;
 
   return {
     detected,
-    indicators: [...hardHits, ...softHits],
+    indicators,
     fingerprint,
   };
 }

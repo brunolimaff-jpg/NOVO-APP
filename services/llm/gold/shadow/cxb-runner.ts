@@ -13,7 +13,7 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { createHash } from 'node:crypto';
-import { runGuardedGoldPipeline, type CompactInput, type ComposeInput } from '../gold-pipeline.js';
+import { runGuardedGoldPipeline, type CompactInput, type ComposeInput, type CompactOutcome } from '../gold-pipeline.js';
 import type { SafeFindingPack, SanitizerEvent, RawFindingPack } from '../gold-contracts.js';
 import type { GoldVerificationResult } from '../entity-aware-gold-verifier.js';
 import { CXB_ARMS, type CxBArm } from './cxb-arms.js';
@@ -211,28 +211,33 @@ export async function runCxbShadow(
  * para provar a persistência completa sem chamadas reais.
  */
 export function createMockAdapters(arm: CxBArm): {
-  compact: (input: CompactInput) => Promise<RawFindingPack>;
+  compact: (input: CompactInput) => Promise<CompactOutcome>;
   compose: (input: ComposeInput) => Promise<string>;
   lastMetrics: { compact?: ShadowStepMetrics; compose?: ShadowStepMetrics };
 } {
   return {
     compact: async () => ({
-      module: 'gold-compactor',
-      accountIdentity: {
-        inputCnpj: '04.733.767/0001-80',
-        legalName: 'SCHEFFER & CIA LTDA',
-        establishmentType: 'Filial',
-        rootCnpj: '04.733.767',
+      pack: {
+        module: 'gold-compactor',
+        accountIdentity: {
+          inputCnpj: '04.733.767/0001-80',
+          legalName: 'SCHEFFER & CIA LTDA',
+          establishmentType: 'Filial',
+          rootCnpj: '04.733.767',
+          conflicts: [],
+        },
+        facts: [],
+        relationships: [],
+        technologySignals: [],
+        people: [],
+        metrics: [],
         conflicts: [],
+        openQuestions: [],
+        discardedClaims: [],
       },
-      facts: [],
-      relationships: [],
-      technologySignals: [],
-      people: [],
-      metrics: [],
-      conflicts: [],
-      openQuestions: [],
-      discardedClaims: [],
+      responseChars: 0,
+      finishReason: null,
+      hasObjectBoundary: true,
     }),
     compose: async () => `# Gold Brief (mock braço ${arm.id})\n\nConteúdo determinístico para teste de persistência.`,
     lastMetrics: {},

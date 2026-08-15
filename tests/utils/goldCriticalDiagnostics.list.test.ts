@@ -19,7 +19,8 @@ describe('RCA-07 — eventos críticos do fallback pós-verifier', () => {
     for (const e of ['verifier-summary', 'diagnostics-pre-compose', 'diagnostics-post-preflight', 'diagnostics-post-mermaid', 'diagnostics-post-certainty']) {
       expect(isGoldCriticalDiagnosticEvent('GoldSeam', e)).toBe(true);
     }
-    expect(GOLD_CRITICAL_DIAGNOSTIC_EVENTS.size).toBe(7);
+    // BRU-109 (A): +compact-start/response/error + raw-schema-fail
+    expect(GOLD_CRITICAL_DIAGNOSTIC_EVENTS.size).toBe(11);
   });
   it('evento fora da lista NÃO é crítico (sem vazar sampling)', () => {
     expect(isGoldCriticalDiagnosticEvent('GoldSeam', 'gold-start')).toBe(false);

@@ -50,6 +50,10 @@ interface LlmGenerateResponse {
 export interface LlmChatResponse {
   text: string;
   webVerificationStatus?: 'verified' | 'fallback_verified' | 'unverified' | 'not_applicable';
+  /** BRU-109 (A): finishReason devolvido pelo /api/llm — o cliente não o
+   * expunha; agora permite discriminar truncamento (length) de desobediência
+   * ao formato JSON na telemetria estruturada do compact. */
+  finishReason?: string;
 }
 
 const CUSTOM_LLM_PROXY_BASE_URL = (import.meta.env.VITE_LLM_PROXY_URL || '')

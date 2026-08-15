@@ -20,6 +20,7 @@ import {
 import { normalizeCnpj, resolveCanonicalRelations } from './canonical-relation-resolver';
 import { sanitizeFindingPack } from './finding-sanitizer';
 import { verifyGold, type GoldVerificationResult } from './entity-aware-gold-verifier';
+import { compactErrorStageDetail } from './compact-error';
 import { buildGoldArtifact, type GoldArtifactManifest } from './mermaid/mermaid-deterministic';
 import { validateGoldNarrative } from './gold-contract-validator';
 import { matchesSensitiveTheme, matchesSafeKnowledgeNegation, neutralizeConfirmedVocabularyInText, normalizeDiscoveryQuestion } from './gold-policy';
@@ -39,8 +40,37 @@ export interface ComposeInput {
 }
 
 export interface GoldPipelineDeps {
-  compact: (input: CompactInput, signal?: AbortSignal) => Promise<RawFindingPack>;
+  /** Retorna o pack parseado OU o outcome com metadados da resposta crua
+   * (adapter real); mocks podem devolver só o pack (normalizado no pipeline). */
+  compact: (input: CompactInput, signal?: AbortSignal) => Promise<RawFindingPack | CompactOutcome>;
   compose: (input: ComposeInput, signal?: AbortSignal) => Promise<string>;
+}
+
+/**
+ * BRU-109 DECISÃO 1 (A) — resultado do compact com metadados da resposta CRUA
+ * (não do pack parseado). O pipeline emite compact-response com estes campos
+ * para a série PASS/FAIL ser comparável (responseChars/finishReason/
+ * hasObjectBoundary) — discriminando vazio × prosa × truncado × JSON inválido.
+ */
+export interface CompactOutcome {
+  pack: RawFindingPack;
+  /** Comprimento da resposta crua (text) do LLM. */
+  responseChars: number;
+  /** finishReason devolvido pelo /api/llm (truncamento vs desobediência). */
+  finishReason: string | null;
+  /** Presença de `{` e `}` na resposta crua. */
+  hasObjectBoundary: boolean;
+}
+
+/** Helper de contrato para mocks: compact válido com metadados neutros. */
+export function compactOk(pack: RawFindingPack, overrides: Partial<Omit<CompactOutcome, 'pack'>> = {}): CompactOutcome {
+  return { pack, responseChars: 0, finishReason: null, hasObjectBoundary: false, ...overrides };
+}
+
+/** Normaliza RawFindingPack | CompactOutcome → CompactOutcome (mocks antigos). */
+export function toCompactOutcome(result: RawFindingPack | CompactOutcome): CompactOutcome {
+  if (result && typeof result === 'object' && 'pack' in result) return result as CompactOutcome;
+  return compactOk(result as RawFindingPack);
 }
 
 export interface GuardedGoldPipelineResult {
@@ -260,6 +290,14 @@ export interface GoldStageDetail {
   mermaidByType?: Record<string, number>;
   /** ARCH-C (BRU-112): tabela de elos emitida no artifact. */
   valueChainTableEmitted?: boolean;
+  /** BRU-109 (A): classe do erro do compact (estrutural, sem texto livre). */
+  errorClass?: string;
+  /** BRU-109 (A): comprimento da resposta crua do LLM (compact). */
+  responseChars?: number;
+  /** BRU-109 (A): finishReason devolvido pelo /api/llm. */
+  finishReason?: string | null;
+  /** BRU-109 (A): presença de `{` e `}` na resposta crua do compact. */
+  hasObjectBoundary?: boolean;
 }
 
 export type GoldStageHandler = (stage: GoldStage, detail?: GoldStageDetail) => void;
@@ -285,26 +323,32 @@ export async function runGuardedGoldPipeline(
 ): Promise<GuardedGoldPipelineResult> {
   // 1) Compact → parse (fail-closed antes do sanitizer).
   onStage?.('compact-start', { chars: input.dossier.length });
-  let compactOutput: RawFindingPack;
+  let compactOutcome: CompactOutcome;
   try {
-    compactOutput = await deps.compact(
-      {
-        canonical: input.canonical,
-        dossier: input.dossier,
-      },
-      signal,
+    compactOutcome = toCompactOutcome(
+      await deps.compact(
+        {
+          canonical: input.canonical,
+          dossier: input.dossier,
+        },
+        signal,
+      ),
     );
   } catch (error) {
-    // Inclui falha do parseJsonPayload do adapter (JSON inválido do LLM) e
-    // erros de transporte — a mensagem curta identifica qual foi.
-    onStage?.('compact-error', {
-      detail: error instanceof Error ? error.message.slice(0, 200) : String(error),
-    });
+    // BRU-109 DECISÃO 1 (A): compact-error estruturado — somente errorClass +
+    // métricas da resposta crua (nunca texto livre / error.message arbitrário).
+    onStage?.('compact-error', compactErrorStageDetail(error));
     throw error;
   }
-  onStage?.('compact-response', { chars: JSON.stringify(compactOutput).length });
+  // compact-response mede a resposta CRUA que passou (não o pack parseado) —
+  // mesma série de métricas do compact-error, para PASS/FAIL serem comparáveis.
+  onStage?.('compact-response', {
+    responseChars: compactOutcome.responseChars,
+    finishReason: compactOutcome.finishReason ?? null,
+    hasObjectBoundary: compactOutcome.hasObjectBoundary,
+  });
 
-  const parsed = rawFindingPackSchema.safeParse(compactOutput);
+  const parsed = rawFindingPackSchema.safeParse(compactOutcome.pack);
   if (!parsed.success) {
     onStage?.('raw-schema-fail', {
       issues: parsed.error.issues.length,

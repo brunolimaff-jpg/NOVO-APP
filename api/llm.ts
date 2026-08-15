@@ -27,6 +27,7 @@ import {
   type LiteLLMCallInput,
 } from './_llm-client.js';
 import { resolveIntentModel, selectModelForModule } from '../utils/llm/modelRouter.js';
+import { detectPromptLeakIndicators as detectCanonicalPromptLeakIndicators } from '../utils/leakShieldPolicy.js';
 
 const HistoryItemSchema = z.object({
   role: z.enum(['user', 'model']),
@@ -66,20 +67,6 @@ const SERVER_GOLD_CALL_BUDGET_MS = 240_000;
 const CHAT_DEFAULT_MAX_OUTPUT_TOKENS = 65_536;
 const INTERNAL_MARKER_REGEX = /\[\[\s*[A-Z_]+\s*:[\s\S]*?\]\]/gi;
 const INTERNAL_MARKER_OPEN_TAIL_REGEX = /\[\[\s*[A-Z_]+\s*:[\s\S]*$/i;
-const HARD_PROMPT_LEAK_PATTERNS: RegExp[] = [
-  /\[\[\s*[A-Z_]+\s*:[\s\S]*?\]\]/i,
-  /investigacao_completa_integrada/i,
-  /protocolo de investiga[çc][aã]o forense/i,
-  /urgente:\s*ignore\s+metadiscuss[õo]es/i,
-  /sua miss[aã]o absoluta/i,
-  /n[aã]o discuta o funcionamento interno do modelo/i,
-];
-const SOFT_PROMPT_LEAK_PATTERNS: RegExp[] = [
-  /urgente:.*dossi[eê]\s+de\s+agroneg[oó]cio/i,
-  /score porta.*preciso.*cnpj/i,
-  /execute um dossi[eê] completo combinando os protocolos/i,
-  /priorize objetividade.*fontes audit[aá]veis/i,
-];
 
 /**
  * True quando o texto é um JSON completo e válido — direto ou com fences
@@ -146,15 +133,11 @@ function stripInternalMarkersLocal(text: string): string {
 }
 
 function detectPromptLeakIndicatorsLocal(text: string): { detected: boolean; indicators: string[] } {
-  const sample = (text || '').trim();
-  if (!sample) return { detected: false, indicators: [] };
-
-  const hardHits = HARD_PROMPT_LEAK_PATTERNS.flatMap((pattern, i) => (pattern.test(sample) ? [`hard_${i}`] : []));
-  const softHits = SOFT_PROMPT_LEAK_PATTERNS.flatMap((pattern, i) => (pattern.test(sample) ? [`soft_${i}`] : []));
-  return {
-    detected: hardHits.length > 0 || softHits.length >= 2,
-    indicators: [...hardHits, ...softHits],
-  };
+  // BRU-109 DECISÃO 3 (C): usa o detector CANÔNICO compartilhado
+  // (utils/leakShieldPolicy.ts) — o serverless não mantém cópia local dos
+  // patterns (era o drift que deixava o Gold sem a proteção de
+  // contexto_cadastral/nota_de_escopo/aviso_metodologico).
+  return detectCanonicalPromptLeakIndicators(text);
 }
 
 export function applyPromptLeakShieldLocal(text: string): {
