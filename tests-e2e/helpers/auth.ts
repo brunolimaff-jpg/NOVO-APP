@@ -3,6 +3,7 @@ import {
   evaluateGoldenOperatorPreconditions,
   formatGoldenPreconditionFailure,
   GOLDEN_OPERATOR_PRECONDITION_FAILED,
+  shouldCompleteOperatorOnboarding,
   type GoldenOperatorPreconditionObservation,
 } from '../../utils/goldenPrecondition';
 
@@ -88,6 +89,7 @@ export async function setupRealSupabaseAuthFromEnv(page: Page, options: { email?
     const appHeader = page.getByTestId('app-header');
     const operatorMenu = page.locator('button[aria-haspopup="menu"]').first();
     const greetingCard = page.getByTestId('greeting-card');
+    let onboardingAttempted = false;
 
     while (Date.now() < deadline) {
       const observation = await readGoldenPreconditionObservation(page, {
@@ -98,6 +100,18 @@ export async function setupRealSupabaseAuthFromEnv(page: Page, options: { email?
       });
       const report = evaluateGoldenOperatorPreconditions(observation);
       if (report.passed) return;
+
+      // BRU-117 lote 2 (opção B, autorizada pelo Bruno 2026-08-15): login real
+      // autenticou, mas o operador ainda não confirmou nome/email (greeting
+      // presente = showOperatorGate). Completa o onboarding UMA vez como um
+      // usuário real faria — sem mutação de dados/conta QA.
+      if (shouldCompleteOperatorOnboarding(observation) && !onboardingAttempted) {
+        onboardingAttempted = true;
+        await completeOperatorOnboarding(page, email);
+        // Ainda não valida aqui: deixa a próxima iteração medir o efeito.
+        await page.waitForTimeout(500);
+        continue;
+      }
 
       const remainingMs = deadline - Date.now();
       if (remainingMs <= 0) {
@@ -176,4 +190,34 @@ export async function readGoldenPreconditionObservation(
     operatorLabel.length > 0 && !fallbackOperatorNames.has(operatorLabel.toLocaleLowerCase());
 
   return { sessionReady, shellReady, headerReady, menuReady, greetingCount, operatorNameReady };
+}
+
+/**
+ * BRU-117 lote 2 (opção B): completa o onboarding do operador no greeting-card
+ * como um usuário real faria. Dois caminhos possíveis:
+ * 1) email desconhecido → formulário (nome + email + "Continuar");
+ * 2) email já cadastrado no user_context → botão "Vincular este dispositivo"
+ *    (preserva o display_name existente — ex.: a conta QA já tem "Bruno Teste").
+ * Nome fixo com 2+ palavras (o form exige nome e sobrenome); nenhum dado novo
+ * externo é criado manualmente — o app persiste via fluxo normal.
+ */
+export async function completeOperatorOnboarding(page: Page, email: string): Promise<void> {
+  const nameInput = page.getByTestId('greeting-name-input');
+  if (await nameInput.isVisible({ timeout: 3_000 }).catch(() => false)) {
+    // Caminho 1: email não cadastrado → preenche o formulário e submete.
+    await nameInput.fill('Operador QA');
+    await page.getByTestId('greeting-email-input').fill(email);
+    const submit = page.getByTestId('greeting-submit-button');
+    if (await submit.isVisible({ timeout: 2_000 }).catch(() => false)) {
+      await submit.click();
+    }
+    return;
+  }
+
+  // Caminho 2: email já cadastrado → vincula este dispositivo ao operador
+  // existente (o app usa o display_name já salvo no user_context).
+  const linkButton = page.getByTestId('greeting-link-button');
+  if (await linkButton.isVisible({ timeout: 3_000 }).catch(() => false)) {
+    await linkButton.click();
+  }
 }

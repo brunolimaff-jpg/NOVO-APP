@@ -14,6 +14,7 @@ import {
   evaluateGoldenOperatorPreconditions,
   formatGoldenPreconditionFailure,
   missingGoldenPreconditionFlags,
+  shouldCompleteOperatorOnboarding,
   type GoldenOperatorPreconditionObservation,
 } from '../../utils/goldenPrecondition';
 
@@ -84,5 +85,15 @@ describe('BRU-117 lote 2 — precondição Golden discriminante', () => {
       greetingCount: 3,
     });
     expect(missingGoldenPreconditionFlags(report)).toEqual(['shellReady', 'headerReady', 'greetingAbsent']);
+  });
+
+  describe('opção B (autorizada) — E2E completa o onboarding quando o greeting está presente', () => {
+    it('greeting presente (count > 0) → deve completar o onboarding', () => {
+      expect(shouldCompleteOperatorOnboarding({ ...OK, greetingCount: 1 })).toBe(true);
+    });
+
+    it('greeting ausente (count === 0, condição de sucesso) → NÃO completa onboarding', () => {
+      expect(shouldCompleteOperatorOnboarding(OK)).toBe(false);
+    });
   });
 });

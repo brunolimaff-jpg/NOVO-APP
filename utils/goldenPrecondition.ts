@@ -80,3 +80,14 @@ export function formatGoldenPreconditionFailure(report: GoldenOperatorPreconditi
   const detail = missing.length > 0 ? ` — faltou: ${missing.join(', ')}` : '';
   return `${GOLDEN_OPERATOR_PRECONDITION_FAILED}: precondições do operador não satisfeitas${detail}`;
 }
+
+/**
+ * Decide se o E2E deve completar o onboarding do operador nesta iteração.
+ * BRU-117 lote 2 (opção B, autorizada pelo Bruno 2026-08-15): quando o
+ * greeting-card está presente (showOperatorGate), o login real autenticou mas
+ * o operador ainda não confirmou nome/email — o teste completa o onboarding
+ * como um usuário real faria, em vez de depender de mutação de dados.
+ */
+export function shouldCompleteOperatorOnboarding(observation: GoldenOperatorPreconditionObservation): boolean {
+  return observation.greetingCount > 0;
+}
