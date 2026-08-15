@@ -510,19 +510,63 @@ export function buildDynamicValueChainTable(
 }
 
 /**
- * Insere os mapas determinísticos no Gold:
- * 1. Remove QUALQUER bloco ```mermaid ... ``` existente (Mermaid livre do Composer);
- * 2. Injeta o Mapa do Caos e a tabela dinâmica na seção 2,
- *    a Teia Societária na seção 3 e o Caminho da Venda na seção 9.
+ * ARCH-C (BRU-112) — Artifact Contract.
  *
- * A inserção é feita logo após o heading da seção-alvo (### N. NOME).
+ * O builder determinístico devolve o markdown FINAL + um manifest de
+ * METADADOS (sem conteúdo do Gold): quais componentes eram esperados, quais
+ * foram emitidos, mermaid por tipo/quantidade, tabela de elos, e o motivo
+ * determinístico de N/A. Componente esperado ausente = FAIL no artifact
+ * contract (validado no seam).
+ *
+ * NÃO é regra cega "sempre 3 mermaid": a expectativa respeita pré-condições
+ * (ex.: Mapa do Caos N/A sem fatos suficientes; tabela de elos N/A sem
+ * conteúdo de cadeia).
  */
-export function injectCanonicalGoldMermaids(
+export interface GoldArtifactManifest {
+  /** Headings de seção-alvo encontrados no markdown final. */
+  targetSectionsFound: string[];
+  /** Componentes esperados dado o SafePack (com motivo determinístico de N/A). */
+  componentsExpected: Array<{
+    id: 'chaos-map' | 'teia-map' | 'sales-path' | 'value-chain-table';
+    expected: boolean;
+    reason?: 'safe-pack-insufficient' | 'canonical-required';
+  }>;
+  /** Componentes efetivamente emitidos. */
+  componentsEmitted: Array<'chaos-map' | 'teia-map' | 'sales-path' | 'value-chain-table'>;
+  /** Blocos Mermaid por tipo (contagem no markdown final). */
+  mermaidByType: Record<string, number>;
+  valueChainTableEmitted: boolean;
+}
+
+export interface GoldArtifact {
+  markdown: string;
+  manifest: GoldArtifactManifest;
+}
+
+const ARTIFACT_SECTION_HEADING = /^###\s*\d+\.\s*([^\n]+)$/gm;
+
+function countMermaidByType(markdown: string): Record<string, number> {
+  const counts: Record<string, number> = {};
+  const blocks = markdown.match(/```mermaid\n?([\s\S]*?)```/g) ?? [];
+  for (const block of blocks) {
+    const firstLine = block.split('\n')[0] ?? '';
+    const key = firstLine.replace(/```mermaid/, 'mermaid').trim() || 'mermaid';
+    counts[key] = (counts[key] ?? 0) + 1;
+  }
+  return counts;
+}
+
+/**
+ * ARCH-C (BRU-112): constrói o artifact (markdown + manifest) a partir do
+ * SafePack. `injectCanonicalGoldMermaids` mantém compatibilidade devolvendo
+ * `artifact.markdown`; o seam usa `buildGoldArtifact` para o artifact contract.
+ */
+export function buildGoldArtifact(
   goldBrief: string,
   canonical: CanonicalAccount,
   safePack: SafeFindingPack,
   segment: ScoutSegment = 'industrial_geral',
-): string {
+): GoldArtifact {
   // 1) Remove todos os blocos Mermaid existentes.
   let gold = goldBrief.replace(/```mermaid\n?[\s\S]*?```\n?/gi, '');
 
@@ -544,5 +588,53 @@ export function injectCanonicalGoldMermaids(
   const sales = buildSalesPathMap();
   gold = gold.replace(/^###\s*9\.\s*PRÓXIMOS PASSOS[^\n]*$/mi, (m) => `${m}\n\n${sales}`);
 
-  return gold;
+  const targetSectionsFound = [...gold.matchAll(ARTIFACT_SECTION_HEADING)].map((m) => m[1]?.trim() ?? '');
+  const componentsEmitted: GoldArtifactManifest['componentsEmitted'] = [];
+  if (chaos) componentsEmitted.push('chaos-map');
+  if (teia) componentsEmitted.push('teia-map');
+  componentsEmitted.push('sales-path');
+  if (valueChainTable) componentsEmitted.push('value-chain-table');
+
+  const componentsExpected: GoldArtifactManifest['componentsExpected'] = [
+    {
+      id: 'chaos-map',
+      expected: confirmedFacts(safePack).filter((f) => f.kind === 'operation').length >= 2,
+      reason: confirmedFacts(safePack).filter((f) => f.kind === 'operation').length < 2 ? 'safe-pack-insufficient' : undefined,
+    },
+    { id: 'teia-map', expected: true },
+    { id: 'sales-path', expected: true },
+    {
+      id: 'value-chain-table',
+      expected: (safePack.facts ?? []).some((f) => f.status === 'Confirmado'),
+      reason: !(safePack.facts ?? []).some((f) => f.status === 'Confirmado') ? 'safe-pack-insufficient' : undefined,
+    },
+  ];
+
+  const manifest: GoldArtifactManifest = {
+    targetSectionsFound,
+    componentsExpected,
+    componentsEmitted,
+    mermaidByType: countMermaidByType(gold),
+    valueChainTableEmitted: Boolean(valueChainTable),
+  };
+
+  return { markdown: gold, manifest };
+}
+
+/**
+ * Insere os mapas determinísticos no Gold:
+ * 1. Remove QUALQUER bloco ```mermaid ... ``` existente (Mermaid livre do Composer);
+ * 2. Injeta o Mapa do Caos e a tabela dinâmica na seção 2,
+ *    a Teia Societária na seção 3 e o Caminho da Venda na seção 9.
+ *
+ * A inserção é feita logo após o heading da seção-alvo (### N. NOME).
+ * ARCH-C (BRU-112): delega para buildGoldArtifact (markdown + manifest).
+ */
+export function injectCanonicalGoldMermaids(
+  goldBrief: string,
+  canonical: CanonicalAccount,
+  safePack: SafeFindingPack,
+  segment: ScoutSegment = 'industrial_geral',
+): string {
+  return buildGoldArtifact(goldBrief, canonical, safePack, segment).markdown;
 }

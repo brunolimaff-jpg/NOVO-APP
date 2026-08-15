@@ -410,6 +410,8 @@ describe('GuardedGoldPipeline', () => {
       'compose-done',
       // LOTE GOLD P0 R2-B — fronteiras estruturais entre as transformações
       'diagnostics-post-preflight',
+      // ARCH-C (BRU-112) — Narrative Gate (pré-builder)
+      'narrative-contract-done',
       'mermaid-inject',
       'diagnostics-post-mermaid',
       'diagnostics-post-certainty',

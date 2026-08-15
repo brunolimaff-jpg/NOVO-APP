@@ -19,6 +19,9 @@ import type { CanonicalAccount } from '../gold-contracts';
 import type { ScoutSegment } from '../../query-planner';
 import type { GoldStageHandler } from '../gold-pipeline';
 import type { GuardedGoldPipelineResult } from '../gold-pipeline';
+// ARCH-C (BRU-112): o seam usa o Narrative Contract (pré-builder, devolvido
+// pelo pipeline) para o contract-done; validateGoldContract permanece como
+// fallback quando o pipeline não devolve o narrative (consumidores externos).
 import { validateGoldContract } from '../gold-contract-validator';
 
 /**
@@ -26,12 +29,14 @@ import { validateGoldContract } from '../gold-contract-validator';
  * Substitui o reason enganoso "verifier_ou_contract_fail" (que rotulava também
  * canonical null como se fosse falha de verificação).
  */
-export type GoldRejectionReason = 'canonical_null' | 'verifier_fail' | 'contract_fail';
+export type GoldRejectionReason = 'canonical_null' | 'verifier_fail' | 'contract_fail' | 'artifact_fail';
 
 export interface GoldRejectionDetail {
   hardFails?: number;
   codes?: string[];
   codeCounts?: Record<string, number>;
+  /** ARCH-C (BRU-112): componentes determinísticos esperados e ausentes (artifact_fail). */
+  missingComponents?: string[];
 }
 
 export interface GoldSeamInput {
@@ -210,20 +215,58 @@ export async function tryEnhanceDossierWithGold(input: GoldSeamInput): Promise<s
       return buildFactualMinimalDossier(canonical);
     }
 
-    const contract = validateGoldContract(result.goldBrief);
+    // ARCH-C (BRU-112) — Narrative Gate: a narrativa do Composer foi validada
+    // pré-builder (no pipeline). Falha estrutural da narrativa → fail-closed
+    // (narrativa inválida não vira artefato amplificado).
+    // Fallback: se o pipeline não devolveu o narrative (consumidores externos
+    // ou mocks), valida o artefato final com o validator (BRU-103, strip).
+    const narrative =
+      result.narrativeContract ??
+      (() => {
+        const c = validateGoldContract(result.goldBrief);
+        return {
+          passed: c.passed,
+          violations: c.violations.map((v) => v.code),
+          wordCount: c.metrics.wordCount,
+          actionFormats: c.metrics.actionFormats,
+        };
+      })();
     // BRU-103 (RCA-07): contract-done carrega violações ESTRUTURAIS (codes +
     // wordCount) — sem detail de texto Gold — para o reason exato do
     // contract_fail ser verificável em todo run (medir antes de corrigir).
     onStage?.('contract-done', {
-      passed: contract.passed,
-      violations: contract.violations.map((v) => v.code),
-      wordCount: contract.metrics.wordCount,
-      actionFormats: contract.metrics.actionFormats,
+      passed: narrative.passed,
+      violations: narrative.violations,
+      wordCount: narrative.wordCount,
+      actionFormats: narrative.actionFormats,
     });
-    if (!contract.passed) {
+    if (!narrative.passed) {
       onRejected?.('contract_fail');
       onStage?.('output-selected', { kind: 'factual_minimal', reason: 'contract_fail' } satisfies GoldOutputSelection);
       return buildFactualMinimalDossier(canonical);
+    }
+
+    // ARCH-C (BRU-112) — Artifact Gate (pós-builder): componente esperado
+    // ausente = FAIL (fail-closed). A expectativa respeita pré-condições do
+    // componente (ex.: Mapa do Caos N/A sem fatos suficientes) — manifest de
+    // metadados, sem conteúdo do Gold.
+    if (result.artifactManifest) {
+      const missingExpected = result.artifactManifest.componentsExpected.filter(
+        (c) => c.expected && !result.artifactManifest!.componentsEmitted.includes(c.id),
+      );
+      if (missingExpected.length > 0) {
+        const missingIds = missingExpected.map((c) => c.id);
+        onRejected?.('artifact_fail', { missingComponents: missingIds });
+        onStage?.('artifact-done', { passed: false, missingComponents: missingIds });
+        onStage?.('output-selected', { kind: 'factual_minimal', reason: 'artifact_fail' } satisfies GoldOutputSelection);
+        return buildFactualMinimalDossier(canonical);
+      }
+      onStage?.('artifact-done', {
+        passed: true,
+        componentsEmitted: result.artifactManifest.componentsEmitted,
+        mermaidByType: result.artifactManifest.mermaidByType,
+        valueChainTableEmitted: result.artifactManifest.valueChainTableEmitted,
+      });
     }
 
     onStage?.('output-selected', { kind: 'gold_pass' } satisfies GoldOutputSelection);

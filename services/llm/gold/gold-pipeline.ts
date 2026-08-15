@@ -20,7 +20,8 @@ import {
 import { normalizeCnpj, resolveCanonicalRelations } from './canonical-relation-resolver';
 import { sanitizeFindingPack } from './finding-sanitizer';
 import { verifyGold, type GoldVerificationResult } from './entity-aware-gold-verifier';
-import { injectCanonicalGoldMermaids } from './mermaid/mermaid-deterministic';
+import { buildGoldArtifact, type GoldArtifactManifest } from './mermaid/mermaid-deterministic';
+import { validateGoldNarrative } from './gold-contract-validator';
 import { matchesSensitiveTheme, matchesSafeKnowledgeNegation, neutralizeConfirmedVocabularyInText, normalizeDiscoveryQuestion } from './gold-policy';
 import type { ScoutSegment } from '../query-planner';
 
@@ -47,6 +48,15 @@ export interface GuardedGoldPipelineResult {
   safePack: SafeFindingPack;
   sanitizerEvents: SanitizerEvent[];
   verification: GoldVerificationResult;
+  /** ARCH-C (BRU-112): manifest do artifact determinístico (metadados, sem conteúdo). */
+  artifactManifest?: GoldArtifactManifest;
+  /** ARCH-C (BRU-112): resultado do Narrative Contract (pré-builder). */
+  narrativeContract?: {
+    passed: boolean;
+    violations: string[];
+    wordCount: number;
+    actionFormats: { named: number; tableRows: number; numbered: number };
+  };
 }
 
 /**
@@ -214,6 +224,9 @@ export type GoldStage =
   // Emitidos pelo seam (fora do pipeline): cadastro canônico e contrato.
   | 'canonical-done'
   | 'contract-done'
+  // ARCH-C (BRU-112): Narrative Gate (pré-builder) e Artifact Gate (pós-builder).
+  | 'narrative-contract-done'
+  | 'artifact-done'
   // BRU-69 (B+): tipo de saída final selecionada pelo seam.
   | 'output-selected';
 
@@ -239,6 +252,14 @@ export interface GoldStageDetail {
   wordCount?: number;
   /** BRU-103: assinatura estrutural das ações da seção 9 (somente contagens). */
   actionFormats?: { named: number; tableRows: number; numbered: number };
+  /** ARCH-C (BRU-112): componentes esperados ausentes no artifact (fail-closed). */
+  missingComponents?: string[];
+  /** ARCH-C (BRU-112): componentes efetivamente emitidos pelo builder. */
+  componentsEmitted?: string[];
+  /** ARCH-C (BRU-112): contagem de blocos Mermaid por tipo no artifact. */
+  mermaidByType?: Record<string, number>;
+  /** ARCH-C (BRU-112): tabela de elos emitida no artifact. */
+  valueChainTableEmitted?: boolean;
 }
 
 export type GoldStageHandler = (stage: GoldStage, detail?: GoldStageDetail) => void;
@@ -365,6 +386,20 @@ export async function runGuardedGoldPipeline(
   // fail nasce/sobrevive sem nova rodada cega.
   const postPreflightVerification = verifyGold(goldClean, input.canonical, safePack);
   onStage?.('diagnostics-post-preflight', frontierSummary(postPreflightVerification));
+  // ARCH-C (BRU-112) — Narrative Gate (pré-builder): a narrativa do Composer
+  // (após normalizações permitidas) é validada ANTES do builder determinístico.
+  // Não depende de remover Mermaid/tabela do artefato final para recuperar a
+  // narrativa — aqui ainda não há componentes determinísticos. O resultado
+  // (passed + métricas, sem conteúdo) é devolvido e o SEAM decide o fail-closed
+  // (seleção de saída) — o pipeline não lança aqui para não misturar a
+  // telemetria de fronteira com exceção de contrato.
+  const narrativeContract = validateGoldNarrative(goldClean);
+  onStage?.('narrative-contract-done', {
+    passed: narrativeContract.passed,
+    violations: narrativeContract.violations.map((v) => v.code),
+    wordCount: narrativeContract.metrics.wordCount,
+    actionFormats: narrativeContract.metrics.actionFormats,
+  });
   // BRU-102 (I7 hardening) + BRU-111 (ARCH-B, Pre-deterministic Trust
   // Boundary): fail-closed. QUALQUER hard fail residual pós-normalização
   // impede o Mermaid — o residual indica que a boundary do Composer falhou
@@ -392,7 +427,10 @@ export async function runGuardedGoldPipeline(
   // aqui com a gramática/paleta literal do Scout (graph LR + classDef
   // core/satellite/danger/warning/neutral). O Verifier roda sobre o Gold
   // JÁ com os mapas finais (contrato do Planejador 2026-08-10).
-  const goldWithMermaids = injectCanonicalGoldMermaids(goldClean, input.canonical, safePack, input.segment);
+  // ARCH-C (BRU-112): buildGoldArtifact devolve markdown + manifest
+  // (componentes esperados/emitidos, mermaid por tipo, tabela de elos).
+  const artifact = buildGoldArtifact(goldClean, input.canonical, safePack, input.segment);
+  const goldWithMermaids = artifact.markdown;
   onStage?.('mermaid-inject', { chars: goldWithMermaids.length });
   const postMermaidVerification = verifyGold(goldWithMermaids, input.canonical, safePack);
   onStage?.('diagnostics-post-mermaid', frontierSummary(postMermaidVerification));
@@ -423,5 +461,12 @@ export async function runGuardedGoldPipeline(
     safePack,
     sanitizerEvents: safePack.sanitizerEvents,
     verification,
+    artifactManifest: artifact.manifest,
+    narrativeContract: {
+      passed: narrativeContract.passed,
+      violations: narrativeContract.violations.map((v) => v.code),
+      wordCount: narrativeContract.metrics.wordCount,
+      actionFormats: narrativeContract.metrics.actionFormats,
+    },
   };
 }

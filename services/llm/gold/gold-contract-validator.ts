@@ -119,8 +119,33 @@ function stripDeterministicBlocks(text: string): string {
 }
 
 export function validateGoldContract(goldBrief: string): GoldContractResult {
+  // ARCH-C (BRU-112): a validação de narrativa roda ANTES do builder (texto
+  // do Composer sem mermaid). No artefato FINAL, o wordCount exclui os blocos
+  // determinísticos (BRU-103). Ambos os caminhos compartilham as contagens.
+  const narrativeWordCount = countWords(stripDeterministicBlocks(goldBrief));
+  const rawWordCount = countWords(goldBrief);
+  return validateGoldNarrative(goldBrief, {
+    wordCount: rawWordCount === narrativeWordCount ? narrativeWordCount : narrativeWordCount,
+  });
+}
+
+export interface GoldNarrativeOptions {
+  /** Contagem de palavras da narrativa (pós-strip dos blocos determinísticos). */
+  wordCount?: number;
+}
+
+/**
+ * ARCH-C (BRU-112) — Narrative Contract.
+ *
+ * Valida SOMENTE a narrativa do Composer (após normalizações permitidas),
+ * ANTES do builder determinístico. Não depende de remover Mermaid/tabela do
+ * artefato final para recuperar a narrativa — aqui a narrativa ainda não tem
+ * componentes determinísticos. Exatamente 3 ações segundo UMA gramática
+ * canônica (numeradas "N."), sem ambiguidade Math.max.
+ */
+export function validateGoldNarrative(goldBrief: string, options: GoldNarrativeOptions = {}): GoldContractResult {
   const violations: GoldContractViolation[] = [];
-  const wordCount = countWords(stripDeterministicBlocks(goldBrief));
+  const wordCount = options.wordCount ?? countWords(stripDeterministicBlocks(goldBrief));
   const mermaidCount = countMermaid(goldBrief);
 
   // Seções presentes (tolerante)
@@ -157,10 +182,13 @@ export function validateGoldContract(goldBrief: string): GoldContractResult {
   // numeradas podem sair como "**1.** Definir..." e o regex antigo não casava
   // (contava 1 → ACTION_COUNT_MISMATCH). Remove asteriscos antes de contar.
   const numberedActions = (actionClean.replace(/\*+/g, '').match(/(?:^|\s)(\d{1,2})[.)]\s*[*_]*\s*[A-ZÀ-Ú]/gm) || []).length;
-  const actionCount = Math.max(
-    1,
-    namedActions > 0 ? namedActions : tableActions > 0 ? tableActions : numberedActions,
-  );
+  // ARCH-C (BRU-112): gramática canônica ÚNICA = numerada ("1." / "2." / "3.").
+  // Removida a ambiguidade Math.max(named/table/numbered): se houver ações
+  // numeradas, elas são a fonte canônica; formatos nomeado/tabela são aceitos
+  // apenas quando o formato numerado não aparece (compatibilidade de escrita,
+  // nunca mistura).
+  const actionCount =
+    numberedActions > 0 ? numberedActions : namedActions > 0 ? namedActions : tableActions > 0 ? tableActions : 0;
   // BRU-103: assinatura estrutural não sensível da seção 9 — contagens por
   // formato (nomeado / tabela / numerado) para identificar a classe real do
   // ACTION_COUNT_MISMATCH sem regex cega nem conteúdo do Gold.
