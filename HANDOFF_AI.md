@@ -1,49 +1,50 @@
-# HANDOFF AI — Gold EXPERIENCE-01C (PR #483)
+# HANDOFF AI — PR #483 (feat/v6-shadow-prep) — Gold closure: STACKED, aguardando validação manual do Bruno
 
-> Atualizado: 2026-08-10 18:40
-> Projeto: **NOVO-APP**
-> Worktree ativo: `/private/tmp/v6-worktree`
-> Branch: `feat/v6-shadow-prep`
-> PR: **#483** (DRAFT, OPEN, não mergeada)
-> HEAD: `cc1bfb4ae0b1c4db68e78356004e7eb93a6ee47c` (local = remoto)
-> Vault: [[2026-08-10T18-30-00-gold-experience-01c-canonical-mermaid|Sessão 01C no Bruno Vault]]
+> Atualizado: 2026-08-15 (noite) — BRU-109 A+C + BRU-117 entregues · closure candidate
+> Worktree: `/Users/brunolima/Documents/NOVO-APP-bru62`
+> Branch: `feat/v6-shadow-prep` · PR: **#483** (OPEN/DRAFT, não mergeada, MERGEABLE)
+> HEAD remoto: `b23c98e2` (docs) — código Gold: `cc93e876` (BRU-117) sobre `4a497126` (BRU-109 A+C) sobre `0200e9b3` (ARCH-E)
+> Narrativa canônica: `bruno vault/Sessões/2026-08/2026-08-15T18-25-34-bru109-bru117-gold-stabilization-closure-candidate.md`
 
 ---
 
-## 1. Estado
+## 1. Estado (control plane = Linear)
 
-- **01C CANONICAL MERMAID: IMPLEMENTADO + PUSHED + CI GREEN + PREVIEW NOVO**
-- Cadeia validada: commit `cc1bfb4a` → GitHub → CI success (run 31436052266) → Vercel `scoutagro-5xhliiq2x` (bundle `index-CtBCnw6g.js`) → HTTP 200 → smoke zero erros.
-- **Planejador deu GO para rodada Scheffer paga** (1 execução controlada, sem retry).
+- **BRU-109 In Progress** (parent P0): cadeia ARCH-A→E entregue (0200e9b3) + DECISÕES A+C (4a497126).
+- **BRU-117 In Progress** (gate): BRU-76 + precondição Golden discriminante + opção B (onboarding E2E) — entregues.
+- **BRU-110..115 In Progress** (ARCH A-F): código/evidência entregues; status no Linear não movido (executor só passa status).
 
-## 2. Arquivos alterados (commit cc1bfb4a — 8 arquivos, +1020/-55)
+## 2. O que foi entregue neste ciclo (commits)
 
-| Arquivo | O que |
-|---------|-------|
-| `services/llm/gold/mermaid/mermaid-deterministic.ts` | NOVO — `injectCanonicalGoldMermaids` (3 mapas, graph LR + paleta canônica, legenda fora do fence, canonical vence) |
-| `services/llm/gold/gold-pipeline.ts` | Builder entre compose e verify (stage `mermaid-inject`) |
-| `services/llm/gold/prompts/gold-contract-prompts.ts` | Composer não escreve Mermaid; leak `canonical.qsaPeople` fechado; qsaCount do canonical |
-| `services/llm/gold/entity-aware-gold-verifier.ts` | R10 sinônimos + exceção por categoria/direção/entidade/multi-claim |
-| `tests/llm/gold/mermaid-deterministic.test.ts` | NOVO — 38 testes RED→GREEN |
-| `tests/llm/gold/{gold-pipeline,prompts/gold-contract-prompts,entity-aware-gold-verifier}.test.ts` | Atualizados |
+- `4a497126` — BRU-109 A+C: `compact-error.ts` (taxonomia errorClass + métricas da resposta crua, sem texto livre); `compact-response` mede a resposta crua; eventos compact-*/raw-schema-fail críticos; `finishReason` no cliente; `GoldPipelineDeps.compact` → `CompactOutcome` (union compatível com mocks). Leak shield canônico: `utils/leakShieldPolicy.ts` (10 hard + 4 soft); api/llm + textCleaners convergem; RED→GREEN contexto_cadastral/nota_de_escopo/aviso_metodologico; JSON-safe preservado; PORTA sem regressão.
+- `443433e8` — BRU-117 lote 1 (BRU-76): 504/TimeoutError → TIMEOUT (antes do abort-like); AbortError distinto.
+- `b075a025` — precondição Golden sempre discriminante ao expirar (avaliação final pós-loop).
+- `29492403` + `cc93e876` — opção B (autorizada pelo Bruno): E2E completa onboarding pós-login; fix de vínculo (trace revelou email já cadastrado → card "Vincular este dispositivo").
+- `b23c98e2` — memória.
 
-## 3. Gates
+## 3. Testes e gates
 
-- 175/175 testes gold (exit 0) · typecheck OK · lint 0 · build OK · diff-check OK
-- Pré-existentes (não causados): 5 arquivos teste gold com `No such built-in module: node:`; falhas React.act na suíte completa; warnings lint em `api/*`.
+- Full suite **2197/2197** · Gold **923/923** · typecheck/lint/build/no-gemini OK.
+- CI `cc93e876`: **11/11 SUCCESS**. Preview Smoke **SUCCESS** (mesmo SHA). CodeQL/GitGuardian/Analyze PASS.
+- **Golden Dossier Live: fail = timeout de job (20 min)**, não assertion — a precondição PASSou (onboarding funcionou); o runtime real iniciou e o relatório não renderizou no limite do Playwright (240s). **Decisão do Bruno: pular o gate, validar manualmente.**
+- Testes novos: `bru109-compact-telemetry` (12), `leak-shield-parity` (7), `golden-precondition` (11), triage GREEN 17/17.
 
-## 4. Próxima ação (autorizada)
+## 4. Não fazer
 
-Rodada Scheffer paga no Preview `https://scoutagro-5xhliiq2x-brunolimaff-3629s-projects.vercel.app`:
-1. Gerar 1 Gold Scheffer (sem retry automático).
-2. Capturar Gold completo + 3 Mermaid renderizados + console/runtime + Verifier/Contract.
-3. Screenshots seções 2/3/5/7/8/9.
-4. Devolver evidência compacta ao Planejador.
+- Merge sem token `MERGE` do Bruno · Produção · Supabase write/migrations · retry do compact (congelado pelo Planejador) · mudança de modelo/provider/prompt.
 
-## 5. Não fazer
+## 5. Próximo passo (Bruno)
 
-- Merge #483 sem token `MERGE` do Bruno.
-- Mais de 1 rodada paga (sem retry).
-- Alterar Supabase/Produção/provider/budgets/RUN_ORPHAN.
-- Tocar o repo principal (`fix/remove-auth-migration-gate`).
-- Commitar untrackeds: `.commandcode/`, `scripts/gold-forensic-dump.ts`.
+1. Rodar o dossiê Scheffer no preview do SHA `b23c98e2` (manual).
+2. Se gold_pass (verifier 0, contract PASS, artifact PASS, zero Mermaid error): iniciar revisão formal da PR com o Planejador → READY FOR MERGE (Bruno decide com `MERGE`).
+3. Se cair: a telemetria nova do compact mostra a causa no `scout_diagnostics` (eventos críticos + errorClass) — diagnosticar com evidência.
+
+## 6. Skills úteis na próxima sessão
+
+- `doc-handoff` (fechamento) · `validate-gates` / `review-branch` (revisão formal) · `supabase-migration` (se DDL) · `orchestration`/`planner` (se despacho do Planejador).
+
+## 7. Artifacts
+
+- PR #483: https://github.com/brunolimaff-jpg/NOVO-APP/pull/483
+- Arquitetura: `docs/arquitetura/auditoria-arquitetura-2026-08-15.md` + `mapa-completo-arquitetura.md`
+- Vault: sessão `2026-08-15T18-25-34-bru109-bru117-gold-stabilization-closure-candidate.md` · lições ci/ (trace E2E, teto 20min job) · CALIBER_LEARNINGS atualizado
