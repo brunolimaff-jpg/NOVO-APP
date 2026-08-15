@@ -530,3 +530,9 @@
 - DECISÃO (Planejador): leak shield = P0/blocker. Extrair política/detectores para módulo canônico (utils/leakShieldPolicy.ts) — api/llm e textCleaners usam a mesma definição; NÃO copiar 3 regex; preservar JSON-safe do server (BRU-33). Implementado em 4a497126.
 - DECISÃO (Planejador): release-safety-triage.test.ts era evidência local não reproduzível (não existia no HEAD remoto) — commitado GREEN (17/17) junto com o delta A+C.
 - Por que: o run real 817d3bd0 caiu por compact-error e o detail não persistiu (sampling 10%) — sem metadados não dá para distinguir vazio × prosa × truncado × JSON inválido, nem decidir retry com segurança.
+
+## 2026-08-15 (noite) — BRU-117: precondição Golden discriminante; condição de parada
+- DECISÃO (Planejador): "Greeting ausente" NÃO é a causa do Golden Live — o preflight exige greetingCount === 0 como PASS; a mensagem genérica antiga colapsava as 6 condições. Falha deve expor só flags estruturais (PII-safe).
+- DECISÃO (executor, implementado 443433e8+b075a025): avaliador puro em utils/goldenPrecondition.ts + auth.ts discriminante; AbortError nunca vira timeout; 504/TimeoutError → TIMEOUT.
+- CAUSA RAIZ real do Golden Live: showOperatorGate = !operatorLoading && !hasOperatorName (usePanelState.ts:48) → a conta QA (teste@senior.com.br) autentica mas não tem operatorName preenchido → app fica no onboarding do operador.
+- Por que: sem o flag discriminante, o check bloqueante da PR #483 nunca passaria e a falha ficaria opaca; agora a decisão é material (mutação de conta QA ou completar onboarding no E2E) — condição de parada do BRU-117.

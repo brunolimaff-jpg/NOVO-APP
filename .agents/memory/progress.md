@@ -294,3 +294,13 @@
 - CI 4a497126: 11/11 SUCCESS. Preview Smoke SUCCESS (scoutagro-2rm3pu0mo). Golden Dossier Live: FAIL pré-existente (GOLDEN_OPERATOR_PRECONDITION_FAILED — Greeting ausente na conta QA; mesmo erro no 0200e9b3).
 - Retorno ao Planejador enviado (chat 6a7f2983) + comentário no BRU-109. PR #483 OPEN/DRAFT/NOT MERGED. Merge LOCKED.
 - PRÓXIMO: aguardar veredito do Planejador sobre fechamento do BRU-109/BRU-108; despacho do próximo run real (quando conta QA tiver greeting) para medir a nova taxonomia compact em runtime.
+
+## 2026-08-15 (noite) — BRU-117 fechamento PR #483: BRU-76 + precondição Golden discriminante (443433e8 + b075a025)
+
+- Planejador: virou a operação de "empilhar" para "fechar a #483". Criou BRU-117 (Golden Live Closure Gate). Corrigiu o diagnóstico: "Greeting ausente" NÃO era a causa (o gate exige greetingCount === 0 = PASS); a falha antiga mascara qual condição falhou.
+- LOTE 1 (BRU-76): 504 → TIMEOUT; TimeoutError externo → TIMEOUT (antes do abort-like); AbortError distinto. Commit 443433e8. Testes bru109-compact-telemetry 12/12.
+- LOTE 2: utils/goldenPrecondition.ts (avaliador puro 6 flags, greetingCount===0 é PASS) + auth.ts discriminante PII-safe. Commit 443433e8 + fix b075a025 (avaliação final pós-loop para o timeout nunca cair na mensagem genérica). golden-precondition.test.ts 8/8.
+- Full 2197/2197. CI do b075a025: Tests 2197 passou, mas o run marcado failure por unhandled error INTERMITENTE de layoutTraceTelemetry.ts (setTimeout pós-teardown no ChatInterface.test.tsx; mesmo código passou no run anterior — não é regressão).
+- RERUN GOLDEN (b075a025) → DISCRIMINANTE: faltou greetingAbsent + operatorNameReady. sessionReady/shellReady/headerReady/menuReady PASSAM.
+- CAUSA RAIZ: showOperatorGate = !operatorLoading && !hasOperatorName (usePanelState.ts:48) → conta QA autentica mas sem operatorName → app fica na tela de onboarding (GreetingWelcomeScreen) e menu sem nome real.
+- CONDIÇÃO DE PARADA acionada: resolver exige (A) mutação de dados/conta QA (preencher nome do operador da conta teste@senior.com.br) ou (B) completar onboarding no E2E pós-login. Aguardando despacho Planejador/Bruno. PR #483 OPEN/DRAFT, merge LOCKED.
