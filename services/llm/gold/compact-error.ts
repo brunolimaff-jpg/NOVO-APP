@@ -59,12 +59,25 @@ export function hasObjectBoundary(text: string): boolean {
  * Classifica um erro de compact em CompactErrorClass pela mensagem.
  * Usado pelo pipeline quando o erro NÃO é CompactPayloadError (ex.: mock ou
  * erro não estruturado) — fallback UNKNOWN nunca mente sobre a classe.
+ *
+ * BRU-76 (BRU-117 lote 1): HTTP 504 do proxy e TimeoutError externo são
+ * TIMEOUT; AbortError permanece distinto (nunca vira timeout/retry).
  */
 export function classifyCompactErrorClass(error: unknown): CompactErrorClass {
   if (error instanceof CompactPayloadError) return error.errorClass;
-  if (isAbortLikeError(error)) return 'UNKNOWN';
   const message = error instanceof Error ? error.message : String(error);
+  const isDomTimeout =
+    typeof DOMException !== 'undefined' && error instanceof DOMException && error.name === 'TimeoutError';
+  const name = error instanceof Error ? error.name : '';
 
+  // TimeoutError externo (ex.: AbortSignal.timeout do deadline Gold) → TIMEOUT.
+  // Checado ANTES do abort-like: TimeoutError com mensagem contendo "aborted"
+  // (ex.: "The operation was aborted due to timeout") NÃO é abort do usuário —
+  // o name é mais específico que o heurístico de mensagem.
+  if (isDomTimeout || name === 'TimeoutError' || /TimeoutError/i.test(message)) return 'TIMEOUT';
+  if (isAbortLikeError(error)) return 'UNKNOWN';
+  // HTTP 504 do proxy (gateway timeout) → TIMEOUT (antes do PROXY_TRANSPORT genérico).
+  if (/LLM proxy failed \(504\)/i.test(message)) return 'TIMEOUT';
   if (/timeout after \d+ms/i.test(message)) return 'TIMEOUT';
   if (/LLM proxy failed \(\d+\)/i.test(message)) return 'PROXY_TRANSPORT';
   if (/returned invalid JSON/i.test(message)) return 'PROXY_INVALID_BODY';

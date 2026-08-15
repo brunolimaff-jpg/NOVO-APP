@@ -1,4 +1,13 @@
 import { type Page } from '@playwright/test';
+import {
+  evaluateGoldenOperatorPreconditions,
+  formatGoldenPreconditionFailure,
+  GOLDEN_OPERATOR_PRECONDITION_FAILED,
+  type GoldenOperatorPreconditionObservation,
+} from '../../utils/goldenPrecondition';
+
+/** Nomes de fallback que NÃO contam como nome real de operador (PII-safe). */
+const fallbackOperatorNames = new Set(['operador', 'usuário', 'usuario']);
 
 /**
  * Configura bypass de autenticação para testes E2E.
@@ -56,11 +65,6 @@ export async function setupRealSupabaseAuthFromEnv(page: Page, options: { email?
   }
 
   const preconditionTimeoutMs = 30_000;
-  const preconditionCode = 'GOLDEN_OPERATOR_PRECONDITION_FAILED';
-  const fallbackOperatorNames = new Set(['operador', 'usuário', 'usuario']);
-  const failPrecondition = () => {
-    throw new Error(`${preconditionCode}: sessão real, shell autenticado e nome do operador são obrigatórios`);
-  };
 
   try {
     await page.goto('/');
@@ -86,48 +90,82 @@ export async function setupRealSupabaseAuthFromEnv(page: Page, options: { email?
     const greetingCard = page.getByTestId('greeting-card');
 
     while (Date.now() < deadline) {
-      const [sessionReady, shellReady, headerReady, menuReady, greetingCount] = await Promise.all([
-        page
-          .evaluate(() => {
-            for (let index = 0; index < localStorage.length; index += 1) {
-              const key = localStorage.key(index);
-              if (!key?.startsWith('sb-') || !key.endsWith('-auth-token')) continue;
-              const raw = localStorage.getItem(key);
-              if (!raw) continue;
-              try {
-                const parsed = JSON.parse(raw) as { access_token?: unknown };
-                if (typeof parsed.access_token === 'string' && parsed.access_token.trim()) return true;
-              } catch {
-                // Ignore transient or malformed auth storage entries.
-              }
-            }
-            return false;
-          })
-          .catch(() => false),
-        appShell.isVisible().catch(() => false),
-        appHeader.isVisible().catch(() => false),
-        operatorMenu.isVisible().catch(() => false),
-        greetingCard.count().catch(() => 0),
-      ]);
-
-      let operatorLabel = '';
-      if (menuReady) {
-        operatorLabel = (await operatorMenu.getAttribute('title').catch(() => null))?.trim() ?? '';
-        if (!operatorLabel) operatorLabel = (await operatorMenu.innerText().catch(() => '')).trim();
-      }
-      const hasOperatorName = operatorLabel.length > 0 && !fallbackOperatorNames.has(operatorLabel.toLocaleLowerCase());
-
-      if (sessionReady && shellReady && headerReady && menuReady && greetingCount === 0 && hasOperatorName) return;
+      const observation = await readGoldenPreconditionObservation(page, {
+        appShell,
+        appHeader,
+        operatorMenu,
+        greetingCard,
+      });
+      const report = evaluateGoldenOperatorPreconditions(observation);
+      if (report.passed) return;
 
       const remainingMs = deadline - Date.now();
-      if (remainingMs <= 0) break;
+      if (remainingMs <= 0) {
+        // BRU-117 lote 2: falha DISCRIMINANTE e PII-safe — expõe só as flags
+        // estruturais que faltaram (nunca email/nome real/token/storage).
+        throw new Error(formatGoldenPreconditionFailure(report));
+      }
       await page.waitForTimeout(Math.min(250, remainingMs));
     }
 
-    failPrecondition();
-  } catch {
     throw new Error(
-      `${preconditionCode}: sessão real, shell autenticado, Greeting ausente e nome do operador são obrigatórios`,
+      `${GOLDEN_OPERATOR_PRECONDITION_FAILED}: precondições do operador não satisfeitas dentro de ${preconditionTimeoutMs}ms`,
+    );
+  } catch (error) {
+    // Erro já discriminante (formatGoldenPreconditionFailure) propaga intacto;
+    // qualquer outro erro vira falha genérica SEM PII.
+    if (error instanceof Error && error.message.startsWith(GOLDEN_OPERATOR_PRECONDITION_FAILED)) throw error;
+    throw new Error(
+      `${GOLDEN_OPERATOR_PRECONDITION_FAILED}: falha ao autenticar o operador real (detalhe suprimido por PII)`,
+      { cause: error },
     );
   }
+}
+
+/**
+ * Lê as observações estruturais do preflight sem PII. Separado do loop para
+ * permitir RED/GREEN unitários (utils/goldenPrecondition.ts) e reuso.
+ */
+export async function readGoldenPreconditionObservation(
+  page: Page,
+  locators: {
+    appShell: ReturnType<Page['getByTestId']>;
+    appHeader: ReturnType<Page['getByTestId']>;
+    operatorMenu: ReturnType<Page['locator']>;
+    greetingCard: ReturnType<Page['getByTestId']>;
+  },
+): Promise<GoldenOperatorPreconditionObservation> {
+  const [sessionReady, shellReady, headerReady, menuReady, greetingCount] = await Promise.all([
+    page
+      .evaluate(() => {
+        for (let index = 0; index < localStorage.length; index += 1) {
+          const key = localStorage.key(index);
+          if (!key?.startsWith('sb-') || !key.endsWith('-auth-token')) continue;
+          const raw = localStorage.getItem(key);
+          if (!raw) continue;
+          try {
+            const parsed = JSON.parse(raw) as { access_token?: unknown };
+            if (typeof parsed.access_token === 'string' && parsed.access_token.trim()) return true;
+          } catch {
+            // Ignore transient or malformed auth storage entries.
+          }
+        }
+        return false;
+      })
+      .catch(() => false),
+    locators.appShell.isVisible().catch(() => false),
+    locators.appHeader.isVisible().catch(() => false),
+    locators.operatorMenu.isVisible().catch(() => false),
+    locators.greetingCard.count().catch(() => 0),
+  ]);
+
+  let operatorLabel = '';
+  if (menuReady) {
+    operatorLabel = (await locators.operatorMenu.getAttribute('title').catch(() => null))?.trim() ?? '';
+    if (!operatorLabel) operatorLabel = (await locators.operatorMenu.innerText().catch(() => '')).trim();
+  }
+  const operatorNameReady =
+    operatorLabel.length > 0 && !fallbackOperatorNames.has(operatorLabel.toLocaleLowerCase());
+
+  return { sessionReady, shellReady, headerReady, menuReady, greetingCount, operatorNameReady };
 }

@@ -103,3 +103,29 @@ describe('BRU-109 (A) — taxonomia estruturada do compact-error', () => {
     expect(JSON.stringify(detail)).not.toContain('conteúdo comercial sensível');
   });
 });
+
+describe('BRU-76 (BRU-117 lote 1) — 504/TimeoutError = TIMEOUT, AbortError distinto', () => {
+  it('HTTP 504 do proxy → TIMEOUT (não PROXY_TRANSPORT)', () => {
+    expect(classifyCompactErrorClass(new Error('LLM proxy failed (504): Gateway Timeout upstream'))).toBe('TIMEOUT');
+  });
+
+  it('TimeoutError externo → TIMEOUT', () => {
+    const timeout = new Error('The operation was aborted due to timeout');
+    timeout.name = 'TimeoutError';
+    expect(classifyCompactErrorClass(timeout)).toBe('TIMEOUT');
+    // mensagem pura com TimeoutError
+    expect(classifyCompactErrorClass(new Error('TimeoutError: deadline Gold atingido'))).toBe('TIMEOUT');
+  });
+
+  it('AbortError do usuário NÃO vira timeout nem PROXY_TRANSPORT', () => {
+    const abort = new Error('The operation was aborted');
+    abort.name = 'AbortError';
+    // isAbortLikeError detecta AbortError por nome → UNKNOWN (nunca TIMEOUT)
+    expect(classifyCompactErrorClass(abort)).toBe('UNKNOWN');
+  });
+
+  it('HTTP 500 continua PROXY_TRANSPORT (504 é o único que é TIMEOUT)', () => {
+    expect(classifyCompactErrorClass(new Error('LLM proxy failed (500): upstream'))).toBe('PROXY_TRANSPORT');
+    expect(classifyCompactErrorClass(new Error('LLM proxy failed (429): rate limit'))).toBe('PROXY_TRANSPORT');
+  });
+});
