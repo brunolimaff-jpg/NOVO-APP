@@ -492,6 +492,20 @@ export function buildDynamicValueChainTable(
 
   if (rows.length === 0) return null;
 
+  // BRU-119 C — Dedupe narrow: mesma dimensão/elo + evidência normalizada = remove;
+  // evidências distintas na mesma dimensão permanecem. Sem agregador/heurística nova.
+  const deduped: ValueChainRow[] = [];
+  const seenKeys = new Set<string>();
+  for (const row of rows) {
+    const key = `${row.dimension.toLowerCase().trim()}|${row.evidence.toLowerCase().trim()}`;
+    if (!seenKeys.has(key)) {
+      seenKeys.add(key);
+      deduped.push(row);
+    }
+  }
+  rows.length = 0;
+  rows.push(...deduped);
+
   const order = SEGMENT_VALUE_CHAIN[segment].map((entry) => entry.label.toLowerCase());
   rows.sort((a, b) => {
     const aIndex = order.findIndex((label) => a.dimension.toLowerCase().includes(label));

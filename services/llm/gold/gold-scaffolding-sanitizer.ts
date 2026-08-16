@@ -34,6 +34,16 @@ const INTERNAL_HEADING_PATTERNS: ReadonlyArray<RegExp> = [
   /^#{1,6}\s*[^\n]*\(Operações Confirmadas\)/i,
 ];
 
+// BRU-119 B: bold patterns CONHECIDOS (não amplos — só strings exatas observadas no run)
+// Aceita ":" opcional antes do fechamento bold (ex.: "**Mapa do Caos (Operações Confirmadas):**")
+const INLINE_SCAFFOLD_PATTERNS: ReadonlyArray<RegExp> = [
+  /\*{2}\s*Mapa do Caos\s*\((?:Conteúdo para o Builder|Operações Confirmadas)\):?\s*\*{2}/i,
+  /\*{2}\s*Teia Societária\s*\((?:Conteúdo para o Builder|Relações)\):?\s*\*{2}/i,
+  /\*{2}\s*Mapa do Caos\s*:?\s*\*{2}/i,
+  /\*{2}\s*Teia Societária\s*:?\s*\*{2}/i,
+  /\*{2}\s*Elos da Cadeia\s*:?\s*\*{2}/i,
+];
+
 export interface ScaffoldingResidual {
   /** Motivo estruturado: heading interno conhecido ou enum técnico cru. */
   reason: 'internal_heading' | 'internal_enum';
@@ -48,19 +58,29 @@ export function detectGoldScaffoldingResidual(text: string): ScaffoldingResidual
   const residuals: ScaffoldingResidual[] = [];
   const lines = text.split('\n');
   for (const line of lines) {
+    // Headings internos conhecidos
     for (const pattern of INTERNAL_HEADING_PATTERNS) {
       if (pattern.test(line)) {
         residuals.push({
           reason: 'internal_heading',
           code: 'SCAFFOLD_HEADING',
-          // apenas a primeira parte da linha (até o token interno), sem conteúdo sensível
+          snippet: line.slice(0, 80),
+        });
+        break;
+      }
+    }
+    // BRU-119 B: bold patterns internos conhecidos
+    for (const pattern of INLINE_SCAFFOLD_PATTERNS) {
+      if (pattern.test(line)) {
+        residuals.push({
+          reason: 'internal_heading',
+          code: 'SCAFFOLD_HEADING',
           snippet: line.slice(0, 80),
         });
         break;
       }
     }
     for (const { raw } of SCAFFOLD_ENUM_HUMANIZED) {
-      // Usa fronteira de palavra para não casar dentro de outro identificador.
       const re = new RegExp(`\\b${raw}\\b`);
       if (re.test(line)) {
         residuals.push({ reason: 'internal_enum', code: 'SCAFFOLD_ENUM', snippet: raw });
@@ -102,10 +122,17 @@ export function sanitizeGoldScaffolding(text: string): ScaffoldingSanitizeResult
   let humanizedEnums = 0;
 
   for (const line of lines) {
+    // Headings internos conhecidos
     const isInternalHeading = INTERNAL_HEADING_PATTERNS.some((pattern) => pattern.test(line));
     if (isInternalHeading) {
       scaffoldHeadings += 1;
-      continue; // remove só a linha do heading; conteúdo abaixo permanece
+      continue;
+    }
+    // BRU-119 B: bold patterns internos conhecidos (mesma remoção estreita)
+    const isInlineScaffold = INLINE_SCAFFOLD_PATTERNS.some((pattern) => pattern.test(line));
+    if (isInlineScaffold) {
+      scaffoldHeadings += 1;
+      continue;
     }
     const humanized = humanizeEnumsInLine(line);
     if (humanized !== line) humanizedEnums += 1;

@@ -94,3 +94,109 @@ describe('BRU-118 — sanitizador determinístico (GREEN)', () => {
     expect(result.removed.scaffoldHeadings).toBe(0);
   });
 });
+
+// ═══════════════════════════════════════════════════════════
+// BRU-119 B: variante ambígua/não reconhecida em bold
+// ═══════════════════════════════════════════════════════════
+describe('BRU-119 B — bold não reconhecido NÃO é removido silenciosamente', () => {
+  it('RED: bold não conhecido NÃO é removido pelo sanitizer (preserva texto)', () => {
+    const text = 'Fonte: **Pesquisador interno** do dossiê';
+    const result = sanitizeGoldScaffolding(text);
+    expect(result.text).toContain('Pesquisador interno');
+    expect(result.text).toContain('**');
+    expect(result.removed.scaffoldHeadings).toBe(0);
+  });
+
+  it('GREEN: bold não reconhecido NÃO é listado como residual pelo detector', () => {
+    const text = 'O resultado veio da **fonte externa não verificada**.';
+    const residual = detectGoldScaffoldingResidual(text);
+    expect(residual).toEqual([]);
+  });
+
+  it('GREEN: bold com parênteses interno CONHECIDO é removido (padrão inline)', () => {
+    const text = '**Mapa do Caos (Operações Confirmadas):** processos listados abaixo\n\nMais conteúdo';
+    const result = sanitizeGoldScaffolding(text);
+    // Removido: a linha inteira do bold scaffold-known
+    expect(result.text).not.toContain('Operações Confirmadas');
+    // Conteúdo abaixo da linha removida é preservado
+    expect(result.text).toContain('Mais conteúdo');
+    expect(result.removed.scaffoldHeadings).toBeGreaterThanOrEqual(1);
+    expect(detectGoldScaffoldingResidual(result.text)).toEqual([]);
+  });
+
+  it('GREEN: bold contendo enum em snake_case é humanizado', () => {
+    const text = 'Relação **partner_other_cnpj** entre as empresas';
+    const result = sanitizeGoldScaffolding(text);
+    expect(result.text).not.toMatch(/partner_other_cnpj/);
+    expect(result.text).toContain('relação lateral');
+  });
+});
+
+// ═══════════════════════════════════════════════════════════
+// BRU-119 A: prompt — Composer não espelha superfícies determinísticas
+// ═══════════════════════════════════════════════════════════
+describe('BRU-119 A — prompt remove instrução de espelho', () => {
+  it('prompt NÃO instrui Composer a listar processos/operacoes em prosa', async () => {
+    const fs = await import('fs');
+    const path = await import('path');
+    const promptFile = fs.readFileSync(
+      path.join(__dirname, '../../../services/llm/gold/prompts/gold-contract-prompts.ts'),
+      'utf-8',
+    );
+    expect(promptFile).not.toMatch(/liste os processos.*que o Mapa do Caos deve representar/i);
+    expect(promptFile).toMatch(/leitura comercial curta|NÃO liste processos|não escreva.*Mapa do Caos/i);
+  });
+
+  it('prompt mantém Tabela de CNPJs como complementar', async () => {
+    const fs = await import('fs');
+    const path = await import('path');
+    const promptFile = fs.readFileSync(
+      path.join(__dirname, '../../../services/llm/gold/prompts/gold-contract-prompts.ts'),
+      'utf-8',
+    );
+    expect(promptFile).toMatch(/Tabela de CNPJs/i);
+  });
+});
+
+// ═══════════════════════════════════════════════════════════
+// BRU-119 C: dedupe narrow da tabela de elos
+// ═══════════════════════════════════════════════════════════
+describe('BRU-119 C — dedupe narrow da tabela de elos', () => {
+  function dedupeByDimensionEvidence(rows: Array<{dimension: string; evidence: string; elo: string}>) {
+    const seen = new Set<string>();
+    const deduped: typeof rows = [];
+    for (const row of rows) {
+      const key = `${row.dimension.toLowerCase().trim()}|${row.evidence.toLowerCase().trim()}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        deduped.push(row);
+      }
+    }
+    return deduped;
+  }
+
+  it('mesma dimensão + evidência equivalente é deduplicada', () => {
+    const rows = [
+      { dimension: 'Beneficiamento', evidence: 'Operação industrial confirmada: GATec', elo: 'beneficiamento' },
+      { dimension: 'Beneficiamento', evidence: 'Operação industrial confirmada: GATec', elo: 'beneficiamento' },
+      { dimension: 'Logística', evidence: 'Logística própria confirmada: GATec', elo: 'logística' },
+    ];
+    const result = dedupeByDimensionEvidence(rows);
+    expect(result.length).toBe(2);
+  });
+
+  it('evidências DISTINTAS na mesma dimensão permanecem', () => {
+    const rows = [
+      { dimension: 'Logística', evidence: 'Logística própria confirmada: GATec Frota', elo: 'logística' },
+      { dimension: 'Logística', evidence: 'Gap Commerce Log / OneClick: ausência de WMS/TMS', elo: 'logística' },
+    ];
+    const result = dedupeByDimensionEvidence(rows);
+    expect(result.length).toBe(2);
+  });
+
+  it('tabela de CNPJs continua presente (não é afetada pelo dedupe)', () => {
+    const text = '**Tabela de CNPJs**\n\n| Empresa | CNPJ | Papel |\n| SCHEFFER | 04733767000180 | Filial |';
+    expect(text).toContain('Tabela de CNPJs');
+    expect(text).toContain('SCHEFFER');
+  });
+});

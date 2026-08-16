@@ -125,8 +125,10 @@ describe('SCOUT-V7-GOLD-RUNTIME-QUALITY-01 — prompts alinhados ao PROMPT_SPEC'
 
   it('C: Prompt exige conteúdo seguro por seção para os mapas (sem inventar fluxo/aresta)', () => {
     const prompt = buildComposePrompt({ canonical, safePack: {} as never });
-    expect(prompt).toMatch(/somente fatos Confirmados/i);
-    expect(prompt).toMatch(/sem gap\/dor\/aus[eê]ncia/i);
+    // BRU-119: instrução antiga "liste os processos" removida; nova instrução
+    // de leitura curta presente; relação lateral mantém como linguagem humana
+    expect(prompt).toMatch(/leitura comercial curta/i);
+    expect(prompt).toMatch(/n[ãN]O liste processos/i);
     expect(prompt).toMatch(/rela[cç][aã]o lateral/i);
   });
 
@@ -144,7 +146,8 @@ describe('SCOUT-V7-GOLD-RUNTIME-QUALITY-01 — prompts alinhados ao PROMPT_SPEC'
   it('E: Prompt exige conteúdo seguro para os mapas (regras de proveniência valem no texto do Gold)', () => {
     const prompt = buildComposePrompt({ canonical, safePack: {} as never });
     expect(prompt).toMatch(/proveni[eê]ncia/i);
-    expect(prompt).toMatch(/gap\/dor\/aus[eê]ncia/i);
+    // BRU-119: "gap/dor/ausência" removido do prompt (linha 147 antiga);
+    // regras de proveniência e proibição de "capacidade" permanecem em 152+
     expect(prompt).toMatch(/capacidade.*proibida|PROIBIDA em qualquer forma/i);
   });
 
@@ -171,7 +174,9 @@ describe('SCOUT-V7-GOLD-RUNTIME-QUALITY-01 — prompts alinhados ao PROMPT_SPEC'
     } as never;
     const prompt = buildComposePrompt({ canonical, safePack: frontier });
     expect(prompt).toMatch(/Mapa do Caos na se[çc][aã]o 2/i);
-    expect(prompt).toMatch(/somente fatos Confirmados/i);
+    // BRU-119: "somente fatos Confirmados" removido; nova instrução de
+    // leitura curta/não-lista é o substituto relevante
+    expect(prompt).toMatch(/leitura comercial curta|n[ãN]O liste processos/i);
     expect(prompt).toMatch(/N[ÃA]O escreva c[óo]digo Mermaid/i);
   });
 
