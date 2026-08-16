@@ -130,11 +130,15 @@ describe('SCOUT-V7-GOLD-RUNTIME-QUALITY-01 — prompts alinhados ao PROMPT_SPEC'
     expect(prompt).toMatch(/rela[cç][aã]o lateral/i);
   });
 
-  it('D: Mermaid societário — apenas CNPJs permitidos; partner_other_cnpj permanece relação lateral', () => {
+  it('D: Mermaid societário — apenas CNPJs permitidos; relação lateral em linguagem humana (BRU-118 sem enum cru)', () => {
     const prompt = buildComposePrompt({ canonical, safePack: {} as never });
-    expect(prompt).toMatch(/partner_other_cnpj = rela[cç][aã]o lateral/i);
+    // BRU-118: o prompt NÃO pode ensinar os identificadores técnicos crus —
+    // eles ecoam na saída (scaffolding leak P1). Descreve a relação em
+    // linguagem humana, preservando a direção ("relação lateral").
+    expect(prompt).not.toMatch(/partner_other_cnpj|same_root|direct_pj_relation/);
+    expect(prompt).toMatch(/relação lateral/i);
     expect(prompt).toMatch(/JAMAIS chame lateral de "empresa do grupo", "controlada" ou "holding"/i);
-    expect(prompt).toMatch(/same_root = mesma raiz/i);
+    expect(prompt).toMatch(/mesma raiz/i);
   });
 
   it('E: Prompt exige conteúdo seguro para os mapas (regras de proveniência valem no texto do Gold)', () => {

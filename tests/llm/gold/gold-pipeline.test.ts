@@ -408,6 +408,8 @@ describe('GuardedGoldPipeline', () => {
       'diagnostics-pre-compose',
       'compose-start',
       'compose-done',
+      // BRU-118 (P1 scaffolding) — sanitizador determinístico estreito
+      'scaffold-done',
       // LOTE GOLD P0 R2-B — fronteiras estruturais entre as transformações
       'diagnostics-post-preflight',
       // ARCH-C (BRU-112) — Narrative Gate (pré-builder)

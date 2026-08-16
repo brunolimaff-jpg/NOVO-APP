@@ -24,6 +24,7 @@ import { compactErrorStageDetail } from './compact-error';
 import { buildGoldArtifact, type GoldArtifactManifest } from './mermaid/mermaid-deterministic';
 import { validateGoldNarrative } from './gold-contract-validator';
 import { matchesSensitiveTheme, matchesSafeKnowledgeNegation, neutralizeConfirmedVocabularyInText, normalizeDiscoveryQuestion } from './gold-policy';
+import { sanitizeGoldScaffolding } from './gold-scaffolding-sanitizer';
 import type { ScoutSegment } from '../query-planner';
 
 export interface CompactInput {
@@ -242,6 +243,7 @@ export type GoldStage =
   | 'frontier-schema-fail'
   | 'compose-start'
   | 'compose-done'
+  | 'scaffold-done'
   | 'mermaid-inject'
   | 'verifier-done'
   // LOTE GOLD P0 R2-B — fronteiras estruturais de diagnóstico (telemetria
@@ -257,6 +259,8 @@ export type GoldStage =
   // ARCH-C (BRU-112): Narrative Gate (pré-builder) e Artifact Gate (pós-builder).
   | 'narrative-contract-done'
   | 'artifact-done'
+  // BRU-118 (P1 scaffolding leak): stage do gate residual de scaffolding no seam.
+  | 'scaffold-gate'
   // BRU-69 (B+): tipo de saída final selecionada pelo seam.
   | 'output-selected';
 
@@ -298,6 +302,11 @@ export interface GoldStageDetail {
   finishReason?: string | null;
   /** BRU-109 (A): presença de `{` e `}` na resposta crua do compact. */
   hasObjectBoundary?: boolean;
+  /** BRU-118: contagens do sanitizador de scaffolding (headings removidos / enums humanizados). */
+  scaffoldRemoved?: number;
+  scaffoldHumanized?: number;
+  /** BRU-118: quantidade de residuais de scaffolding detectados no artefato final. */
+  residual?: number;
 }
 
 export type GoldStageHandler = (stage: GoldStage, detail?: GoldStageDetail) => void;
@@ -424,11 +433,26 @@ export async function runGuardedGoldPipeline(
   // certeza roda ANTES do Mermaid (e antes da fronteira post-preflight);
   // o downgrade final pós-Mermaid permanece como defesa em profundidade.
   const goldClean = downgradeUnsupportedCertainty(goldPruned);
+  // BRU-118 (P1 scaffolding leak — fail-closed): a saída do Composer pode
+  // ecoar meta-rótulos/enums técnicos ensinados no prompt ("(Conteúdo para o
+  // Builder)", "(Operações Confirmadas)", same_root/direct_pj_relation/
+  // partner_other_cnpj). O sanitizador DETERMINÍSTICO estreito remove apenas
+  // headings internos conhecidos e humaniza enums conhecidos, preservando
+  // fatos/tabelas abaixo. Roda ANTES do post-preflight/narrative/builder para
+  // que o texto verificado e o texto entregue sejam o mesmo (equivalência
+  // texto-verificado × texto-entregue). O residual ambíguo/desconhecido NÃO é
+  // apagado aqui: o seam decide fail-closed por scaffold_fail.
+  const scaffolded = sanitizeGoldScaffolding(goldClean);
+  const goldScaffoldClean = scaffolded.text;
+  onStage?.('scaffold-done', {
+    scaffoldRemoved: scaffolded.removed.scaffoldHeadings,
+    scaffoldHumanized: scaffolded.removed.humanizedEnums,
+  });
   // LOTE GOLD P0 R2-B — diagnóstico estrutural de fronteira (SEM mudança
   // semântica): o verifyGold roda aqui apenas para TELEMETRIA — codes/counts
   // por fronteira, sem reason/claim/conteúdo. Permite localizar onde um hard
   // fail nasce/sobrevive sem nova rodada cega.
-  const postPreflightVerification = verifyGold(goldClean, input.canonical, safePack);
+  const postPreflightVerification = verifyGold(goldScaffoldClean, input.canonical, safePack);
   onStage?.('diagnostics-post-preflight', frontierSummary(postPreflightVerification));
   // ARCH-C (BRU-112) — Narrative Gate (pré-builder): a narrativa do Composer
   // (após normalizações permitidas) é validada ANTES do builder determinístico.
@@ -437,7 +461,7 @@ export async function runGuardedGoldPipeline(
   // (passed + métricas, sem conteúdo) é devolvido e o SEAM decide o fail-closed
   // (seleção de saída) — o pipeline não lança aqui para não misturar a
   // telemetria de fronteira com exceção de contrato.
-  const narrativeContract = validateGoldNarrative(goldClean);
+  const narrativeContract = validateGoldNarrative(goldScaffoldClean);
   onStage?.('narrative-contract-done', {
     passed: narrativeContract.passed,
     violations: narrativeContract.violations.map((v) => v.code),
@@ -473,7 +497,7 @@ export async function runGuardedGoldPipeline(
   // JÁ com os mapas finais (contrato do Planejador 2026-08-10).
   // ARCH-C (BRU-112): buildGoldArtifact devolve markdown + manifest
   // (componentes esperados/emitidos, mermaid por tipo, tabela de elos).
-  const artifact = buildGoldArtifact(goldClean, input.canonical, safePack, input.segment);
+  const artifact = buildGoldArtifact(goldScaffoldClean, input.canonical, safePack, input.segment);
   const goldWithMermaids = artifact.markdown;
   onStage?.('mermaid-inject', { chars: goldWithMermaids.length });
   const postMermaidVerification = verifyGold(goldWithMermaids, input.canonical, safePack);

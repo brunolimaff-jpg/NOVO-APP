@@ -23,13 +23,16 @@ import type { GuardedGoldPipelineResult } from '../gold-pipeline';
 // pelo pipeline) para o contract-done; validateGoldContract permanece como
 // fallback quando o pipeline não devolve o narrative (consumidores externos).
 import { validateGoldContract } from '../gold-contract-validator';
+import { detectGoldScaffoldingResidual } from '../gold-scaffolding-sanitizer';
 
 /**
  * BRU-33 — Razão REAL da rejeição quando o seam devolve o dossiê sem exceção.
  * Substitui o reason enganoso "verifier_ou_contract_fail" (que rotulava também
  * canonical null como se fosse falha de verificação).
+ * BRU-118: `scaffold_fail` — residual de meta-rótulo/enum técnico interno
+ * detectado no artefato FINAL EXATO (fail-closed).
  */
-export type GoldRejectionReason = 'canonical_null' | 'verifier_fail' | 'contract_fail' | 'artifact_fail';
+export type GoldRejectionReason = 'canonical_null' | 'verifier_fail' | 'contract_fail' | 'artifact_fail' | 'scaffold_fail';
 
 export interface GoldRejectionDetail {
   hardFails?: number;
@@ -268,6 +271,33 @@ export async function tryEnhanceDossierWithGold(input: GoldSeamInput): Promise<s
         valueChainTableEmitted: result.artifactManifest.valueChainTableEmitted,
       });
     }
+
+    // BRU-118 (P1 scaffolding leak) — gate residual sobre o artefato FINAL
+    // EXATO. Se qualquer meta-rótulo/enum técnico interno conhecido ainda
+    // existir no texto entregue, o Gold NÃO é liberado: fail-closed para
+    // factual_minimal com reason estruturado `scaffold_fail`. O sanitizador
+    // do pipeline remove os padrões conhecidos; este gate é a última defesa
+    // para o caso de a remoção não acontecer ou o residual ser ambíguo.
+    const scaffoldResidual = detectGoldScaffoldingResidual(result.goldBrief);
+    if (scaffoldResidual.length > 0) {
+      const codes = [...new Set(scaffoldResidual.map((r) => r.code))];
+      onRejected?.('scaffold_fail', {
+        hardFails: scaffoldResidual.length,
+        codes,
+        codeCounts: codes.reduce<Record<string, number>>((counts, code) => {
+          counts[code] = (counts[code] ?? 0) + 1;
+          return counts;
+        }, {}),
+      });
+      onStage?.('scaffold-gate', {
+        passed: false,
+        residual: scaffoldResidual.length,
+        codes,
+      });
+      onStage?.('output-selected', { kind: 'factual_minimal', reason: 'scaffold_fail' } satisfies GoldOutputSelection);
+      return buildFactualMinimalDossier(canonical);
+    }
+    onStage?.('scaffold-gate', { passed: true });
 
     onStage?.('output-selected', { kind: 'gold_pass' } satisfies GoldOutputSelection);
     return result.goldBrief;

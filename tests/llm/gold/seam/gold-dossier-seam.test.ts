@@ -373,7 +373,7 @@ describe('tryEnhanceDossierWithGold — seam fail-closed', () => {
 
     expect(out).toBe(GOLD_TEXT);
     expect(rejected).toEqual([]);
-    expect(stages).toEqual(['canonical-done:true', 'contract-done:true', 'output-selected:-']);
+    expect(stages).toEqual(['canonical-done:true', 'contract-done:true', 'scaffold-gate:true', 'output-selected:-']);
     // o onStage do chamador atravessa o runGold (3º argumento) — telemetria do pipeline
     expect(deps.runGold.mock.calls[0][2]).toBeDefined();
   });
