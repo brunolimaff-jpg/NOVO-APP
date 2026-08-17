@@ -126,8 +126,9 @@ describe('SCOUT-V7-GOLD-RUNTIME-QUALITY-01 — prompts alinhados ao PROMPT_SPEC'
   it('C: Prompt exige conteúdo seguro por seção para os mapas (sem inventar fluxo/aresta)', () => {
     const prompt = buildComposePrompt({ canonical, safePack: {} as never });
     // BRU-119: instrução antiga "liste os processos" removida; nova instrução
-    // de leitura curta presente; relação lateral mantém como linguagem humana
-    expect(prompt).toMatch(/leitura comercial curta/i);
+    // de leitura executiva (wordCount ≥900) presente; relação lateral mantém
+    // como linguagem humana
+    expect(prompt).toMatch(/leitura executiva/i);
     expect(prompt).toMatch(/n[ãN]O liste processos/i);
     expect(prompt).toMatch(/rela[cç][aã]o lateral/i);
   });
