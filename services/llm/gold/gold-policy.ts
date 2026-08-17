@@ -50,9 +50,13 @@ export function matchesConfirmedVocabulary(text: string): boolean {
  * registro em Cumaribo." passar sem neutralizar — o verifier acusava e o
  * fail-closed (BRU-102) segurava no factual. Alinhar guard↔verifier na
  * MESMA definição de negação segura.
+ *
+ * BRU-119 follow-up: "não há evidência suficiente para afirmar que..." é
+ * epistemic negation (não afirma fato) — não deve ser hard fail. Adicionado
+ * "não há" + "evidência" + "afirmar" como forma válida de negação segura.
  */
 const SAFE_KNOWLEDGE_NEGATION_PATTERN =
-  /\b(n[aã]o\s+(est[áa]|foi|é)\s+(dispon[ií]vel|identificad[oa]s?|poss[ií]vel|confirmad[oa]s?)|deve\s+ser\s+confirmad[oa]s?|sem\s+evid[êe]ncia)\b/i;
+  /\b(n[aã]o\s+(est[áa]|foi|é|h[aá])\s+(dispon[ií]vel|identificad[oa]s?|poss[ií]vel|confirmad[oa]s?|evid[êe]ncia\s+suficiente\s+para\s+afirmar)|deve\s+ser\s+confirmad[oa]s?|sem\s+evid[êe]ncia)\b/i;
 
 export function matchesSafeKnowledgeNegation(text: string): boolean {
   return SAFE_KNOWLEDGE_NEGATION_PATTERN.test(text);
@@ -181,7 +185,7 @@ export function matchesGroupPromotion(text: string): boolean {
  * externa NÃO-QSA (proveniência resolve no verifier).
  */
 const GOVERNANCE_ROLE_PROMOTION_PATTERN =
-  /\b(?:estrutura\s+de\s+holding|holding\s+de\s+capital\s+aberto|holding\s+(?:familiar|controladora)|[ée]\s+um[a]?\s+holding|governan[cç]a\s+[^.?!]{0,80}\bholding\b|aprova[cç][aã]o\s+segue\s+a\s+governan[cç]a|fluxo\s+decis[óo]rio|autoridade\s+de\s+decis[aã]o|processo\s+de\s+aprova[cç][aã]o\s+de\s+investimentos|sponsor\s+(?:da|do|de)\s+(?:holding|grupo|governan[cç]a))\b/i;
+  /\b(?:estrutura\s+de\s+holding|holding\s+de\s+capital\s+aberto|holding\s+(?:familiar|controladora)|[ée]\s+um[a]?\s+holding|governan[cç]a\s+[^.?!]{0,80}\b(?:holding|decis[aã]o|aprova[cç][aã]o|sponsor|fluxo)\b|aprova[cç][aã]o\s+segue\s+a\s+governan[cç]a|fluxo\s+decis[óo]rio|autoridade\s+de\s+decis[aã]o|processo\s+de\s+aprova[cç][aã]o\s+de\s+investimentos|sponsor\s+(?:da|do|de)\s+(?:holding|grupo|governan[cç]a)|controladora\s+(?:de|do|da)\b)(?:[.?!]|\b)/i;
 
 export function matchesGovernanceRolePromotion(text: string): boolean {
   return GOVERNANCE_ROLE_PROMOTION_PATTERN.test(text);
@@ -289,12 +293,20 @@ const PROTECTED_CLAIM_VOCAB_REPLACEMENTS: Array<[RegExp, string]> = [
 
 /** Marcadores de pergunta (interrogativa) — a normalização só se aplica a
  *  perguntas de discovery; afirmações NÃO são mascaradas (continuam sujeitas
- *  ao verifier). */
-const INTERROGATIVE_MARKER = /\?|\b(qual|como|quando|onde|por\s+que|existe|h[aá]|é\s+poss[ií]vel|pode|seria|quanto|qual\s+é)\b/i;
+ *  ao verifier). APENAS palavras interrogativas genuínas (como, qual, quando,
+ *  onde, por que, quanto, qual é) + question mark final. Palavras como
+ *  "existe", "pode", "há" SÃO marcadores de pergunta SOMENTE quando
+ *  seguidas de ? — em frases declarativas ("Existe uma holding controladora.")
+ *  NÃO são interrogativas. */
+const INTERROGATIVE_MARKER = /\?|\b(qual|como|quando|onde|por\s+que|quanto|qual\s+é)\b/i;
 
 /** Detector de modalidade interrogativa (negative control comum: perguntas de
  *  discovery NUNCA viram afirmação/claim — usado pelo verifier para não hard
- *  failar questionamentos; também usado na normalização RCA-03). */
+ *  failar questionamentos; também usado na normalização RCA-03).
+ *
+ *  BRU-119 follow-up: "existe"/"pode"/"há" em frases DECLARATIVAS ("Existe
+ *  uma holding controladora.") NÃO são interrogativas — só "?  " final ou
+ *  palavras genuinamente interrogativas (como, qual, quando, etc.) contam. */
 export function matchesDiscoveryQuestion(text: string): boolean {
   return INTERROGATIVE_MARKER.test(text.trim());
 }
