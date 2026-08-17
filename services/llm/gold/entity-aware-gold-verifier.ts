@@ -18,6 +18,7 @@ import {
   matchesExecutiveRole,
   matchesUnsupportedOperationalClaim,
   matchesNonExternalSource,
+  matchesAbsenceDerivedWeakness,
 } from './gold-policy';
 
 export type GoldHardFailCode =
@@ -142,17 +143,12 @@ function hasMatchingWeaknessProvenance(
 
 /**
  * R3: ausência de módulo/tecnologia → fragilidade operacional derivada.
- * Padrão-base (congelado) + sinônimos observados na rodada real Scheffer
- * (Planejador 2026-08-10 — EXPERIENCE-01C): o Composer atravessou a régua
- * com "processo potencialmente fragmentado", "planilhas ou sistemas
- * pontuais", "sem sistema centralizado", "dependência de sistemas
- * desconectados". A ausência no portfólio NÃO prova dor operacional —
- * qualquer formulação que derive fragilidade/manualidade/desconexão da
- * ausência de tecnologia é hard fail (com exceção de proveniência externa
- * da MESMA categoria — hasMatchingWeaknessProvenance).
+ * Primitiva canônica em gold-policy (RCA-05): matchesAbsenceDerivedWeakness.
+ * Corpus histórico + BRU-119 follow-up (run d06cf268): "criam uma
+ * desconexão", "podem não estar integrados", "pode estar limitada",
+ * "impactando a eficiência" — ausência de tecnologia NÃO prova dor.
+ * Com exceção de proveniência externa da MESMA categoria.
  */
-const ABSENCE_DERIVED_WEAKNESS =
-  /\b(ponto\s+de\s+fragilidade|fragilidade\s+operacional|depender\s+de\s+sistemas\s+desconectados\s+ou\s+manuais|depend[eê]ncia\s+de\s+sistemas\s+desconectados|sistemas\s+desconectados\s+ou\s+manuais|processo\s+potencialmente\s+fragmentado|processos?\s+(fragmentados?|manuais?)|via\s+planilhas?\s+ou\s+sistemas\s+pontuais|planilhas?\s+ou\s+sistemas\s+pontuais|sem\s+sistema\s+centralizado|sem\s+(gest[aã]o|controle|sistema)\s+centralizad[oa]|depend[eê]ncia\s+de\s+(processos|sistemas|planilhas)\s+manuais)\b/i;
 
 interface Measure {
   quantity: string;
@@ -471,7 +467,7 @@ export function verifyGold(
     //     PROVENANCE EXCEPTION (Planejador 2026-08-10): se existir fato
     //     Confirmado com fonte externa comprovando processo manual/fragilidade
     //     (ex.: auditoria oficial), a afirmação passa.
-    if (ABSENCE_DERIVED_WEAKNESS.test(sentenceLower)) {
+    if (matchesAbsenceDerivedWeakness(sentenceLower)) {
       // Exceção por CATEGORIA (B4): a evidência externa precisa comprovar a
       // MESMA categoria da frase (manual → manual; centralizado → ausência
       // de centralização; fragmentado → fragmentação), nunca conceito

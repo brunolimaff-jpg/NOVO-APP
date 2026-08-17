@@ -345,4 +345,24 @@ describe('SCOUT-V7-GOLD-RUNTIME-QUALITY-01 — prompts alinhados ao PROMPT_SPEC'
     expect(prompt).toMatch(/NUNCA gera Sinal/i);
     expect(prompt).toMatch(/Sinal exige evid[êe]ncia POSITIVA/i);
   });
+
+  it('I: Caminho da Venda — prosa NÃO reconta o fluxo (single-owner do Mermaid)', () => {
+    const prompt = buildComposePrompt({ canonical, safePack: {} as never });
+    // BRU-119 follow-up (veredito Planejador): o Composer reconta "Evidência →
+    // Hipótese → Discovery → Problema" embaixo do Mermaid. O prompt não deve
+    // mais pedir "descreva o fluxo conceitual"; deve mandar NÃO recontar.
+    expect(prompt).not.toMatch(/descreva o fluxo comercial conceitual/i);
+    expect(prompt).toMatch(/N[ÃA]O reconte em prosa o fluxo/i);
+    expect(prompt).toMatch(/3 movimentos numerados/i);
+  });
+
+  it('J: sócia PJ direta NÃO autoriza derivar governança/holding (BLOQUEIO DE GOVERNANÇA DERIVADA)', () => {
+    const prompt = buildComposePrompt({ canonical, safePack: {} as never });
+    // BRU-119 follow-up (veredito Planejador): Síntese/Pessoas-Chave chamavam
+    // a sócia de "holding de capital aberto" e derivavam mecanismo de decisão.
+    expect(prompt).toMatch(/BLOQUEIO DE GOVERNAN[cÇ]A DERIVADA/i);
+    expect(prompt).toMatch(/n[ãa]o autoriza a narrativa a rotul[aá]-la de "holding"/i);
+    expect(prompt).toMatch(/qualquer especula[cç][aã]o de governan[cç]a\/decis[aã]o fica como pergunta de discovery/i);
+    expect(prompt).toMatch(/governan[cç]a ".*estrutura de holding" s[aã]o PROIBIDOS|estrutura de holding.*PROIBIDOS/i);
+  });
 });

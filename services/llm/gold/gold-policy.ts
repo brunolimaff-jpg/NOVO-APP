@@ -117,6 +117,31 @@ export function matchesAbsenceClaim(text: string): boolean {
   return ABSENCE_CLAIM_PATTERN.test(text);
 }
 
+// ─── FRAGILIDADE DERIVADA DE AUSÊNCIA (R10 / ABSENCE_DERIVED_WEAKNESS) ───────
+
+/**
+ * R10 — ausência de módulo/tecnologia NÃO prova fragilidade operacional.
+ * Primitiva canônica (RCA-05) agora na policy — antes vivia só no verifier.
+ * Qualquer formulação que derive fragilidade/manualidade/desconexão da
+ * ausência de tecnologia é hard fail (com exceção de proveniência externa
+ * da MESMA categoria — hasMatchingWeaknessProvenance).
+ *
+ * BLOQUEADOR 4 (Planejador 2026-08-10) — sinônimos da rodada real: o
+ * Composer atravessou com "processo potencialmente fragmentado",
+ * "planilhas ou sistemas pontuais", "sem sistema centralizado",
+ * "dependência de sistemas desconectados".
+ * BRU-119 follow-up (2026-08-17, run d06cf268): ausência de TMS/WMS virou
+ * "criam uma desconexão", "processos podem não estar integrados",
+ * "gestão da frota pode estar limitada", "impactando a eficiência do
+ * pátio" — novas formas que o matcher antigo não cobria.
+ */
+const ABSENCE_DERIVED_WEAKNESS_PATTERN =
+  /\b(ponto\s+de\s+fragilidade|fragilidade\s+operacional|depender\s+de\s+sistemas\s+desconectados\s+ou\s+manuais|depend[eê]ncia\s+de\s+sistemas\s+desconectados|sistemas\s+desconectados\s+ou\s+manuais|processo\s+potencialmente\s+fragmentado|processos?\s+(fragmentados?|manuais?)|via\s+planilhas?\s+ou\s+sistemas\s+pontuais|planilhas?\s+ou\s+sistemas\s+pontuais|sem\s+sistema\s+centralizado|sem\s+(gest[aã]o|controle|sistema)\s+centralizad[oa]|depend[eê]ncia\s+de\s+(processos|sistemas|planilhas)\s+manuais|criam\s+uma\s+desconex[ãa]o|desconex[ãa]o\s+(log[ií]stica|operacional)|podem\s+n[ãa]o\s+estar\s+integrad[oa]s?|n[ãa]o\s+integrad[oa]s?\b|pode\s+estar\s+limitad[oa]|impactando\s+(?:a\s+eff?ici[êe]ncia|a\s+efici[êe]ncia)|efici[êe]ncia\s+do\s+p[aá]tio)\b/i;
+
+export function matchesAbsenceDerivedWeakness(text: string): boolean {
+  return ABSENCE_DERIVED_WEAKNESS_PATTERN.test(text);
+}
+
 // ─── PAPEL EXECUTIVO (ARCH-A/BRU-110) ───────────────────────────────────────
 
 /** Cargos funcionais que QSA não prova (união verifier + sanitizer — o

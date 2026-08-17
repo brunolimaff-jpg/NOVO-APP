@@ -396,15 +396,17 @@ function statusBadge(status: string): string {
 }
 
 /**
- * BRU-119 follow-up (P0 semântico — Planejador, Preview 488728d5): a
+ * BRU-119 follow-up (P0 semântico — Planejador, run d06cf268): a
  * observação "WMS não aparece no recorte" é um fato, mas colar ✅ Confirmado
  * na linha lê-se como "WMS confirmado" ou "ausência confirmada" — ausência
- * não é confirmação. Matcher ESTREITO (apenas os padrões de negação de
- * presença que o compact produz); qualquer outra evidência segue o status
- * do signal sem rebaixamento.
+ * não é confirmação. Matcher ESTRETO (apenas os padrões de negação de
+ * presença que o compact produz: não aparece/consta/identificado/
+ * confirmado/localizado/encontrado/contratado); qualquer outra evidência
+ * segue o status do signal sem rebaixamento. "não contratado" entrou após
+ * o veredito visual (escapava e a Tabela de Elos saía ✅ Confirmado).
  */
 const ABSENCE_EVIDENCE_PATTERN =
-  /\bn[ãa]o\s+(?:aparece|aparecem|consta|constam|identificad[oa]s?|confirmad[oa]s?|localizad[oa]s?|encontrad[oa]s?)\b/i;
+  /\bn[ãa]o\s+(?:aparece|aparecem|consta|constam|identificad[oa]s?|confirmad[oa]s?|localizad[oa]s?|encontrad[oa]s?|contratad[oa]s?)\b/i;
 
 function valueChainDimension(value: string, kind: string, segment: ScoutSegment): string {
   const match = SEGMENT_VALUE_CHAIN[segment].find((entry) => entry.pattern.test(value));

@@ -384,6 +384,14 @@ describe('SCOUT-V7-GOLD-EXPERIENCE-01C — CANONICAL MERMAID', () => {
     'dependência de sistemas manuais',
     'ponto de fragilidade',
     'fragilidade operacional',
+    // BRU-119 follow-up (veredito Planejador, run d06cf268): ausência de
+    // TMS/WMS virou "criam uma desconexão", "podem não estar integrados",
+    // "gestão da frota pode estar limitada", "impactando eficiência" —
+    // novas formas linguísticas que o matcher antigo não cobria.
+    'criam uma desconexão logística',
+    'processos podem não estar integrados',
+    'gestão da frota pode estar limitada',
+    'impactando a eficiência do pátio e o controle de custos',
   ];
 
   it.each(WEAKNESS_SYNONYMS)('R10-param: "%s" falha SEM proveniência', (phrase) => {
@@ -796,6 +804,32 @@ describe('SCOUT-V7-GOLD-EXPERIENCE-01C — CANONICAL MERMAID', () => {
     expect(table).not.toMatch(/n[ãa]o aparece[^\n]*✅ Confirmado/);
   });
 
+  it('BRU-119 follow-up P0 semântico: "não contratado" também é ausência — badge 🟠', () => {
+    // Planejador (veredito 2026-08-17, run d06cf268): o matcher rebaixava
+    // "não aparece/consta/identificado/confirmado", mas "não contratado"
+    // escapava e a linha saía com ✅ Confirmado ("TMS/WMS → ✅ Confirmado →
+    // Não contratado") na Tabela de Elos — epistemologia divergente da
+    // Tabela de Tecnologia (🟠 A validar).
+    const pack = makeSafePack({
+      facts: [],
+      technologySignals: [
+        {
+          technology: 'TMS/WMS Senior',
+          observedFact: 'Não contratado, apesar da existência de frota própria e módulo GATec Gestão de Frota ativo',
+          status: 'Confirmado',
+          whatIsNotKnown: 'Como é o agendamento de caminhões hoje.',
+          validationQuestion: 'Como é feito o agendamento de caminhões hoje?',
+        },
+      ],
+      openQuestions: [],
+    });
+    const table = buildDynamicValueChainTable(pack, 'agropecuaria') ?? '';
+    expect(table).toContain('Não contratado');
+    expect(table).toContain('🟠 A validar');
+    expect(table).not.toMatch(/✅ Confirmado[^\n]*n[ãa]o contratado/);
+    expect(table).not.toMatch(/n[ãa]o contratad[oa][^\n]*✅ Confirmado/);
+  });
+
   it('BRU-119 P1 A\': Mapa do Caos topology-first — claims integrais não aparecem no Mermaid', () => {
     // Planejador (2026-08-17): Mapa = topology-first (dimensão curta),
     // Tabela = evidence-first (claim integral), Composer = interpretation-only.
@@ -813,5 +847,27 @@ describe('SCOUT-V7-GOLD-EXPERIENCE-01C — CANONICAL MERMAID', () => {
     expect(chaos).toMatch(/class C\d+ warning/);
     // Sem arestas inventadas entre processos (BLOQUEADOR 2 preservado)
     expect(chaos).not.toMatch(/B\d+\s*(?:==>|-->|-.->)\s*B\d+/);
+  });
+
+  it('BRU-119 P1 A\' cross-surface (Planejador — teste pendente): claim integral fica na Tabela e NÃO no Mapa (mesma fonte)', () => {
+    // MESMO makeSafePack: Mapa = topology-first (dimensão curta), Tabela =
+    // evidence-first (claim integral). Prova o single-owner entre superfícies
+    // com a mesma origem — o claim da operação aparece na tabela de elos e
+    // NÃO no Mermaid do Mapa do Caos.
+    const pack = makeSafePack();
+    const gold = injectCanonicalGoldMermaids(BAD_GOLD, canonical, pack, 'agroindustria');
+    const blocks = gold.match(/```mermaid\n([\s\S]*?)```/g) ?? [];
+    const chaos = blocks[0] ?? '';
+    const table = buildDynamicValueChainTable(pack, 'agroindustria') ?? '';
+    // Claim integral está na TABELA (evidence-first)
+    expect(table).toContain('Cultivo próprio de soja, milho e algodão confirmado');
+    expect(table).toContain('Beneficiamento em 10 UBAs confirmado');
+    expect(table).toContain('Frota própria para escoamento confirmada');
+    // Os MESMOS claims NÃO estão no Mapa (topology-first)
+    expect(chaos).not.toMatch(/Cultivo próprio de soja, milho e algodão confirmado/i);
+    expect(chaos).not.toMatch(/Beneficiamento em 10 UBAs confirmado/i);
+    expect(chaos).not.toMatch(/Frota própria para escoamento confirmada/i);
+    // O mapa carrega a dimensão curta (topologia), não o claim
+    expect(chaos).toMatch(/\["(?:Operação|Produção)"\]/);
   });
 });
