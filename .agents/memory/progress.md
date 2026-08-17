@@ -1,5 +1,65 @@
 # Progress
 
+## 2026-08-17 (noite 2) — Veredito d6e48a0f = PASS COM RESSALVAS (Planejador auditoria 9d4958ca)
+
+- **PASS COM RESSALVAS:** 4 deltas confirmados (não contratado→🟠, R10 centralizada em gold-policy, prompt Caminho da Venda, BLOQUEIO DE GOVERNANÇA DERIVADA) + teste A' cross-surface provado (mesmo SafePack, claim na Tabela/ausente no Mapa; dedup continua dimension|evidence).
+- **CI SUCCESS** (run principal). Fails de CodeQL/Analyze = REMOTE_ENVIRONMENT (GitHub 429 no download de codeql-action), não código. Preview same-SHA READY (dpl_ANLst74UuDivQTpeZ2YZayq8L1R8, SHA d6e48a0f).
+- **RESSALVA ABERTA:** holding/governança NÃO tem barreira determinística final (só o prompt). Planejador: "se a próxima rodada voltar a fabricar holding/governança e passar do verifier, é defeito aberto — não aceitaremos só porque o prompt diz".
+- **NEXT GATE = RODADA REAL ⏸️ (autorização do Bruno):** nova Scheffer com objetivo fechado — provar na mesma saída: (1) TMS/WMS 🟠, (2) ausência não vira dor/Sinal/Risco, (3) Caminho não recontado em prosa, (4) sócia PJ não vira holding/governança. Rodada/provider paga exige autorização do Bruno.
+- **Estado:** IMPLEMENTADO ✅ → CI ✅ → PREVIEW SAME-SHA ✅ → RODADA REAL ⏸️ autorização Bruno → READY FOR MERGE ❌ → MERGE 🔒.
+- **Atenção validação:** identificar por deployment+SHA, não pelo alias da branch (já apontou de volta para f927da00 antes).
+
+
+## 2026-08-17 (noite) — Veredito visual do Planejador (run d06cf268): GOLD técnico ✅ produto ❌ → 4 deltas pushados (d6e48a0f)
+
+- **Veredito do Planejador com prints + runtime + código:** Gold tecnicamente passou (gold_pass, 943 palavras, 3 ações, 0 violações, CI SUCCESS) mas o BRU-119 como contrato de produto NÃO passou. 4 problemas que o contrato automático não vê:
+  1. "Não contratado" escapava do matcher de ausência → Tabela de Elos com "TMS/WMS → ✅ Confirmado → Não contratado" (epistemologia divergente da Tabela de Tecnologia 🟠).
+  2. Ausência ainda fabricava tese comercial: Sinal 3 ("criam uma desconexão") + Riscos ("gestão da frota pode estar limitada") — verifier não cobria as novas formas.
+  3. Caminho da Venda duplicado em prosa (Composer reconta Evidência→Hipótese→Discovery embaixo do Mermaid) — quebra single-owner.
+  4. "Holding" promovida além da superfície (Síntese "holding de capital aberto", Pessoas-Chave "governança é indicada pela estrutura de holding") — tabela prova sócia PJ direta, não governança.
+- **A' tratado como fallback transitório seguro** — o Mapa do Caos rico é preservado para o futuro (Company First / OperationalCompanyGraph: grafo primeiro, mapa depois). Não misturar missões: #483 = estabilizar; nova saída = mapa operacional rico.
+- **Autorização explícita (BRU-119 comentário 665d8863): corrigir os deltas sem nova decisão.**
+- **Fix (d6e48a0f):** 1) ABSENCE_EVIDENCE_PATTERN + "contratad[oa]s?"; 2) ABSENCE_DERIVED_WEAKNESS movida p/ gold-policy (RCA-05) + expandida (desconexão/não integrados/pode estar limitada/impactando eficiência); 3) prompt Caminho da Venda: prosa não reconta fluxo; 4) prompt BLOQUEIO DE GOVERNANÇA DERIVADA. + teste A' cross-surface.
+- **Gates:** gold 428/428 · full 2230/2230 · typecheck 0 · lint 0 · build OK · no-gemini PASS. Push 6a53338c → d6e48a0f, CI rodando.
+- **Detalhe operacional do Planejador:** o alias genérico da branch foi apontado de volta para redeploy do f927da00 — próxima validação deve exigir URL/deployment SAME-SHA, não confiar no alias.
+- **Estados:** RUNTIME GOLD_PASS ✅ · CI ✅ · VISUAL/BRU-119 ❌ → corrigido (aguardando revalidação) · MAPA FUTURO PRESERVADO ✅ · READY FOR MERGE ❌ · MERGE 🔒.
+
+
+## 2026-08-17 (fim de tarde) — GOLD_PASS em runtime: primeira rodada com fixes do veredito visual (d06cf268)
+
+- Bruno rodou a Scheffer no Preview da branch (scoutagro-git-feat-v6-shadow-prep). **GOLD_PASS confirmado no Supabase:**
+  - diagnostics-pre-compose: 0 hardFails · diagnostics-post-preflight: 0 hardFails, codes [] · contract-done: passed=true, wordCount 943, 3 ações, 0 violações · output-selected: gold_pass.
+- Rodada anterior (7ef6d394) caiu por PROMOTED_CLAIM ("estrutura de holding de participações" na narrativa societária — tema sensível + vocabulário). O fix P1-parcial (Teia↔narrativa) + EPISTEMOLOGIA DA AUSÊNCIA funcionaram em runtime: Teia só com conta alvo, sem holding na narrativa, TMS/WMS 🟠 A validar, Mapa topology-first (Produção/Operação), Caminho da Venda == Sim == limpo, sem coluna Leitura comercial.
+- Pontos não-bloqueadores enviados ao Planejador (chat 6a81fda2): Sinal 3 deriva "desconexão logística" de ausência (hipótese+validação, não fato) · seção 5 cita "estrutura de holding" na prosa · seção 9 "Problema mencionado?" vs mapa "confirmado?". Bruno vai mandar prints ao Planejador.
+- PR #483: mergeStateStatus UNSTABLE (Golden Live do SHA antigo); merge continua 🔒. Aguardando veredito visual final do Planejador com os prints.
+
+
+## 2026-08-17 (tarde 4) — Reviewer independente PASS COM RESSALVAS, dead code removido (f927da00)
+
+- **Reviewer independente (agent):** SOLICITAR MUDANCA. Achado P0: isFallback era dead code (sempre false — valueChainDimension retorna Operacao como fallback, nao claim cru). Branch Processo era dead code + comentario incorreto.
+- **Fix (f927da00):** removido isFallback + branch Processo; label = valueChainDimension() direto; comentario atualizado. 1 arquivo, +6/-8.
+- **Gates:** gold 420/420 · full 2221/2222 · typecheck 0 · lint 0 · build OK · no-gemini PASS.
+- **CI f927da00:** rodando. Failures do c3db9abd (ChatInterface test + CodeQL) sao preexistentes/nao-relacionados.
+- **Retorno postado:** Planejador (chat 6a81fda2) + Linear BRU-119.
+- **Estado final:** f927da00 tecnico pronto; Preview same-SHA + validacao visual do Bruno = proximo passo; merge continua locked.
+
+
+## 2026-08-17 (tarde 3) — Microdelta A' commitado (c3db9abd): reviewer independente rodando
+
+- **Microdelta A' GREEN e pushado (c3db9abd):** buildChaosMap topology-first (dimensão curta + fallback Processo + agrupamento por dimensão + 1 warning Tecnologia); teste A' GREEN; GREEN 7/7b atualizados.
+- **Diagnóstico worktree resolvido:** vitest agora resolve do worktree (provado com log temporário removido). Causa: cache Vite do repo principal + resolução de módulos. Solução: .vite/deps/ isolado no worktree.
+- **Gates:** gold 420/420 · full 2221/2222 (flake waterfall) · typecheck 0 · lint 0 · build OK · no-gemini PASS (.DS_Store removido).
+- **Reviewer independente lançado em background** (agent explorer/audit). Aguardando resultado.
+- **Retorno A' GREEN postado no Planejador** (chat 6a81fda2). CI do c3db9abd rodando.
+- **Pendente:** resultado do reviewer → se PASS, informar Bruno/Planejador; se FAIL, corrigir.
+
+## 2026-08-17 (tarde 2) — Bloqueio de rebase: worktree incompleto + microdelta A' não validado
+
+- **Bloqueio crítico identificado:** repo principal `/Users/brunolima/Documents/NOVO-APP` (branch `fix/remove-auth-migration-gate`) NÃO tem os arquivos gold (`services/llm/gold/`). Worktree `NOVO-APP-bru62` (branch `feat/v6-shadow-prep`) tem TODOS os commits e arquivos gold (18 arquivos). O vitest do worktree resolve imports do repo principal → testes locais não validam edições do worktree. CI pode estar rodando no repo principal sem os arquivos gold (explica failures intermitentes do Golden Live).
+- **Microdelta A' (topology-first) implementado mas NÃO VALIDADO localmente:** `buildChaosMap` alterado para label=dimensão curta (valueChainDimension) com fallback "Processo" para facts sem padrão; agrupamento por dimensão distinta; 1 nó warning "Tecnologia" agrupado. Testes GREEN 7/7b atualizados. Teste A' escrito mas vitest não valida por causa do bloqueio de resolution.
+- **Despacho de rebase enviado ao Planejador** (chat 6a81fda2, via CDP 9333): relato da situação técnica + pergunta sobre rebase da feat/v6-shadow-prep sobre a main. Aguardando resposta.
+- **Estado do chat do Planejador:** 3 respostas do assistente (última: veredito P1 A' autorizado), 5 do usuário. A resposta ao rebase está sendo gerada.
+
 ## 2026-08-17 (tarde) — Veredito visual do Preview 488728d5 → P0 visual + P0 semântico + P2 + P1 parcial (c80651cf)
 
 - Bruno mandou 7 telas do Preview `488728d5` ao Planejador (chat 6a81fda2, lido via CDP **9333** — o Bruno citou 9222, que recusa). Veredito: melhorou, mas 4 problemas — P0 semântico ("✅ Confirmado (ausência)" / "Ausência confirmada" de WMS/TMS), P0 visual (Caminho da Venda renderizando `Sim ==> E['...']` + nó E isolado), P1 ownership (mesmo fato em Mapa→Elos→prosa; Teia só Scheffer vs. texto "sócia PJ direta"/"holding"), P2 (coluna "Leitura comercial" boilerplate).

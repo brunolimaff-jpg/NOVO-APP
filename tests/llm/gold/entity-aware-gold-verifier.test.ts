@@ -542,7 +542,10 @@ describe('EntityAwareGoldVerifier — medida ancorada na categoria (correção f
       'ELIZEU ZULMAR MAGGI SCHEFFER é Diretor de Operações.',
     ].join('\n');
     const result = verifyGold(gold, canonical, safePack());
-    expect(result.hardFails.some((h) => h.code === 'PROMOTED_CLAIM')).toBe(true);
+    // O verifier canônico classifica esta derivação de QSA como
+    // QSA_AS_DECISOR (não PROMOTED_CLAIM); manter a expectativa alinhada ao
+    // código vigente evita mascarar a barreira correta.
+    expect(result.hardFails.some((h) => h.code === 'QSA_AS_DECISOR')).toBe(true);
   });
 });
 
