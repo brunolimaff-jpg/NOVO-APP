@@ -33,6 +33,15 @@ Padroes e anti-padroes aprendidos de sessoes anteriores. Tratados como regras do
   Exemplo: feedback chegou no Supabase, mas cliques repetidos revelaram duplicacao e o clique negativo dependia de motivo + confirmacao.
   Validacao boa cruza banco, UX e semantica esperada antes de concluir que "funcionou".
 
+- **splitSentences destrói "?" antes do verifier** [gold, verifier, modalidade]
+  O split de sentenças por `[.;!?]+` remove "?" antes do verifier. Um bypass lexical com "existe/há/pode/seria" (`matchesDiscoveryQuestion`) fica indistinguível entre "Existe uma holding." e "Existe uma holding?" pós-split. Fix: preservar modalidade interrogativa antes/durante o split OU limitar bypass a matchesSafeKnowledgeNegation (negação epistemológica explícita). Não alterar `normalizeDiscoveryQuestion` globalmente.
+
+- **Proveniência NÃO-QSA precisa excluir QSA explicitamente** [gold, verifier, proveniência]
+  `!matchesNonExternalSource(f.source)` exclui estimativa/inferência/CRM interno, mas NÃO exclui source "QSA oficial" ou qualquer source que não caia no pattern. Um fato Confirmado com source QSA + claim "holding controladora" pode liberar exceção indevidamente. Fix: adicionar `!/qsa/i.test(f.source)` na verificação de elegibilidade de fonte.
+
+- **"controladoria" ≠ "controladora"** [gold, policy, semântica]
+  "Controladoria" é função/departamento; "controladora" é papel societário. Incluir `controladoria` no regex `roleProven` aceita departamentos como prova de papel societário — falso positivo que libera promoção indevida. Fix: remover `controladoria` de `roleProven` (regex vira `\b(holding|controladora)\b`).
+
 - Prompts Gemini com XML delimiters tem menor taxa de alucinacao
 - Score PORTA deve sempre ser gerado com temperatura 0.1 (factual)
 - Search Grounding nunca deve ser cacheado — dados de empresa mudam

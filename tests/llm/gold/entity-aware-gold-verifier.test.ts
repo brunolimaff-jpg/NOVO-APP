@@ -866,3 +866,141 @@ describe('EntityAwareGoldVerifier — PACK_FORENSIC_REPLAY (3 regras novas)', ()
     expect(result.hardFails.some((h) => h.code === 'PROMOTED_CLAIM')).toBe(true);
   });
 });
+
+describe('EntityAwareGoldVerifier — GOVERNANCE_ROLE_PROMOTION (despacho 5ea3b0fd, correções)', () => {
+  // Baseline: 5ea3b0fd. Despacho do Planejador (2026-08-17, 6 achados + furo 7).
+  // Todos os testes devem passar APÓS o microdelta no gold-policy.ts + verifier.
+
+  const makePackWithFact = (entity: string, claim: string, source: string): SafeFindingPack => ({
+    ...safePack(),
+    facts: [{ id: 'f-test', entity, claim, status: 'Confirmado', source, kind: 'relationship' as const, process: null }],
+  });
+
+  // ── Achado 1: demandsGovernance não inclui "governança" ──
+  it('holding comprovada + governança indicada sem prova de governança → FAIL', () => {
+    const pack = makePackWithFact('SCHEFFER PARTICIPACOES S/A', 'SCHEFFER PARTICIPACOES S/A é holding controladora confirmada em registro oficial.', 'registro oficial');
+    const gold = 'A governança é indicada pela estrutura de holding.';
+    const result = verifyGold(gold, canonical, pack);
+    expect(result.hardFails.some((h) => h.code === 'GOVERNANCE_ROLE_PROMOTION')).toBe(true);
+  });
+
+  it('mesmo caso + fato específico de governança → PASS', () => {
+    const pack = safePack();
+    pack.facts = [
+      { id: 'f-holding', entity: 'SCHEFFER PARTICIPACOES S/A', claim: 'SCHEFFER PARTICIPACOES S/A é holding controladora confirmada.', status: 'Confirmado', source: 'registro oficial', kind: 'relationship', process: null },
+      { id: 'f-gov', entity: 'SCHEFFER PARTICIPACOES S/A', claim: 'A governança segue a holding, com aprovação formal em comunicado oficial.', status: 'Confirmado', source: 'comunicado oficial', kind: 'relationship', process: null },
+    ];
+    const gold = 'A governança é indicada pela estrutura de holding.';
+    const result = verifyGold(gold, canonical, pack);
+    expect(result.hardFails.some((h) => h.code === 'GOVERNANCE_ROLE_PROMOTION')).toBe(false);
+  });
+
+  // ── Achado 2: bypass de discovery ──
+  it('"Existe uma holding controladora." (declarativa, sem ?) → FAIL', () => {
+    const gold = 'Existe uma holding controladora.';
+    const result = verifyGold(gold, canonical, safePack());
+    expect(result.hardFails.some((h) => h.code === 'GOVERNANCE_ROLE_PROMOTION')).toBe(true);
+  });
+
+  it('"Existe uma holding controladora?" (interrogativa real) → PASS', () => {
+    const gold = 'Existe uma holding controladora?';
+    const result = verifyGold(gold, canonical, safePack());
+    expect(result.hardFails.some((h) => h.code === 'GOVERNANCE_ROLE_PROMOTION')).toBe(false);
+  });
+
+  it('"Pode haver uma holding controladora." (declarativa) → FAIL', () => {
+    const gold = 'Pode haver uma holding controladora.';
+    const result = verifyGold(gold, canonical, safePack());
+    expect(result.hardFails.some((h) => h.code === 'GOVERNANCE_ROLE_PROMOTION')).toBe(true);
+  });
+
+  it('"Não há evidência suficiente para afirmar que seja holding" → PASS', () => {
+    const gold = 'Não há evidência suficiente para afirmar que a sócia é holding.';
+    const result = verifyGold(gold, canonical, safePack());
+    expect(result.hardFails.some((h) => h.code === 'GOVERNANCE_ROLE_PROMOTION')).toBe(false);
+  });
+
+  // ── Achado 3: controladoria não prova controladora ──
+  it('fato controladoria corporativa + claim é controladora → FAIL', () => {
+    const pack = makePackWithFact('SCHEFFER PARTICIPACOES S/A', 'A controladoria corporativa gerencia as filiais.', 'auditoria');
+    const gold = 'SCHEFFER PARTICIPACOES S/A é controladora do grupo.';
+    const result = verifyGold(gold, canonical, pack);
+    expect(result.hardFails.some((h) => h.code === 'GOVERNANCE_ROLE_PROMOTION')).toBe(true);
+  });
+
+  // ── Achado 4: QSA não pode liberar exceção ──
+  it('source QSA oficial + claim holding → FAIL', () => {
+    const pack = makePackWithFact('SCHEFFER PARTICIPACOES S/A', 'SCHEFFER PARTICIPACOES S/A é holding controladora do grupo.', 'QSA oficial');
+    const gold = 'SCHEFFER PARTICIPACOES S/A é uma holding controladora.';
+    const result = verifyGold(gold, canonical, pack);
+    expect(result.hardFails.some((h) => h.code === 'GOVERNANCE_ROLE_PROMOTION')).toBe(true);
+  });
+
+  // ── Achado 5: controladora isolada ──
+  it('PJ direta é controladora da conta sem prova externa → FAIL', () => {
+    const gold = 'SCHEFFER PARTICIPACOES S/A é controladora da conta alvo.';
+    const result = verifyGold(gold, canonical, safePack());
+    expect(result.hardFails.some((h) => h.code === 'GOVERNANCE_ROLE_PROMOTION')).toBe(true);
+  });
+
+  it('mesma frase com fato externo específico da PJ → PASS', () => {
+    const pack = makePackWithFact('SCHEFFER PARTICIPACOES S/A', 'SCHEFFER PARTICIPACOES S/A é controladora do grupo, conforme ato societário de 2022.', 'registro oficial');
+    const gold = 'SCHEFFER PARTICIPACOES S/A é controladora da conta alvo.';
+    const result = verifyGold(gold, canonical, pack);
+    expect(result.hardFails.some((h) => h.code === 'GOVERNANCE_ROLE_PROMOTION')).toBe(false);
+  });
+
+  // ── Achado 6: empréstimo de evidência ──
+  it('conta holding comprovada → "a sócia PJ direta é holding" sem prova da sócia → FAIL', () => {
+    const pack = makePackWithFact('SCHEFFER & CIA LTDA', 'SCHEFFER & CIA LTDA é holding do grupo, em registro oficial.', 'registro oficial');
+    const gold = 'A sócia PJ direta é uma holding.';
+    const result = verifyGold(gold, canonical, pack);
+    expect(result.hardFails.some((h) => h.code === 'GOVERNANCE_ROLE_PROMOTION')).toBe(true);
+  });
+
+  // ── Novo furo 7: >1 PJ direta + referência genérica → FAIL CLOSED ──
+  it('>1 PJ direta + referência genérica "a sócia" → FAIL CLOSED', () => {
+    const pack = safePack();
+    pack.facts = [];
+    const g = { ...canonical, directPjPartners: [
+      { legalName: 'SCHEFFER PARTICIPACOES S/A', cnpj: '11.021.773/0001-70' },
+      { legalName: 'OUTRA PARTICIPACOES S/A', cnpj: '22.333.444/0001-55' },
+    ]};
+    const gold = 'A sócia PJ direta é uma holding.';
+    const result = verifyGold(gold, g, pack);
+    expect(result.hardFails.some((h) => h.code === 'GOVERNANCE_ROLE_PROMOTION')).toBe(true);
+  });
+
+  // ── Negative controls obrigatórios ──
+  it('GREEN: "é sócia PJ direta" passa (fato sustentado, sem rotular)', () => {
+    const gold = 'SCHEFFER PARTICIPACOES S/A é sócia PJ direta da conta alvo.';
+    const result = verifyGold(gold, canonical, safePack());
+    expect(result.hardFails.some((h) => h.code === 'GOVERNANCE_ROLE_PROMOTION')).toBe(false);
+  });
+
+  it('GREEN: pergunta real (com ?) sobre possível holding passa', () => {
+    const gold = 'A SCHEFFER PARTICIPACOES S/A é uma holding?';
+    const result = verifyGold(gold, canonical, safePack());
+    expect(result.hardFails.some((h) => h.code === 'GOVERNANCE_ROLE_PROMOTION')).toBe(false);
+  });
+
+  it('GREEN: "não há evidência para afirmar" passa (negação epistemológica)', () => {
+    const gold = 'Não há evidência suficiente para afirmar que a sócia é uma holding.';
+    const result = verifyGold(gold, canonical, safePack());
+    expect(result.hardFails.some((h) => h.code === 'GOVERNANCE_ROLE_PROMOTION')).toBe(false);
+  });
+
+  it('GREEN: holding legitimamente comprovada (fato Confirmado NÃO-QSA específico) passa', () => {
+    const pack = makePackWithFact('SCHEFFER PARTICIPACOES S/A', 'SCHEFFER PARTICIPACOES S/A é holding controladora do grupo, em registro oficial de 2022.', 'registro oficial');
+    const gold = 'SCHEFFER PARTICIPACOES S/A é uma holding controladora.';
+    const result = verifyGold(gold, canonical, pack);
+    expect(result.hardFails.some((h) => h.code === 'GOVERNANCE_ROLE_PROMOTION')).toBe(false);
+  });
+
+  it('GREEN: governança com evidência Confirmada específica passa', () => {
+    const pack = makePackWithFact('SCHEFFER PARTICIPACOES S/A', 'A governança segue a holding, com sponsor aprovando investimentos, em comunicado oficial.', 'comunicado oficial');
+    const gold = 'A governança da SCHEFFER PARTICIPACOES S/A segue a holding, com sponsor aprovando investimentos.';
+    const result = verifyGold(gold, canonical, pack);
+    expect(result.hardFails.some((h) => h.code === 'GOVERNANCE_ROLE_PROMOTION')).toBe(false);
+  });
+});

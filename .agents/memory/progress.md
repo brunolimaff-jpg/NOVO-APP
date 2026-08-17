@@ -1,5 +1,18 @@
 # Progress
 
+## 2026-08-17 (13:25) — Checkpoint pré-compactação: delta governança autorizado, 9 REDs escritos
+
+- **Escopo aumentou de 6→7 achados** (novo furo 7: proveniência de governança genérica demais).
+- Análise read-only DeepSeek validou os 7/7 achados; Planejador transformou em despacho executável (comentário 91ec007e no BRU-119): **ZCODE PODE IMPLEMENTAR ✅**.
+- **9 REDs escritos** no entity-aware-gold-verifier.test.ts: demandsGovernance + bypass modalidade + controladoria + QSA exclusion + controladora isolada + entity binding + proveniência por categoria + 2 negative controls adicionais.
+- **CÓDIGO NÃO IMPLEMENTADO**: os 7 fixes no gold-policy.ts/entity-aware-gold-verifier.ts precisam ser feitos no próximo contexto.
+- Gates: targeted → Gold 100% → full 100% → typecheck → lint → build → no-gemini → diff-check → FF push → CI exact SHA → Preview same-SHA + Smoke.
+- Provider/Scheffer: aguarda autorização Bruno. Merge: bloqueado.
+- Handoff completo em Vault: `2026-08-17T13-25-00-checkpoint-bru119-governanca-barrier.md`
+
+## 2026-08-17 (monitor) — Baseline remoto reconciliado e próxima demanda solicitada
+
+
 ## 2026-08-17 (noite 2) — Veredito d6e48a0f = PASS COM RESSALVAS (Planejador auditoria 9d4958ca)
 
 - **PASS COM RESSALVAS:** 4 deltas confirmados (não contratado→🟠, R10 centralizada em gold-policy, prompt Caminho da Venda, BLOQUEIO DE GOVERNANÇA DERIVADA) + teste A' cross-surface provado (mesmo SafePack, claim na Tabela/ausente no Mapa; dedup continua dimension|evidence).
