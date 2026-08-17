@@ -542,7 +542,77 @@ describe('EntityAwareGoldVerifier — medida ancorada na categoria (correção f
       'ELIZEU ZULMAR MAGGI SCHEFFER é Diretor de Operações.',
     ].join('\n');
     const result = verifyGold(gold, canonical, safePack());
-    expect(result.hardFails.some((h) => h.code === 'QSA_AS_DECISOR')).toBe(true);
+    expect(result.hardFails.some((h) => h.code === 'PROMOTED_CLAIM')).toBe(true);
+  });
+});
+
+describe('EntityAwareGoldVerifier — GOVERNAMENT_ROLE_PROMOTION (BRU-119 follow-up, despacho c8e42839)', () => {
+  // Barreira determinística: sócia PJ direta na Tabela de CNPJs NÃO autoriza
+  // rotular "holding" nem derivar governança/decisão sem fato Confirmado NÃO-QSA.
+
+  it('RED: "estrutura de holding" derivada de sócia PJ direta sem proveniência → hard fail', () => {
+    const gold = 'A estrutura societária indica uma estrutura de holding de participações.';
+    const result = verifyGold(gold, canonical, safePack());
+    expect(result.hardFails.some((h) => h.code === 'GOVERNANCE_ROLE_PROMOTION')).toBe(true);
+    expect(result.passed).toBe(false);
+  });
+
+  it('RED: "governança é indicada pela holding" sem evidência de decisão → hard fail', () => {
+    const gold = 'A governança é indicada pela estrutura de holding, influenciando decisões corporativas.';
+    const result = verifyGold(gold, canonical, safePack());
+    expect(result.hardFails.some((h) => h.code === 'GOVERNANCE_ROLE_PROMOTION')).toBe(true);
+  });
+
+  it('RED: "aprovação segue a governança da holding" → hard fail', () => {
+    const gold = 'Os investimentos provavelmente seguem a governança da holding para aprovação.';
+    const result = verifyGold(gold, canonical, safePack());
+    expect(result.hardFails.some((h) => h.code === 'GOVERNANCE_ROLE_PROMOTION')).toBe(true);
+  });
+
+  it('RED: sponsor derivado da holding sem evidência → hard fail', () => {
+    const gold = 'O sponsor da holding conduz a decisão de investimento.';
+    const result = verifyGold(gold, canonical, safePack());
+    expect(result.hardFails.some((h) => h.code === 'GOVERNANCE_ROLE_PROMOTION')).toBe(true);
+  });
+
+  // ── Negative controls obrigatórios (despacho do Planejador) ──
+
+  it('GREEN: "é sócia PJ direta" passa (fato societário sustentado, sem rotular)', () => {
+    const gold = 'SCHEFFER PARTICIPAÇÕES S/A é sócia PJ direta da conta alvo.';
+    const result = verifyGold(gold, canonical, safePack());
+    expect(result.hardFails.some((h) => h.code === 'GOVERNANCE_ROLE_PROMOTION')).toBe(false);
+  });
+
+  it('GREEN: pergunta de discovery sobre possível holding passa', () => {
+    const gold = 'Como é a estrutura societária? Existe uma possível holding controladora?';
+    const result = verifyGold(gold, canonical, safePack());
+    expect(result.hardFails.some((h) => h.code === 'GOVERNANCE_ROLE_PROMOTION')).toBe(false);
+  });
+
+  it('GREEN: "não há evidência para afirmar holding" passa', () => {
+    const gold = 'Não há evidência no conteúdo seguro para afirmar que a sócia é uma holding controladora.';
+    const result = verifyGold(gold, canonical, safePack());
+    expect(result.hardFails.some((h) => h.code === 'GOVERNANCE_ROLE_PROMOTION')).toBe(false);
+  });
+
+  it('GREEN: holding legitimamente comprovada passa (fato Confirmado NÃO-QSA de papel societário)', () => {
+    const pack = safePack();
+    pack.facts = [
+      { id: 'f-holding', entity: 'SCHEFFER PARTICIPAÇÕES S/A', claim: 'SCHEFFER PARTICIPAÇÕES S/A é uma holding controladora do grupo confirmada em registro oficial.', status: 'Confirmado', source: 'Registro oficial', kind: 'relationship', process: null },
+    ];
+    const gold = 'SCHEFFER PARTICIPAÇÕES S/A é uma holding controladora do grupo.';
+    const result = verifyGold(gold, canonical, pack);
+    expect(result.hardFails.some((h) => h.code === 'GOVERNANCE_ROLE_PROMOTION')).toBe(false);
+  });
+
+  it('GREEN: governança com evidência Confirmada específica passa', () => {
+    const pack = safePack();
+    pack.facts = [
+      { id: 'f-gov', entity: 'SCHEFFER PARTICIPACOES S/A', claim: 'A governança do grupo segue a holding, com sponsor aprovando investimentos, em comunicado oficial.', status: 'Confirmado', source: 'Comunicado oficial', kind: 'relationship', process: null },
+    ];
+    const gold = 'A governança da SCHEFFER PARTICIPACOES S/A segue a holding, com sponsor aprovando investimentos.';
+    const result = verifyGold(gold, canonical, pack);
+    expect(result.hardFails.some((h) => h.code === 'GOVERNANCE_ROLE_PROMOTION')).toBe(false);
   });
 });
 

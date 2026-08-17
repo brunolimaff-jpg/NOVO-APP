@@ -19,6 +19,8 @@ import {
   matchesUnsupportedOperationalClaim,
   matchesNonExternalSource,
   matchesAbsenceDerivedWeakness,
+  matchesGovernanceRolePromotion,
+  matchesDiscoveryQuestion,
 } from './gold-policy';
 
 export type GoldHardFailCode =
@@ -33,7 +35,8 @@ export type GoldHardFailCode =
   | 'ENTITY_CONFLICT'
   | 'PROMOTED_CLAIM'
   | 'QSA_GOVERNANCE_CLAIM'
-  | 'ABSENCE_DERIVED_WEAKNESS';
+  | 'ABSENCE_DERIVED_WEAKNESS'
+  | 'GOVERNANCE_ROLE_PROMOTION';
 
 export interface GoldHardFail {
   code: GoldHardFailCode;
@@ -139,6 +142,54 @@ function hasMatchingWeaknessProvenance(
         needed.match.test(f.claim),
     ),
   );
+}
+
+/**
+ * BRU-119 follow-up (despacho Planejador, c8e42839): proveniência da
+ * promoção de holding/governança. DUAS categorias independentes:
+ *  - papel societário (holding/controladora/estrutura de holding): exige
+ *    fato Confirmado NÃO-QSA comprovando ESPECIFICAMENTE esse papel.
+ *  - governança/decisão (sponsor/aprovação/autoridade/fluxo): exige fato
+ *    Confirmado NÃO-QSA comprovando ESPECIFICAMENTE governança/decisão.
+ * Confirmar "é holding" NÃO autoriza inferir "como se decide".
+ */
+function hasGovernanceRoleProvenanceFor(
+  sentence: string,
+  safePack: SafeFindingPack,
+  canonical: CanonicalAccount,
+): boolean {
+  const sentenceLower = sentence.toLowerCase();
+  const sentenceNormalized = normalizeName(sentence);
+
+  // 1) Categoria exigida pela frase (papel societário vs governança/decisão).
+  const demandsGovernance = /sponsor|aprova[cç][aã]o|autoridade\s+de\s+decis[aã]o|fluxo\s+decis[óo]rio|processo\s+de\s+aprova[cç][aã]o/i.test(sentenceLower);
+  const demandsRole = /holding|controladora|estrutura\s+de\s+holding/i.test(sentenceLower);
+
+  // 2) Entidade referida: sócia PJ directa (directPjPartners) ou conta.
+  const accountName = normalizeName(canonical.legalName);
+  const partnerNames = (canonical.directPjPartners ?? []).map((p) => normalizeName(p.legalName));
+  const mentionedPartner = partnerNames.find((name) => sentenceNormalized.includes(name));
+  const referredEntity = mentionedPartner ?? accountName;
+
+  // 3) Evidência Confirmada NÃO-QSA que comprove a categoria específica.
+  const hasEvidence = (pattern: RegExp): boolean =>
+    safePack.facts.some(
+      (f) =>
+        f.status === 'Confirmado' &&
+        !matchesNonExternalSource(f.source) &&
+        normalizeName(f.entity) === referredEntity &&
+        pattern.test(f.claim),
+    );
+
+  // Papel societário: precisa comprovar "holding"/"controladora" (não só "sócia").
+  const roleProven = /(holding|controladora|controladoria)/i;
+  // Governança/decisão: precisa comprovar "governança"/"decisão"/"aprovação".
+  const governanceProven = /(governan[cç]a|decis[aã]o|aprova[cç][aã]o|sponsor|fluxo\s+decis[óo]rio)/i;
+
+  // Cada categoria exigida pela frase precisa da sua própria prova.
+  if (demandsRole && !hasEvidence(roleProven)) return false;
+  if (demandsGovernance && !hasEvidence(governanceProven)) return false;
+  return true;
 }
 
 /**
@@ -475,6 +526,25 @@ export function verifyGold(
       const hasExternalProvenance = hasMatchingWeaknessProvenance(sentence, safePack, canonical);
       if (!hasExternalProvenance) {
         push('ABSENCE_DERIVED_WEAKNESS', `Frase deriva fragilidade operacional de ausência: "${sentence}"`);
+      }
+    }
+
+    // 11) BRU-119 follow-up (despacho Planejador, comentário c8e42839):
+    //     governança/papel societário derivado de sócia PJ direta NÃO é
+    //     autorizado por palavra. O prompt proíbe; esta é a barreira final
+    //     determinística (equiv. R10). DUAS categorias, cada uma com a sua
+    //     proveniência:
+    //      - PAPEL SOCIETÁRIO: rotular "holding"/"controladora"/"estrutura
+    //        de holding" só passa com fato Confirmado NÃO-QSA comprovando
+    //        especificamente esse papel. Sócia PJ direta NÃO basta.
+    //      - GOVERNANÇA/DECISÃO: sponsor/aprovação/autoridade/fluxo exige
+    //        evidência Confirmada especificamente sobre governança/decisão.
+    //     Negative controls: "é sócia PJ direta" (sem rotular) e perguntas de
+    //     discovery NÃO disparam o padrão (coberto por matches... estrita).
+    if (matchesGovernanceRolePromotion(sentenceLower) && !matchesDiscoveryQuestion(sentenceLower)) {
+      const hasGovernanceProvenance = hasGovernanceRoleProvenanceFor(sentence, safePack, canonical);
+      if (!hasGovernanceProvenance) {
+        push('GOVERNANCE_ROLE_PROMOTION', `Frase promove holding/governança além da superfície provada: "${sentence}"`);
       }
     }
   }

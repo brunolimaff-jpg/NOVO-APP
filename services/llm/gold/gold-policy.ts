@@ -161,6 +161,32 @@ export function matchesGroupPromotion(text: string): boolean {
   return GROUP_PROMOTION_PATTERN.test(text);
 }
 
+// ─── PROMOÇÃO DE HOLDING / GOVERNANÇA (BRU-119 follow-up, veredito Planejador 2026-08-17) ─
+
+/**
+ * Governança/papel societário derivado de sócia PJ direta NÃO é autorizado
+ * por palavra — o padrão só detecta a FORMA; a proveniência decide (verifier).
+ *
+ * DUAS categorias separadas (despacho do Planejador, comentário c8e42839):
+ *  - PAPEL SOCIETÁRIO: rotular "holding"/"controladora"/"estrutura de
+ *    holding" exige fato Confirmado NÃO-QSA comprovando especificamente
+ *    esse papel. Sócia PJ direta na Tabela de CNPJs NÃO basta.
+ *  - GOVERNANÇA/DECISÃO: sponsor, aprovação, autoridade ou fluxo decisório
+ *    exigem evidência Confirmada especificamente sobre governança/decisão.
+ *    Criar uma holding verdadeira não autoriza inferir como se decide.
+ *
+ * Negative controls (NÃO reprovar): "é sócia PJ direta" (sem rotular);
+ * perguntas de discovery sobre "possível holding"/"governança?"; "não há
+ * evidência para afirmar holding/governança"; holding comprovada por fonte
+ * externa NÃO-QSA (proveniência resolve no verifier).
+ */
+const GOVERNANCE_ROLE_PROMOTION_PATTERN =
+  /\b(?:estrutura\s+de\s+holding|holding\s+de\s+capital\s+aberto|holding\s+(?:familiar|controladora)|[ée]\s+um[a]?\s+holding|governan[cç]a\s+[^.?!]{0,80}\bholding\b|aprova[cç][aã]o\s+segue\s+a\s+governan[cç]a|fluxo\s+decis[óo]rio|autoridade\s+de\s+decis[aã]o|processo\s+de\s+aprova[cç][aã]o\s+de\s+investimentos|sponsor\s+(?:da|do|de)\s+(?:holding|grupo|governan[cç]a))\b/i;
+
+export function matchesGovernanceRolePromotion(text: string): boolean {
+  return GOVERNANCE_ROLE_PROMOTION_PATTERN.test(text);
+}
+
 // ─── FONTE NÃO-EXTERNA (ARCH-A/BRU-110) ─────────────────────────────────────
 
 const NON_EXTERNAL_SOURCE_PATTERN =
@@ -265,6 +291,13 @@ const PROTECTED_CLAIM_VOCAB_REPLACEMENTS: Array<[RegExp, string]> = [
  *  perguntas de discovery; afirmações NÃO são mascaradas (continuam sujeitas
  *  ao verifier). */
 const INTERROGATIVE_MARKER = /\?|\b(qual|como|quando|onde|por\s+que|existe|h[aá]|é\s+poss[ií]vel|pode|seria|quanto|qual\s+é)\b/i;
+
+/** Detector de modalidade interrogativa (negative control comum: perguntas de
+ *  discovery NUNCA viram afirmação/claim — usado pelo verifier para não hard
+ *  failar questionamentos; também usado na normalização RCA-03). */
+export function matchesDiscoveryQuestion(text: string): boolean {
+  return INTERROGATIVE_MARKER.test(text.trim());
+}
 
 /**
  * Normaliza uma pergunta de discovery para que a modalidade interrogativa
