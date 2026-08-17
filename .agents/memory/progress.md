@@ -1,5 +1,15 @@
 # Progress
 
+## 2026-08-17 (tarde) — Veredito visual do Preview 488728d5 → P0 visual + P0 semântico + P2 + P1 parcial (c80651cf)
+
+- Bruno mandou 7 telas do Preview `488728d5` ao Planejador (chat 6a81fda2, lido via CDP **9333** — o Bruno citou 9222, que recusa). Veredito: melhorou, mas 4 problemas — P0 semântico ("✅ Confirmado (ausência)" / "Ausência confirmada" de WMS/TMS), P0 visual (Caminho da Venda renderizando `Sim ==> E['...']` + nó E isolado), P1 ownership (mesmo fato em Mapa→Elos→prosa; Teia só Scheffer vs. texto "sócia PJ direta"/"holding"), P2 (coluna "Leitura comercial" boilerplate).
+- **Correlação técnica (Supabase read-only):** run `d2b1fc59` (SHA 488728d5, COMPLETED 12:31Z) = **GOLD_PASS** — contract-done passed=true, wordCount 1012, 3 ações, 0 violações → fix wordCount 198d1b04 confirmado em runtime; o contract_fail anterior (5c2c084b, 868) era do 54a2ddc3.
+- **P0 visual — causa raiz DUPLA:** builder emitia `D ==> Sim ==> E` (comentário do BRU-108 descrevia `== texto ==>` mas o código escreveu outra) E `materializeBareEdgeTargets` (utils/mermaid.ts) materializava nó sintético `mermaid_bare_N["Sim ==> E[...]"]` — **parseava** (gate BRU-108/113 verde por isso) mas renderizava source como conteúdo. Fix: `D == Sim ==> E["..."]` + guard LABELED_EDGE_TARGET_RE. Parse REAL 10/10.
+- **P0 semântico:** builder rebaixa badge para 🟠 quando evidência do signal é ausência (ABSENCE_EVIDENCE_PATTERN estreito) + prompt ganha bloco EPISTEMOLOGIA DA AUSÊNCIA ("ausência confirmada" PROIBIDA; ausência não gera Sinal/hipótese; Sinal exige evidência POSITIVA). O "✅ Confirmado (ausência)" vinha de 2 fontes: Composer E builder de elos.
+- **P2:** coluna "Leitura comercial" (template fixo) removida. **P1 parcial:** prompt Teia↔narrativa (relação só Canonical/Confirmado; sem relação → "sem relações societárias confirmadas"; "estrutura de holding" proibida). **P1 estrutural (Mapa×Elos): pergunta A/B/C enviada ao Planejador — despacho pendente** (última resposta dele, sobre visão Gold→nova saída, diz "estabilizar sem redesenhar" — valida A como default; seam será congelado pelo BRU-121).
+- 3 suítes legadas (bru108/bru114/mermaid-parse-gate) codificavam `==> Sim ==>` como canônica — atualizadas. Gates: gold 419/419 · full 2221/2221 · parse gate 10/10 · typecheck 0 · lint 0 · build OK · no-gemini PASS. Commit `c80651cf` push FF; CI 21/21 aplicáveis PASS (Golden Live pending no fechamento). Retorno postado no chat + Linear BRU-119.
+- Pendente: validação visual do Bruno no preview do `c80651cf` (Caminho da Venda limpo, sem "✅ (ausência)", sem coluna Leitura comercial, Teia↔texto coerentes) + despacho A/B/C.
+
 ## 2026-08-16 (noite 2) — contract_fail wordCount corrigido: leitura executiva na seção 2 (198d1b04)
 
 - Validação manual do Bruno no Preview do `54a2ddc3` (BRU-119) revelou `contract_fail`: factual_minimal com `narrative-contract passed=false`. Console+HAR mostraram wordCount abaixo de 900 — a instrução BRU-119 "SOMENTE uma leitura comercial curta (2-3 frases)" encolheu a seção 2 e derrubou a narrativa total abaixo do piso. Golden Dossier Live também FAIL (~2min, mesmo perfil).

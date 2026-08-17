@@ -19,6 +19,9 @@ Padroes e anti-padroes aprendidos de sessoes anteriores. Tratados como regras do
 - **Encurtar superfície narrativa sem checar o contrato de wordCount reprova o Gold** [gold, prompt, contrato]
   Instrução de prompt que reduz narrativa ("SOMENTE 2-3 frases" numa seção) pode derrubar o total abaixo do piso do Narrative Contract (900 palavras) e converter gold_pass → factual_minimal no Preview e no Golden Dossier Live, sem nenhum erro de lint/teste local. Qualquer mudança de prompt que reduza texto precisa ser conferida contra MIN_WORDS/MAX_WORDS do `gold-contract-validator.ts` ANTES do push — e a validação real é a rodada Gold no Preview, não a suíte local (o teste local só cobre a frase do prompt, não o output do modelo).
 
+- **Gate de parse Mermaid verde não prova render correto** [gold, mermaid, testing]
+  O sanitizer materializava "texto solto" pós-operador de aresta como nó sintético `mermaid_bare_N["..."]` — sintaticamente válido (gate de parse REAL verde por vários SHAs) mas o render exibia o source como conteúdo (`Sim ==> E['...']` + nó E isolado no Preview). Para mapas determinísticos: asserções de ESTRUTURA (aresta rotulada `== rótulo ==>`, ausência de `mermaid_bare_`) além do parse; e ao corrigir causa raiz, caçar testes legados que codificam o bug como canônico (3 suítes esperavam `==> Sim ==>`).
+
 - **Supabase + IDB como cache offline** [react, typescript, supabase, offline] ⚠️ HISTÓRICO
   Offline-first com sync queue: IDB para leitura/escrita instantanea, Supabase como source of truth.
   Stale-while-revalidate nas leituras, fila com retry exponencial nas escritas.
