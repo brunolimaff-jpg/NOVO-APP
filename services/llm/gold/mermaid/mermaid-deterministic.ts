@@ -136,17 +136,15 @@ function buildChaosMap(safePack: SafeFindingPack, segment: ScoutSegment = 'indus
   classes.push(`class ${rootId} core;`);
 
   // BRU-119 P1 A': agrupar processos por dimensão — 1 nó satellite por
-  // dimensão distinta, label = dimensão curta. Claim integral fica só na
-  // tabela de elos (evidence-first) e na leitura do Composer.
-  // Quando o claim não casa em nenhum padrão do segmento, o fallback de
-  // valueChainDimension devolve claim cru (slice 0,60) — o mapa troca
-  // por label genérico ("Processo") para manter topology-first.
+  // dimensão distinta, label = dimensão curta (valueChainDimension).
+  // Claim integral fica só na tabela de elos (evidence-first) e na
+  // leitura do Composer (interpretation-only). Para facts sem padrão no
+  // segmento, valueChainDimension retorna "Operação" (fallback genérico
+  // do tipo 'operation'), que já é topology-first.
   const dimIdx = new Map<string, number>();
   let bIdx = 1;
   for (const fact of operationFacts.slice(0, 6)) {
-    const dimension = valueChainDimension(fact.claim, fact.kind, segment);
-    const isFallback = dimension === fact.claim.slice(0, 60);
-    const label = isFallback ? 'Processo' : dimension;
+    const label = valueChainDimension(fact.claim, fact.kind, segment);
     const key = label.toLowerCase().trim();
     if (!dimIdx.has(key)) {
       dimIdx.set(key, bIdx++);
