@@ -27,7 +27,7 @@
 ## 3. Testes e gates (validação local do `198d1b04`)
 
 - Gold **416/416** (395 em `tests/llm/gold` + 21 gold externos) · full **2217/2218** (1 flake waterfall timeout — isolado 53/53 PASS, known flake) · typecheck 0 · lint 0 erros (73 warnings pré-existentes) · build OK · no-gemini PASS (exit 0).
-- CI do `54a2ddc3`: 21/21 SUCCESS, exceto Golden Dossier Live FAIL (= contract_fail wordCount, corrigido no `198d1b04`). Vercel/Smoke SUCCESS.
+- CI do `198d1b04`/`c1aeb9c1`: **21/21 aplicáveis SUCCESS + Tests PASS**; **Golden Dossier Live FAIL em 9m37s = timeout de render do E2E** (`golden-dossier-live.spec.ts:182`, retry2) — mesma limitação de harness registrada no BRU-117 (não é contract_fail; zero violações no log). Decisão do Bruno segue: gate pulado, validação manual no Preview.
 
 ## 4. Não fazer
 
@@ -36,7 +36,7 @@
 
 ## 5. Próximo passo
 
-1. Conferir CI + **Golden Dossier Live do `198d1b04`** (era o único FAIL; expectativa: verde).
+1. ~~Conferir CI do `198d1b04`~~ OK (21/21 + Tests PASS; Golden Live FAIL = timeout de render conhecido do E2E, não contrato).
 2. Bruno revalida visualmente no Preview novo (Scheffer): wordCount ≥900, sem espelhos de mapas em prosa, sem scaffolding bold, tabela de elos sem duplicatas.
 3. Se Preview OK → BRU-119/BRU-120 follow-up no Linear + revisão formal da PR (`review-branch`) → READY FOR MERGE (merge só com `MERGE`).
 

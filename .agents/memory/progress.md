@@ -6,7 +6,7 @@
 - Bruno aprovou a recomendação ("otimo"): manter o single-owner do BRU-119 e trocar a instrução para "leitura executiva em 2-3 parágrafos curtos (6-8 frases)" — sem reverter o lote.
 - Commit `198d1b04` push FF (`54a2ddc3..198d1b04`): prompt (`gold-contract-prompts.ts` L147) + teste C atualizado (`leitura executiva`).
 - Gates: gold 416/416 (395 dir + 21 externos) · full 2217/2218 (flake waterfall timeout; isolado 53/53 PASS) · typecheck 0 · lint 0 erros · build OK 8,75s · no-gemini PASS exit 0 · diff-check 4 linhas de código.
-- CI/Golden Dossier Live do `198d1b04` em observação no fechamento deste handoff. Pendente: revalidação visual do Bruno no Preview novo (Scheffer) confirmando wordCount ≥900 e ausência de espelhos/scaffolding bold.
+- CI do `198d1b04`/`c1aeb9c1`: Tests PASS (2m20s) · 21/21 aplicáveis SUCCESS · **Golden Dossier Live FAIL em 9m37s = timeout de render do E2E** (`golden-dossier-live.spec.ts:182` toBeVisible "element(s) not found", retry2, teste "duas execuções consecutivas") — MESMA classe de limitação de harness registrada no BRU-117 (relatório não renderiza no limite do Playwright), **não** contract_fail: nenhuma violação wordCount/contrato no log. Decisão prévia do Bruno segue válida: gate Golden pulado, validação manual no Preview. O fix wordCount em si permanece NÃO VERIFICADO em runtime até a rodada manual.
 
 ## 2026-08-16 (noite) — BRU-119 entregue: visual ownership + scaffolding bold + dedupe narrow (54a2ddc3)
 
