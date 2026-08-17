@@ -104,16 +104,22 @@ function withEntityIdentity(claim: string, entity: string, accountName: string |
  * "nó verdadeiro não autoriza seta". O contrato atual NÃO tem evidência
  * estruturada de relação entre processos — logo o builder NÃO pode criar
  * cadeias (Campo → Recepção → UBA) nem ligar tecnologia a um fato
- * arbitrário. O mapa representa os PROCESSOS CONFIRMADOS como nós
- * independentes ao redor da operação principal, SEM arestas inventadas:
+ * arbitrário.
+ *
+ * BRU-119 P1 A' (Planejador 2026-08-17 — topology-first):
+ * label do nó = DIMENSÃO CURTA (ex.: "Produção", "Logística"), NÃO claim
+ * integral. O claim fica só na Tabela de Elos (evidence-first) e na
+ * interpretação do Composer. Nós da mesma dimensão são agrupados num
+ * único nó — a topologia é a mensagem, não o detalhe.
  *   - operação principal (core);
- *   - processos operacionais confirmados (satellite) — SEM setas;
+ *   - processos operacionais confirmados (satellite) — 1 nó por dimensão,
+ *     label = dimensão curta; SEM setas inventadas;
  *   - métricas NUNCA viram elo operacional (ficam fora do mapa);
- *   - tecnologia confirmada vira nó warning — SEM ligação arbitrária.
+ *   - tecnologia confirmada → 1 nó warning "Tecnologia" (agrupada).
  * Quando houver relação estruturada no SafePack (same_root /
  * direct_pj_relation), ela pode gerar aresta — nunca a ausência dela.
  */
-function buildChaosMap(safePack: SafeFindingPack): string | null {
+function buildChaosMap(safePack: SafeFindingPack, segment: ScoutSegment = 'industrial_geral'): string | null {
   const facts = confirmedFacts(safePack);
   if (facts.length < 2) return null;
 
@@ -129,25 +135,32 @@ function buildChaosMap(safePack: SafeFindingPack): string | null {
   lines.push(`${rootId}[${quotedLabel('Operação principal')}]`);
   classes.push(`class ${rootId} core;`);
 
-  // Processos operacionais confirmados como nós independentes (sem arestas
-  // inventadas — o contrato não comprova a sequência entre eles).
-  // POST-MERMAID-INVARIANT-01: claim INTEGRAL — truncar em 57+"..." destruía
-  // a reconciliação de medida do verifier (UNSUPPORTED_PRODUCT_CLAIM). A
-  // compactação visual é débito de UX, não regra semântica.
-  operationFacts.slice(0, 6).forEach((fact, i) => {
-    const id = nodeId('B', i + 1);
-    lines.push(`${id}[${quotedLabel(withEntityIdentity(fact.claim, fact.entity, safePack.accountIdentity?.legalName))}]`);
-    classes.push(`class ${id} satellite;`);
-  });
+  // BRU-119 P1 A': agrupar processos por dimensão — 1 nó satellite por
+  // dimensão distinta, label = dimensão curta. Claim integral fica só na
+  // tabela de elos (evidence-first) e na leitura do Composer.
+  // Quando o claim não casa em nenhum padrão do segmento, o fallback de
+  // valueChainDimension devolve claim cru (slice 0,60) — o mapa troca
+  // por label genérico ("Processo") para manter topology-first.
+  const dimIdx = new Map<string, number>();
+  let bIdx = 1;
+  for (const fact of operationFacts.slice(0, 6)) {
+    const dimension = valueChainDimension(fact.claim, fact.kind, segment);
+    const isFallback = dimension === fact.claim.slice(0, 60);
+    const label = isFallback ? 'Processo' : dimension;
+    const key = label.toLowerCase().trim();
+    if (!dimIdx.has(key)) {
+      dimIdx.set(key, bIdx++);
+      const id = nodeId('B', dimIdx.get(key)!);
+      lines.push(`${id}[${quotedLabel(label)}]`);
+      classes.push(`class ${id} satellite;`);
+    }
+  }
 
-  // Tecnologia confirmada — nó warning, SEM ligação arbitrária a processo.
+  // Tecnologia confirmada — 1 único nó warning "Tecnologia" (agrupada).
   const techFacts = facts.filter((f) => f.kind === 'technology');
   if (techFacts.length > 0) {
     const techId = nodeId('C', 1);
-    const techLabel = techFacts
-      .map((f) => withEntityIdentity(f.claim, f.entity, safePack.accountIdentity?.legalName))
-      .join(' | ');
-    lines.push(`${techId}[${quotedLabel(techLabel)}]`);
+    lines.push(`${techId}[${quotedLabel('Tecnologia')}]`);
     classes.push(`class ${techId} warning;`);
   }
 
@@ -600,7 +613,7 @@ export function buildGoldArtifact(
   let gold = goldBrief.replace(/```mermaid\n?[\s\S]*?```\n?/gi, '');
 
   // 2) Mapa do Caos + Elos na seção 2 (PERFIL).
-  const chaos = buildChaosMap(safePack);
+  const chaos = buildChaosMap(safePack, segment);
   const valueChainTable = buildDynamicValueChainTable(safePack, segment);
   if (chaos || valueChainTable) {
     const visualBlock = [chaos, valueChainTable].filter(Boolean).join('\n\n');

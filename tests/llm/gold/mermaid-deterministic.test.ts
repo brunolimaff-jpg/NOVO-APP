@@ -234,16 +234,17 @@ describe('SCOUT-V7-GOLD-EXPERIENCE-01C — CANONICAL MERMAID', () => {
   it('GREEN 7: Mapa do Caos NÃO cria aresta sem evidência (fato A + fato B confirmados → nós sem seta)', () => {
     const pack = makeSafePack({
       facts: [
-        { id: 'f1', entity: 'SCHEFFER & CIA LTDA', claim: 'Cultivo de soja confirmado.', status: 'Confirmado', source: 'Fonte externa', kind: 'operation', process: null },
-        { id: 'f2', entity: 'SCHEFFER & CIA LTDA', claim: 'Beneficiamento de algodão confirmado.', status: 'Confirmado', source: 'Fonte externa', kind: 'operation', process: null },
+        { id: 'f1', entity: 'SCHEFFER & CIA LTDA', claim: 'Fabricação de componentes confirmada.', status: 'Confirmado', source: 'Fonte externa', kind: 'operation', process: null },
+        { id: 'f2', entity: 'SCHEFFER & CIA LTDA', claim: 'Logística de distribuição confirmada.', status: 'Confirmado', source: 'Fonte externa', kind: 'operation', process: null },
       ],
     });
-    const gold = injectCanonicalGoldMermaids(BAD_GOLD, canonical, pack);
+    // segment industrial_geral: fabricação→Produção, logística→Distribuição
+    const gold = injectCanonicalGoldMermaids(BAD_GOLD, canonical, pack, 'industrial_geral');
     const chaos = gold.match(/```mermaid\n([\s\S]*?)```/g)?.[0] ?? '';
-    // Os processos aparecem como nós, mas NENHUMA aresta entre eles
-    expect(chaos).toContain('Cultivo de soja confirmado');
-    expect(chaos).toContain('Beneficiamento de algodão confirmado');
-    // SEM aresta inventada entre processos (==> ou --> entre nós B)
+    // BRU-119 A': dimensões curtas, não claims integrais
+    expect(chaos).toContain('"Produção"');
+    expect(chaos).toContain('"Distribuição"');
+    // SEM aresta inventada entre processos
     expect(chaos).not.toMatch(/B\d+\s*(?:==>|-->|-.->)\s*B\d+/);
     // SEM ligação arbitrária de tecnologia a processo
     expect(chaos).not.toMatch(/B\d+\s*-\.->\s*C\d+/);
@@ -253,14 +254,14 @@ describe('SCOUT-V7-GOLD-EXPERIENCE-01C — CANONICAL MERMAID', () => {
   it('GREEN 7b: métrica NÃO vira elo operacional no Mapa do Caos', () => {
     const pack = makeSafePack({
       facts: [
-        { id: 'f1', entity: 'SCHEFFER & CIA LTDA', claim: 'Cultivo de soja confirmado.', status: 'Confirmado', source: 'Fonte externa', kind: 'operation', process: null },
+        { id: 'f1', entity: 'SCHEFFER & CIA LTDA', claim: 'Fabricação de componentes confirmada.', status: 'Confirmado', source: 'Fonte externa', kind: 'operation', process: null },
         { id: 'f2', entity: 'SCHEFFER & CIA LTDA', claim: '2.700 colaboradores.', status: 'Confirmado', source: 'Fonte externa', kind: 'metric', process: null },
       ],
     });
-    const gold = injectCanonicalGoldMermaids(BAD_GOLD, canonical, pack);
+    const gold = injectCanonicalGoldMermaids(BAD_GOLD, canonical, pack, 'industrial_geral');
     const chaos = gold.match(/```mermaid\n([\s\S]*?)```/g)?.[0] ?? '';
     expect(chaos).not.toContain('2.700 colaboradores');
-    expect(chaos).toContain('Cultivo de soja confirmado');
+    expect(chaos).toContain('"Produção"');
   });
 
   it('GREEN 8: Teia com relação Pista inicial vira nó "A validar" SEM seta + legenda determinística', () => {
@@ -793,5 +794,24 @@ describe('SCOUT-V7-GOLD-EXPERIENCE-01C — CANONICAL MERMAID', () => {
     expect(table).toContain('🟠 A validar');
     expect(table).not.toMatch(/✅ Confirmado[^\n]*n[ãa]o aparece/);
     expect(table).not.toMatch(/n[ãa]o aparece[^\n]*✅ Confirmado/);
+  });
+
+  it('BRU-119 P1 A\': Mapa do Caos topology-first — claims integrais não aparecem no Mermaid', () => {
+    // Planejador (2026-08-17): Mapa = topology-first (dimensão curta),
+    // Tabela = evidence-first (claim integral), Composer = interpretation-only.
+    // Claim integral não pode aparecer no Mermaid do mapa — só na tabela.
+    const gold = injectCanonicalGoldMermaids(BAD_GOLD, canonical, makeSafePack(), 'agroindustria');
+    const blocks = gold.match(/```mermaid\n([\s\S]*?)```/g) ?? [];
+    const chaos = blocks[0] ?? '';
+    // Claim integral dos 3 operationFacts NÃO aparece no mapa
+    expect(chaos).not.toMatch(/Cultivo próprio de soja/i);
+    expect(chaos).not.toMatch(/Beneficiamento em 10 UBAs/i);
+    expect(chaos).not.toMatch(/Frota própria para escoamento/i);
+    // Nó satellite existe (pelo menos 1)
+    expect(chaos).toMatch(/class B\d+ satellite/);
+    // Nó warning de tecnologia existe
+    expect(chaos).toMatch(/class C\d+ warning/);
+    // Sem arestas inventadas entre processos (BLOQUEADOR 2 preservado)
+    expect(chaos).not.toMatch(/B\d+\s*(?:==>|-->|-.->)\s*B\d+/);
   });
 });
