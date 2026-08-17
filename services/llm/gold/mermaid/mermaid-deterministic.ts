@@ -372,7 +372,7 @@ const SEGMENT_VALUE_CHAIN: Record<ScoutSegment, Array<{ pattern: RegExp; label: 
   ],
   industrial_geral: [
     { pattern: /suprimento|compras|insumo/i, label: 'Suprimentos' },
-    { pattern: /produ[cç][aã]o|fabrica[cç]|processamento/i, label: 'Produção' },
+    { pattern: /produ[cç][aã]o|fabrica[cç]|processamento|benefici/i, label: 'Produção' },
     { pattern: /qualidade|conformidade/i, label: 'Qualidade' },
     { pattern: /manuten[cç]/i, label: 'Manutenção' },
     { pattern: /distribui[cç]|log[ií]st|transporte/i, label: 'Distribuição' },
