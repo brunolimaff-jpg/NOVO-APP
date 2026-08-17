@@ -4,6 +4,21 @@ Padroes e anti-padroes aprendidos de sessoes anteriores. Tratados como regras do
 
 ## Padroes confirmados
 
+- **Scaffolding leak escapa por bold, não só headings** [gold, security, provenance]
+  O sanitizador de scaffolding que só casava headings markdown (`^#{1,6}`) deixou passar `**Mapa do Caos (Operações Confirmadas):**` em bold. Detector e sanitizer precisam cobrir bold patterns conhecidos (estritos). Variante desconhecida em bold não deve ser removida silenciosamente — fail-closed no gate residual. Regex de detecção de scaffold: estreita (conhecida), nunca ampla ("qualquer bold").
+
+- **Single-owner das superfícies: Builder ≠ Composer** [gold, arquitetura]
+  O Composer não deve listar em prosa o que o Builder determinístico já monta (mapas, tabela de elos). Isso gera tripla representação visual (diagrama + tabela + texto). Regra: cada fato em UMA superfície estruturada + no máximo 1 interpretação curta. Prompt instrui leitura, não lista.
+
+- **Gold PASS não cobre scaffolding exposto** [gold, security, provenance, ux]
+  O Gold pode passar verifier, Narrative Contract e Artifact Gate e ainda exibir meta-instruções do Composer quando o prompt ensina nomes internos de componentes/enums. A correção segura remove a origem no prompt, detecta/sanitiza de forma estreita antes da medição e reprova residual no texto exato entregue; não mascarar apenas no renderer. A análise visual deve permanecer com o supervisor/agente com visão.
+
+- **Evidência bruta antes de promover freeze** [ci, freeze, planejador]
+  Promover freeze exige prova observável: comandos + exit codes, shasum ao vivo dos arquivos congelados vs manifest, rollback/backups recuperáveis, matriz por identidade e classificação honesta de zero provider sends. Narrativa do executor não é prova final (auditoria Evidence Gate).
+
+- **Encurtar superfície narrativa sem checar o contrato de wordCount reprova o Gold** [gold, prompt, contrato]
+  Instrução de prompt que reduz narrativa ("SOMENTE 2-3 frases" numa seção) pode derrubar o total abaixo do piso do Narrative Contract (900 palavras) e converter gold_pass → factual_minimal no Preview e no Golden Dossier Live, sem nenhum erro de lint/teste local. Qualquer mudança de prompt que reduza texto precisa ser conferida contra MIN_WORDS/MAX_WORDS do `gold-contract-validator.ts` ANTES do push — e a validação real é a rodada Gold no Preview, não a suíte local (o teste local só cobre a frase do prompt, não o output do modelo).
+
 - **Supabase + IDB como cache offline** [react, typescript, supabase, offline] ⚠️ HISTÓRICO
   Offline-first com sync queue: IDB para leitura/escrita instantanea, Supabase como source of truth.
   Stale-while-revalidate nas leituras, fila com retry exponencial nas escritas.

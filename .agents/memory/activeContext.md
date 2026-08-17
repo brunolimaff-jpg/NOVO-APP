@@ -1,31 +1,31 @@
 # Active Context
 
-Last updated: 2026-08-15 18:25 — BRU-109 A+C + BRU-117 entregues · PR #483 closure candidate · aguardando validação manual do Bruno
+Last updated: 2026-08-16 noite 2 — fix wordCount (198d1b04) no CI; Preview do 54a2ddc3 deu contract_fail (corrigido); aguardando revalidação visual Bruno
 
 ## Estado
 
-- **Branch:** `feat/v6-shadow-prep` · **HEAD remoto:** `b23c98e2` (docs) — código Gold `cc93e876` (BRU-117) sobre `4a497126` (BRU-109 A+C) sobre `0200e9b3` (ARCH-E)
-- **PR #483 DRAFT** (OPEN, MERGEABLE, não mergeada): BRU-109 (ARCH A-E + DECISÕES A+C) e BRU-117 (BRU-76 + precondição Golden + opção B) entregues
-- **CI:** 11/11 SUCCESS no `cc93e876` · Preview Smoke SUCCESS (mesmo SHA) · CodeQL/GitGuardian/Analyze PASS
-- **Golden Dossier Live:** fail = **timeout de job (20 min)**, não assertion — precondição PASSou (onboarding E2E funcionou via vínculo); runtime real iniciou mas o relatório não renderizou no limite do Playwright (240s). **Decisão do Bruno: pular o gate, validar manualmente.**
-- **Full suite 2197/2197** · Gold 923/923 · typecheck/lint/build/no-gemini OK
-- **Telemetria do compact estruturada** (`compact-error.ts`): errorClass + responseChars + finishReason + hasObjectBoundary, sem texto livre; eventos compact-* críticos — qualquer queda futura deixa rastro no Supabase
-- **Leak shield canônico** (`utils/leakShieldPolicy.ts`): serverless agora bloqueia contexto_cadastral/nota_de_escopo/aviso_metodologico (RED→GREEN); JSON-safe preservado; PORTA sem regressão
+- **Branch:** `feat/v6-shadow-prep` · **HEAD remoto:** `198d1b04` (fix wordCount) sobre `54a2ddc3` (BRU-119) sobre `f115a860` (BRU-118) — PR #483 DRAFT
+- **CI f115a860→54a2ddc3:** 21/21 checks aplicáveis SUCCESS · Preview same-SHA deployado · Smoke PASS
+- **BRU-119 entregue:** A (prompt leitura) + B (scaffold bold) + C (dedupe narrow). Review PASS. **Follow-up `198d1b04`:** a instrução "leitura curta 2-3 frases" derrubou wordCount <900 → contract_fail (factual_minimal) no Preview e no Golden Live; seção 2 agora pede "leitura executiva 2-3 parágrafos (6-8 frases)" — aprovado pelo Bruno. Gates: gold 416/416, full 2217/2218 (flake waterfall conhecido), typecheck/lint/build/no-gemini OK.
+- **#456 e #452:** FECHADAS como superseded (autorizado pelo Planejador).
+- **BRU-121:** Leitura integral arquitetural concluída. Relatório em `docs/BRU-121-RELATORIO-LEITURA-INTEGRAL.md` (212 linhas, Mermaid, coverage ledger, 8 riscos, 3 opções de convergência). Recomendação: Opção A (Gold primeiro).
 
-## Próximo passo (Bruno — validação manual)
+## Próximo passo (Bruno)
 
-1. Rodar o dossiê Scheffer no preview do SHA `b23c98e2` (manual).
-2. Se gold_pass (verifier 0, contract PASS, artifact PASS, zero Mermaid error): iniciar revisão formal da PR com o Planejador → READY FOR MERGE (Bruno decide com `MERGE`).
-3. Se cair: telemetria nova do compact mostra a causa no `scout_diagnostics` — diagnosticar com evidência.
+1. Conferir CI + Golden Dossier Live do `198d1b04` (único FAIL anterior era o contract_fail wordCount).
+2. **Revalidação visual do Bruno no Preview do `198d1b04`** (Scheffer): wordCount ≥900, sem espelhos em prosa, sem scaffolding bold, tabela de elos sem duplicatas.
+3. Depois: revisão formal → READY FOR MERGE (merge exige `MERGE` do Bruno).
+4. Depois do merge da #483: rebase #467.
 
 ## Não fazer
 
 - Merge #483 sem token `MERGE` do Bruno · Produção · Supabase write/migrations
-- Retry do compact (congelado pelo Planejador) · mudança de modelo/provider/prompt
-- Mover status dos BRU no Linear (executor só passa status)
+- Retry do compact (congelado) · mudança de modelo/provider/prompt
+- Mexer no lab BRU-77 (frente do executor paralelo)
+- `Goal` segue cobrindo demandas do Planejador; ZCode supervisiona execução e evidência.
 
-## Vault
+## Vault / memória
 
-- Sessão: [[2026-08-15T18-25-34-bru109-bru117-gold-stabilization-closure-candidate]]
-- Lições novas (ci): diagnóstico E2E com trace.zip · teto de 20 min de job com rodadas reais
-- CALIBER_LEARNINGS atualizado (4 entradas: trace E2E, teto job, telemetria compact, leak shield canônico)
+- Sessão handoff: [[2026-08-16T13-03-10-fluxo-atual-gold-handoff]] · Chat produto: `6a81fda2`
+- BRU-121: `docs/BRU-121-RELATORIO-LEITURA-INTEGRAL.md` (212 linhas, Mermaid, 3 opções)
+- CALIBER_LEARNINGS: lição scaffolding + lição bold/inline patterns

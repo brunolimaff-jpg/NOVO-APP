@@ -1,50 +1,52 @@
-# HANDOFF AI — PR #483 (feat/v6-shadow-prep) — Gold closure: STACKED, aguardando validação manual do Bruno
+# HANDOFF AI — PR #483 (feat/v6-shadow-prep) — Gold: BRU-119 + fix wordCount no CI
 
-> Atualizado: 2026-08-15 (noite) — BRU-109 A+C + BRU-117 entregues · closure candidate
+> Atualizado: 2026-08-16 (noite 2) — após fix do contract_fail wordCount
 > Worktree: `/Users/brunolima/Documents/NOVO-APP-bru62`
-> Branch: `feat/v6-shadow-prep` · PR: **#483** (OPEN/DRAFT, não mergeada, MERGEABLE)
-> HEAD remoto: `b23c98e2` (docs) — código Gold: `cc93e876` (BRU-117) sobre `4a497126` (BRU-109 A+C) sobre `0200e9b3` (ARCH-E)
-> Narrativa canônica: `bruno vault/Sessões/2026-08/2026-08-15T18-25-34-bru109-bru117-gold-stabilization-closure-candidate.md`
+> Branch: `feat/v6-shadow-prep` · PR: **#483** (OPEN/DRAFT, não mergeada)
+> HEAD remoto: `198d1b04` (fix wordCount) sobre `54a2ddc3` (BRU-119) sobre `f115a860` (BRU-118)
+> Narrativa canônica: ver seção 7 (Vault)
 
 ---
 
-## 1. Estado (control plane = Linear)
+## 0. Frente correta (decisão do Bruno, 2026-08-16)
 
-- **BRU-109 In Progress** (parent P0): cadeia ARCH-A→E entregue (0200e9b3) + DECISÕES A+C (4a497126).
-- **BRU-117 In Progress** (gate): BRU-76 + precondição Golden discriminante + opção B (onboarding E2E) — entregues.
-- **BRU-110..115 In Progress** (ARCH A-F): código/evidência entregues; status no Linear não movido (executor só passa status).
+- **ZCode = fluxo atual (Gold/PR #483)**. O lab BRU-77 pertence ao executor paralelo via ChatGPT Web; não misturar. Chat do produto (Planejador): `6a81fda2`.
 
-## 2. O que foi entregue neste ciclo (commits)
+## 1. Estado
 
-- `4a497126` — BRU-109 A+C: `compact-error.ts` (taxonomia errorClass + métricas da resposta crua, sem texto livre); `compact-response` mede a resposta crua; eventos compact-*/raw-schema-fail críticos; `finishReason` no cliente; `GoldPipelineDeps.compact` → `CompactOutcome` (union compatível com mocks). Leak shield canônico: `utils/leakShieldPolicy.ts` (10 hard + 4 soft); api/llm + textCleaners convergem; RED→GREEN contexto_cadastral/nota_de_escopo/aviso_metodologico; JSON-safe preservado; PORTA sem regressão.
-- `443433e8` — BRU-117 lote 1 (BRU-76): 504/TimeoutError → TIMEOUT (antes do abort-like); AbortError distinto.
-- `b075a025` — precondição Golden sempre discriminante ao expirar (avaliação final pós-loop).
-- `29492403` + `cc93e876` — opção B (autorizada pelo Bruno): E2E completa onboarding pós-login; fix de vínculo (trace revelou email já cadastrado → card "Vincular este dispositivo").
-- `b23c98e2` — memória.
+- **BRU-119 entregue** (`54a2ddc3`): single-owner Builder≠Composer (prompt seção 2), scaffolding bold fail-closed (`INLINE_SCAFFOLD_PATTERNS`), dedupe narrow da tabela de elos. CI 21/21 SUCCESS.
+- **contract_fail do BRU-119 corrigido** (`198d1b04`): a instrução "SOMENTE leitura comercial curta (2-3 frases)" derrubou wordCount <900 → `narrative-contract passed=false` → factual_minimal no Preview do Bruno e no Golden Dossier Live (FAIL ~2min, não é o timeout de 20min). Fix aprovado pelo Bruno ("otimo"): seção 2 pede "leitura executiva em 2-3 parágrafos curtos (6-8 frases)" — single-owner preservado, teste C atualizado.
+- **BRU-120/BRU-121** (Planejador): controle de convergência + leitura integral arquitetural (relatório em `docs/BRU-121-RELATORIO-LEITURA-INTEGRAL.md`, não commitado).
 
-## 3. Testes e gates
+## 2. Commits do ciclo
 
-- Full suite **2197/2197** · Gold **923/923** · typecheck/lint/build/no-gemini OK.
-- CI `cc93e876`: **11/11 SUCCESS**. Preview Smoke **SUCCESS** (mesmo SHA). CodeQL/GitGuardian/Analyze PASS.
-- **Golden Dossier Live: fail = timeout de job (20 min)**, não assertion — a precondição PASSou (onboarding funcionou); o runtime real iniciou e o relatório não renderizou no limite do Playwright (240s). **Decisão do Bruno: pular o gate, validar manualmente.**
-- Testes novos: `bru109-compact-telemetry` (12), `leak-shield-parity` (7), `golden-precondition` (11), triage GREEN 17/17.
+- `f115a860` — BRU-118: scaffolding leak fail-closed (sanitizador + prompt humano + gate residual `scaffold_fail`).
+- `54a2ddc3` — BRU-119: visual ownership (lote A+B+C).
+- `198d1b04` — fix wordCount: leitura executiva seção 2 + teste C. **CI em observação no fechamento deste handoff.**
+
+## 3. Testes e gates (validação local do `198d1b04`)
+
+- Gold **416/416** (395 em `tests/llm/gold` + 21 gold externos) · full **2217/2218** (1 flake waterfall timeout — isolado 53/53 PASS, known flake) · typecheck 0 · lint 0 erros (73 warnings pré-existentes) · build OK · no-gemini PASS (exit 0).
+- CI do `54a2ddc3`: 21/21 SUCCESS, exceto Golden Dossier Live FAIL (= contract_fail wordCount, corrigido no `198d1b04`). Vercel/Smoke SUCCESS.
 
 ## 4. Não fazer
 
-- Merge sem token `MERGE` do Bruno · Produção · Supabase write/migrations · retry do compact (congelado pelo Planejador) · mudança de modelo/provider/prompt.
+- Merge sem token `MERGE` do Bruno · Produção · Supabase write/migrations · retry do compact (congelado) · mudança de modelo/provider fora do escopo BRU-118/119 · mexer no lab BRU-77.
+- Mudança de prompt que reduz narrativa SEM checar MIN_WORDS/MAX_WORDS (`gold-contract-validator.ts`) — foi a causa do contract_fail (lição registrada no CALIBER).
 
-## 5. Próximo passo (Bruno)
+## 5. Próximo passo
 
-1. Rodar o dossiê Scheffer no preview do SHA `b23c98e2` (manual).
-2. Se gold_pass (verifier 0, contract PASS, artifact PASS, zero Mermaid error): iniciar revisão formal da PR com o Planejador → READY FOR MERGE (Bruno decide com `MERGE`).
-3. Se cair: a telemetria nova do compact mostra a causa no `scout_diagnostics` (eventos críticos + errorClass) — diagnosticar com evidência.
+1. Conferir CI + **Golden Dossier Live do `198d1b04`** (era o único FAIL; expectativa: verde).
+2. Bruno revalida visualmente no Preview novo (Scheffer): wordCount ≥900, sem espelhos de mapas em prosa, sem scaffolding bold, tabela de elos sem duplicatas.
+3. Se Preview OK → BRU-119/BRU-120 follow-up no Linear + revisão formal da PR (`review-branch`) → READY FOR MERGE (merge só com `MERGE`).
 
 ## 6. Skills úteis na próxima sessão
 
-- `doc-handoff` (fechamento) · `validate-gates` / `review-branch` (revisão formal) · `supabase-migration` (se DDL) · `orchestration`/`planner` (se despacho do Planejador).
+- `validate-gates` / `review-branch` (revisão formal) · `doc-handoff` (fechamento) · `supabase-migration` (se DDL) · `orchestration`/`planner` (se despacho do Planejador).
 
 ## 7. Artifacts
 
 - PR #483: https://github.com/brunolimaff-jpg/NOVO-APP/pull/483
-- Arquitetura: `docs/arquitetura/auditoria-arquitetura-2026-08-15.md` + `mapa-completo-arquitetura.md`
-- Vault: sessão `2026-08-15T18-25-34-bru109-bru117-gold-stabilization-closure-candidate.md` · lições ci/ (trace E2E, teto 20min job) · CALIBER_LEARNINGS atualizado
+- Relatórios: `docs/BRU-121-RELATORIO-LEITURA-INTEGRAL.md` (não commitado) · `docs/handoffs/2026-08-15-gold-scaffolding-leak-supervision.md` · `docs/arquitetura/auditoria-arquitetura-2026-08-15.md`
+- Worktree sujo (não commitar sem pedido): `docs/BRU-121-RELATORIO-LEITURA-INTEGRAL.md`, `docs/arquitetura/`, `repro-anual.mjs`, `repro-anual2.mjs` (frente BRU-121).
+- Vault: sessão da noite 2026-08-16 (ver índice `Sessões/2026-08/`) · CALIBER_LEARNINGS (lição wordCount) · lições gold/.

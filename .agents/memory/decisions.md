@@ -1,5 +1,32 @@
 # decisions.md — NOVO-APP
 
+## DI-2026-08-16-03: BRU-119 follow-up — instrução da seção 2 restaurada para leitura executiva (wordCount >=900)
+
+- **Decisão (Bruno, 2026-08-16 noite — aprovação "otimo"):** manter o single-owner do BRU-119 e trocar "SOMENTE uma leitura comercial curta (2-3 frases)" por "leitura executiva em 2-3 parágrafos curtos (6-8 frases)" na seção 2 do prompt Composer. Motivo: a instrução curta derrubou a narrativa abaixo do piso de 900 palavras → `contract_fail` → factual_minimal no Preview e no Golden Dossier Live do `54a2ddc3`.
+- **Validação:** gold 416/416 · full 2217/2218 (flake waterfall conhecido) · typecheck 0 · lint 0 · build OK · no-gemini PASS. Commit `198d1b04` push FF.
+- **Lição:** mudança de prompt que reduz narrativa exige checagem contra MIN_WORDS/MAX_WORDS do `gold-contract-validator.ts` antes do push (CALIBER_LEARNINGS).
+- **Referência:** Linear BRU-119; commit 198d1b04.
+
+## DI-2026-08-16-02: BRU-118 — P1 scaffolding do Gold corrigido por microdelta fail-closed (autorizado pelo Planejador)
+
+- **Decisão (Planejador, chat do produto 6a81fda2 + Linear BRU-118):** microdelta fail-closed para remover o leak de scaffolding interno do Gold (meta-rótulos `(Conteúdo para o Builder)`/`(Operações Confirmadas)` + enums crus `same_root/direct_pj_relation/partner_other_cnpj` na saída).
+- **Escopo:** (1) prompt Composer sem enums crus na narrativa (linguagem humana; enums permanecem no contrato JSON do Compact); (2) sanitizador/detector determinístico estreito (`gold-scaffolding-sanitizer.ts`) — headings internos conhecidos removidos, enums humanizados preservando direção, idempotente, residual reprova fechado; (3) `scaffold-done` no pipeline pré-post-preflight; (4) seam com reason `scaffold_fail` no artefato FINAL EXATO → factual_minimal.
+- **Validação:** Gold 401/401 · full 2209/2209 · CI f115a860 21/21 SUCCESS; Golden Live fora de critério (timeout de job 20 min).
+- **Referência:** Linear BRU-118; Vault sessão handoff 2026-08-16T13-03-10; commit f115a860.
+
+## DI-2026-08-16-01: ZCode na frente do fluxo atual (Gold/PR #483); lab BRU-77 é do executor paralelo
+
+- **Decisão do Bruno (2026-08-16):** o ZCode deve estar no **fluxo atual (Gold/PR #483)**, NÃO no lab BRU-77 (R1U/retry/battery). O lab é do executor paralelo via ChatGPT Web; não confundir as conversas nem mexer nos artefatos do lab.
+- **Estado herdado:** P1 scaffolding do Gold em aberto (relatório `docs/handoffs/2026-08-15-gold-scaffolding-leak-supervision.md`), aguardando despacho do Planejador (chat 6a7f2983).
+- **Referência:** Vault sessão 2026-08-16T13-03-10.
+
+## DI-2026-08-15-04: `/goal` cobre demandas do Planejador sob supervisão
+
+- **Decisão do Bruno (2026-08-15):** continuar usando `/goal` para executar todas as demandas do Planejador; o ZCode atua como supervisor da cadeia inteira.
+- **Supervisão obrigatória:** validar despacho/modelo efetivo quando possível; separar execução delegada, visão de screenshots, evidência técnica e decisão de arquitetura; não atribuir resultado ao Verboo/DeepSeek V4 Flash sem confirmação do runtime.
+- **Preferência de delegação:** tarefas delegáveis priorizam `custom:ee98b6d2-5f39-4c67-a905-5574c20fdc70:deepseek-v4-flash` no nível máximo. Isso não autoriza alterar provider/modelo do produto, chamadas Gold pagas, merge, deploy ou escrita remota.
+- **Plano de controle:** o Planejador permanece responsável por escopo e arquitetura; o executor implementa dentro do despacho; o ZCode supervisiona e valida.
+
 ## DI-2026-08-15-03: Auditoria de arquitetura — parar correções pontuais até decisão estruturada (pedido do Bruno)
 
 - **Decisão (2026-08-15):** após o run b3294247 revelar regressão do fix single-pass do BRU-108 (verifier_fail por "produção de" na coluna Validar), o Bruno mandou **parar fixinhos e mapear todo o código** com leitura completa. Auditoria concluída: 35 riscos estruturais em 4 domínios (Gold 12, orquestração 14, renderização 10).

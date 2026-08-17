@@ -1,5 +1,39 @@
 # Progress
 
+## 2026-08-16 (noite 2) — contract_fail wordCount corrigido: leitura executiva na seção 2 (198d1b04)
+
+- Validação manual do Bruno no Preview do `54a2ddc3` (BRU-119) revelou `contract_fail`: factual_minimal com `narrative-contract passed=false`. Console+HAR mostraram wordCount abaixo de 900 — a instrução BRU-119 "SOMENTE uma leitura comercial curta (2-3 frases)" encolheu a seção 2 e derrubou a narrativa total abaixo do piso. Golden Dossier Live também FAIL (~2min, mesmo perfil).
+- Bruno aprovou a recomendação ("otimo"): manter o single-owner do BRU-119 e trocar a instrução para "leitura executiva em 2-3 parágrafos curtos (6-8 frases)" — sem reverter o lote.
+- Commit `198d1b04` push FF (`54a2ddc3..198d1b04`): prompt (`gold-contract-prompts.ts` L147) + teste C atualizado (`leitura executiva`).
+- Gates: gold 416/416 (395 dir + 21 externos) · full 2217/2218 (flake waterfall timeout; isolado 53/53 PASS) · typecheck 0 · lint 0 erros · build OK 8,75s · no-gemini PASS exit 0 · diff-check 4 linhas de código.
+- CI/Golden Dossier Live do `198d1b04` em observação no fechamento deste handoff. Pendente: revalidação visual do Bruno no Preview novo (Scheffer) confirmando wordCount ≥900 e ausência de espelhos/scaffolding bold.
+
+## 2026-08-16 (noite) — BRU-119 entregue: visual ownership + scaffolding bold + dedupe narrow (54a2ddc3)
+
+- Planejador despachou BRU-119 (lote A+B+C) com 3 contratos: A (prompt single-owner), B (scaffold bold), C (dedupe elos). Planejador corrigiu: RED de variante ambígua bold obrigatório (não remoção silenciosa); lint obrigatório; contagens reais antes/depois.
+- Implementado: prompt `gold-contract-prompts.ts` ~L147 (instrução de leitura curta em vez de lista); `gold-scaffolding-sanitizer.ts` com INLINE_SCAFFOLD_PATTERNS (5 padrões bold + detecção + remoção); `mermaid-deterministic.ts` com dedupe por dim+evidência normalizada antes do sort.
+- Testes: 19/19 GREEN (sanitizador). Gold 410/410 (+9 novos). Full 2218/2218. Testes prompt C/E/F atualizados para refletir instrução nova. Review independente PASS COM RESSALVAS.
+- Gates: typecheck 0 · lint 0 erros (73 warnings preexistentes) · build OK · no-gemini PASS · diff-check 0. CI 21/21 SUCCESS. Preview same-SHA deployado. Smoke PASS.
+- Commit `54a2ddc3` push FF (`f115a860..54a2ddc3`). #456 e #452 fechadas como superseded.
+- Retorno postado no chat do Planejador (6a81fda2). Resultado: PR #483 OPEN/DRAFT, CI verde, Preview validado, aguardando validação visual do Bruno.
+- Planejador criou BRU-120 (controle geral convergência) e BRU-121 (leitura integral arquitetural). Leitura integral concluída por 2 subagentes Explore. Relatório em `docs/BRU-121-RELATORIO-LEITURA-INTEGRAL.md` (212 linhas).
+
+## 2026-08-16 (tarde 2) — BRU-118 entregue: P1 scaffolding leak fail-closed (f115a860)
+
+- Bruno confirmou frente: **fluxo atual do produto (Gold/PR #483)**, não o lab BRU-77. Mapa de chats: `6a80b20a`/`6a7f2983` = lab; `6a7d1209` = produto (bateu no limite de duração); chat novo do produto = `6a81fda2`.
+- Planejador criou **BRU-118** (P1 scaffolding leak) no Linear e despachou o microdelta fail-closed. Postado no chat do produto.
+- Implementado: `services/llm/gold/gold-scaffolding-sanitizer.ts` (detector+sanitizador estrito determinístico, idempotente, residual reprova fechado); prompt Composer sem enums crus na narrativa (relação em linguagem humana; proibição de meta-rótulos); pipeline emite `scaffold-done`; seam ganhou reason `scaffold_fail` + `scaffold-gate` no artefato final EXATO → factual_minimal.
+- Testes: bru118-scaffolding-sanitizer (10) + sequência pipeline (scaffold-done) + teste D do prompt (ausência de enums crus). Gold 401/401 · full 2209/2209 · typecheck 0 · lint 0 · build OK · no-gemini PASS (após limpar 4 .DS_Store locais) · diff-check OK.
+- Commit `f115a860` push FF (`53268f7c..f115a860`). CI: 21/21 checks aplicáveis SUCCESS (Tests/Typecheck/Lint/Build/No-Gemini/CodeQL/Smoke/Vercel). **Golden Dossier Live in_progress** (timeout de job 20 min conhecido — não é critério).
+- Retorno registrado no BRU-118 (Linear, comentário acf9caca) e no chat do produto. Resultado máximo: `STACKED / PREVIEW VALIDATED / DRAFT — aguardando validação visual do Bruno`.
+
+## 2026-08-16 (tarde) — Handoff do fluxo atual (Gold/PR #483); P1 scaffolding em aberto
+
+- Bruno corrigiu a frente: ZCode = **fluxo atual (Gold/PR #483)**, não o lab BRU-77 (que fica com o executor paralelo).
+- Estado real levantado: HEAD `53268f7c` (docs), CI 11/11 + Preview Smoke SUCCESS + CodeQL/PASS; **Golden Dossier Live FAIL = teto de 20 min do job** (precondição passou; Bruno pula o gate e valida manualmente); mergeStateStatus UNSTABLE.
+- **P1 scaffolding** (validação manual): Gold exibiu `Conteúdo para o Builder`, `Mapa do Caos (Operações Confirmadas)`, enums `same_root/direct_pj_relation/partner_other_cnpj`. Causa = prompt `gold-contract-prompts.ts:147` + ausência de gate pós-Composer; renderer só exibe texto aprovado. Relatório `docs/handoffs/2026-08-15-gold-scaffolding-leak-supervision.md`; aguardando despacho do Planejador para microdelta fail-closed.
+- Handoff gravado: Vault sessão `2026-08-16T13-03-10-fluxo-atual-gold-handoff.md` + HANDOFF_AI + activeContext + CALIBER (lição scaffolding).
+
 ## 2026-08-15 (manhã) — BRU-103: ACTION_COUNT_MISMATCH (numbered=7) diagnosticado e corrigido
 
 - Bruno rodou a Scheffer no preview `819974d3` (run `20573b42`, COMPLETED 14:36 UTC, session a00dca0b): **verifier 0/0/0/0**, preflight/certainty 0, **wordCount=1265** (acima do piso 900 — o fix do prompt 819974d3 funcionou, antes era 862), mas `contract-done passed=false` com **ACTION_COUNT_MISMATCH (actionFormats {named:0, numbered:7, tableRows:0})** → output factual_minimal. Lifecycle OK (sem freeze; PostCompletion 0–10000ms limpos).
@@ -25,6 +59,174 @@
 - **Gate de parse REAL**: novo `tests/utils/mermaid-parse-gate.test.ts` roda `mermaid.parse()` (mesma lib do runtime) sobre blocos sanitizados — o teste antigo só validava sanitizeMermaidCode (por isso CI verde com parse errors no browser). Bloco real do run agora parseia.
 - Gates: suíte 2122/2122, tsc/lint/build OK, CI 11/11 verde, CodeQL/GitGuardian/Vercel/Smoke pass. Preview do `2ba3091f` no ar (`scoutagro-b51quy9rv...`).
 - PRÓXIMO: Bruno roda a Scheffer no preview `2ba3091f` → conferir zero parse errors Mermaid + texto limpo (sem volume de volume / espaços) → fechar BRU-108 → restaurar READY FOR MERGE.
+
+## 2026-08-15 (madrugada) — RCA zero-call do P03 FAIL (V4 Pro bf4ad4eb): PACKAGING GAP, não MODEL_EXECUTION
+
+- Bruno redirecionou: esquecer V4 Pro, seguir com DeepSeek V4 Flash (sessão já roda como Flash; roteamento desativado). Mensagem de redirecionamento + aprovação postadas no chat 6a80b20a.
+- Smoke V4 Pro (único autorizado, dispatch bf4ad4eb) rodou e falhou em P03: `P03_CANONICAL_GROUNDING_INVALID:units_assets:p03-ua-certification:P03_CANONICAL_GROUNDING_FAIL`.
+- Exploração zero-call (autorizada: "deepseek ilimitado, pode explorar mais") com os artefatos reais do smoke em `~/Documents/Codex/2026-08-11/referenced-chatgpt-conversation-this-is-an-3/SCOUT_BRU77_R2B6_DSV4PRO_C2_FRESH_FULL_PIPELINE_SMOKE_213101b1...`:
+  - Gate `p03_canonical_grounding_v1.mjs:321-327` exige overlap lexical > 0 entre tokens do item e tokens do `text` do LEDGER (facts), não do excerpt.
+  - Item "Certificação de agricultura regenerativa" (ev-regenagri-r2) → overlap 0 com o fact text "A Regenagri certificou fazendas..." (que perdeu "certificação de agricultura regenerativa" vs excerpt original "receberam certificação de agricultura regenerativa").
+  - Prompt efetivo P03 (016/017) não tem regra lexical; R01 tem node "Certificação Regenagri" mas o gate não consulta o graph.
+  - Flash de referência (f601e79d) não criou unit de certificação (falhou antes em PROCESS_GRANULARITY).
+- CLASSIFICAÇÃO reportada: SHARED CONTRACT/PACKAGING GAP (perda de vocabulário na fronteira Research→Ledger + regra lexical do evaluator não comunicada + gate compara com text do fact em vez de excerpt). Recomendação mínima: preservar excerpt no ledger e/ou gate usar excerpt.
+- Retorno postado no chat 6a80b20a (RCA ZERO-CALL DO P03 FAIL), confirmado como última mensagem do usuário. Aguardando adjudicação.
+
+## 2026-08-15 (madrugada 2) — Exploração A1→A2 (a270a303) zero-call: A2 = guarda de conteúdo vazio
+
+- Despacho do Planejador (a270a303): revisar linhagem A1→A2→NOT_PORTABLE com DeepSeek Flash max; provar por que A2 nasceu, comparar before/after, falsificar benefício, decidir se A2 se justifica.
+- VERIFICADO nos artefatos do lab (`~/Documents/Codex/2026-08-11/referenced-chatgpt-conversation-this-is-an-3`):
+  - A1 = FLASH_P03_CROSS_GROUNDING_A1 (instrução de cross-grounding via graph_refs literais).
+  - A2 = `p03_reasoning_effort: 'low'` nas rotas Flash (bru77_portability_battery_v1.mjs).
+  - Origem do A2: controle A1 OFF/ON 37dff89e — P03 com high retornou MODEL_CONTENT_EMPTY nos 2 braços (reasoning_tokens = completion_tokens, content 0). Veredito BOTH_EMPTY.
+  - Before/after: com A2 (2715d75e) o P03 voltou CONTENT (5008 chars); gate avaliado (4 PROCESS_GRANULARITY).
+  - Falsificação: A2 sozinho (2ab4927c) falhou PROCESS_GRANULARITY — A2 não resolve gate; só evita conteúdo vazio.
+- Decisão técnica reportada: NÃO superseder A2 no escuro (evidência do mesmo dia de EMPTY com high; gateway sem metadata de release). Recomendado: 1 teste controlado P03 high/max na release atual para adjudicar.
+- Postado no chat 6a80b20a (EXPLORAÇÃO A1→A2), confirmado. Aguardando adjudicação (RCA P03 + A1/A2).
+
+## 2026-08-15 (madrugada 3) — Counterfactual 12ad8418 (offline): opção (a) lossless excerpt corrige sem bypass novo
+
+- Planejador aceitou RCA P03 com correção de precisão (modelo PODERIA ecoar Regenagri; defeito = ensinar mecanismo lexical oculto). Classificação: CONTEXT_PACKAGING + GATE_CONTRACT_MISMATCH; V4 Pro não sustenta NOT_PORTABLE. Despachou comparação counterfactual offline 12ad8418.
+- Replay offline no P03 real do run bf4ad4eb (11 itens): baseline 10/11 (único FAIL = p03-ua-certification); (a) lossless excerpt 11/11 (overlap [agricultura, certificacao, regenerativa]); (b) ledger+R01 11/11 ([certificacao, certification]); (c) prompt lexical simulável (eco); (d) remover hard fail abre barreira.
+- Adversarial: bypass por eco-de-token JÁ existe na baseline (item fabricado com "Regenagri"/"auditoria" passa nas 3 variantes) — (a)/(b) não introduzem vetor novo.
+- Recomendação postada (híbrido mínimo): usar excerpt como supportText do gate (a) + MANTER hard fail + NÃO prompt lexical + avaliar threshold de overlap em decisão separada. Postado no chat 6a80b20a (confirmado como última mensagem do usuário).
+- Aguardando adjudicação do Planejador (RCA P03 + A1/A2 + counterfactual).
+
+## 2026-08-15 (madrugada 4) — Diagnóstico 34ef558c executado: MAX → CONTENT (falsifica necessidade do A2)
+
+- Planejador adjudicou A1/A2: A2 permanece workaround parcial; autorizou o menor experimento — 1 provider send P03 com reasoning=MAX (mesmo prompt+A1+temp+budget+modelo do braço ON do par 37dff89e), sem smoke/battery/allowance/route.
+- Executado: HTTP 200 · content_state=CONTENT · 7382 chars · finish stop · JSON VÁLIDO (p03_day_of_operation.v1, 4 chain, 6 units, 2 events, 2 unknowns) · reasoning_tokens 2167/4335 (49%).
+- Contraste: high (par 37dff89e) → EMPTY (reasoning 100% do completion); max → CONTENT. Falsifica a reprodução de MODEL_CONTENT_EMPTY com max nesta release; A2 perde justificativa causal (1 amostra; recomendada 1 confirmação antes de superseder).
+- Artefatos: `~/Documents/Codex/2026-08-11/referenced-chatgpt-conversation-this-is-an-3/SCOUT_BRU77_A2MAX_PROBE_34ef558c/` (descartável, fora da baseline).
+- Postado no chat 6a80b20a (RESULTADO DO DIAGNÓSTICO 34ef558c), confirmado. Aguardando adjudicação (A2 × max-all + counterfactual lexical 12ad8418).
+
+## 2026-08-15 (madrugada 5) — Reconciliação forense fefe5dbf: 1 send meu provado; de6483df sem artefato local
+
+- Planejador não autorizou os 3 sends (teste contaminado: reasoning × A1). Pediu reconciliação forense zero-call fefe5dbf: quantos POSTs, casar request/response por SHA/timestamp, houve 2º send?
+- VERIFICADO: 1 único POST meu (curl 19:59:09→19:59:29, HTTP 200, 20.37s); request SHA f23ca026 (43.748 bytes, braço ON do par 37dff89e = A1 PRESENTE, reasoning=max); response SHA 2402dd89 (8.640 bytes; content 7.382; reasoning 2.167/4.335). Cópias no lab com SHAs idênticos.
+- NÃO ENCONTRADO: artefato local do de6483df (A1 OFF, MAX→EMPTY 2.259/2.259) — só no Linear (MCP de comentários quebrado nesta sessão). Addendum local do 96fdaf38 é LOW→CONTENT 6.449.
+- INFERÊNCIA: 2 execuções sob o rótulo 34ef558c com controles diferentes (A1 OFF × A1 ON) — resultado confundido por 2 variáveis; impossível adjudicar sem o texto do dispatch. Pergunta material ao Planejador: qual controle o dispatch autorizava?
+- Postado no chat 6a80b20a (RECONCILIAÇÃO FORENSE fefe5dbf), confirmado. A2 intocado, max-all não liberado, nenhum send adicional.
+
+## 2026-08-15 (madrugada 6) — Reconciliação fechada: A2=low vigente; decisão material pendente = R1U redesign
+
+- Planejador fechou a reconciliação: o controle autorizado pelo 34ef558c era o 96fdaf38 (A1 OFF, max → EMPTY); meu probe (37dff89e braço ON, A1 ON, max → CONTENT) foi controle errado = segundo send fora do envelope. Registro acb9bc5c no Linear. Ocorrências preservadas.
+- Estado final BRU-77 rodada 2: A2=LOW permanece vigente (workaround parcial p/ MODEL_CONTENT_EMPTY); max-all NÃO liberado; Mimo/battery/segunda conta/BRU-57 bloqueados; zero novos sends.
+- Lacuna principal = R1U: Hybrid E provou que NÃO há threshold lexical simples seguro (HYBRID_E_NO_SAFE_LEXICAL_RULE_FOUND). Decisão material pendente (Bruno/Planejador): autorizar redesign de grounding SEMÂNTICO do R1U (separar provenance/identity de semantic support) ou não.
+- Postado e confirmado no chat 6a80b20a; memória atualizada. Aguardando decisão do Bruno sobre R1U.
+
+## 2026-08-15 (madrugada 7) — Etapa 2 do R1U redesign ENTREGUE (d7aec84b): candidate baseline revision
+
+- Planejador aprovou o contrato Semantic Support com 3 correções (entidade/R01/token não bastam isoladamente; UNSUPPORTED/NOT_PROVABLE = hard fail, sem rebaixamento; support lossless simétrico sem alterar P01.text; R01 não é autoridade raiz) e despachou Etapa 2 (MAP→RED→GREEN→adversarial→regressão), zero sends.
+- Implementado no lab (`~/Documents/Codex/2026-08-11/referenced-chatgpt-conversation-this-is-an-3`):
+  - `p03_canonical_grounding_v1.mjs`: SEMANTIC SUPPORT 3 estados por campo material; cobertura estrutural = nome canônico + contexto canônico R1U (R01/business_model/relações); vocabulário de moldura removido; ativação por support_text (packaging delta), retrocompatível (ledgers antigos mantêm P03_CANONICAL_GROUNDING_FAIL).
+  - `evidence_ledger_adapter_v1.mjs`: facts ganham support_text (excerpt/extracted_fact) sem alterar text.
+  - `p03_semantic_support_contract.test.mjs` (novo, 5 cenários) + SHAs congelados atualizados + artefatos esperados regenerados (backups .backup-r1u).
+- VERIFICAÇÃO: P03 real V4 Pro valid=true 11/11 SUPPORTED (certification corrigido); ADV-1/2/3 UNSUPPORTED; suíte determinística 26/26 PASS.
+- Entregue no chat 6a80b20a (CANDIDATE BASELINE REVISION ENTREGUE), confirmado. Aguardando auditoria do Planejador.
+
+## 2026-08-15 (madrugada 8) — Candidate baseline ajustada à decisão 58d18596 (NOT_PROVABLE→downgrade)
+
+- Planejador adjudicou a entrega com a decisão governante 58d18596 (dispatch 5e93d9ec): SUPPORTED→CONFIRMED; NOT_PROVABLE→DOWNGRADE (não hard fail); UNSUPPORTED→HARD FAIL; entidade canônica (CNPJ/valor+unidade/data) como sinal FORTE no próprio slot (predicado adicional exige sustentação); freeze novo autorizado após auditoria.
+- Ajustes no lab: sanitizeP03Deterministically rebaixa CONFIRMED→INFERENCE (SEMANTIC_SUPPORT_NOT_PROVABLE_DOWNGRADE) com ledger fluindo pelo pipeline (operational_projection passa evidence_ledger); CANONICAL_ENTITY_PATTERNS para slots de entidade.
+- VERIFICAÇÃO: suíte 25/25 PASS; contrato 6/6 PASS (inclui downgrade); P03 real 11/11 SUPPORTED com 0 downgrades; ADV-1/2/3 UNSUPPORTED.
+- Postado no chat 6a80b20a (ADENDO: CANDIDATE BASELINE AJUSTADA À DECISÃO 58d18596), confirmado. Aguardando auditoria final do Planejador (se passar, freeze promovível sem nova decisão).
+
+## 2026-08-15 (madrugada 9) — Corretivo R2-C1 (8a237b16) entregue: blockers resolvidos
+
+- Planejador: PASS COM BLOCKERS na candidate (auditoria 1b361149) — corretivo autorizado 8a237b16: regra INFERENCE/HYPOTHESIS canônica; 14 itens por identidade; strong signals local/pessoa; boundary completo; R01 não-circular; simetria model↔gate; freeze anterior preservado.
+- Resolvido no lab: regra canônica citada (proposta Etapa 1 §4: CONFIRMED+NOT_PROVABLE→INFERENCE); entidade local/pessoa via tokens de R01 location/person/facility no support (estrutural); boundary 7 negativos por categoria + distinção NOT_PROVABLE vs UNSUPPORTED; teste R01-não-circular (só-R01 sem overlap → NOT_PROVABLE downgrade, nunca SUPPORTED); teste de simetria (support_text = excerpt do Research, effective P03 serializa o mesmo, gate lê o mesmo); backups .backup-r1u dos artefatos; nenhum freeze novo.
+- VERIFICAÇÃO: contrato 12 cenários PASS; suíte determinística 25/25 PASS; matriz 14 (11 SUPPORTED + 3 UNKNOWN R1AC); ADV 3/3 UNSUPPORTED; R2B2 compatível.
+- SHAs candidate: gate ca67c318; projection 2bd97f9d; adapter ed105d97; contrato 77b7f341; downstream test 733cd4f8.
+- Postado no chat 6a80b20a (CORRETIVO R2-C1), confirmado. Aguardando reauditoria → novo freeze promovível.
+
+## 2026-08-15 (madrugada 10) — C2 entregue: NOT_PROVABLE→HYPOTHESIS + negativo R01-válido (BRU77_R1U_SEMANTIC_SUPPORT_R2_CORRECTIVE_C2)
+
+- Planejador adjudicou a política final (Linear 61301371): NOT_PROVABLE → HYPOTHESIS sempre; SUPPORTED→CONFIRMED; UNSUPPORTED→hard fail; INFERENCE reservado ao Research. Regularizou o incidente pós-STOP (delta reutilizável somente onde passar nos gates do contrato novo).
+- Executado no lab: sanitize rebaixa CONFIRMED→HYPOTHESIS (SEMANTIC_SUPPORT_NOT_PROVABLE_DOWNGRADE); negativo explícito C2 (R01 válido + predicado sem suporte → UNSUPPORTED, sanitize NÃO rebaixa — fabricação nunca vira HYPOTHESIS).
+- VERIFICAÇÃO: contrato 13 cenários PASS; suíte determinística 25/25 PASS; matriz 14 (11 SUPPORTED + 3 UNKNOWN); ADV 3/3 UNSUPPORTED; R2B2 compatível.
+- SHAs candidate final: gate 9aa22272; projection 2bd97f9d; adapter ed105d97; contrato 68a3fbc2; downstream test 00e5d48a.
+- Postado no chat 6a7f2983 (RETORNO C2), confirmado. Aguardando auditoria integral do Planejador → PASS promove freeze sob delegação (Bruno não precisa decidir mais).
+
+## 2026-08-16 (madrugada) — C2 FREEZE PROMOTION PASS (Evidence Gate 11900063 aprovado)
+
+- Planejador: Evidence Gate = PASS (Linear 482739a8) — freeze autorizado; executor deve executar Fases 1–4 autonomamente.
+- Executado: artifact SCOUT_BRU77_R2B6_SEMANTIC_SUPPORT_FREEZE_C2_2026-08-16T01-16-50-605Z/ com manifest (5 arquivos congelados + rollback_shas + battery + locks), readback OK (shasum ao vivo == manifest), gates exit 0 (contrato 13/13, suíte 25/25), rollback preservado (backups .backup-r1u). Receipt b20bbc862f3c26913b42c00eb49c15758735c39325727e8996c0ac437b66ee14.
+- Postado no chat 6a7f2983 (C2_FREEZE_PROMOTION_PASS), confirmado. Aguardando auditoria para próximo lote.
+- Observação: outro executor posta em paralelo na mesma conversa (retorno do Evidence Gate 11900063 duplicado) — sem conflito material até agora.
+
+## 2026-08-16 (madrugada 2) — SMOKE S1 = PASS (patch output namespace + 1 smoke real)
+
+- Divergência S1: IMMUTABLE_OUTPUT_ALREADY_EXISTS (rota a1a2r2b6ev ocupada pelo run f601e79d; 8/8 rotas Flash ocupadas). Planejador: opção (c) — namespace fresh de output no smoke (BRU77_S1_OUTPUT_NAMESPACE_PATCH_P1, Linear 8cf1a890).
+- Implementado: --output-suffix <token> (estrito ^[A-Za-z0-9_-]{1,32}$) apenas no smoke; default sem suffix mantém fail-closed; TDD battery 13/13 (2 asserts novos + 2 de manutenção R2B3→R2B6); runner novo SHA 7eac743a (rollback 881f427b); 5 hashes semânticos C2 INTACTOS.
+- SMOKE REAL: deepseek/deepseek-v4-flash@a1a2r2b6ev na Scheffer congelada (output scheffer-s1) → STATUS PASS · 3 provider calls (RESEARCH+P02+P03) · zero retry · P08 passed · downstream PASS · routing verificado (fallback false) · tokens 61.836 · latência ~5m17s · manifest 109469b2.
+- Postado no chat 6a7f2983 (SMOKE S1 = PASS), confirmado. 1 smoke não autoriza PORTABLE/bateria. STOP após o run (autorizado). Aguardando auditoria → próximo lote.
+
+## 2026-08-16 (madrugada 3) — Battery B1 5× EM EXECUÇÃO (BRU77_FLASH_SCHEFFER_BATTERY_B1_5X, e76f14d3)
+
+- Planejador: P1+S1 = PASS (freeze C2 exercitado em fluxo real sem regressão; Linear 1f583765). Liberou battery B1: 5 runs completos Scheffer, mesma rota a1a2r2b6ev, runner 7eac743a, zero tuning/retry, máx 15 provider sends, fail-fast se 5/5 impossível, dispersão >15pp só reportada. Custo NOT_VERIFIED aceito p/ este lote. Estado máximo: STABILITY_ON_SCHEFFER_SUPPORTED.
+- Output do modo run verificado FRESH (runs/ não existe) → sem novo patch, execução autorizada.
+- Battery em background (exec_8b0c2eea): 5 runs sequenciais com fail-fast; resumo em /tmp/scout/b1-battery-summary.jsonl; artefatos /tmp/scout/b1-run-<A>.json.
+- Após conclusão: reportar matriz (status/passed/model_calls/tokens/latência por run + dispersão de coverage se disponível).
+
+## 2026-08-16 (madrugada 4) — Battery B1 attempt 1 = BLOCKED (MODEL_CONTENT_EMPTY:P03) — fail-fast
+
+- Executado attempt 1 (dispatch 45bed03c): BLOCKED, first_fail=MODEL_CONTENT_EMPTY:P03, 3 model calls, 60.575 tokens, ~5m35s. Rota a1a2r2b6ev (A1+A2 low) — o P03 veio vazio MESMO com A2 low → estocasticidade do EMPTY confirmada; smoke S1 passou com a mesma rota.
+- Fail-fast aplicado (5/5 impossível): runs 2-5 NÃO executados; provider sends 3/15; nada corrigido.
+- Reportado ao Planejador (BATTERY B1: ATTEMPT 1 = BLOCKED), confirmado. Aguardando adjudicação (política p/ MODEL_CONTENT_EMPTY × A2).
+
+## 2026-08-16 (madrugada 5) — Forense G1: PROVIDER_RETURNED_EMPTY (B1-R1 P03)
+
+- Planejador: B1 = FAIL contratual no R1; fail-fast correto; não aceita "estocasticidade" como causa raiz sem forense. Despachou BRU77_B1_R1_P03_EMPTY_FORENSIC_G1 (9677fe55), read-only, zero sends.
+- Executado: classificação PROVIDER_RETURNED_EMPTY — HTTP 200, content=null, finish=stop, reasoning_tokens=completion_tokens (1.892/1.892, 100%), latência 9,8s; o provider devolveu content null DIRETO (sem drop de gateway/parser). S1 (PASS) teve content=JSON completo (reasoning 75%, latência 55s).
+- INPUTS NÃO IDÊNTICOS (secundário): S1 vs B1 diferem no CONTEÚDO dos facts (Research regenerou paráfrases diferentes; estrutura/keys idênticas; support_text presente nos dois) — variabilidade upstream.
+- A2=low não impediu EMPTY (B1 rodou com A2) — necessidade causal do A2 SUSPENSA. B1 R2–R5 STOPPED; R1 conta.
+- Postado no chat 6a7f2983 (FORENSE G1), confirmado. Aguardando adjudicação.
+
+## 2026-08-16 (madrugada 6) — E1 = CONTENT: execução intermitente sustentada
+
+- Planejador: G1 passa materialmente (MODEL_EXECUTION; exclui gateway/parser); A2_CAUSAL_NECESSITY=SUSPENDED. Despachou E1 (2d10de00): 1 provider send com request efetivo IDÊNTICO do B1-R1.
+- Executado: sha body de819d2b (model flash, temp 0.2, reasoning low); resultado CONTENT (4.853 chars, finish stop, completion 7.932, reasoning 6.466/81%, prompt_tokens 10.978 idêntico ao B1-R1).
+- Discriminação: MESMO input produziu EMPTY (B1-R1: content null, 100% reasoning) e CONTENT (E1) → EXECUÇÃO INTERMITENTE FORTEMENTE SUSTENTADA; retry bounded candidato de contenção (não implementado).
+- B1 permanece FAIL (R1 conta); R2–R5 cancelados; zero sends além do E1.
+- Postado no chat 6a7f2983 (E1), confirmado. Aguardando adjudicação (política de retry bounded).
+
+## 2026-08-16 (madrugada 7) — P2 PASS (retry bounded) + B2 STOP pré-send
+
+- Planejador: E1 = PASS (intermitência confirmada; receipt e48a64b3). Aprovou EMPTY_RETRY_POLICY = ONE_EXACT_P03_REPLAY_ON_PROVIDER_EMPTY_ONLY (a91d0082) + despacho P2→B2.
+- P2 implementado no downstream (invokeFlowStage + stageOutput): retry bounded no P03 (shape HTTP 2xx+finish stop+content vazio; 1 replay idêntico; 2º vazio hard fail; zero retry p/ CONTENT inicial e falhas de routing). TDD 4 cenários (p03_empty_bounded_retry.test.mjs): EMPTY→CONTENT (2 sends, request idêntico, contagem 2), EMPTY→EMPTY (hard fail, sem 3ª), CONTENT (0 retry), routing (0 retry). Regressão 40/40 PASS. SHAs: evaluator eab027f8 (rollback 9bdcd48e); C2 intactos.
+- B2: STOP pré-send (attempt 01 ocupado pelo B1-R1; 4/5 dirs livres; suffix é só smoke por decisão 8cf1a890; sem patch p/ run). Zero sends na B2. Postado no chat 6a7f2983 (B2: STOP PRÉ-SEND), confirmado. Aguardando adjudicação (a: suffix no run / b: limpeza com backup / c: outra rota).
+- Provider sends totais até aqui: 7 (S1 3 + E1 1 + B1-R1 3).
+
+## 2026-08-16 (madrugada 8) — Auditoria C1 do P2 entregue (offline, zero sends)
+
+- Planejador: STOP pré-send B2 correto; opção (a) decidida (estender --output-suffix ao full-run) MAS só após C1 do P2 (contrato db91c357/b1ddbd4). Auditoria 67ad5423.
+- Entregue: diff 3 arquivos; SHAs before→after (evaluator 9bdcd48e→eab027f8; teste novo 1e6043a9; source_freeze 7d991903); pins (frozenHashes 10 inalterados; source_freeze atualizado; eab027f8 = CANDIDATE, rollback 9bdcd48e); 12 critérios do C1 por identidade; C2 intactos (5 SHAs); comandos exit 0; PROVIDER_SENDS_C1=0; contagem 7 sustentada.
+- Postado no chat 6a7f2983 (AUDITORIA C1 DO P2), confirmado. Aguardando C1 PASS → patch namespace full-run → B2.
+
+## 2026-08-16 (madrugada 9) — G2: 14 pins intactos MAS P2 REVERTIDO (STOP)
+
+- Planejador: C1/P2 = PASS parcial; faltam provas (schema-invalid, semantic, HTTP error, replay P03 sem regenerar Research/P02, first-shot EMPTY observável, 14 FROZEN_FILES). Despachou G2 (33fd2e88) offline.
+- G2 executado: 14 FROZEN_FILES do battery — TODOS IGUAIS ao pin (avaliador = 9bdcd48e). PORÉM: grep do retry no evaluator = 0 → o patch do P2 (eab027f8) FOI REVERTIDO/sobrescrito por outro ator (executor paralelo ou restauração de pin). Testes do P2 ficaram órfãos (p03_empty_bounded_retry falha; source_freeze com expectativa eab027f8 desatualizada).
+- STOP conforme contrato (não reapliquei/não corri silenciosamente). Reportado (G2: P2 REVERTIDO), confirmado. Aguardando adjudicação (reaplicar / aceitar revertido / investigar quem reverteu).
+- ATENÇÃO: outro executor atua no mesmo workspace/conversa — risco de sobrescrita de arquivos; verificar antes de cada entrega.
+
+## 2026-08-16 (madrugada 10) — H1: SECOND_WRITER_OR_PARALLEL_EXECUTOR (reversão do P2)
+
+- Planejador: opção (c) — investigar reversão (H1 read-only, 2d3bf1cf).
+- H1 fechado: não é git; timeline (evaluator revertido 22:19:48; bru77_p2_empty_retry_policy.test.mjs criado 22:20:36 — NÃO é meu; battery reescrita 22:25:12 p/ 8afd072a; DOC_HANDOFF_5_ROUNDS 21:26 do paralelo; backup battery pre-p2 22:07).
+- CONFIRMADO: executor paralelo no workspace implementou o P2 NA BATTERY (EMPTY_RETRY_POLICY_ID, isP03EmptyFailureShape, mergeP2Counters) e reverteu o evaluator para o pin 9bdcd48e — abordagem diferente da minha (retry no evaluator, eab027f8, revertida). DOIS P2 coexistem.
+- Postado (H1), confirmado. Aguardando decisão: abordagem canônica do P2 + single-writer.
+
+## 2026-08-15 (noite) — Gold PASS manual com P1 de scaffolding/meta-instrução
+
+- Bruno validou manualmente a saída Scheffer no preview e confirmou que o Gold foi produzido.
+- Revisão supervisora visual + análise técnica delegada identificaram scaffolding interno na saída: `Teia Societária (Conteúdo para o Builder)`, `Mapa do Caos (Operações Confirmadas)` e enums técnicos `same_root/direct_pj_relation/partner_other_cnpj`.
+- Causa verificada: prompt Composer (`services/llm/gold/prompts/gold-contract-prompts.ts:147`) ensina os nomes; pipeline/seam não têm gate de scaffolding; renderer Gold exibe fielmente o texto aprovado. Não há evidência de prompt completo, token ou chain-of-thought na tela.
+- Testes direcionados no checkout validado: 56/56 PASS; não cobrem scaffolding.
+- Relatório curado: `docs/handoffs/2026-08-15-gold-scaffolding-leak-supervision.md`.
+- Recomendação ao Planejador: microdelta fail-closed (prompt sem enums crus + detector/sanitizador pré-Narrative/builder + residual detector final `scaffold_fail` → factual minimal + RED/GREEN). PR #483 continua DRAFT; sem mudança de provider/modelo do produto, retry, banco, merge, deploy ou rodada paga.
+- Envio externo ao Linear/Planejador ficou NÃO VERIFICADO: MCP rejeitou `statusUpdateType` sem `statusUpdateId`.
 
 ## 2026-08-15 (tarde 3) — AUDITORIA DE ARQUITETURA completa (pedido do Bruno: parar fixinhos)
 
