@@ -292,10 +292,14 @@ function buildSalesPathMap(): string {
     // BRU-108 (1b): `D -- Sim ==> E` é sintaxe inválida no Mermaid 10.9.6
     // (mistura `--` com `==>` — parse error "got 'STR'"). A forma canônica de
     // aresta grossa com rótulo é `== texto ==>`.
-    'D ==> Sim ==> E["Definir sponsor e owner"]',
+    // BRU-119 follow-up (P0 visual, Preview 488728d5): o fix do BRU-108
+    // escreveu `D ==> Sim ==> E` — que NÃO é aresta rotulada: o parser trata
+    // "Sim" e "E" como nós e o source vaza para o render. Formas corretas
+    // abaixo (`D == Sim ==> E`), com o nó E definido com label humano.
+    'D == Sim ==> E["Definir sponsor e owner"]',
     'E ==> F["Dimensionar impacto"]',
     'F ==> G["Movimento comercial"]',
-    'D ==> Não ==> H["Nutrir ou encerrar hipótese"]',
+    'D == Não ==> H["Nutrir ou encerrar hipótese"]',
   ];
   const classes = [
     'class A core;',
@@ -316,7 +320,6 @@ interface ValueChainRow {
   dimension: string;
   status: string;
   evidence: string;
-  commercialReading: string;
   validate: string;
 }
 
@@ -380,6 +383,17 @@ function truncateCell(value: string, max = 180): string {
 function statusBadge(status: string): string {
   return status === 'Confirmado' ? '✅ Confirmado' : '🟠 A validar';
 }
+
+/**
+ * BRU-119 follow-up (P0 semântico — Planejador, Preview 488728d5): a
+ * observação "WMS não aparece no recorte" é um fato, mas colar ✅ Confirmado
+ * na linha lê-se como "WMS confirmado" ou "ausência confirmada" — ausência
+ * não é confirmação. Matcher ESTREITO (apenas os padrões de negação de
+ * presença que o compact produz); qualquer outra evidência segue o status
+ * do signal sem rebaixamento.
+ */
+const ABSENCE_EVIDENCE_PATTERN =
+  /\bn[ãa]o\s+(?:aparece|aparecem|consta|constam|identificad[oa]s?|confirmad[oa]s?|localizad[oa]s?|encontrad[oa]s?)\b/i;
 
 function valueChainDimension(value: string, kind: string, segment: ScoutSegment): string {
   const match = SEGMENT_VALUE_CHAIN[segment].find((entry) => entry.pattern.test(value));
@@ -456,7 +470,6 @@ export function buildDynamicValueChainTable(
       // o texto validado pelo verifier nunca sofre truncamento semântico
       // (compactação visual pertence ao renderer, não a esta representação).
       evidence: withEntityIdentity(fact.claim, fact.entity, safePack.accountIdentity?.legalName).replace(/\|/g, '/'),
-      commercialReading: `Base confirmada para entender o elo de ${dimension.toLowerCase()}.`,
       validate: validationForDimension(openQuestions, dimension, usedQuestions),
     });
   }
@@ -468,9 +481,8 @@ export function buildDynamicValueChainTable(
     rows.push({
       elo: valueChainElo(dimension),
       dimension: signal.technology,
-      status: statusBadge(signal.status),
+      status: ABSENCE_EVIDENCE_PATTERN.test(signal.observedFact) ? '🟠 A validar' : statusBadge(signal.status),
       evidence: signal.observedFact.replace(/\|/g, '/'),
-      commercialReading: 'Escopo observado; confirmar cobertura antes de recomendar qualquer solução.',
       validate: truncateCell(normalizedSignalQuestion, 140),
     });
   }
@@ -485,7 +497,6 @@ export function buildDynamicValueChainTable(
       dimension: 'Discovery',
       status: '🟠 A validar',
       evidence: 'Pergunta aberta do dossiê',
-      commercialReading: 'Tema ainda não comprovado; manter a conversa investigativa.',
       validate: truncateCell(normalizedQuestion, 140),
     });
   }
@@ -513,12 +524,16 @@ export function buildDynamicValueChainTable(
     return (aIndex < 0 ? order.length : aIndex) - (bIndex < 0 ? order.length : bIndex);
   });
 
-  const tableRows = rows.map((row) => `| ${row.elo} | ${row.dimension} | ${row.status} | ${row.evidence} | ${row.commercialReading} | ${row.validate} |`);
+  // BRU-119 follow-up (P2, Planejador — Preview 488728d5): a coluna
+  // "Leitura comercial" era template fixo por classe de linha ("Base
+  // confirmada para entender o elo de...") — zero informação por linha,
+  // só boilerplate repetido. Removida.
+  const tableRows = rows.map((row) => `| ${row.elo} | ${row.dimension} | ${row.status} | ${row.evidence} | ${row.validate} |`);
   return [
     '### 🔗 MAPA DE ELOS DA CADEIA DE VALOR',
     '',
-    '| Elo | Dimensão | Status | Evidência | Leitura comercial | Validar |',
-    '| --- | --- | --- | --- | --- | --- |',
+    '| Elo | Dimensão | Status | Evidência | Validar |',
+    '| --- | --- | --- | --- | --- |',
     ...tableRows,
   ].join('\n');
 }

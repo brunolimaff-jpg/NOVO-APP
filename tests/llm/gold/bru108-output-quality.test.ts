@@ -137,7 +137,7 @@ describe('BRU-108 — defeitos 2/3: tabela de elos (truncamento + duplicação)'
     ]);
     const table = buildDynamicValueChainTable(pack, 'agroindustria') ?? '';
     const rows = table.split('\n').filter((l) => l.startsWith('| '));
-    const validateCells = rows.map((r) => r.split('|')[6]?.trim() ?? '');
+    const validateCells = rows.map((r) => r.split('|')[5]?.trim() ?? ''); // 5 colunas pós-BRU-119 (sem Leitura comercial)
     const nonEmpty = validateCells.filter((v) => v !== '—');
     // cada pergunta distinta aparece uma única vez
     expect(new Set(nonEmpty).size).toBe(nonEmpty.length);
@@ -173,7 +173,11 @@ describe('BRU-108 — builder: Caminho da Venda com sintaxe canônica de aresta'
     const gold = injectCanonicalGoldMermaids(badGold, CANONICAL, pack);
     expect(gold).not.toMatch(/--\s*Sim\s*==>/);
     expect(gold).not.toMatch(/--\s*Não\s*==>/);
-    expect(gold).toMatch(/==>\s*Sim\s*==>/);
-    expect(gold).toMatch(/==>\s*Não\s*==>/);
+    // BRU-119 follow-up: `D ==> Sim ==> E` também era inválida (nós espúrios
+    // vazando no render — Preview 488728d5). A canônica é `== Sim ==>`.
+    expect(gold).toMatch(/==\s*Sim\s*==>/);
+    expect(gold).toMatch(/==\s*Não\s*==>/);
+    expect(gold).not.toMatch(/==>\s*Sim\s*==>/);
+    expect(gold).not.toMatch(/==>\s*Não\s*==>/);
   });
 });

@@ -92,7 +92,10 @@ describe('BRU-114 ARCH-E — regressão BRU-108 sob os novos contratos', () => {
       'Beneficiamento de algodão em pluma (UBA)',
     ]));
     expect(artifact.markdown).not.toMatch(/--\s*Sim\s*==>/);
-    expect(artifact.markdown).toMatch(/==>\s*Sim\s*==>/);
+    // BRU-119 follow-up: a canônica de aresta grossa rotulada é `== Sim ==>`
+    // (`D ==> Sim ==> E` criava nós espúrios no render — Preview 488728d5).
+    expect(artifact.markdown).toMatch(/==\s*Sim\s*==>/);
+    expect(artifact.markdown).not.toMatch(/==>\s*Sim\s*==>/);
   });
 
   // ── Caso 3: coluna Validar truncada (origem: builder truncateCell) ──

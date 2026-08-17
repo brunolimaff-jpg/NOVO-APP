@@ -50,8 +50,8 @@ describe('BRU-108 — gate de parse REAL do Mermaid (runtime)', () => {
       'graph LR',
       'A["Evidência segura"] ==> B["Hipótese comercial"]',
       'C ==> D{"Problema confirmado?"}',
-      'D ==> Sim ==> E["Definir sponsor e owner"]',
-      'D ==> Não ==> H["Nutrir ou encerrar hipótese"]',
+      'D == Sim ==> E["Definir sponsor e owner"]',
+      'D == Não ==> H["Nutrir ou encerrar hipótese"]',
       'class A core;',
       'class D warning;',
     ].join('\n');
@@ -195,8 +195,8 @@ describe('BRU-113 ARCH-D — caminho canônico Gold: builder → parse REAL (sem
       { claim: 'Cultivo próprio de soja em larga escala', kind: 'operation' },
       { claim: 'Beneficiamento de algodão em pluma (UBA)', kind: 'operation' },
     ]));
-    expect(gold).toMatch(/==>\s*Sim\s*==>/);
-    expect(gold).toMatch(/==>\s*Não\s*==>/);
+    expect(gold).toMatch(/==\s*Sim\s*==>/);
+    expect(gold).toMatch(/==\s*Não\s*==>/);
     await parseGoldBlocks(gold);
   });
 

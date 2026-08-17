@@ -162,12 +162,23 @@ function materializeBareEdgeTargets(input: string): string {
   );
 
   let idx = 0;
+  // BRU-119 follow-up (P0 visual — Planejador, Preview 488728d5): a aresta
+  // grossa ROTULADA canônica (`D == Sim ==> E["..."]`) estava sendo tratada
+  // como "bare text" — o materializador criava um nó sintético
+  // `mermaid_bare_N["Sim ==> E['...']"]`, que parseia mas renderiza o source
+  // como conteúdo. Bare text que contém um segundo operador de aresta
+  // seguido de nó com shape (`[`, `(`, `{`, `"` ) é aresta rotulada
+  // completa: intocável.
+  const LABELED_EDGE_TARGET_RE = new RegExp(`(?:${EDGE_OPS})\\s*[A-Za-z][\\w-]*\\s*(?:\\[|\\(|\\{|")`);
   return input.replace(EDGE_RE, (_full, prefix: string, bareText: string, suffix: string) => {
     const trimmed = bareText.trim();
     // Already a valid node ID (single alphanumeric word) — leave as-is
     if (/^[A-Za-z][\w-]*$/.test(trimmed)) return _full;
     // Already has a shape suffix: NodeId[...] or NodeId(...) etc
     if (/^[A-Za-z][\w-]*\s*(?:\[|\(|\{)/.test(trimmed)) return _full;
+    // Labeled edge (`D == Sim ==> E["..."]`): o "bare text" carrega o
+    // rótulo + o segundo operador + o target com shape.
+    if (LABELED_EDGE_TARGET_RE.test(trimmed)) return _full;
 
     idx += 1;
     const safeLabel = trimmed.replace(/"/g, "'");

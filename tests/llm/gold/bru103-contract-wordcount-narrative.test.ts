@@ -33,10 +33,10 @@ function elosTable(): string {
   return [
     '### 🔗 MAPA DE ELOS DA CADEIA DE VALOR',
     '',
-    '| Elo | Dimensão | Status | Evidência | Leitura comercial | Validar |',
-    '| --- | --- | --- | --- | --- | --- |',
-    '| producao | Produção | ✅ Confirmado | Safra operacional confirmada | Base confirmada para entender o elo de produção | — |',
-    '| armazenagem | Armazenagem | 🟠 A validar | Pergunta aberta do dossiê | Tema ainda não comprovado | Qual é o volume total de armazenagem? |',
+    '| Elo | Dimensão | Status | Evidência | Validar |',
+    '| --- | --- | --- | --- | --- |',
+    '| producao | Produção | ✅ Confirmado | Safra operacional confirmada | — |',
+    '| armazenagem | Armazenagem | 🟠 A validar | Pergunta aberta do dossiê | Qual é o volume total de armazenagem? |',
   ].join('\n');
 }
 

@@ -335,4 +335,14 @@ describe('SCOUT-V7-GOLD-RUNTIME-QUALITY-01 — prompts alinhados ao PROMPT_SPEC'
     expect(prompt).toMatch(/🟠 A validar/i);
     expect(prompt).toMatch(/vale em texto, tabelas E em qualquer diagrama/i);
   });
+  it('H: Epistemologia da ausência (BRU-119 follow-up P0) — ausência nunca vira confirmação nem sinal', () => {
+    const prompt = buildComposePrompt({ canonical, safePack: {} as never });
+    // Planejador (Preview 488728d5): "✅ Confirmado (ausência)" e "Ausência
+    // confirmada dos módulos WMS/TMS" nos Sinais — não consta/não confirmado
+    // não pode virar confirmação, e ausência não gera sinal/hipótese.
+    expect(prompt).toMatch(/aus[êe]ncia n[ãa]o [ée] confirma[çc][ãa]o/i);
+    expect(prompt).toMatch(/aus[êe]ncia confirmada[^.]*[ée] PROIBIDA em qualquer forma/i);
+    expect(prompt).toMatch(/NUNCA gera Sinal/i);
+    expect(prompt).toMatch(/Sinal exige evid[êe]ncia POSITIVA/i);
+  });
 });

@@ -512,7 +512,8 @@ describe('SCOUT-V7-GOLD-EXPERIENCE-01C — CANONICAL MERMAID', () => {
     });
 
     const table = buildDynamicValueChainTable(pack, 'agropecuaria');
-    expect(table).toContain('| Elo | Dimensão | Status | Evidência | Leitura comercial | Validar |');
+    expect(table).toContain('| Elo | Dimensão | Status | Evidência | Validar |');
+    expect(table).not.toContain('Leitura comercial');
     expect(table).toContain('Produção');
     expect(table).toContain('Logística');
     expect(table).toContain('✅ Confirmado');
@@ -751,5 +752,46 @@ describe('SCOUT-V7-GOLD-EXPERIENCE-01C — CANONICAL MERMAID', () => {
     const frase = 'Capacidade estática de 1,2 milhão de sacas confirmada na operação da conta.';
     const result = verifyGold(frase, canonical, pack);
     expect(result.hardFails.some((h) => h.code === 'UNSUPPORTED_PRODUCT_CLAIM')).toBe(true);
+  });
+
+  it('BRU-119 follow-up P0 visual: Caminho da Venda usa aresta grossa rotulada canônica (== Sim ==>), sem nós espúrios', () => {
+    const gold = injectCanonicalGoldMermaids(BAD_GOLD, canonical, makeSafePack());
+    const blocks = gold.match(/```mermaid\n([\s\S]*?)```/g) ?? [];
+    const venda = blocks[2] ?? '';
+    // `D ==> Sim ==> E` NÃO é aresta rotulada: o Mermaid trata "Sim"/"E" como
+    // nós e o source vaza para o render (visto no Preview 488728d5 — o nó
+    // "E" aparecia isolado e o texto "Sim ==> E['Definir sponsor...']" como
+    // conteúdo). A forma canônica de aresta grossa com rótulo é `== rótulo ==>`.
+    expect(venda).not.toMatch(/==>\s*(Sim|Não)\s*==>/);
+    expect(venda).toMatch(/==\s*Sim\s*==>/);
+    expect(venda).toMatch(/==\s*Não\s*==>/);
+    // Nós terminais definidos com label humano (não soltos no ar)
+    expect(venda).toMatch(/E\["Definir sponsor e owner"\]/);
+    expect(venda).toMatch(/H\["Nutrir ou encerrar hipótese"\]/);
+  });
+
+  it('BRU-119 follow-up P0 semântico: evidência de AUSÊNCIA nunca recebe ✅ Confirmado na tabela de elos', () => {
+    // Planejador (Preview 488728d5): "Família Logística (WMS/TMS) → ✅ Confirmado
+    // (ausência)" — não consta / não confirmado não pode virar confirmação.
+    // A observação "não aparece no recorte" é fato, mas a conclusão de negócio
+    // (ausência) permanece a validar: o badge da linha é 🟠.
+    const pack = makeSafePack({
+      facts: [],
+      technologySignals: [
+        {
+          technology: 'WMS/TMS',
+          observedFact: 'WMS não aparece no recorte interno de módulos contratados.',
+          status: 'Confirmado',
+          whatIsNotKnown: 'Qual solução suporta a armazenagem.',
+          validationQuestion: 'Qual solução suporta hoje a armazenagem?',
+        },
+      ],
+      openQuestions: [],
+    });
+    const table = buildDynamicValueChainTable(pack, 'agropecuaria') ?? '';
+    expect(table).toContain('WMS não aparece no recorte interno de módulos contratados');
+    expect(table).toContain('🟠 A validar');
+    expect(table).not.toMatch(/✅ Confirmado[^\n]*n[ãa]o aparece/);
+    expect(table).not.toMatch(/n[ãa]o aparece[^\n]*✅ Confirmado/);
   });
 });
