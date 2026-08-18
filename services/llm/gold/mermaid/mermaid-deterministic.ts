@@ -23,6 +23,7 @@
 import type { CanonicalAccount, SafeFindingPack } from '../gold-contracts';
 import type { ScoutSegment } from '../../query-planner';
 import { normalizeCnpj } from '../canonical-relation-resolver';
+import { matchesSensitiveTheme, matchesUnsupportedOperationalClaim } from '../gold-policy';
 
 /** Paleta canônica literal do Scout (foundation.ts + fixtures). */
 export const MERMAID_CANONICAL_PALETTE = {
@@ -478,7 +479,9 @@ export function buildDynamicValueChainTable(
     rows.push({
       elo: valueChainElo(dimension),
       dimension,
-      status: statusBadge(fact.status),
+      status: matchesSensitiveTheme(fact.claim)
+        ? '🟠 A validar'  // Delta A: badge neutro p/ tema sensível (evita PROMOTED_CLAIM no verifier)
+        : statusBadge(fact.status),
       // LOTE GOLD P0 (RED A/B): claim INTEGRAL com identidade da entidade —
       // o texto validado pelo verifier nunca sofre truncamento semântico
       // (compactação visual pertence ao renderer, não a esta representação).
@@ -495,7 +498,12 @@ export function buildDynamicValueChainTable(
       elo: valueChainElo(dimension),
       dimension: signal.technology,
       status: ABSENCE_EVIDENCE_PATTERN.test(signal.observedFact) ? '🟠 A validar' : statusBadge(signal.status),
-      evidence: signal.observedFact.replace(/\|/g, '/'),
+      // Delta B: não injetar observedFact verbatim como evidência factual quando
+      // o matcher canônico de capacidade/produto casa — sem provenance suficiente
+      // no verifier (isSupportedBySafePack só consulta facts, não technologySignals).
+      evidence: (matchesUnsupportedOperationalClaim(signal.observedFact)
+        ? 'Sinal de tecnologia confirmado'  // Delta B: neutro p/ signal-only
+        : signal.observedFact).replace(/\|/g, '/'),
       validate: truncateCell(normalizedSignalQuestion, 140),
     });
   }
