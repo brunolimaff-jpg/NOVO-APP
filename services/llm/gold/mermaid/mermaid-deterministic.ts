@@ -480,7 +480,7 @@ export function buildDynamicValueChainTable(
       elo: valueChainElo(dimension),
       dimension,
       status: matchesSensitiveTheme(fact.claim)
-        ? '🟠 A validar'  // Delta A: badge neutro p/ tema sensível (evita PROMOTED_CLAIM no verifier)
+        ? '📌'  // Delta A: ícone isolado — não contém palavra "Confirmado" no texto verificado
         : statusBadge(fact.status),
       // LOTE GOLD P0 (RED A/B): claim INTEGRAL com identidade da entidade —
       // o texto validado pelo verifier nunca sofre truncamento semântico
@@ -498,11 +498,14 @@ export function buildDynamicValueChainTable(
       elo: valueChainElo(dimension),
       dimension: signal.technology,
       status: ABSENCE_EVIDENCE_PATTERN.test(signal.observedFact) ? '🟠 A validar' : statusBadge(signal.status),
-      // Delta B: não injetar observedFact verbatim como evidência factual quando
-      // o matcher canônico de capacidade/produto casa — sem provenance suficiente
-      // no verifier (isSupportedBySafePack só consulta facts, não technologySignals).
+      // Delta B: signal-only não coloca observedFact na coluna de evidência
+      // (sem provenance suficiente no verifier — isSupportedBySafePack só
+      // consulta facts, não technologySignals). Mantém como sinal/discovery:
+      // tecnologia, status e validationQuestion. Se houver fact legítimo no
+      // safePack com a mesma tecnologia, esse fact continua aparecendo normalmente
+      // na tabela (via loop de facts acima).
       evidence: (matchesUnsupportedOperationalClaim(signal.observedFact)
-        ? 'Sinal de tecnologia confirmado'  // Delta B: neutro p/ signal-only
+        ? normalizeDiscoveryQuestion(signal.validationQuestion)  // Delta B: pergunta como evidência, não observedFact
         : signal.observedFact).replace(/\|/g, '/'),
       validate: truncateCell(normalizedSignalQuestion, 140),
     });

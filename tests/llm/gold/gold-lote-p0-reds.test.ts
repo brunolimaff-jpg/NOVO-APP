@@ -1,10 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { injectCanonicalGoldMermaids } from '../../../services/llm/gold/mermaid/mermaid-deterministic';
+import { injectCanonicalGoldMermaids, buildGoldArtifact } from '../../../services/llm/gold/mermaid/mermaid-deterministic';
 import {
   composerSemanticPreflight,
   downgradeUnsupportedCertainty,
 } from '../../../services/llm/gold/gold-pipeline';
 import { verifyGold } from '../../../services/llm/gold/entity-aware-gold-verifier';
+import { matchesSensitiveTheme, matchesUnsupportedOperationalClaim } from '../../../services/llm/gold/gold-policy';
 import type { CanonicalAccount, SafeFindingPack } from '../../../services/llm/gold/gold-contracts';
 
 /**
@@ -162,5 +163,72 @@ describe('LOTE GOLD P0 — RED C: certainty guard não fabrica afirmação', () 
     // PASS pré-transformação não pode virar FAIL pós-transformação
     const post = verifyGold(downgraded, canonical, pack);
     expect(post.hardFails).toEqual([]);
+  });
+});
+
+// ── Deltas Mermaid (despacho Planejador 2026-08-18, BRU-119) ──────────────
+
+function makeDeltaPack(overrides: Partial<SafeFindingPack> = {}): SafeFindingPack {
+  return {
+    module: 'gold-compactor',
+    accountIdentity: { inputCnpj: '04.733.767/0001-80', legalName: 'SCHEFFER & CIA LTDA', establishmentType: 'Filial', rootCnpj: '04.733.767', conflicts: [] },
+    facts: [],
+    relationships: [],
+    technologySignals: [],
+    people: [],
+    metrics: [],
+    conflicts: [],
+    openQuestions: [],
+    sanitizerEvents: [],
+    sanitized: true,
+    ...overrides,
+  } as SafeFindingPack;
+}
+
+const DELTA_GOLD = `# Gold Brief
+### 1. SÍNTESE EXECUTIVA 🎯
+### 2. PERFIL 🏭
+Operação verticalizada.
+### 3. ESTRUTURA SOCIETÁRIA 🏛️
+### 4. TECNOLOGIA 💻
+### 5. PESSOAS-CHAVE 👥
+### 6. INDICADORES 📊
+### 7. SINAIS 🚨
+### 8. RISCOS ⚠️
+### 9. PRÓXIMOS PASSOS 🧭
+`;
+
+describe('Delta A — badge separado de claim (tema sensível)', () => {
+  it('fact Confirmado com tema sensível não gera PROMOTED_CLAIM no Mermaid', () => {
+    const pack = makeDeltaPack({
+      facts: [{ id: 'f1', entity: 'SCHEFFER & CIA LTDA', claim: 'Operação internacional da holding em Cumaribo.', status: 'Confirmado', source: 'Fonte externa', kind: 'operation', process: null }],
+    });
+    const artifact = buildGoldArtifact(DELTA_GOLD, canonical, pack);
+    const result = verifyGold(artifact.markdown, canonical, pack);
+    expect(result.hardFails.some((h) => h.code === 'PROMOTED_CLAIM')).toBe(false);
+  });
+});
+
+describe('Delta B — technologySignal não injeta observedFact como evidência', () => {
+  it('technologySignal com observedFact protegido não gera UNSUPPORTED_PRODUCT_CLAIM', () => {
+    const pack = makeDeltaPack({
+      technologySignals: [
+        { technology: 'WMS', observedFact: 'Capacidade estática de armazenagem de 1,2 milhão de sacas.', status: 'Confirmado', whatIsNotKnown: 'Qual solução suporta a armazenagem.', validationQuestion: 'Qual solução suporta hoje a armazenagem?' },
+      ],
+    });
+    const artifact = buildGoldArtifact(DELTA_GOLD, canonical, pack);
+    const result = verifyGold(artifact.markdown, canonical, pack);
+    expect(result.hardFails.some((h) => h.code === 'UNSUPPORTED_PRODUCT_CLAIM')).toBe(false);
+  });
+});
+
+describe('Delta C — governance regressão (verifier já correto)', () => {
+  it('fact Confirmado externo não-QSA, mesma entidade → 0 GOVERNANCE_ROLE_PROMOTION', () => {
+    const pack = makeDeltaPack({
+      facts: [{ id: 'f1', entity: 'SCHEFFER & CIA LTDA', claim: 'SCHEFFER & CIA LTDA é uma holding controladora confirmada em registro oficial externo.', status: 'Confirmado', source: 'Registro oficial', kind: 'relationship', process: null }],
+    });
+    const artifact = buildGoldArtifact(DELTA_GOLD, canonical, pack);
+    const result = verifyGold(artifact.markdown, canonical, pack);
+    expect(result.hardFails.some((h) => h.code === 'GOVERNANCE_ROLE_PROMOTION')).toBe(false);
   });
 });
