@@ -162,59 +162,60 @@ function hasGovernanceRoleProvenanceFor(
   const sentenceLower = sentence.toLowerCase();
   const sentenceNormalized = normalizeName(sentence);
 
-  // 1) Categoria exigida pela frase (papel societário vs governança/decisão).
-  const demandsGovernance = /governan[cç]a|sponsor|aprova[cç][aã]o|autoridade\s+de\s+decis[aã]o|fluxo\s+decis[óo]rio|processo\s+de\s+aprova[cç][aã]o/i.test(sentenceLower);
+  // 1) Categorias independentes (despacho Planejador 2026-08-18): cada
+  //    categoria exigida pela frase precisa da SUA própria prova (same-
+  //    category, equivalente R10). Governança NÃO empresta prova para
+  //    aprovação/sponsor/fluxo — cada demand tem o seu próprio matcher.
+  const roleProven = /(holding|controladora)/i;
   const demandsRole = /holding|controladora|estrutura\s+de\s+holding/i.test(sentenceLower);
+  const governanceCategories: Array<{ demand: RegExp; prove: RegExp }> = [
+    { demand: /\bgovernan[cç]a\b/i, prove: /governan[cç]a/i },
+    { demand: /\baprova[cç][aã]o\b/i, prove: /aprova[cç][aã]o/i },
+    { demand: /\bsponsor\b/i, prove: /sponsor/i },
+    { demand: /\bautoridade\s+de\s+decis[aã]o\b/i, prove: /autoridade\s+de\s+decis[aã]o/i },
+    { demand: /\bfluxo\s+decis[óo]rio\b/i, prove: /fluxo\s+decis[óo]rio/i },
+  ];
+  const demandedGovernance = governanceCategories.filter((c) => c.demand.test(sentenceLower));
 
-  // 2) Entidade referida: sócia PJ directa (directPjPartners) ou conta.
+  // 2) Entity binding EXATO (despacho Planejador 2026-08-18): a evidência
+  //    pertence à MESMA entidade referida pela frase.
+  //    - menção explícita de PJ → somente fatos DAQUELA PJ (sem empréstimo
+  //      da conta nem de outra PJ);
+  //    - referência genérica ("a sócia", "a empresa", "a holding") →
+  //      somente fatos de PJs diretas; 0 ou >1 PJ → fail closed;
+  //    - sem menção → fatos de qualquer entidade conhecida (conta ou PJs).
   const accountName = normalizeName(canonical.legalName);
   const partnerNames = (canonical.directPjPartners ?? []).map((p) => normalizeName(p.legalName));
   const mentionedPartner = partnerNames.find((name) => sentenceNormalized.includes(name));
-  
-  // Achado 6: entity binding — referência genérica ("a sócia", "a empresa")
-  // exige fato para uma das PJs diretas, não para a conta.
-  const isGenericReference = !mentionedPartner && 
-    (/\b(a\s+s[óo]cia|a\s+empresa|a\s+holding)\b/i.test(sentenceLower));
-  
-  if (isGenericReference) {
-    // Fail closed: referência genérica só passa com fato para PJ direta específica
-    const hasPartnerFact = safePack.facts.some(
-      (f) =>
-        f.status === 'Confirmado' &&
-        !matchesNonExternalSource(f.source) &&
-        !f.source.toLowerCase().includes('qsa') &&
-        partnerNames.includes(normalizeName(f.entity)) &&
-        roleProven.test(f.claim),
-    );
-    if (!hasPartnerFact) return false;
-  }
-  
-  const referredEntity = mentionedPartner ?? accountName;
+  const isGenericReference =
+    !mentionedPartner && /\b(a\s+s[óo]cia|a\s+empresa|a\s+holding)\b/i.test(sentenceLower);
 
-  // 3) Evidência Confirmada NÃO-QSA que comprove a categoria específica.
-  // Quando o gold não menciona entidade específica (referredEntity = accountName),
-  // aceitar fatos de qualquer entidade conhecida (conta ou PJs diretas).
-  const knownEntities = [accountName, ...partnerNames];
+  let allowedEntities: string[];
+  if (mentionedPartner) {
+    allowedEntities = [mentionedPartner];
+  } else if (isGenericReference) {
+    if (partnerNames.length !== 1) return false; // fail closed: 0 ou >1 PJ
+    allowedEntities = partnerNames;
+  } else {
+    allowedEntities = [accountName, ...partnerNames];
+  }
+
+  // 3) Evidência Confirmada NÃO-QSA (achado 4) que comprove a categoria.
   const hasEvidence = (pattern: RegExp): boolean =>
     safePack.facts.some(
       (f) =>
         f.status === 'Confirmado' &&
         !matchesNonExternalSource(f.source) &&
-        // Achado 4: QSA oficial não pode liberar exceção
         !f.source.toLowerCase().includes('qsa') &&
-        knownEntities.includes(normalizeName(f.entity)) &&
+        allowedEntities.includes(normalizeName(f.entity)) &&
         pattern.test(f.claim),
     );
 
-  // Achado 3: "controladoria" ≠ "controladora" — remover de roleProven
-  const roleProven = /(holding|controladora)/i;
-  // Achado 7: governança genérica não prova aprovação específica — 
-  // exigir mesma categoria de prova (R10 pattern)
-  const governanceProven = /(governan[cç]a\s+[^.]{0,30}(?:segue|formal|estruturada)|decis[aã]o\s+(?:formal|concentrada|estruturada)|aprova[cç][aã]o\s+(?:formal|oficial|em\s+comunicado)|sponsor\s+(?:da|do|de)\s+(?:holding|grupo)|fluxo\s+decis[óo]rio\s+(?:formal|estruturado))/i;
-
   // Cada categoria exigida pela frase precisa da sua própria prova.
   if (demandsRole && !hasEvidence(roleProven)) return false;
-  if (demandsGovernance && !hasEvidence(governanceProven)) return false;
+  for (const category of demandedGovernance) {
+    if (!hasEvidence(category.prove)) return false;
+  }
   return true;
 }
 
@@ -587,9 +588,12 @@ export function verifyGold(
     //     discovery NÃO disparam o padrão (coberto por matches... estrita).
     //     Achado 2: preservar modalidade interrogativa; usar matchesSafeKnowledgeNegation
     //     ou matchesEpistemicAbsence para negações epistemológicas (não marcadores
-    //     lexicais genéricos).
+    //     lexicais genéricos). A modalidade interrogativa é preservada PELO
+    //     splitSentences (o "?" final sobrevive) — checagem local, sem depender
+    //     do marcador global de discovery (despacho Planejador 2026-08-18:
+    //     reverter drift global de INTERROGATIVE_MARKER).
     if (matchesGovernanceRolePromotion(sentenceLower) && 
-        !matchesDiscoveryQuestion(sentenceLower) && 
+        !sentence.trim().endsWith('?') &&
         !matchesSafeKnowledgeNegation(sentenceLower) &&
         !matchesEpistemicAbsence(sentenceLower)) {
       const hasGovernanceProvenance = hasGovernanceRoleProvenanceFor(sentence, safePack, canonical);
