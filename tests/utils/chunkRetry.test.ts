@@ -1,6 +1,11 @@
 // tests/utils/chunkRetry.test.ts
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { CHUNK_RELOAD_PENDING_KEY, isChunkLoadError, loadWithChunkRetry } from '../../utils/chunkRetry';
+import {
+  CHUNK_RELOAD_PENDING_KEY,
+  isChunkLoadError,
+  loadOptionalChunk,
+  loadWithChunkRetry,
+} from '../../utils/chunkRetry';
 
 describe('isChunkLoadError', () => {
   it('detecta falha de import dinâmico do Vite', () => {
@@ -9,6 +14,41 @@ describe('isChunkLoadError', () => {
 
   it('ignora erros genéricos', () => {
     expect(isChunkLoadError(new Error('Network down'))).toBe(false);
+  });
+});
+
+describe('loadOptionalChunk', () => {
+  beforeEach(() => {
+    sessionStorage.clear();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('retorna o módulo quando o chunk opcional carrega', async () => {
+    const result = await loadOptionalChunk(() => Promise.resolve({ default: 'Mermaid' }));
+    expect(result).toEqual({ default: 'Mermaid' });
+  });
+
+  it('degrada sem reload quando o chunk opcional falha', async () => {
+    const reloadMock = vi.fn();
+    Object.defineProperty(window, 'location', {
+      value: { ...window.location, reload: reloadMock },
+      writable: true,
+    });
+
+    const result = await loadOptionalChunk(() =>
+      Promise.reject(new Error('Failed to fetch dynamically imported module')),
+    );
+
+    expect(result).toBeNull();
+    expect(reloadMock).not.toHaveBeenCalled();
+    expect(sessionStorage.getItem(CHUNK_RELOAD_PENDING_KEY)).toBeNull();
+  });
+
+  it('relança erros que não são de carregamento de chunk', async () => {
+    await expect(loadOptionalChunk(() => Promise.reject(new Error('Network down')))).rejects.toThrow('Network down');
   });
 });
 
