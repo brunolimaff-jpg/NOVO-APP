@@ -9,6 +9,22 @@ export function isChunkLoadError(error: unknown): boolean {
 }
 
 /**
+ * Loads an optional non-critical chunk (e.g. Mermaid) without triggering a full page reload.
+ * Returns null on ChunkLoadError so the caller can degrade gracefully.
+ */
+export async function loadOptionalChunk<T>(loader: () => Promise<T>): Promise<T | null> {
+  try {
+    return await loader();
+  } catch (error) {
+    if (typeof window !== 'undefined' && isChunkLoadError(error)) {
+      console.warn('[chunkRetry] optional chunk failed, degrading without reload:', error);
+      return null;
+    }
+    throw error;
+  }
+}
+
+/**
  * Handles stale hashed chunks after deploys by reloading once.
  */
 export async function loadWithChunkRetry<T>(loader: () => Promise<T>): Promise<T> {

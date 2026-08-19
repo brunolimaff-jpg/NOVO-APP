@@ -9,7 +9,7 @@ import { applyDossierLinkIntegrity } from '../utils/dossierLinkIntegrity';
 import { coerceGroundingSources, verifiedSourcesToPool } from '../utils/dossierSourcePool';
 import { stripTeiaHypothesisLegend } from '../utils/teiaLegend';
 import { buildAuditableSources, normalizeSourceUrl, type AuditableSource } from '../utils/textCleaners';
-import { loadWithChunkRetry } from '../utils/chunkRetry';
+import { loadOptionalChunk } from '../utils/chunkRetry';
 import {
   getDisplayableMermaidCode,
   isMermaidRenderErrorOutput,
@@ -94,9 +94,10 @@ let mermaidTheme: string | null = null;
 /** Module-level SVG cache: key = sanitizedChart + "::" + themeKey */
 const mermaidSvgCache = new Map<string, string>();
 
-async function getMermaid(isDarkMode: boolean): Promise<(typeof import('mermaid'))['default']> {
+async function getMermaid(isDarkMode: boolean): Promise<(typeof import('mermaid'))['default'] | null> {
   const themeKey = isDarkMode ? 'dark' : 'light';
-  const mod = await loadWithChunkRetry(() => import('mermaid'));
+  const mod = await loadOptionalChunk(() => import('mermaid'));
+  if (!mod) return null;
   const mermaid = mod.default;
 
   if (!mermaidSingleton || mermaidTheme !== themeKey) {
@@ -170,7 +171,10 @@ const MermaidChart: React.FC<MermaidProps> = ({ chart, isDarkMode, variant = 'de
 
     const initMermaid = async () => {
       try {
-        const mermaid = (await getMermaid(isDarkMode ?? false)) as MermaidWithParse;
+        const mermaid = (await getMermaid(isDarkMode ?? false)) as MermaidWithParse | null;
+        if (!mermaid) {
+          throw new Error('Mermaid chunk indisponível — degradando para texto');
+        }
         if (typeof mermaid.parse === 'function') {
           await mermaid.parse(sanitizedChart);
         }
