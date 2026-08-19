@@ -60,7 +60,7 @@ const CNPJ_PATTERN = /\b\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}\b/g;
 
 /** R2: formulações semânticas que derivam governança/família/decisão do QSA. */
 const QSA_GOVERNANCE_CLAIM =
-  /\b(n[úu]cleo\s+familiar|decis[aã]o\s+concentrada|envolvimento\s+direto\s+na\s+gest[aã]o|transi[cç][aã]o\s+geracional|gera[cç][aã]o\s+mais\s+nova|gera[cç][aã]o\s+seguinte|grupo\s+familiar\s+controlador|controle\s+familiar)\b/i;
+  /\b(n[úu]cleo\s+familiar|decis[aã]o\s+concentrada|envolvimento\s+direto\s+na\s+gest[aã]o|transi[cç][aã]o\s+geracional|gera[cç][aã]o\s+mais\s+nova|gera[cç][aã]o\s+seguinte|grupo\s+familiar\s+controlador|controle\s+familiar|governan[cç]a\s+[ée]\s+indicad[oa]\s+pela\s+presen[cç]a\s+de\s+s[óo]cios[/-]administradore?s)\b/i;
 
 /**
  * B4 (EXPERIENCE-01C, Planejador 2026-08-10): exceção de proveniência da R10

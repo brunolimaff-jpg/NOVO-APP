@@ -480,7 +480,7 @@ export function buildDynamicValueChainTable(
       elo: valueChainElo(dimension),
       dimension,
       status: matchesSensitiveTheme(fact.claim)
-        ? '📌'  // Delta A: ícone isolado — não contém palavra "Confirmado" no texto verificado
+        ? '📌 Sensível'  // Delta A: badge qualificado — associa 📌 ao elemento sem vocabulário de certeza (despacho Planejador 2026-08-18)
         : statusBadge(fact.status),
       // LOTE GOLD P0 (RED A/B): claim INTEGRAL com identidade da entidade —
       // o texto validado pelo verifier nunca sofre truncamento semântico
