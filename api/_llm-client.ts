@@ -68,6 +68,8 @@ export class LiteLLMRequestError extends Error {
     readonly retryable: boolean,
     readonly status?: number,
     readonly gatewayBody?: string,
+    readonly retryAfter?: string,
+    readonly requestId?: string,
   ) {
     super(message);
     this.name = 'LiteLLMRequestError';
@@ -75,14 +77,64 @@ export class LiteLLMRequestError extends Error {
 }
 
 class LiteLLMHttpError extends LiteLLMRequestError {
-  constructor(status: number, gatewayBody?: string) {
-    super('GATEWAY_HTTP_ERROR', `LiteLLM HTTP ${status}`, isRetryableStatus(status), status, gatewayBody);
+  constructor(status: number, gatewayBody?: string, retryAfter?: string, requestId?: string) {
+    super(
+      'GATEWAY_HTTP_ERROR',
+      `LiteLLM HTTP ${status}`,
+      isRetryableStatus(status),
+      status,
+      gatewayBody,
+      retryAfter,
+      requestId,
+    );
     this.name = 'LiteLLMHttpError';
   }
 }
 
 function isRetryableStatus(status: number): boolean {
   return status === 408 || status === 429 || status >= 500;
+}
+
+const SENSITIVE_PATTERNS: RegExp[] = [
+  /(sk-[A-Za-z0-9_\-]{6,})/g,
+  /(Bearer\s+[A-Za-z0-9._\-]+)/gi,
+  /(api[_-]?key\s*["']?\s*[:=]\s*["']?[A-Za-z0-9_\-]{8,})/gi,
+];
+
+function sanitizeGatewayText(text: string, limit = 1500): string {
+  let out = text || '';
+  for (const pattern of SENSITIVE_PATTERNS) out = out.replace(pattern, '[REDACTED]');
+  if (out.length > limit) out = `${out.slice(0, limit)}…`;
+  return out;
+}
+
+function captureUsefulHeaders(headers: Headers | undefined): {
+  retryAfter?: string;
+  requestId?: string;
+  rateLimit?: Record<string, string>;
+} {
+  if (!headers || typeof headers.get !== 'function') return {};
+  const pick = (names: string[]): string | undefined => {
+    for (const name of names) {
+      const value = headers.get(name);
+      if (value) return value;
+    }
+    return undefined;
+  };
+  const retryAfter = pick(['retry-after', 'x-retry-after']);
+  const requestId = pick(['x-request-id', 'request-id', 'x-correlation-id', 'x-amzn-requestid', 'x-amz-request-id']);
+  const rateLimit: Record<string, string> = {};
+  headers.forEach((value, key) => {
+    const lower = key.toLowerCase();
+    if (lower.startsWith('x-ratelimit-') || lower.startsWith('ratelimit-') || lower.includes('rate-limit')) {
+      rateLimit[key] = value.slice(0, 120);
+    }
+  });
+  return {
+    retryAfter,
+    requestId,
+    rateLimit: Object.keys(rateLimit).length > 0 ? rateLimit : undefined,
+  };
 }
 
 function makeGatewayAbortError(): LiteLLMRequestError {
@@ -390,8 +442,23 @@ export async function callLiteLLM(
       );
 
       if (!response.ok) {
-        const gatewayBody = await withSignal(response.text().catch(() => ''), abortContext.signal);
-        throw new LiteLLMHttpError(response.status, gatewayBody);
+        const rawBody = await withSignal(response.text().catch(() => ''), abortContext.signal);
+        const gatewayBody = sanitizeGatewayText(rawBody);
+        const headersInfo = captureUsefulHeaders(response.headers);
+        console.warn('[LiteLLM] attempt failed', {
+          attempt,
+          status: response.status,
+          model: input.model,
+          action: input.action ?? (isLegacyInput(input) ? 'legacy' : 'unknown'),
+          correlationId: input.correlationId ?? 'unassigned',
+          runId: input.runId ?? 'unassigned',
+          durationMs: Date.now() - startedAt,
+          retryAfter: headersInfo.retryAfter,
+          requestId: headersInfo.requestId,
+          rateLimitHeaders: headersInfo.rateLimit,
+          gatewayBody,
+        });
+        throw new LiteLLMHttpError(response.status, gatewayBody, headersInfo.retryAfter, headersInfo.requestId);
       }
 
       const responseBody = await withSignal(response.text(), abortContext.signal);
@@ -445,6 +512,8 @@ export async function callLiteLLM(
     errorCode: lastError?.code ?? 'INTERNAL_ERROR',
     errorName: lastError?.name ?? 'Error',
     status: lastError?.status,
+    retryAfter: lastError?.retryAfter,
+    requestId: lastError?.requestId,
     gatewayBody: lastError?.gatewayBody?.slice(0, 1000),
   });
   throw lastError ?? new LiteLLMRequestError('GATEWAY_HTTP_ERROR', 'LiteLLM request failed', true);

@@ -300,7 +300,11 @@ async function executeGenerateContent(
             model: resolvedModel,
             status: mapped.status,
             code: mapped.code,
-            gatewayBody: error instanceof LiteLLMRequestError ? error.gatewayBody?.slice(0, 1000) : undefined,
+            upstream_error_code: error instanceof LiteLLMRequestError ? error.code : undefined,
+            upstream_error_type: error instanceof LiteLLMRequestError ? error.retryable : undefined,
+            upstream_message: error instanceof LiteLLMRequestError ? error.gatewayBody?.slice(0, 1000) : undefined,
+            retry_after: error instanceof LiteLLMRequestError ? error.retryAfter : undefined,
+            request_id: error instanceof LiteLLMRequestError ? error.requestId : undefined,
           },
         },
       ]);

@@ -268,6 +268,39 @@ describe('callLiteLLM', () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
+  it('sanitiza corpo do gateway e captura retry-after/request-id (instrumentação)', async () => {
+    const headers = new Headers({
+      'retry-after': '7',
+      'x-request-id': 'req_abc123',
+      'x-ratelimit-remaining': '0',
+    });
+    fetchMock.mockResolvedValueOnce({
+      ok: false,
+      status: 429,
+      headers,
+      text: async () =>
+        '{"error":{"message":"rate limit exceeded","api_key":"sk-LIVE-SECRET-12345678"}}',
+    });
+
+    const err = await callLiteLLM(
+      { model: 'model', userContent: 'prompt' },
+      {
+        LITELLM_API_KEY: 'key',
+        LITELLM_BASE_URL: 'https://litellm.example',
+        LITELLM_MAX_RETRIES: '0',
+      },
+    ).catch((e: unknown) => e);
+
+    expect(err).toBeInstanceOf(LiteLLMRequestError);
+    const llmErr = err as LiteLLMRequestError;
+    expect(llmErr.retryable).toBe(true);
+    expect(llmErr.gatewayBody).not.toContain('sk-LIVE-SECRET-12345678');
+    expect(llmErr.gatewayBody).toContain('[REDACTED]');
+    expect(llmErr.retryAfter).toBe('7');
+    expect(llmErr.requestId).toBe('req_abc123');
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
   it('não repete erro 4xx permanente', async () => {
     fetchMock.mockResolvedValueOnce({ ok: false, status: 401, text: async () => 'unauthorized' });
 
