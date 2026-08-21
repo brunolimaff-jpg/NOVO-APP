@@ -809,6 +809,8 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
             },
           );
 
+        let sawRateLimit = false;
+
         const runTeiaSocietariaOrchestration = async (): Promise<string> => {
           let identityResult: string;
 
@@ -842,6 +844,11 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
           }
         } catch (identityError) {
           if (isAbortLikeError(identityError) || isDossierRunControlError(identityError)) throw identityError;
+
+          const identityErrorMessage = identityError instanceof Error ? identityError.message : String(identityError);
+          if (/LLM proxy failed \(\s*429\s*\)|"status"\s*:\s*429|status[:\s]+429/.test(identityErrorMessage)) {
+            sawRateLimit = true;
+          }
 
           scoutDiag.warn('ModularDossier', 'modulo 1a (teia identity) falhou, usando fallback', {
               sessionId,
@@ -1400,6 +1407,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
                     loadingVariant: undefined,
                     isError: false,
                     errorDetails: undefined,
+                    ...(sawRateLimit ? { partialReason: 'SC-429' } : {}),
                   }
                 : message,
             ),
@@ -1602,7 +1610,12 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
         }
 
         waterfallEndStatus = 'completed';
-        return { status: 'COMPLETED', dossierRunId, dossierId: completedDossierId } satisfies DossierWaterfallResult;
+        return {
+          status: 'COMPLETED',
+          dossierRunId,
+          dossierId: completedDossierId,
+          partialReason: sawRateLimit ? 'SC-429' : undefined,
+        } satisfies DossierWaterfallResult;
       } catch (error) {
         if (signal.aborted || error instanceof DossierRunCancelledError || isAbortLikeError(error)) {
           waterfallEndStatus = 'aborted';

@@ -354,4 +354,27 @@ describe('MessageRow', () => {
     // Stale-thinking retorna null — não renderiza erro alarmista (Finding 3 adversarial)
     expect(container.innerHTML).toBe('');
   });
+
+  it('exibe banner persistente SC-429 quando o dossiê terminou parcial', () => {
+    const msg = makeMessage({
+      sender: Sender.Bot,
+      text: 'Dossiê completo com conteúdo válido',
+      partialReason: 'SC-429',
+    });
+    render(<MessageRow index={0} data={makeData([msg])} />);
+
+    const banner = screen.getByTestId('dossier-partial-warning');
+    expect(banner).toHaveTextContent('Dossiê concluído parcialmente');
+    expect(banner).toHaveTextContent('informações parciais');
+    expect(banner).toHaveTextContent('Código para suporte: SC-429');
+    expect(banner).toHaveTextContent('Parcial');
+    // O conteúdo do dossiê continua renderizado abaixo do banner
+    expect(screen.getByTestId('sectional-bot')).toBeInTheDocument();
+  });
+
+  it('não exibe banner SC-429 em dossiê completo sem degradação', () => {
+    const msg = makeMessage({ sender: Sender.Bot, text: 'Dossiê completo' });
+    render(<MessageRow index={0} data={makeData([msg])} />);
+    expect(screen.queryByTestId('dossier-partial-warning')).not.toBeInTheDocument();
+  });
 });

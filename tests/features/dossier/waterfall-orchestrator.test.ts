@@ -593,6 +593,33 @@ describe('useDossierWaterfallOrchestrator', () => {
     dispatchSpy.mockRestore();
   });
 
+  it('COMPLETED com 429 no módulo identity marca partialReason SC-429', async () => {
+    generateDossierModuleMock.mockImplementation(async (moduleName: string) => {
+      if (moduleName === 'Teia Societaria — Identidade') {
+        throw new Error(
+          'LLM proxy failed (429): {"text":"","error":{"code":"LLM_GATEWAY_HTTP","message":"LiteLLM HTTP 429","retryable":true}}',
+        );
+      }
+      return `${moduleName} consolidado`;
+    });
+    const harness = makeHarness();
+    const result = await harness.result.current.runMegaPromptWaterfall(
+      makeRunArgs({ dossierRunId: 'run-1', dossierLeaseOwner: 'lease-1' }),
+    );
+    expect(result).toMatchObject({ status: 'COMPLETED', partialReason: 'SC-429' });
+    expect(getBotMessage(harness).partialReason).toBe('SC-429');
+  });
+
+  it('COMPLETED sem 429 não marca partialReason', async () => {
+    const harness = makeHarness();
+    const result = await harness.result.current.runMegaPromptWaterfall(
+      makeRunArgs({ dossierRunId: 'run-1', dossierLeaseOwner: 'lease-1' }),
+    );
+    expect(result).toMatchObject({ status: 'COMPLETED' });
+    expect((result as { partialReason?: string }).partialReason).toBeUndefined();
+    expect(getBotMessage(harness).partialReason).toBeUndefined();
+  });
+
   it('falha fechada no módulo opcional e não inicia próximos módulos ou benchmark', async () => {
     failLifecycleAt('after_module:Bordas de Controle');
     const harness = makeHarness();

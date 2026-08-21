@@ -318,6 +318,34 @@ const MessageRowBody = memo(({ index, msg, data }: MessageRowBodyProps) => {
             <DossierErrorBoundary isDarkMode={isDarkMode}>
               <>
                 {displayScore && <ScorePorta {...displayScore} isDarkMode={isDarkMode} />}
+                {msg.partialReason === 'SC-429' && (
+                  <div
+                    role="status"
+                    data-testid="dossier-partial-warning"
+                    className={`mb-3 rounded-lg border px-3 py-2 text-sm ${
+                      isDarkMode
+                        ? 'border-amber-700/60 bg-amber-950/40 text-amber-200'
+                        : 'border-amber-300 bg-amber-50 text-amber-900'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 font-semibold">
+                      <span aria-hidden="true">◐</span>
+                      <span>Dossiê concluído parcialmente</span>
+                      <span
+                        className={`ml-auto rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
+                          isDarkMode ? 'bg-amber-800/60 text-amber-100' : 'bg-amber-200 text-amber-900'
+                        }`}
+                      >
+                        Parcial
+                      </span>
+                    </div>
+                    <p className="mt-1 leading-relaxed">
+                      O Scout concluiu a pesquisa com informações parciais. Algumas etapas não puderam ser processadas
+                      devido à alta demanda do serviço. Tente novamente mais tarde para obter a versão completa.
+                    </p>
+                    <p className="mt-1 text-xs opacity-70">Código para suporte: SC-429</p>
+                  </div>
+                )}
                 {hasContentError && (
                   <div
                     role="alert"
