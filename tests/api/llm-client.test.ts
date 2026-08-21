@@ -245,6 +245,29 @@ describe('callLiteLLM', () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
+  it('captura o corpo do gateway em erro 429 (instrumentação)', async () => {
+    fetchMock.mockResolvedValueOnce({
+      ok: false,
+      status: 429,
+      text: async () => '{"error":{"message":"rate limit exceeded","type":"rate_limit_error"}}',
+    });
+
+    const err = await callLiteLLM(
+      { model: 'model', userContent: 'prompt' },
+      {
+        LITELLM_API_KEY: 'key',
+        LITELLM_BASE_URL: 'https://litellm.example',
+        LITELLM_MAX_RETRIES: '0',
+      },
+    ).catch((e: unknown) => e);
+
+    expect(err).toBeInstanceOf(LiteLLMRequestError);
+    expect((err as LiteLLMRequestError).code).toBe('GATEWAY_HTTP_ERROR');
+    expect((err as LiteLLMRequestError).retryable).toBe(true);
+    expect((err as LiteLLMRequestError).gatewayBody).toContain('rate limit exceeded');
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
   it('não repete erro 4xx permanente', async () => {
     fetchMock.mockResolvedValueOnce({ ok: false, status: 401, text: async () => 'unauthorized' });
 

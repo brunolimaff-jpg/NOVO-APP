@@ -67,6 +67,7 @@ export class LiteLLMRequestError extends Error {
     message: string,
     readonly retryable: boolean,
     readonly status?: number,
+    readonly gatewayBody?: string,
   ) {
     super(message);
     this.name = 'LiteLLMRequestError';
@@ -74,8 +75,8 @@ export class LiteLLMRequestError extends Error {
 }
 
 class LiteLLMHttpError extends LiteLLMRequestError {
-  constructor(status: number) {
-    super('GATEWAY_HTTP_ERROR', `LiteLLM HTTP ${status}`, isRetryableStatus(status), status);
+  constructor(status: number, gatewayBody?: string) {
+    super('GATEWAY_HTTP_ERROR', `LiteLLM HTTP ${status}`, isRetryableStatus(status), status, gatewayBody);
     this.name = 'LiteLLMHttpError';
   }
 }
@@ -389,8 +390,8 @@ export async function callLiteLLM(
       );
 
       if (!response.ok) {
-        await withSignal(response.text().catch(() => ''), abortContext.signal);
-        throw new LiteLLMHttpError(response.status);
+        const gatewayBody = await withSignal(response.text().catch(() => ''), abortContext.signal);
+        throw new LiteLLMHttpError(response.status, gatewayBody);
       }
 
       const responseBody = await withSignal(response.text(), abortContext.signal);
@@ -443,6 +444,8 @@ export async function callLiteLLM(
     durationMs: Date.now() - startedAt,
     errorCode: lastError?.code ?? 'INTERNAL_ERROR',
     errorName: lastError?.name ?? 'Error',
+    status: lastError?.status,
+    gatewayBody: lastError?.gatewayBody?.slice(0, 1000),
   });
   throw lastError ?? new LiteLLMRequestError('GATEWAY_HTTP_ERROR', 'LiteLLM request failed', true);
 }
