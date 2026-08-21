@@ -96,9 +96,9 @@ function isRetryableStatus(status: number): boolean {
 }
 
 const SENSITIVE_PATTERNS: RegExp[] = [
-  /(sk-[A-Za-z0-9_\-]{6,})/g,
-  /(Bearer\s+[A-Za-z0-9._\-]+)/gi,
-  /(api[_-]?key\s*["']?\s*[:=]\s*["']?[A-Za-z0-9_\-]{8,})/gi,
+  /(sk-[A-Za-z0-9_-]{6,})/g,
+  /(Bearer\s+[A-Za-z0-9._-]+)/gi,
+  /(api[_-]?key\s*["']?\s*[:=]\s*["']?[A-Za-z0-9_-]{8,})/gi,
 ];
 
 function sanitizeGatewayText(text: string, limit = 1500): string {
