@@ -124,7 +124,14 @@ const MessageRowBody = memo(({ index, msg, data }: MessageRowBodyProps) => {
   const showHeroLoading = isBot && msg.isThinking && !hasRenderableText && loadingVariant === 'hero' && data.isLoading;
   const showInlineLoading =
     isBot && msg.isThinking && !hasRenderableText && loadingVariant === 'inline' && data.isLoading;
-  const hasContentError = Boolean(msg.isError && msg.errorDetails && hasRenderableText);
+  // SC-429: precedência do card de sobrecarga — mesmo com text preenchido ("Erro no processamento"),
+  // o card SC-429 deve aparecer no lugar do banner de persistência e do SectionalBotMessage.
+  const isSc429 = Boolean(
+    msg.isError && msg.errorDetails &&
+    msg.errorDetails.code === 'RATE_LIMIT' &&
+    msg.errorDetails.httpStatus === 429,
+  );
+  const hasContentError = Boolean(msg.isError && msg.errorDetails && hasRenderableText && !isSc429);
   // Stale-thinking: msg acha que está carregando mas a store já liberou.
   // Não é erro de rede — é bug de propagação de estado. Só esconde o loading.
   const isStaleThinking = isBot && msg.isThinking && !data.isLoading && !hasRenderableText;
@@ -248,7 +255,7 @@ const MessageRowBody = memo(({ index, msg, data }: MessageRowBodyProps) => {
         />
       </div>
     );
-  } else if (msg.isError && msg.errorDetails && !hasRenderableText) {
+  } else if (msg.isError && msg.errorDetails && (!hasRenderableText || isSc429)) {
     content = (
       <ErrorMessageCard
         error={msg.errorDetails}
