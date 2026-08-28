@@ -282,7 +282,32 @@ async function executeGenerateContent(
     });
   } catch (error) {
     const mapped = httpStatusForError(error);
-    console.error('[LlmProxy] generateContent failed:', mapped.message);
+    console.error('[LlmProxy] generateContent failed:', mapped.message, {
+      status: mapped.status,
+      gatewayBody: error instanceof LiteLLMRequestError ? error.gatewayBody?.slice(0, 1000) : undefined,
+    });
+    if (srvModuleName) {
+      void insertDiagnosticsBatch({ runId: srvRunId, route: '/api/llm', events: [] }, [
+        {
+          at: new Date().toISOString(),
+          t: Date.now(),
+          runId: srvRunId,
+          area: 'ServerWaterfall',
+          event: 'module:fail',
+          severity: 'error',
+          payload: {
+            module: srvModuleName,
+            model: resolvedModel,
+            status: mapped.status,
+            code: mapped.code,
+            upstream_error_code: error instanceof LiteLLMRequestError ? error.code : undefined,
+            upstream_retryable: error instanceof LiteLLMRequestError ? error.retryable : undefined,
+            retry_after: error instanceof LiteLLMRequestError ? error.retryAfter : undefined,
+            request_id: error instanceof LiteLLMRequestError ? error.requestId : undefined,
+          },
+        },
+      ]);
+    }
     return res.status(mapped.status).json(errorPayload(mapped.code, mapped.message, mapped.retryable));
   }
 }
@@ -326,7 +351,10 @@ async function executeChatSendMessage(
     });
   } catch (error) {
     const mapped = httpStatusForError(error);
-    console.error('[LlmProxy] chatSendMessage failed:', mapped.message);
+    console.error('[LlmProxy] chatSendMessage failed:', mapped.message, {
+      status: mapped.status,
+      gatewayBody: error instanceof LiteLLMRequestError ? error.gatewayBody?.slice(0, 1000) : undefined,
+    });
     return res.status(mapped.status).json(errorPayload(mapped.code, mapped.message, mapped.retryable));
   }
 }

@@ -245,6 +245,62 @@ describe('callLiteLLM', () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
+  it('captura o corpo do gateway em erro 429 (instrumentação)', async () => {
+    fetchMock.mockResolvedValueOnce({
+      ok: false,
+      status: 429,
+      text: async () => '{"error":{"message":"rate limit exceeded","type":"rate_limit_error"}}',
+    });
+
+    const err = await callLiteLLM(
+      { model: 'model', userContent: 'prompt' },
+      {
+        LITELLM_API_KEY: 'key',
+        LITELLM_BASE_URL: 'https://litellm.example',
+        LITELLM_MAX_RETRIES: '0',
+      },
+    ).catch((e: unknown) => e);
+
+    expect(err).toBeInstanceOf(LiteLLMRequestError);
+    expect((err as LiteLLMRequestError).code).toBe('GATEWAY_HTTP_ERROR');
+    expect((err as LiteLLMRequestError).retryable).toBe(true);
+    expect((err as LiteLLMRequestError).gatewayBody).toContain('rate limit exceeded');
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('sanitiza corpo do gateway e captura retry-after/request-id (instrumentação)', async () => {
+    const headers = new Headers({
+      'retry-after': '7',
+      'x-request-id': 'req_abc123',
+      'x-ratelimit-remaining': '0',
+    });
+    fetchMock.mockResolvedValueOnce({
+      ok: false,
+      status: 429,
+      headers,
+      text: async () =>
+        '{"error":{"message":"rate limit exceeded","api_key":"sk-LIVE-SECRET-12345678"}}',
+    });
+
+    const err = await callLiteLLM(
+      { model: 'model', userContent: 'prompt' },
+      {
+        LITELLM_API_KEY: 'key',
+        LITELLM_BASE_URL: 'https://litellm.example',
+        LITELLM_MAX_RETRIES: '0',
+      },
+    ).catch((e: unknown) => e);
+
+    expect(err).toBeInstanceOf(LiteLLMRequestError);
+    const llmErr = err as LiteLLMRequestError;
+    expect(llmErr.retryable).toBe(true);
+    expect(llmErr.gatewayBody).not.toContain('sk-LIVE-SECRET-12345678');
+    expect(llmErr.gatewayBody).toContain('[REDACTED]');
+    expect(llmErr.retryAfter).toBe('7');
+    expect(llmErr.requestId).toBe('req_abc123');
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
   it('não repete erro 4xx permanente', async () => {
     fetchMock.mockResolvedValueOnce({ ok: false, status: 401, text: async () => 'unauthorized' });
 

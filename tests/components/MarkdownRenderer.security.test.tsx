@@ -18,6 +18,7 @@ vi.mock('mermaid', () => ({
 
 vi.mock('../../utils/chunkRetry', () => ({
   loadWithChunkRetry: (fn: () => Promise<unknown>) => fn(),
+  loadOptionalChunk: (fn: () => Promise<unknown>) => fn(),
 }));
 
 vi.mock('../../utils/textCleaners', async () => {
