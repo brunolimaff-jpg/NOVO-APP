@@ -313,6 +313,77 @@ describe('callLiteLLM', () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
+  it('não repete 429 com budget_exceeded', async () => {
+    const body = JSON.stringify({
+      error: { type: 'budget_exceeded', code: 'budget_exceeded' },
+    });
+    fetchMock
+      .mockResolvedValueOnce({ ok: false, status: 429, text: async () => body })
+      .mockResolvedValueOnce({ ok: false, status: 429, text: async () => body });
+
+    await expect(
+      callLiteLLM(
+        { model: 'model', userContent: 'prompt' },
+        {
+          LITELLM_API_KEY: 'key',
+          LITELLM_BASE_URL: 'https://litellm.example',
+          LITELLM_RETRY_BASE_DELAY_MS: '0',
+        },
+      ),
+    ).rejects.toMatchObject({ code: 'GATEWAY_BUDGET_EXCEEDED', retryable: false, status: 429 });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('não trata code budget_exceeded fora de error.type como budget canônico', async () => {
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 429,
+        text: async () => JSON.stringify({ code: 'budget_exceeded' }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        text: async () => JSON.stringify({ choices: [{ message: { content: '# Recuperado' } }] }),
+      });
+
+    const result = await callLiteLLM(
+      { model: 'model', userContent: 'prompt' },
+      {
+        LITELLM_API_KEY: 'key',
+        LITELLM_BASE_URL: 'https://litellm.example',
+        LITELLM_RETRY_BASE_DELAY_MS: '0',
+      },
+    );
+
+    expect(result.text).toBe('# Recuperado');
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('repete 429 transitório', async () => {
+    fetchMock.mockResolvedValueOnce({
+      ok: false,
+      status: 429,
+      text: async () => JSON.stringify({ error: { type: 'rate_limit_error', code: 'rate_limit_error' } }),
+    }).mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      text: async () => JSON.stringify({ choices: [{ message: { content: '# Recuperado' } }] }),
+    });
+
+    const result = await callLiteLLM(
+      { model: 'model', userContent: 'prompt' },
+      {
+        LITELLM_API_KEY: 'key',
+        LITELLM_BASE_URL: 'https://litellm.example',
+        LITELLM_RETRY_BASE_DELAY_MS: '0',
+      },
+    );
+
+    expect(result.text).toBe('# Recuperado');
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
   it('repete erro transitório e respeita o budget agregado', async () => {
     fetchMock.mockResolvedValueOnce({ ok: false, status: 503, text: async () => 'busy' }).mockResolvedValueOnce({
       ok: true,
@@ -419,4 +490,3 @@ describe('callLiteLLM', () => {
     expect(removeListenerSpy).toHaveBeenCalled();
   });
 });
-

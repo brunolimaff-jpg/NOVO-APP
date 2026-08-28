@@ -200,9 +200,23 @@ async function callLlmApi<TResponse>(
         endpoint,
         action,
         requestClass,
-        bodyPreview: (responseText || '').slice(0, 200),
       });
-      throw new Error(`LLM proxy failed (${response.status}): ${responseText || 'unknown error'}`);
+      let structuredError: Record<string, unknown> | undefined;
+      try {
+        const parsed = JSON.parse(responseText) as { error?: unknown };
+        if (parsed?.error && typeof parsed.error === 'object') {
+          structuredError = parsed.error as Record<string, unknown>;
+        }
+      } catch {
+        // O body não é necessário para propagar o erro estruturado.
+      }
+      const proxyError = new Error(`LLM proxy failed (${response.status})`);
+      Object.assign(proxyError, {
+        status: response.status,
+        ...(typeof structuredError?.code === 'string' ? { code: structuredError.code } : {}),
+        ...(typeof structuredError?.retryable === 'boolean' ? { retryable: structuredError.retryable } : {}),
+      });
+      throw proxyError;
     }
 
     const trimmedBody = responseText.trim();
@@ -215,7 +229,6 @@ async function callLlmApi<TResponse>(
         endpoint,
         action,
         requestClass,
-        bodyPreview: trimmedBody.slice(0, 200),
         error: error instanceof Error ? error.message : String(error),
       });
       throw new Error('LLM proxy returned invalid JSON', { cause: error });

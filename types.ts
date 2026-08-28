@@ -27,6 +27,7 @@ export type ErrorCode =
   | 'NETWORK'
   | 'TIMEOUT'
   | 'RATE_LIMIT'
+  | 'LLM_BUDGET_EXCEEDED'
   | 'MODEL_OVERLOADED'
   | 'AUTH'
   | 'BILLING'
@@ -164,6 +165,8 @@ export interface Message {
   statuses?: string[];
   // NOVO: Detalhes técnicos do ghost message (stream timeout)
   ghostDetails?: string;
+  // Dossiê terminal com saída válida, mas degradado por sobrecarga do serviço (SC-429)
+  partialReason?: string;
   // NOVO: Dados de Cliente Senior (Lookup)
   clienteSeniorData?: ClienteSeniorData;
   /**
@@ -229,7 +232,7 @@ export interface RunMegaPromptWaterfallArgs {
 }
 
 export type DossierWaterfallResult =
-  | { status: 'COMPLETED'; dossierRunId?: string; dossierId?: string }
+  | { status: 'COMPLETED'; dossierRunId?: string; dossierId?: string; partialReason?: string }
   | { status: 'CANCELLED'; dossierRunId?: string; terminalPersisted: boolean; reason: 'local_abort' | 'remote_cancel' }
   | { status: 'FAILED'; dossierRunId?: string; errorCode: string; errorStage: string; error: Error };
 

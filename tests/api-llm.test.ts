@@ -182,6 +182,32 @@ describe('api/llm handler (LiteLLM-only)', () => {
     });
   });
 
+  it('mapeia budget upstream para LLM_BUDGET_EXCEEDED sem devolver body upstream', async () => {
+    callLiteLLMMock.mockRejectedValueOnce(
+      new LiteLLMRequestErrorMock(
+        'GATEWAY_BUDGET_EXCEEDED',
+        'upstream secret body must stay server-side',
+        false,
+        429,
+      ),
+    );
+    const { default: handler } = await import('../api/llm');
+    const res = makeRes();
+    await handler(makeReq({ action: 'generateContent', contents: 'oi' }), res);
+
+    expect(res.status).toHaveBeenCalledWith(429);
+    expect(res.json).toHaveBeenCalledWith({
+      text: '',
+      error: {
+        code: 'LLM_BUDGET_EXCEEDED',
+        message: 'O serviço de análise está temporariamente indisponível. Tente novamente mais tarde.',
+        retryable: false,
+      },
+    });
+    const jsonCalls = (res.json as unknown as { mock: { calls: unknown[][] } }).mock.calls;
+    expect(JSON.stringify(jsonCalls[0]?.[0])).not.toContain('upstream secret body');
+  });
+
   it('chatSendMessage resolve intenção neutra no servidor e converte history model→assistant', async () => {
     callLiteLLMMock.mockResolvedValueOnce(LLM_RESULT);
     const { default: handler } = await import('../api/llm');

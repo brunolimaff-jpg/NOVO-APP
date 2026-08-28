@@ -124,7 +124,16 @@ const MessageRowBody = memo(({ index, msg, data }: MessageRowBodyProps) => {
   const showHeroLoading = isBot && msg.isThinking && !hasRenderableText && loadingVariant === 'hero' && data.isLoading;
   const showInlineLoading =
     isBot && msg.isThinking && !hasRenderableText && loadingVariant === 'inline' && data.isLoading;
-  const hasContentError = Boolean(msg.isError && msg.errorDetails && hasRenderableText);
+  // SC-429: precedência do card de sobrecarga — mesmo com text preenchido ("Erro no processamento"),
+  // o card SC-429 deve aparecer no lugar do banner de persistência e do SectionalBotMessage.
+  const isSc429B = Boolean(msg.isError && msg.errorDetails?.code === 'LLM_BUDGET_EXCEEDED');
+  const isSc429 = Boolean(
+    msg.isError && msg.errorDetails &&
+    msg.errorDetails.code === 'RATE_LIMIT' &&
+    msg.errorDetails.httpStatus === 429,
+  );
+  const isSpecialGatewayError = isSc429 || isSc429B;
+  const hasContentError = Boolean(msg.isError && msg.errorDetails && hasRenderableText && !isSpecialGatewayError);
   // Stale-thinking: msg acha que está carregando mas a store já liberou.
   // Não é erro de rede — é bug de propagação de estado. Só esconde o loading.
   const isStaleThinking = isBot && msg.isThinking && !data.isLoading && !hasRenderableText;
@@ -135,7 +144,7 @@ const MessageRowBody = memo(({ index, msg, data }: MessageRowBodyProps) => {
       ? 'hero-loading'
       : showInlineLoading
         ? 'inline-loading'
-        : msg.isError && msg.errorDetails && !hasRenderableText
+        : msg.isError && msg.errorDetails && (!hasRenderableText || isSpecialGatewayError)
           ? 'error-card'
           : showGhostContent
             ? 'ghost-content'
@@ -248,7 +257,7 @@ const MessageRowBody = memo(({ index, msg, data }: MessageRowBodyProps) => {
         />
       </div>
     );
-  } else if (msg.isError && msg.errorDetails && !hasRenderableText) {
+  } else if (msg.isError && msg.errorDetails && (!hasRenderableText || isSpecialGatewayError)) {
     content = (
       <ErrorMessageCard
         error={msg.errorDetails}
@@ -318,6 +327,34 @@ const MessageRowBody = memo(({ index, msg, data }: MessageRowBodyProps) => {
             <DossierErrorBoundary isDarkMode={isDarkMode}>
               <>
                 {displayScore && <ScorePorta {...displayScore} isDarkMode={isDarkMode} />}
+                {msg.partialReason === 'SC-429' && (
+                  <div
+                    role="status"
+                    data-testid="dossier-partial-warning"
+                    className={`mb-3 rounded-lg border px-3 py-2 text-sm ${
+                      isDarkMode
+                        ? 'border-amber-700/60 bg-amber-950/40 text-amber-200'
+                        : 'border-amber-300 bg-amber-50 text-amber-900'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 font-semibold">
+                      <span aria-hidden="true">◐</span>
+                      <span>Dossiê concluído parcialmente</span>
+                      <span
+                        className={`ml-auto rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
+                          isDarkMode ? 'bg-amber-800/60 text-amber-100' : 'bg-amber-200 text-amber-900'
+                        }`}
+                      >
+                        Parcial
+                      </span>
+                    </div>
+                    <p className="mt-1 leading-relaxed">
+                      O Scout concluiu a pesquisa com informações parciais. Algumas etapas não puderam ser processadas
+                      devido à alta demanda do serviço. Tente novamente mais tarde para obter a versão completa.
+                    </p>
+                    <p className="mt-1 text-xs opacity-70">Código para suporte: SC-429</p>
+                  </div>
+                )}
                 {hasContentError && (
                   <div
                     role="alert"

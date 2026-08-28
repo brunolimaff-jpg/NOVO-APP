@@ -126,6 +126,25 @@ describe('normalizeAppError', () => {
     expect(result.retryable).toBe(false);
     expect(result.transient).toBe(false);
   });
+
+  it('normaliza LLM_BUDGET_EXCEEDED como terminal e não preserva mensagem ou detalhes upstream', () => {
+    const upstreamSecret = 'upstream-secret-body';
+    const error = Object.assign(new Error(`LLM proxy failed (429): ${upstreamSecret}`), {
+      code: 'LLM_BUDGET_EXCEEDED',
+      status: 429,
+      retryable: false,
+    });
+
+    const result = normalizeAppError(error, 'LLM');
+
+    expect(result.code).toBe('LLM_BUDGET_EXCEEDED');
+    expect(result.httpStatus).toBe(429);
+    expect(result.retryable).toBe(false);
+    expect(result.transient).toBe(false);
+    expect(result.message).toBe('O serviço de análise está temporariamente indisponível. Tente novamente mais tarde.');
+    expect(result.details).toBeUndefined();
+    expect(JSON.stringify(result)).not.toContain(upstreamSecret);
+  });
 });
 
 describe('getFriendlyErrorMessage', () => {
@@ -139,6 +158,20 @@ describe('getFriendlyErrorMessage', () => {
     const error = normalizeAppError({ message: 'quota exceeded', status: 429 });
     const msg = getFriendlyErrorMessage(error, 'investigacao');
     expect(msg.toLowerCase()).toMatch(/requisições|muitas/);
+  });
+
+  it('retorna mensagem sanitizada para LLM_BUDGET_EXCEEDED', () => {
+    const error = normalizeAppError(
+      Object.assign(new Error('upstream budget body'), {
+        code: 'LLM_BUDGET_EXCEEDED',
+        status: 429,
+        retryable: false,
+      }),
+      'LLM',
+    );
+    expect(getFriendlyErrorMessage(error, 'investigacao')).toBe(
+      'O serviço de análise está temporariamente indisponível. Tente novamente mais tarde.',
+    );
   });
 
   it('retorna fallback friendlyMessage para código desconhecido', () => {

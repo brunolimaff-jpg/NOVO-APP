@@ -3,7 +3,7 @@ import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import MessageRow from '../../components/MessageRow';
-import type { Message } from '../../types';
+import type { AppError, Message } from '../../types';
 import { Sender } from '../../types';
 import type { MessageRowData } from '../../components/MessageRow';
 
@@ -354,4 +354,105 @@ describe('MessageRow', () => {
     // Stale-thinking retorna null — não renderiza erro alarmista (Finding 3 adversarial)
     expect(container.innerHTML).toBe('');
   });
+
+  it('exibe banner persistente SC-429 quando o dossiê terminou parcial', () => {
+    const msg = makeMessage({
+      sender: Sender.Bot,
+      text: 'Dossiê completo com conteúdo válido',
+      partialReason: 'SC-429',
+    });
+    render(<MessageRow index={0} data={makeData([msg])} />);
+
+    const banner = screen.getByTestId('dossier-partial-warning');
+    expect(banner).toHaveTextContent('Dossiê concluído parcialmente');
+    expect(banner).toHaveTextContent('informações parciais');
+    expect(banner).toHaveTextContent('Código para suporte: SC-429');
+    expect(banner).toHaveTextContent('Parcial');
+    // O conteúdo do dossiê continua renderizado abaixo do banner
+    expect(screen.getByTestId('sectional-bot')).toBeInTheDocument();
+  });
+
+  it('não exibe banner SC-429 em dossiê completo sem degradação', () => {
+    const msg = makeMessage({ sender: Sender.Bot, text: 'Dossiê completo' });
+    render(<MessageRow index={0} data={makeData([msg])} />);
+    expect(screen.queryByTestId('dossier-partial-warning')).not.toBeInTheDocument();
+  });
 });
+
+  it('SC-429 aparece mesmo com text="Erro no processamento" (regressão Lote A)', () => {
+    const msg = makeMessage({
+      sender: Sender.Bot,
+      text: 'Erro no processamento',
+      isError: true,
+      errorDetails: {
+        code: 'RATE_LIMIT' as const,
+        message: 'LLM proxy failed (429): ...',
+        friendlyMessage: 'Muitas requisições simultâneas. Aguarde alguns instantes.',
+        retryable: true,
+        transient: true,
+        source: 'UNKNOWN' as const,
+        httpStatus: 429,
+      },
+    });
+    render(<MessageRow index={0} data={makeData([msg])} />);
+
+    // O mock do ErrorMessageCard (data-testid="error-card") foi renderizado → componente SC-429 ativo
+    expect(screen.getByTestId('error-card')).toHaveTextContent('Muitas requisições simultâneas.');
+
+    // "Erro no processamento" NÃO deve aparecer como texto visível
+    expect(screen.queryByText('Erro no processamento')).not.toBeInTheDocument();
+
+    // Banner de persistência NÃO deve aparecer
+    expect(screen.queryByTestId('dossier-persistence-warning')).not.toBeInTheDocument();
+
+    // O componente SectionalBotMessage NÃO deve ser renderizado (o card SC-429 o substitui)
+    expect(screen.queryByTestId('sectional-bot')).not.toBeInTheDocument();
+  });
+
+  it('Erros normais mantêm comportamento anterior (sem SC-429)', () => {
+    const msg = makeMessage({
+      sender: Sender.Bot,
+      text: 'Erro no processamento',
+      isError: true,
+      errorDetails: {
+        code: 'SERVER' as const,
+        message: 'LLM proxy failed (500): interno',
+        friendlyMessage: 'Ocorreu uma falha temporária nos servidores de IA.',
+        retryable: true,
+        transient: true,
+        source: 'UNKNOWN' as const,
+        httpStatus: 500,
+      },
+    });
+    render(<MessageRow index={0} data={makeData([msg])} />);
+
+    // SC-429 NÃO foi chamado (error-card não mostra friendlyMessage de RATE_LIMIT)
+    expect(screen.queryByTestId('error-card')).toBeNull();
+    // Mensagem de persistência aparece (comportamento normal para erros com texto)
+    expect(screen.getByTestId('dossier-persistence-warning')).toBeInTheDocument();
+    // Texto do bot aparece via SectionalBotMessage mockado
+    expect(screen.getByTestId('sectional-bot')).toHaveTextContent('Erro no processamento');
+  });
+
+  it('SC-429B substitui placeholder preenchido e não renderiza dossiê ou persistência', () => {
+    const msg = makeMessage({
+      sender: Sender.Bot,
+      text: 'Erro no processamento',
+      isError: true,
+      errorDetails: {
+        code: 'LLM_BUDGET_EXCEEDED' as AppError['code'],
+        message: 'O serviço de análise está temporariamente indisponível. Tente novamente mais tarde.',
+        friendlyMessage: 'O serviço de análise está temporariamente indisponível. Tente novamente mais tarde.',
+        retryable: false,
+        transient: false,
+        source: 'LLM',
+        httpStatus: 429,
+      },
+    });
+    render(<MessageRow index={0} data={makeData([msg])} />);
+
+    expect(screen.getByTestId('error-card')).toHaveTextContent('O serviço de análise está temporariamente indisponível.');
+    expect(screen.queryByText('Erro no processamento')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('dossier-persistence-warning')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('sectional-bot')).not.toBeInTheDocument();
+  });
