@@ -45,12 +45,7 @@ export const AuthGate: React.FC<AuthGateProps> = ({ children }) => {
   // consultas/persistências pre-auth antes de auth.uid() existir.
   const mandatoryAuth = showAuthModal && !canSkip;
   if (mandatoryAuth) {
-    return (
-      <>
-        <ContingencyBanner />
-        {authModal}
-      </>
-    );
+    return <>{authModal}</>;
   }
 
   return (
