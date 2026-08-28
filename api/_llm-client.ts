@@ -355,6 +355,15 @@ export function isLiteLLMEnabled(env: Environment = process.env): boolean {
   return env.LLM_PROVIDER === 'litellm' && Boolean(env.LITELLM_API_KEY) && Boolean(env.LITELLM_BASE_URL);
 }
 
+export function isZenEnabled(env: Environment = process.env): boolean {
+  return (
+    env.LLM_PROVIDER === 'zen' &&
+    Boolean(env.OPENCODE_ZEN_API_KEY) &&
+    Boolean(env.OPENCODE_ZEN_BASE_URL) &&
+    Boolean(env.OPENCODE_ZEN_MODEL)
+  );
+}
+
 export function isFallbackEnabled(env: Environment = process.env): boolean {
   return env.LLM_FALLBACK_ENABLED === 'true';
 }
@@ -388,6 +397,108 @@ function buildMessages(input: LiteLLMLegacyInput | LiteLLMCallInput): Array<{ ro
   return messages;
 }
 
+/**
+ * Contingência temporária (BRU-137/BRU-139): OpenCode Zen como provider
+ * alternativo via LLM_PROVIDER=zen. Sem retry automático (uma única
+ * tentativa), sem fallback automático entre providers e sem SDK novo.
+ */
+async function callZen(
+  input: LiteLLMLegacyInput | LiteLLMCallInput,
+  env: Environment = process.env,
+): Promise<string | LiteLLMCallResult> {
+  const baseUrl = env.OPENCODE_ZEN_BASE_URL?.replace(/\/+$/, '');
+  const apiKey = env.OPENCODE_ZEN_API_KEY;
+  const model = env.OPENCODE_ZEN_MODEL;
+  if (!baseUrl || !apiKey || !model) {
+    throw new LiteLLMRequestError(
+      'GATEWAY_NOT_CONFIGURED',
+      'OpenCode Zen não configurado: OPENCODE_ZEN_BASE_URL, OPENCODE_ZEN_API_KEY e OPENCODE_ZEN_MODEL são obrigatórios',
+      false,
+    );
+  }
+
+  const legacy = isLegacyInput(input);
+  const budgetMs =
+    input.timeoutMs ??
+    (legacy
+      ? resolveLiteLLMClientTimeoutMs(env.VITE_LITELLM_CLIENT_TIMEOUT_MS)
+      : resolveLiteLLMRequestBudgetMs(env.LITELLM_REQUEST_TIMEOUT_MS));
+  const deadline = Date.now() + budgetMs;
+  const abortContext = createAttemptAbortContext(input.signal, Math.max(0, remainingBudget(deadline)));
+  const messages = buildMessages(input);
+
+  try {
+    const response = await withSignal(
+      fetch(`${baseUrl}/chat/completions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${apiKey}`,
+          ...(input.correlationId ? { 'X-Request-ID': input.correlationId } : {}),
+        },
+        body: JSON.stringify({
+          model,
+          messages,
+          temperature: input.temperature ?? (legacy ? 0.7 : 0.1),
+          max_tokens: legacy ? input.maxTokens ?? 4096 : input.maxOutputTokens ?? 8192,
+        }),
+        signal: abortContext.signal,
+      }),
+      abortContext.signal,
+    );
+
+    if (!response.ok) {
+      const responseBody = await withSignal(response.text().catch(() => ''), abortContext.signal);
+      throw new LiteLLMHttpError(response.status, responseBody);
+    }
+
+    const responseBody = await withSignal(response.text(), abortContext.signal);
+    let completion: {
+      choices?: Array<{ message?: { content?: string }; finish_reason?: string }>;
+      usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number };
+    };
+    try {
+      completion = JSON.parse(responseBody) as typeof completion;
+    } catch (error) {
+      throw new LiteLLMRequestError(
+        'GATEWAY_INVALID_RESPONSE',
+        error instanceof Error ? error.message : 'OpenCode Zen returned invalid JSON',
+        false,
+      );
+    }
+    const choice = completion.choices?.[0];
+    const rawText = choice?.message?.content ?? '';
+    if (!rawText.trim()) {
+      throw new LiteLLMRequestError('GATEWAY_INVALID_RESPONSE', 'OpenCode Zen retornou resposta vazia', false);
+    }
+
+    if (legacy) {
+      return rawText;
+    }
+
+    const normalized = normalizeModelOutput(rawText);
+    return {
+      text: normalized.text,
+      usage: normalizeUsage(completion.usage),
+      finishReason: choice?.finish_reason,
+      reasoningRemoved: normalized.reasoningRemoved,
+      reasoningCharsRemoved: normalized.reasoningCharsRemoved,
+    };
+  } catch (error) {
+    const normalized = normalizeLiteLLMError(error, abortContext.reason());
+    console.error('[Zen] request failed', {
+      correlationId: input.correlationId ?? 'unassigned',
+      runId: input.runId ?? 'unassigned',
+      action: input.action ?? 'unknown',
+      errorCode: normalized.code,
+      errorName: normalized.name,
+    });
+    throw normalized;
+  } finally {
+    abortContext.cleanup();
+  }
+}
+
 export function callLiteLLM(input: LiteLLMLegacyInput, env?: Environment): Promise<string>;
 // eslint-disable-next-line no-redeclare
 export function callLiteLLM(input: LiteLLMCallInput, env?: Environment): Promise<LiteLLMCallResult>;
@@ -396,6 +507,10 @@ export async function callLiteLLM(
   input: LiteLLMLegacyInput | LiteLLMCallInput,
   env: Environment = process.env,
 ): Promise<string | LiteLLMCallResult> {
+  if (env.LLM_PROVIDER === 'zen') {
+    return callZen(input, env);
+  }
+
   const startedAt = Date.now();
   const baseUrl = env.LITELLM_BASE_URL?.replace(/\/+$/, '');
   const apiKey = env.LITELLM_API_KEY;
