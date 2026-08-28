@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { AppError } from '../types';
-import { getFriendlyErrorMessage } from '../utils/errorHelpers';
+import { getFriendlyErrorMessage, LLM_BUDGET_EXCEEDED_MESSAGE } from '../utils/errorHelpers';
 import { ChatMode } from '../constants';
 
 interface ErrorMessageCardProps {
@@ -28,13 +28,15 @@ const ErrorMessageCard: React.FC<ErrorMessageCardProps> = ({
 
   // SC-429: sobrecarga temporária do serviço — comunicação própria (contrato do Planejador),
   // sem jargão técnico; o card substitui o erro genérico e não expõe detalhes internos.
-  const isSc429 = error.code === 'RATE_LIMIT' && error.httpStatus === 429;
+  const isSc429B = error.code === 'LLM_BUDGET_EXCEEDED';
+  const isSc429 = !isSc429B && error.code === 'RATE_LIMIT' && error.httpStatus === 429;
 
-  if (isSc429) {
+  if (isSc429B || isSc429) {
+    const supportCode = isSc429B ? 'SC-429B' : 'SC-429';
     return (
       <div
         data-testid="error-message-card"
-        data-error-code="SC-429"
+        data-error-code={supportCode}
         className={`rounded-2xl border p-5 animate-fade-in w-full shadow-sm ${
           isDarkMode ? 'border-amber-700/60 bg-amber-950/30' : 'border-amber-300 bg-amber-50'
         }`}
@@ -45,37 +47,41 @@ const ErrorMessageCard: React.FC<ErrorMessageCardProps> = ({
           </div>
           <div className="flex-1 space-y-3 min-w-0">
             <h3 className={`font-bold text-sm md:text-base ${isDarkMode ? 'text-amber-200' : 'text-amber-900'}`}>
-              Não foi possível concluir o dossiê agora
+              {isSc429B ? 'Não foi possível iniciar a análise agora' : 'Não foi possível concluir o dossiê agora'}
             </h3>
             <p className={`text-sm leading-relaxed ${isDarkMode ? 'text-amber-200/80' : 'text-amber-800'}`}>
-              O serviço de análise do Scout está com alta demanda no momento. Aguarde um pouco e tente novamente.
+              {isSc429B
+                ? LLM_BUDGET_EXCEEDED_MESSAGE
+                : 'O serviço de análise do Scout está com alta demanda no momento. Aguarde um pouco e tente novamente.'}
             </p>
-            <button
-              onClick={e => {
-                e.stopPropagation();
-                onRetry();
-              }}
-              disabled={isLoadingRetry}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all shadow-md border disabled:opacity-50 disabled:cursor-not-allowed ${
-                isDarkMode
-                  ? 'bg-amber-600 hover:bg-amber-500 text-white border-amber-500/50'
-                  : 'bg-amber-500 hover:bg-amber-600 text-white border-amber-600'
-              }`}
-            >
-              {isLoadingRetry ? (
-                <>
-                  <div className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
-                  <span>Tentando de novo...</span>
-                </>
-              ) : (
-                <>
-                  <span>🔄</span>
-                  <span>Tentar novamente</span>
-                </>
-              )}
-            </button>
+            {!isSc429B && (
+              <button
+                onClick={e => {
+                  e.stopPropagation();
+                  onRetry();
+                }}
+                disabled={isLoadingRetry}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all shadow-md border disabled:opacity-50 disabled:cursor-not-allowed ${
+                  isDarkMode
+                    ? 'bg-amber-600 hover:bg-amber-500 text-white border-amber-500/50'
+                    : 'bg-amber-500 hover:bg-amber-600 text-white border-amber-600'
+                }`}
+              >
+                {isLoadingRetry ? (
+                  <>
+                    <div className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
+                    <span>Tentando de novo...</span>
+                  </>
+                ) : (
+                  <>
+                    <span>🔄</span>
+                    <span>Tentar novamente</span>
+                  </>
+                )}
+              </button>
+            )}
             <p className={`text-xs opacity-70 ${isDarkMode ? 'text-amber-200/70' : 'text-amber-800'}`}>
-              Código para suporte: SC-429
+              Código para suporte: {supportCode}
             </p>
           </div>
         </div>

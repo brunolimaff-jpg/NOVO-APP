@@ -59,6 +59,7 @@ export type LiteLLMErrorCode =
   | 'GATEWAY_TIMEOUT'
   | 'GATEWAY_ABORTED'
   | 'GATEWAY_HTTP_ERROR'
+  | 'GATEWAY_BUDGET_EXCEEDED'
   | 'GATEWAY_INVALID_RESPONSE';
 
 export class LiteLLMRequestError extends Error {
@@ -77,11 +78,12 @@ export class LiteLLMRequestError extends Error {
 }
 
 class LiteLLMHttpError extends LiteLLMRequestError {
-  constructor(status: number, gatewayBody?: string, retryAfter?: string, requestId?: string) {
+  constructor(status: number, responseBody: string, gatewayBody?: string, retryAfter?: string, requestId?: string) {
+    const budgetExceeded = isBudgetExceededBody(responseBody);
     super(
-      'GATEWAY_HTTP_ERROR',
-      `LiteLLM HTTP ${status}`,
-      isRetryableStatus(status),
+      budgetExceeded ? 'GATEWAY_BUDGET_EXCEEDED' : 'GATEWAY_HTTP_ERROR',
+      budgetExceeded ? 'LiteLLM request budget exceeded' : `LiteLLM HTTP ${status}`,
+      budgetExceeded ? false : isRetryableStatus(status),
       status,
       gatewayBody,
       retryAfter,
@@ -135,6 +137,17 @@ function captureUsefulHeaders(headers: Headers | undefined): {
     requestId,
     rateLimit: Object.keys(rateLimit).length > 0 ? rateLimit : undefined,
   };
+}
+
+function isBudgetExceededBody(body: string): boolean {
+  try {
+    const parsed = JSON.parse(body) as unknown;
+    if (!parsed || typeof parsed !== 'object') return false;
+    const error = (parsed as Record<string, unknown>).error;
+    return Boolean(error && typeof error === 'object' && (error as Record<string, unknown>).type === 'budget_exceeded');
+  } catch {
+    return false;
+  }
 }
 
 function makeGatewayAbortError(): LiteLLMRequestError {
@@ -458,7 +471,7 @@ export async function callLiteLLM(
           rateLimitHeaders: headersInfo.rateLimit,
           gatewayBody,
         });
-        throw new LiteLLMHttpError(response.status, gatewayBody, headersInfo.retryAfter, headersInfo.requestId);
+        throw new LiteLLMHttpError(response.status, rawBody, gatewayBody, headersInfo.retryAfter, headersInfo.requestId);
       }
 
       const responseBody = await withSignal(response.text(), abortContext.signal);

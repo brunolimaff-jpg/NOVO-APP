@@ -27,6 +27,7 @@ export type ErrorCode =
   | 'NETWORK'
   | 'TIMEOUT'
   | 'RATE_LIMIT'
+  | 'LLM_BUDGET_EXCEEDED'
   | 'MODEL_OVERLOADED'
   | 'AUTH'
   | 'BILLING'

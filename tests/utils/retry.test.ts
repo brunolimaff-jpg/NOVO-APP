@@ -52,6 +52,18 @@ describe('withAutoRetry', () => {
     expect(action).toHaveBeenCalledTimes(1);
   });
 
+  it('mantém retry para BILLING transiente mesmo com retryable false', async () => {
+    const billingError = new Error('billing service unavailable');
+    const action = vi.fn().mockRejectedValueOnce(billingError).mockResolvedValue('ok after billing retry');
+
+    const promise = withAutoRetry('test', action, { maxRetries: 1, baseDelayMs: 10, jitter: false });
+    await vi.runAllTimersAsync();
+    const result = await promise;
+
+    expect(result).toBe('ok after billing retry');
+    expect(action).toHaveBeenCalledTimes(2);
+  });
+
   it('NÃO retenta para erros BLOCKED_CONTENT', async () => {
     const blockedError = new Error('safety policy blocked this content');
     const action = vi.fn().mockRejectedValue(blockedError);

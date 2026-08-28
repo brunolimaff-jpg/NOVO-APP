@@ -107,6 +107,21 @@ function requireDependency<T>(value: T | null | undefined, dependencyName: strin
   return value;
 }
 
+function isTransientRateLimitError(error: unknown): boolean {
+  if (!error || typeof error !== 'object') return false;
+  const errorLike = error as Record<string, unknown>;
+  const status = errorLike.status ?? errorLike.httpStatus;
+  return (
+    status === 429 &&
+    errorLike.retryable === true &&
+    (errorLike.code === 'LLM_GATEWAY_HTTP' || errorLike.code === 'RATE_LIMIT')
+  );
+}
+
+function isBudgetExceededError(error: unknown): boolean {
+  return Boolean(error && typeof error === 'object' && (error as Record<string, unknown>).code === 'LLM_BUDGET_EXCEEDED');
+}
+
 function buildDossierSeedContext(rawPrompt: string): string {
   if (!rawPrompt) return '';
 
@@ -845,10 +860,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
         } catch (identityError) {
           if (isAbortLikeError(identityError) || isDossierRunControlError(identityError)) throw identityError;
 
-          const identityErrorMessage = identityError instanceof Error ? identityError.message : String(identityError);
-          if (/LLM proxy failed \(\s*429\s*\)|"status"\s*:\s*429|status[:\s]+429/.test(identityErrorMessage)) {
-            sawRateLimit = true;
-          }
+          if (isTransientRateLimitError(identityError)) sawRateLimit = true;
 
           scoutDiag.warn('ModularDossier', 'modulo 1a (teia identity) falhou, usando fallback', {
               sessionId,
@@ -856,8 +868,14 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
               error: identityError instanceof Error ? identityError.message : String(identityError),
             });
 
-            const fallbackResult = await runWaterfallModule(modules[FIRST_MODULE_INDEX], accumulatedText);
-            return fallbackResult;
+            try {
+              const fallbackResult = await runWaterfallModule(modules[FIRST_MODULE_INDEX], accumulatedText);
+              return fallbackResult;
+            } catch (fallbackError) {
+              if (isAbortLikeError(fallbackError) || isDossierRunControlError(fallbackError)) throw fallbackError;
+              if (isBudgetExceededError(identityError)) throw identityError;
+              throw fallbackError;
+            }
           }
 
           const allMatches = [...identityResult.matchAll(/\[\[TEIA_COMPLEXIDADE:(BAIXA|MEDIA|ALTA)\]\]/gi)];

@@ -3,7 +3,7 @@ import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import MessageRow from '../../components/MessageRow';
-import type { Message } from '../../types';
+import type { AppError, Message } from '../../types';
 import { Sender } from '../../types';
 import type { MessageRowData } from '../../components/MessageRow';
 
@@ -432,4 +432,27 @@ describe('MessageRow', () => {
     expect(screen.getByTestId('dossier-persistence-warning')).toBeInTheDocument();
     // Texto do bot aparece via SectionalBotMessage mockado
     expect(screen.getByTestId('sectional-bot')).toHaveTextContent('Erro no processamento');
+  });
+
+  it('SC-429B substitui placeholder preenchido e não renderiza dossiê ou persistência', () => {
+    const msg = makeMessage({
+      sender: Sender.Bot,
+      text: 'Erro no processamento',
+      isError: true,
+      errorDetails: {
+        code: 'LLM_BUDGET_EXCEEDED' as AppError['code'],
+        message: 'O serviço de análise está temporariamente indisponível. Tente novamente mais tarde.',
+        friendlyMessage: 'O serviço de análise está temporariamente indisponível. Tente novamente mais tarde.',
+        retryable: false,
+        transient: false,
+        source: 'LLM',
+        httpStatus: 429,
+      },
+    });
+    render(<MessageRow index={0} data={makeData([msg])} />);
+
+    expect(screen.getByTestId('error-card')).toHaveTextContent('O serviço de análise está temporariamente indisponível.');
+    expect(screen.queryByText('Erro no processamento')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('dossier-persistence-warning')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('sectional-bot')).not.toBeInTheDocument();
   });

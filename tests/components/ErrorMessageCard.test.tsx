@@ -66,4 +66,30 @@ describe('ErrorMessageCard', () => {
     expect(card).toHaveTextContent('Não foi possível concluir a investigação.');
     expect(card).toHaveTextContent('Ocorreu uma falha temporária nos servidores de IA.');
   });
+
+  it('renderiza SC-429B sem CTA e sem detalhes internos para budget terminal', () => {
+    render(
+      <ErrorMessageCard
+        error={makeAppError({
+          code: 'LLM_BUDGET_EXCEEDED' as AppError['code'],
+          httpStatus: 429,
+          message: 'upstream secret body must stay server-side',
+          friendlyMessage: 'upstream secret body must stay server-side',
+          retryable: false,
+          transient: false,
+        })}
+        onRetry={vi.fn()}
+        isLoadingRetry={false}
+        isDarkMode={false}
+      />,
+    );
+
+    const card = screen.getByTestId('error-message-card');
+    expect(card).toHaveAttribute('data-error-code', 'SC-429B');
+    expect(card).toHaveTextContent('Não foi possível iniciar a análise agora');
+    expect(card).toHaveTextContent('O serviço de análise está temporariamente indisponível. Tente novamente mais tarde.');
+    expect(card).toHaveTextContent('Código para suporte: SC-429B');
+    expect(card.querySelectorAll('button')).toHaveLength(0);
+    expect(card).not.toHaveTextContent(/budget|secret|key|LiteLLM|custo|provider/i);
+  });
 });

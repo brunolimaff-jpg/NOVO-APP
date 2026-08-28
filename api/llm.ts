@@ -60,6 +60,7 @@ export const config = {
 export const maxDuration = 300;
 
 const CHAT_DEFAULT_MAX_OUTPUT_TOKENS = 65_536;
+const LLM_BUDGET_EXCEEDED_MESSAGE = 'O serviço de análise está temporariamente indisponível. Tente novamente mais tarde.';
 const INTERNAL_MARKER_REGEX = /\[\[\s*[A-Z_]+\s*:[\s\S]*?\]\]/gi;
 const INTERNAL_MARKER_OPEN_TAIL_REGEX = /\[\[\s*[A-Z_]+\s*:[\s\S]*$/i;
 const HARD_PROMPT_LEAK_PATTERNS: RegExp[] = [
@@ -180,6 +181,8 @@ function httpStatusForError(error: unknown): { status: number; code: string; ret
         return { status: 504, code: 'LLM_GATEWAY_TIMEOUT', retryable: true, message: error.message };
       case 'GATEWAY_ABORTED':
         return { status: 408, code: 'LLM_REQUEST_ABORTED', retryable: false, message: error.message };
+      case 'GATEWAY_BUDGET_EXCEEDED':
+        return { status: 429, code: 'LLM_BUDGET_EXCEEDED', retryable: false, message: LLM_BUDGET_EXCEEDED_MESSAGE };
       case 'GATEWAY_INVALID_RESPONSE':
         return { status: 502, code: 'LLM_INVALID_RESPONSE', retryable: false, message: error.message };
       case 'GATEWAY_HTTP_ERROR':

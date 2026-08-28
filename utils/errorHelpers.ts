@@ -1,12 +1,15 @@
 import { AppError, ErrorCode, ErrorSource } from '../types';
 import { ChatMode } from '../constants';
 
+export const LLM_BUDGET_EXCEEDED_MESSAGE = 'O serviço de análise está temporariamente indisponível. Tente novamente mais tarde.';
+
 type ErrorLike = {
   code?: unknown;
   details?: unknown;
   friendlyMessage?: unknown;
   message?: unknown;
   name?: unknown;
+  retryable?: unknown;
   source?: unknown;
   status?: unknown;
 };
@@ -27,6 +30,17 @@ export function normalizeAppError(
 
   // Se já for um AppError, retorna ele mesmo (pode precisar ajustar a source se for genérica)
   if (isAppError(error)) {
+    if (error.code === 'LLM_BUDGET_EXCEEDED') {
+      return {
+        ...error,
+        message: LLM_BUDGET_EXCEEDED_MESSAGE,
+        friendlyMessage: LLM_BUDGET_EXCEEDED_MESSAGE,
+        retryable: false,
+        transient: false,
+        details: undefined,
+        source: error.source === 'UNKNOWN' ? source : error.source,
+      };
+    }
     return {
       ...error,
       source: error.source === 'UNKNOWN' ? source : error.source,
@@ -49,9 +63,15 @@ export function normalizeAppError(
   let friendlyMessage = defaultMessage;
   let retryable = true; // Default: botão "Tentar de novo" aparece
   let transient = false; // Default: sem auto-retry automático
+  const isBudgetExceeded = errorLike.code === 'LLM_BUDGET_EXCEEDED';
 
   // 0. Erros Fatais de Fetch / Abort (NÃO RETENTAR)
-  if (rawMessage.match(/input body is disturbed/i)) {
+  if (isBudgetExceeded) {
+    code = 'LLM_BUDGET_EXCEEDED';
+    friendlyMessage = LLM_BUDGET_EXCEEDED_MESSAGE;
+    retryable = false;
+    transient = false;
+  } else if (rawMessage.match(/input body is disturbed/i)) {
     code = 'UNKNOWN';
     friendlyMessage = 'Erro técnico na comunicação (Corpo da requisição já utilizado).';
     retryable = false;
@@ -125,15 +145,20 @@ export function normalizeAppError(
     transient = false;
   }
 
+  if (errorLike.retryable === false) {
+    retryable = false;
+    transient = false;
+  }
+
   return {
     code,
-    message: rawMessage,
+    message: isBudgetExceeded ? LLM_BUDGET_EXCEEDED_MESSAGE : rawMessage,
     friendlyMessage, // Mensagem base, pode ser sobrescrita pela UI com base no Modo
     httpStatus: typeof status === 'number' ? status : undefined,
     retryable,
     transient,
     source,
-    details: error && typeof error === 'object' ? (error as Record<string, unknown>) : undefined,
+    details: isBudgetExceeded ? undefined : error && typeof error === 'object' ? (error as Record<string, unknown>) : undefined,
   };
 }
 
@@ -150,6 +175,8 @@ export function getFriendlyErrorMessage(error: AppError, _mode: ChatMode): strin
       return 'Verifique sua conexão com a internet e tente novamente.';
     case 'RATE_LIMIT':
       return 'Muitas requisições simultâneas. Aguarde alguns instantes.';
+    case 'LLM_BUDGET_EXCEEDED':
+      return LLM_BUDGET_EXCEEDED_MESSAGE;
     case 'MODEL_OVERLOADED':
       return 'O serviço de IA está temporariamente instável.';
     case 'BLOCKED_CONTENT':
