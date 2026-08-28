@@ -2,6 +2,7 @@ import React, { type ReactNode } from 'react';
 import { useAuthGate } from '../hooks/useAuthGate';
 import { AuthModal } from './AuthModal';
 import { MigrationBanner } from './MigrationBanner';
+import { ContingencyBanner } from './ContingencyBanner';
 
 interface AuthGateProps {
   children: ReactNode;
@@ -44,11 +45,17 @@ export const AuthGate: React.FC<AuthGateProps> = ({ children }) => {
   // consultas/persistências pre-auth antes de auth.uid() existir.
   const mandatoryAuth = showAuthModal && !canSkip;
   if (mandatoryAuth) {
-    return <>{authModal}</>;
+    return (
+      <>
+        <ContingencyBanner />
+        {authModal}
+      </>
+    );
   }
 
   return (
     <>
+      <ContingencyBanner />
       {authModal}
       {showBanner && <MigrationBanner openAuthModal={openAuthModal} />}
       {children}
