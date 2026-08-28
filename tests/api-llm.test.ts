@@ -3,6 +3,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 
 const callLiteLLMMock = vi.hoisted(() => vi.fn());
 const isLiteLLMEnabledMock = vi.hoisted(() => vi.fn(() => true));
+const isZenEnabledMock = vi.hoisted(() => vi.fn(() => false));
 const insertDiagnosticsBatchMock = vi.hoisted(() => vi.fn(async () => ({ inserted: 1 })));
 const applyCorsMock = vi.hoisted(() => vi.fn());
 
@@ -23,6 +24,7 @@ const LiteLLMRequestErrorMock = vi.hoisted(() => {
 vi.mock('../api/_llm-client.js', () => ({
   callLiteLLM: callLiteLLMMock,
   isLiteLLMEnabled: isLiteLLMEnabledMock,
+  isZenEnabled: isZenEnabledMock,
   LiteLLMRequestError: LiteLLMRequestErrorMock,
 }));
 
@@ -94,6 +96,7 @@ describe('api/llm handler (LiteLLM-only)', () => {
 
   it('responde 503 LLM_GATEWAY_DISABLED com contrato text:"" quando LiteLLM não está habilitado', async () => {
     isLiteLLMEnabledMock.mockReturnValue(false);
+    isZenEnabledMock.mockReturnValue(false);
     const { default: handler } = await import('../api/llm');
     const res = makeRes();
     await handler(makeReq({ action: 'generateContent', contents: 'oi' }), res);
@@ -103,6 +106,17 @@ describe('api/llm handler (LiteLLM-only)', () => {
       error: expect.objectContaining({ code: 'LLM_GATEWAY_DISABLED', retryable: false }),
     });
     expect(callLiteLLMMock).not.toHaveBeenCalled();
+  });
+
+  it('passa o gate e chama o cliente quando LLM_PROVIDER=zen (contingência OpenCode Zen)', async () => {
+    isLiteLLMEnabledMock.mockReturnValue(false);
+    isZenEnabledMock.mockReturnValue(true);
+    callLiteLLMMock.mockResolvedValueOnce(LLM_RESULT);
+    const { default: handler } = await import('../api/llm');
+    const res = makeRes();
+    await handler(makeReq({ action: 'generateContent', contents: 'tarefa' }), res);
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(callLiteLLMMock).toHaveBeenCalledTimes(1);
   });
 
   it('generateContent resolve modelo no servidor (cliente ignorado) e retorna text + usage', async () => {

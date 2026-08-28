@@ -23,6 +23,7 @@ import { applyCors } from './_cors-headers.js';
 import {
   callLiteLLM,
   isLiteLLMEnabled,
+  isZenEnabled,
   LiteLLMRequestError,
   type LiteLLMCallInput,
 } from './_llm-client.js';
@@ -426,15 +427,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(400).json({ error: 'Invalid request', details: parsed.error.flatten() });
   }
 
-  // LiteLLM é o ÚNICO runtime de produção. Sem gateway configurado, falha
-  // controlada e explícita — nunca fallback silencioso para outro provedor.
-  if (!isLiteLLMEnabled()) {
+  // LiteLLM é o runtime primário; OpenCode Zen é a contingência temporária
+  // autorizada (LLM_PROVIDER=zen). Sem gateway configurado, falha controlada
+  // e explícita — nunca fallback silencioso para outro provedor.
+  if (!isLiteLLMEnabled() && !isZenEnabled()) {
     return res
       .status(503)
       .json(
         errorPayload(
           'LLM_GATEWAY_DISABLED',
-          'LiteLLM gateway não configurado (LLM_PROVIDER=litellm + LITELLM_BASE_URL + LITELLM_API_KEY)',
+          'Gateway LLM não configurado (LLM_PROVIDER=litellm + LITELLM_BASE_URL + LITELLM_API_KEY ou LLM_PROVIDER=zen + OPENCODE_ZEN_*)',
           false,
         ),
       );

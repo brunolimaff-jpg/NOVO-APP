@@ -9,6 +9,7 @@ import {
   ensureMarkdownStart,
   isFallbackEnabled,
   isLiteLLMEnabled,
+  isZenEnabled,
   LiteLLMRequestError,
   normalizeModelOutput,
   normalizeUsage,
@@ -141,6 +142,36 @@ describe('feature flags', () => {
   });
 });
 
+describe('isZenEnabled', () => {
+  it('exige provider zen + base url + key + model', () => {
+    expect(
+      isZenEnabled({
+        LLM_PROVIDER: 'zen',
+        OPENCODE_ZEN_BASE_URL: 'https://opencode.ai/zen/v1',
+        OPENCODE_ZEN_API_KEY: 'sk-test',
+        OPENCODE_ZEN_MODEL: 'deepseek-v4-flash',
+      }),
+    ).toBe(true);
+
+    expect(
+      isZenEnabled({
+        LLM_PROVIDER: 'litellm',
+        OPENCODE_ZEN_BASE_URL: 'https://opencode.ai/zen/v1',
+        OPENCODE_ZEN_API_KEY: 'sk-test',
+        OPENCODE_ZEN_MODEL: 'deepseek-v4-flash',
+      }),
+    ).toBe(false);
+
+    expect(
+      isZenEnabled({
+        LLM_PROVIDER: 'zen',
+        OPENCODE_ZEN_BASE_URL: 'https://opencode.ai/zen/v1',
+        OPENCODE_ZEN_API_KEY: 'sk-test',
+      }),
+    ).toBe(false);
+  });
+});
+
 describe('callLiteLLM', () => {
   beforeEach(() => {
     vi.stubGlobal('fetch', fetchMock);
@@ -193,6 +224,72 @@ describe('callLiteLLM', () => {
       max_tokens: 8192,
       temperature: 0.1,
     });
+  });
+
+  it('roteia para OpenCode Zen quando LLM_PROVIDER=zen (uma única chamada, sem retry)', async () => {
+    const result = await callLiteLLM(
+      {
+        model: 'ignored-by-zen',
+        userContent: 'gerar dossiê',
+      },
+      {
+        LLM_PROVIDER: 'zen',
+        OPENCODE_ZEN_BASE_URL: 'https://opencode.ai/zen/v1',
+        OPENCODE_ZEN_API_KEY: 'sk-zen-test',
+        OPENCODE_ZEN_MODEL: 'deepseek-v4-flash',
+      },
+    );
+
+    expect(result.text).toBe('# Dossiê');
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://opencode.ai/zen/v1/chat/completions',
+      expect.objectContaining({
+        method: 'POST',
+        headers: expect.objectContaining({ Authorization: 'Bearer sk-zen-test' }),
+      }),
+    );
+    const body = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body));
+    expect(body).toMatchObject({
+      model: 'deepseek-v4-flash',
+      max_tokens: 8192,
+    });
+  });
+
+  it('zen: não repete erro 429 transitório (zero retry automático)', async () => {
+    fetchMock.mockReset();
+    fetchMock.mockResolvedValueOnce({
+      ok: false,
+      status: 429,
+      text: async () => JSON.stringify({ error: { type: 'rate_limit', message: 'too many' } }),
+    });
+
+    await expect(
+      callLiteLLM(
+        {
+          model: 'deepseek-v4-flash',
+          userContent: 'x',
+        },
+        {
+          LLM_PROVIDER: 'zen',
+          OPENCODE_ZEN_BASE_URL: 'https://opencode.ai/zen/v1',
+          OPENCODE_ZEN_API_KEY: 'sk-zen-test',
+          OPENCODE_ZEN_MODEL: 'deepseek-v4-flash',
+        },
+      ),
+    ).rejects.toBeInstanceOf(LiteLLMRequestError);
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('zen: sem config completa lança GATEWAY_NOT_CONFIGURED', async () => {
+    await expect(
+      callLiteLLM(
+        { model: 'deepseek-v4-flash', userContent: 'x' },
+        { LLM_PROVIDER: 'zen', OPENCODE_ZEN_API_KEY: 'sk-zen-test' },
+      ),
+    ).rejects.toMatchObject({ code: 'GATEWAY_NOT_CONFIGURED' });
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it('preserva timeout e defaults do caminho legado usado por api/llm', async () => {
