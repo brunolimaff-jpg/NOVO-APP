@@ -2,7 +2,6 @@ import React, { type ReactNode } from 'react';
 import { useAuthGate } from '../hooks/useAuthGate';
 import { AuthModal } from './AuthModal';
 import { MigrationBanner } from './MigrationBanner';
-import { ContingencyBanner } from './ContingencyBanner';
 
 interface AuthGateProps {
   children: ReactNode;
@@ -50,7 +49,6 @@ export const AuthGate: React.FC<AuthGateProps> = ({ children }) => {
 
   return (
     <>
-      <ContingencyBanner />
       {authModal}
       {showBanner && <MigrationBanner openAuthModal={openAuthModal} />}
       {children}
