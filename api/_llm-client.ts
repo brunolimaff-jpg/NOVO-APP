@@ -1,6 +1,8 @@
 type Environment = Record<string, string | undefined>;
 type LiteLLMRole = 'system' | 'user' | 'assistant';
 
+import { LLM_REQUEST_BUDGET_MS } from '../services/llm/budgets.js';
+
 export interface LiteLLMUsageMetadata {
   promptTokenCount?: number;
   candidatesTokenCount?: number;
@@ -14,7 +16,7 @@ export interface NormalizeModelOutputResult {
 }
 
 const DEFAULT_REQUEST_BUDGET_MS = 38_000;
-const MAX_REQUEST_BUDGET_MS = 180_000;
+const MAX_REQUEST_BUDGET_MS = LLM_REQUEST_BUDGET_MS;
 const DEFAULT_LEGACY_TIMEOUT_MS = 120_000;
 const DEFAULT_MAX_RETRIES = 1;
 const DEFAULT_RETRY_BASE_DELAY_MS = 500;

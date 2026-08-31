@@ -5,6 +5,7 @@ import {
   DOSSIER_OPTIONAL_STEP_TIMEOUT_MS,
   DOSSIER_REQUIRED_STEP_TIMEOUT_MS,
   LLM_PROXY_TIMEOUT_DEFAULT_MS,
+  LLM_REQUEST_BUDGET_MS,
   PORTA_RECONCILIATION_TIMEOUT_MS,
 } from '../../../services/llm/budgets';
 
@@ -42,5 +43,21 @@ describe('Budgets do pipeline LLM (BRU-157)', () => {
     const src = readFileSync(resolve(__dirname, '../../../services/llmProxy.ts'), 'utf-8');
     expect(src).not.toMatch(/VITE_LLM_PROXY_TIMEOUT_MS/);
     expect(src).toMatch(/LLM_PROXY_TIMEOUT_DEFAULT_MS/);
+  });
+
+  it('request budget do serverless cobre o proxy e fica sob o maxDuration (run Zen real 94ae20c4)', () => {
+    // Regressão do run real: cap de 180s abortava investigação pesada do Zen
+    // (Teia Societaria — Identidade, 504 GATEWAY_TIMEOUT) antes do erro
+    // canônico do proxy (210s). O request budget deriva do mesmo par
+    // proxy+headroom e nunca estoura o maxDuration da função (300s).
+    expect(LLM_REQUEST_BUDGET_MS).toBe(225_000);
+    expect(LLM_REQUEST_BUDGET_MS).toBeGreaterThanOrEqual(LLM_PROXY_TIMEOUT_DEFAULT_MS);
+    expect(LLM_REQUEST_BUDGET_MS).toBeLessThan(300_000);
+  });
+
+  it('api/_llm-client deriva o cap do budget canônico — sem número mágico de 180s', () => {
+    const src = readFileSync(resolve(__dirname, '../../../api/_llm-client.ts'), 'utf-8');
+    expect(src).not.toMatch(/180_000/);
+    expect(src).toMatch(/LLM_REQUEST_BUDGET_MS/);
   });
 });

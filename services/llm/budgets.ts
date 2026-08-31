@@ -21,6 +21,14 @@ export const LLM_PROXY_TIMEOUT_DEFAULT_MS = 210_000;
 /** Folga entre o budget do proxy e o step interno (deixa o erro canônico do proxy vencer). */
 export const LLM_STEP_HEADROOM_MS = 15_000;
 
+/**
+ * Budget de request do serverless (api/_llm-client): acima do proxy (210s)
+ * para que o erro canônico continue sendo o do proxy, e abaixo do maxDuration
+ * da função Vercel (300s). Regressão do run real 94ae20c4: cap de 180s abortava
+ * investigação pesada do Zen (Teia Societaria — Identidade) antes do proxy.
+ */
+export const LLM_REQUEST_BUDGET_MS = LLM_PROXY_TIMEOUT_DEFAULT_MS + LLM_STEP_HEADROOM_MS;
+
 /** Step de módulo obrigatório (Teia Identity / Operação): cobre o proxy + headroom. */
 export const DOSSIER_REQUIRED_STEP_TIMEOUT_MS = LLM_PROXY_TIMEOUT_DEFAULT_MS + LLM_STEP_HEADROOM_MS;
 
