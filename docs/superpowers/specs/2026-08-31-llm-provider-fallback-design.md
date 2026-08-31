@@ -80,18 +80,26 @@ Regras:
 
 ## 4. Allowlist de fallback (quando o Zen assume)
 
+**Contrato de referência: BRU-147 (Linear).**
+
 | Falha LiteLLM | Fallback |
 |---|---|
 | `GATEWAY_BUDGET_EXCEEDED` / 429 budget | ✅ imediato |
 | 429 rate limit | ✅ após política existente |
+| 401/403 (credencial/auth do primário) | ✅ |
 | 408 / timeout upstream com orçamento restante | ✅ |
 | 5xx | ✅ |
-| falha de transporte/conexão | ✅ |
+| falha de transporte/conexão sem status | ✅ |
 | resposta inválida/vazia do provider (`GATEWAY_INVALID_RESPONSE`) | ✅ |
 | configuração/credencial primária ausente (`GATEWAY_NOT_CONFIGURED`) | ✅ + alerta operacional alto |
-| 400/422 causado pelo request | ❌ |
+| 400/404/409/422 causado pelo request | ❌ |
+| demais 4xx não allowlisted | ❌ |
 | cancelamento externo/usuário (`GATEWAY_ABORTED`) | ❌ |
 | falha de qualidade semântica após output aceito | ❌ (responsabilidade do Gold/quality gate) |
+
+**Orçamento total único por request (BRU-147):** o fallback NÃO dobra o timeout. Se o
+primário já exauriu o orçamento (`GATEWAY_TIMEOUT` sem tempo restante), o fallback não
+dispara; o Zen recebe apenas o tempo restante do orçamento original.
 
 **Fallback de provider ≠ fallback de qualidade.** Resposta ruim continua sendo rejeitada pelo
 Gold/quality gate; nunca reenviar automaticamente a mesma investigação para outro modelo.

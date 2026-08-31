@@ -204,11 +204,20 @@ describe('isEligibleForZenFallback (allowlist)', () => {
     expect(isEligibleForZenFallback(new LiteLLMRequestError('GATEWAY_HTTP_ERROR', 'x', true, 429))).toBe(true);
     expect(isEligibleForZenFallback(new LiteLLMRequestError('GATEWAY_HTTP_ERROR', 'x', true, 503))).toBe(true);
     expect(isEligibleForZenFallback(new LiteLLMRequestError('GATEWAY_HTTP_ERROR', 'x', true, 408))).toBe(true);
+    expect(isEligibleForZenFallback(new LiteLLMRequestError('GATEWAY_HTTP_ERROR', 'x', true, 500))).toBe(true);
+  });
+  it('401/403 (credencial/auth do primário) são elegíveis (contrato BRU-147)', () => {
+    expect(isEligibleForZenFallback(new LiteLLMRequestError('GATEWAY_HTTP_ERROR', 'x', false, 401))).toBe(true);
+    expect(isEligibleForZenFallback(new LiteLLMRequestError('GATEWAY_HTTP_ERROR', 'x', false, 403))).toBe(true);
+  });
+  it('erro de transporte sem status é elegível', () => {
+    expect(isEligibleForZenFallback(new LiteLLMRequestError('GATEWAY_HTTP_ERROR', 'x', true))).toBe(true);
   });
   it('4xx causado pelo request NÃO é elegível', () => {
     expect(isEligibleForZenFallback(new LiteLLMRequestError('GATEWAY_HTTP_ERROR', 'x', false, 400))).toBe(false);
+    expect(isEligibleForZenFallback(new LiteLLMRequestError('GATEWAY_HTTP_ERROR', 'x', false, 404))).toBe(false);
+    expect(isEligibleForZenFallback(new LiteLLMRequestError('GATEWAY_HTTP_ERROR', 'x', false, 409))).toBe(false);
     expect(isEligibleForZenFallback(new LiteLLMRequestError('GATEWAY_HTTP_ERROR', 'x', false, 422))).toBe(false);
-    expect(isEligibleForZenFallback(new LiteLLMRequestError('GATEWAY_HTTP_ERROR', 'x', false, 401))).toBe(false);
   });
   it('cancelamento externo NÃO é elegível', () => {
     expect(isEligibleForZenFallback(new LiteLLMRequestError('GATEWAY_ABORTED', 'x', false))).toBe(false);
@@ -769,14 +778,74 @@ describe('callLLM — Fallback V1 (política de provider)', () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
-  it('falha NÃO elegível (401) mantém o erro sem chamar Zen', async () => {
+  it('falha 401 (credencial do primário) cai no Zen (allowlist BRU-147)', async () => {
     fetchMock.mockReset();
-    fetchMock.mockResolvedValueOnce({ ok: false, status: 401, text: async () => 'unauthorized' });
+    fetchMock
+      .mockResolvedValueOnce({ ok: false, status: 401, text: async () => 'unauthorized' })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        text: async () => JSON.stringify({ choices: [{ message: { content: '# Dossiê' } }] }),
+      });
+
+    const result = await callLLM({ model: 'model', userContent: 'x' }, ZEN_ENV);
+
+    expect(result.provider).toBe('zen');
+    expect(result.fallbackUsed).toBe(true);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('falha NÃO elegível (400 causado pelo request) mantém o erro sem chamar Zen', async () => {
+    fetchMock.mockReset();
+    fetchMock.mockResolvedValueOnce({ ok: false, status: 400, text: async () => 'bad request' });
 
     await expect(
       callLLM({ model: 'model', userContent: 'x' }, ZEN_ENV),
     ).rejects.toMatchObject({ code: 'GATEWAY_HTTP_ERROR' });
     expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('orçamento total único: timeout exaurido no primário não cai no Zen', async () => {
+    fetchMock.mockReset();
+    fetchMock.mockImplementationOnce(() => new Promise<Response>(() => undefined));
+
+    await expect(
+      callLLM(
+        { model: 'model', userContent: 'x' },
+        { ...ZEN_ENV, LITELLM_REQUEST_TIMEOUT_MS: '20' },
+      ),
+    ).rejects.toMatchObject({ code: 'GATEWAY_TIMEOUT' });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('telemetria de fallback não vaza prompt/body (allowlist de log)', async () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    try {
+      fetchMock.mockReset();
+      fetchMock
+        .mockResolvedValueOnce({
+          ok: false,
+          status: 429,
+          text: async () => JSON.stringify({ error: { type: 'budget_exceeded' } }),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          text: async () => JSON.stringify({ choices: [{ message: { content: '# Dossiê' } }] }),
+        });
+
+      const markerPrompt = 'conteudo-sensivel-marcador-abc123';
+      const result = await callLLM({ model: 'model', userContent: markerPrompt }, ZEN_ENV);
+
+      expect(result.provider).toBe('zen');
+      const logged = warnSpy.mock.calls
+        .map(call => JSON.stringify(call[1] ?? call[0] ?? ''))
+        .join(' ');
+      expect(logged).not.toContain(markerPrompt);
+      expect(logged).toContain('GATEWAY_BUDGET_EXCEEDED');
+    } finally {
+      warnSpy.mockRestore();
+    }
   });
 
   it('cancelamento externo NÃO cai no Zen', async () => {

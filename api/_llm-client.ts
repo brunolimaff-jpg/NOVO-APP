@@ -54,16 +54,18 @@ export interface LiteLLMCallResult {
   reasoningCharsRemoved: number;
 }
 
+export type LLMProvider = 'litellm' | 'zen';
+
 /**
  * Resultado de callLLM (Fallback V1): carrega a proveniência do provider que
  * atendeu. `fallbackUsed=true` significa que o primário foi tentado, falhou de
  * forma elegível e o secundário concluiu — usar Zen ≠ usar fallback.
  */
-export interface LlmCallResult extends LiteLLMCallResult {
-  provider: 'litellm' | 'zen';
+export interface LLMCallResult extends LiteLLMCallResult {
+  provider: LLMProvider;
   servedModel: string;
   fallbackUsed: boolean;
-  fallbackReason?: string;
+  fallbackReason?: LiteLLMErrorCode;
 }
 
 export type LiteLLMErrorCode =
@@ -659,9 +661,11 @@ export async function callLiteLLM(
 }
 
 /**
- * Allowlist de fallback (Fallback V1): apenas falhas elegíveis disparam o Zen.
- * Fallback de provider não é fallback de qualidade — erro 400/422 causado pelo
- * request, cancelamento externo e falha semântica pós-output NUNCA caem no Zen.
+ * Allowlist de fallback (Fallback V1 — contrato BRU-147): apenas falhas
+ * elegíveis disparam o Zen. Fallback de provider não é fallback de qualidade —
+ * erro 400/404/409/422 causado pelo request, cancelamento externo e falha
+ * semântica pós-output NUNCA caem no Zen. 401/403 (auth/credencial do primário)
+ * e erro de transporte sem status são elegíveis.
  */
 export function isEligibleForZenFallback(error: LiteLLMRequestError): boolean {
   switch (error.code) {
@@ -670,8 +674,12 @@ export function isEligibleForZenFallback(error: LiteLLMRequestError): boolean {
     case 'GATEWAY_INVALID_RESPONSE':
     case 'GATEWAY_NOT_CONFIGURED':
       return true;
-    case 'GATEWAY_HTTP_ERROR':
-      return isRetryableStatus(error.status ?? 0);
+    case 'GATEWAY_HTTP_ERROR': {
+      const status = error.status;
+      if (status === undefined) return true; // erro de transporte sem status
+      if (status >= 500) return true;
+      return status === 401 || status === 403 || status === 408 || status === 429;
+    }
     default:
       return false;
   }
@@ -679,12 +687,12 @@ export function isEligibleForZenFallback(error: LiteLLMRequestError): boolean {
 
 export function callLLM(input: LiteLLMLegacyInput, env?: Environment): Promise<string>;
 // eslint-disable-next-line no-redeclare
-export function callLLM(input: LiteLLMCallInput, env?: Environment): Promise<LlmCallResult>;
+export function callLLM(input: LiteLLMCallInput, env?: Environment): Promise<LLMCallResult>;
 // eslint-disable-next-line no-redeclare
 export async function callLLM(
   input: LiteLLMLegacyInput | LiteLLMCallInput,
   env: Environment = process.env,
-): Promise<string | LlmCallResult> {
+): Promise<string | LLMCallResult> {
   // Modo operacional forçado: LLM_PROVIDER=zen → Zen direto, sem tocar LiteLLM.
   if (env.LLM_PROVIDER === 'zen') {
     if (isLegacyInput(input)) {
@@ -698,6 +706,14 @@ export async function callLLM(
       fallbackUsed: false,
     };
   }
+
+  // Orçamento total único por request (BRU-147): o fallback não dobra o
+  // timeout — se o primário já exauriu o orçamento, não há fallback.
+  const budgetMs = input.timeoutMs ??
+    (isLegacyInput(input)
+      ? resolveLiteLLMClientTimeoutMs(env.VITE_LITELLM_CLIENT_TIMEOUT_MS)
+      : resolveLiteLLMRequestBudgetMs(env.LITELLM_REQUEST_TIMEOUT_MS));
+  const deadline = Date.now() + budgetMs;
 
   try {
     if (isLegacyInput(input)) {
@@ -720,6 +736,9 @@ export async function callLLM(
       throw error;
     }
 
+    const remaining = Math.max(0, deadline - Date.now());
+    if (remaining <= 0) throw error;
+
     const logBase = {
       correlationId: input.correlationId ?? 'unassigned',
       runId: input.runId ?? 'unassigned',
@@ -735,9 +754,9 @@ export async function callLLM(
     }
 
     if (isLegacyInput(input)) {
-      return (await callZen(input, env)) as string;
+      return (await callZen({ ...input, timeoutMs: remaining }, env)) as string;
     }
-    const zenResult = await callZen(input, env);
+    const zenResult = await callZen({ ...input, timeoutMs: remaining }, env);
     return {
       ...(zenResult as LiteLLMCallResult),
       provider: 'zen',
