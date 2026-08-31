@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 
 const GPT_SCOUT_URL = 'https://chatgpt.com/g/g-6a4e4ef8f62c81919ad14a9f981b6aab-senior-scout-360';
+const COPILOT_SCOUT_URL = 'https://m365.cloud.microsoft/chat/agent/T_48ca3338-6e8d-3bad-a459-ee3f19e67ed3.5712efe4-5cbe-4469-9bad-c09959f47561.gpt.428d3797-a7be-416b-b92a-21260782c835';
 const DISMISS_KEY = 'scout-contingencia-banner-fechado';
 
 /**
@@ -41,7 +42,16 @@ export const ContingencyBanner: React.FC = () => {
           >
             GPT Senior Scout 360
           </a>{' '}
-          ou o Copilot (Senior). Avisamos aqui quando o fornecedor voltar.
+          ou o{' '}
+          <a
+            href={COPILOT_SCOUT_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-semibold text-emerald-700 dark:text-emerald-300 underline underline-offset-2 hover:text-emerald-600 dark:hover:text-emerald-200"
+          >
+            Copilot (Senior)
+          </a>
+          . Avisamos aqui quando o fornecedor voltar.
         </p>
         <button
           onClick={handleClose}
