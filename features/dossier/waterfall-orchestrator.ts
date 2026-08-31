@@ -46,6 +46,11 @@ import {
 } from '../../utils/dossierSourcePool';
 import { finalizeDossierMarkdown } from '../../utils/dossierFinalize';
 import { applyDossierEnxuto } from '../../utils/dossierEnxuto';
+import {
+  DOSSIER_OPTIONAL_STEP_TIMEOUT_MS as MODULAR_OPTIONAL_STEP_TIMEOUT_MS,
+  DOSSIER_REQUIRED_STEP_TIMEOUT_MS as MODULAR_REQUIRED_STEP_TIMEOUT_MS,
+  PORTA_RECONCILIATION_TIMEOUT_MS,
+} from '../../services/llm/budgets';
 import type { MutableRefObject } from 'react';
 import type { RunMegaPromptWaterfallArgs } from '../../types';
 import { isAbortLikeError } from '../../utils/abortHelpers';
@@ -68,8 +73,6 @@ interface ResetLoadingProgressOptions {
 }
 
 const MODULAR_DOSSIER_TOTAL_STAGES = 7;
-const MODULAR_REQUIRED_STEP_TIMEOUT_MS = 90000;
-const MODULAR_OPTIONAL_STEP_TIMEOUT_MS = 60000;
 const WATERFALL_CONTEXT_WINDOW_CHARS = 12000;
 const MAX_INLINE_SOURCES_TO_VALIDATE = 8;
 const FIRST_MODULE_INDEX = 0;
@@ -1113,8 +1116,6 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
         } else {
           replaceLoadingProgressStage(MODULAR_DOSSIER_STAGES[6], MODULAR_DOSSIER_TOTAL_STAGES);
         }
-
-        const PORTA_RECONCILIATION_TIMEOUT_MS = 120_000;
 
         let reconciledText: string = accumulatedText;
         let waterfallPortaResolution: PortaScoreResolution | null = null;
