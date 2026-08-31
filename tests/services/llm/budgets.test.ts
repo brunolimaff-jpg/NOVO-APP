@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest';
+import { readFileSync } from 'fs';
+import { resolve } from 'path';
 import {
   DOSSIER_OPTIONAL_STEP_TIMEOUT_MS,
   DOSSIER_REQUIRED_STEP_TIMEOUT_MS,
@@ -28,11 +30,17 @@ describe('Budgets do pipeline LLM (BRU-157)', () => {
   });
 
   it('cadeia coerente: proxy(210s) <= step interno < função serverless(300s)', () => {
-    // Espelha o default de VITE_LLM_PROXY_TIMEOUT_MS em services/llmProxy.ts.
+    // Espelha o default consumido por services/llmProxy.ts via budgets.ts.
     expect(LLM_PROXY_TIMEOUT_DEFAULT_MS).toBe(210_000);
     // Steps internos nunca podem estourar o maxDuration da função Vercel.
     expect(DOSSIER_REQUIRED_STEP_TIMEOUT_MS).toBeLessThan(300_000);
     expect(DOSSIER_OPTIONAL_STEP_TIMEOUT_MS).toBeLessThan(300_000);
     expect(PORTA_RECONCILIATION_TIMEOUT_MS).toBeLessThan(300_000);
+  });
+
+  it('llmProxy consome o budget canônico — sem override por env (BRU-157)', () => {
+    const src = readFileSync(resolve(__dirname, '../../../services/llmProxy.ts'), 'utf-8');
+    expect(src).not.toMatch(/VITE_LLM_PROXY_TIMEOUT_MS/);
+    expect(src).toMatch(/LLM_PROXY_TIMEOUT_DEFAULT_MS/);
   });
 });

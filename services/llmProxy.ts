@@ -1,4 +1,5 @@
 import { scoutDiag } from '../utils/diagnosticLog';
+import { LLM_PROXY_TIMEOUT_DEFAULT_MS } from './llm/budgets';
 
 type LlmApiAction = 'generateContent' | 'chatSendMessage';
 
@@ -55,9 +56,9 @@ export interface LlmChatResponse {
 const CUSTOM_LLM_PROXY_BASE_URL = (import.meta.env.VITE_LLM_PROXY_URL || '')
   .replace(/\/api\/llm$/, '')
   .replace(/\/$/, '');
-// O serverless usa 55s para chat normal e ate 180s para investigacoes pesadas.
-// Frontend da margem de 210s para cobrir o cenario mais longo + overhead de rede.
-const LLM_PROXY_TIMEOUT_MS = Number(import.meta.env.VITE_LLM_PROXY_TIMEOUT_MS || 210000);
+// Fonte única BRU-157: o proxy consome o budget canônico de services/llm/budgets.ts.
+// Sem override por env — steps internos e proxy derivam do mesmo valor (sem drift).
+const LLM_PROXY_TIMEOUT_MS = LLM_PROXY_TIMEOUT_DEFAULT_MS;
 
 // FIX: resolveEndpoint permanece como função pura — nunca como const de módulo.
 // Chamá-la no nível de módulo causaria TDZ quando outro módulo importa llmProxy

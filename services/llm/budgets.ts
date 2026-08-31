@@ -7,8 +7,8 @@
  *
  * Cadeia coerente por camada:
  * - serverless: investigação pesada até ~180s (api/_llm-client, request budget);
- * - proxy do cliente: LLM_PROXY_TIMEOUT_MS default 210s (services/llmProxy.ts,
- *   VITE_LLM_PROXY_TIMEOUT_MS);
+ * - proxy do cliente: LLM_PROXY_TIMEOUT_DEFAULT_MS = 210s, consumido por
+ *   services/llmProxy.ts (sem override por env — sem drift possível);
  * - step interno: proxy + headroom — o timeout do proxy produz o erro canônico;
  *   - função Vercel api/llm.ts: maxDuration 300s (vercel.json).
  *
