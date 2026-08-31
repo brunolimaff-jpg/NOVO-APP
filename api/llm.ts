@@ -299,7 +299,10 @@ async function executeGenerateContent(
     const mapped = httpStatusForError(error);
     console.error('[LlmProxy] generateContent failed:', mapped.message, {
       status: mapped.status,
-      gatewayBody: error instanceof LiteLLMRequestError ? error.gatewayBody?.slice(0, 1000) : undefined,
+      code: mapped.code,
+      errorCode: error instanceof LiteLLMRequestError ? error.code : undefined,
+      retryAfter: error instanceof LiteLLMRequestError ? error.retryAfter : undefined,
+      requestId: error instanceof LiteLLMRequestError ? error.requestId : undefined,
     });
     if (srvModuleName) {
       void insertDiagnosticsBatch({ runId: srvRunId, route: '/api/llm', events: [] }, [
@@ -376,7 +379,10 @@ async function executeChatSendMessage(
     const mapped = httpStatusForError(error);
     console.error('[LlmProxy] chatSendMessage failed:', mapped.message, {
       status: mapped.status,
-      gatewayBody: error instanceof LiteLLMRequestError ? error.gatewayBody?.slice(0, 1000) : undefined,
+      code: mapped.code,
+      errorCode: error instanceof LiteLLMRequestError ? error.code : undefined,
+      retryAfter: error instanceof LiteLLMRequestError ? error.retryAfter : undefined,
+      requestId: error instanceof LiteLLMRequestError ? error.requestId : undefined,
     });
     return res.status(mapped.status).json(errorPayload(mapped.code, mapped.message, mapped.retryable));
   }

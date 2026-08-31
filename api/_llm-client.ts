@@ -52,6 +52,8 @@ export interface LiteLLMCallResult {
   finishReason?: string;
   reasoningRemoved: boolean;
   reasoningCharsRemoved: number;
+  /** Modelo efetivamente servido pelo upstream (completion.model), quando presente. */
+  servedModel?: string;
 }
 
 export type LLMProvider = 'litellm' | 'zen';
@@ -473,6 +475,7 @@ async function callZen(
     let completion: {
       choices?: Array<{ message?: { content?: string }; finish_reason?: string }>;
       usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number };
+      model?: string;
     };
     try {
       completion = JSON.parse(responseBody) as typeof completion;
@@ -500,6 +503,7 @@ async function callZen(
       finishReason: choice?.finish_reason,
       reasoningRemoved: normalized.reasoningRemoved,
       reasoningCharsRemoved: normalized.reasoningCharsRemoved,
+      servedModel: completion.model,
     };
   } catch (error) {
     const normalized = normalizeLiteLLMError(error, abortContext.reason());
@@ -597,7 +601,6 @@ export async function callLiteLLM(
           retryAfter: headersInfo.retryAfter,
           requestId: headersInfo.requestId,
           rateLimitHeaders: headersInfo.rateLimit,
-          gatewayBody,
         });
         throw new LiteLLMHttpError(response.status, rawBody, gatewayBody, headersInfo.retryAfter, headersInfo.requestId);
       }
@@ -606,6 +609,7 @@ export async function callLiteLLM(
       let completion: {
         choices?: Array<{ message?: { content?: string }; finish_reason?: string }>;
         usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number };
+        model?: string;
       };
       try {
         completion = JSON.parse(responseBody) as typeof completion;
@@ -633,6 +637,7 @@ export async function callLiteLLM(
         finishReason: choice?.finish_reason,
         reasoningRemoved: normalized.reasoningRemoved,
         reasoningCharsRemoved: normalized.reasoningCharsRemoved,
+        servedModel: completion.model,
       };
       return result;
     } catch (error) {
@@ -655,7 +660,6 @@ export async function callLiteLLM(
     status: lastError?.status,
     retryAfter: lastError?.retryAfter,
     requestId: lastError?.requestId,
-    gatewayBody: lastError?.gatewayBody?.slice(0, 1000),
   });
   throw lastError ?? new LiteLLMRequestError('GATEWAY_HTTP_ERROR', 'LiteLLM request failed', true);
 }
@@ -702,7 +706,7 @@ export async function callLLM(
     return {
       ...(zenResult as LiteLLMCallResult),
       provider: 'zen',
-      servedModel: env.OPENCODE_ZEN_MODEL ?? '',
+      servedModel: (zenResult as LiteLLMCallResult).servedModel ?? env.OPENCODE_ZEN_MODEL ?? '',
       fallbackUsed: false,
     };
   }
@@ -723,7 +727,7 @@ export async function callLLM(
     return {
       ...litellmResult,
       provider: 'litellm',
-      servedModel: input.model,
+      servedModel: litellmResult.servedModel ?? input.model,
       fallbackUsed: false,
     };
   } catch (error) {
@@ -760,7 +764,7 @@ export async function callLLM(
     return {
       ...(zenResult as LiteLLMCallResult),
       provider: 'zen',
-      servedModel: env.OPENCODE_ZEN_MODEL ?? '',
+      servedModel: (zenResult as LiteLLMCallResult).servedModel ?? env.OPENCODE_ZEN_MODEL ?? '',
       fallbackUsed: true,
       fallbackReason: error.code,
     };

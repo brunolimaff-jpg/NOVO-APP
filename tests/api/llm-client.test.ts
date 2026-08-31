@@ -818,16 +818,75 @@ describe('callLLM — Fallback V1 (política de provider)', () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
-  it('telemetria de fallback não vaza prompt/body (allowlist de log)', async () => {
+  it('servedModel reflete completion.model observado (LiteLLM direto)', async () => {
+    fetchMock.mockReset();
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      text: async () =>
+        JSON.stringify({ model: 'litellm-model-observado', choices: [{ message: { content: '# Dossiê' } }] }),
+    });
+
+    const result = await callLLM(
+      { model: 'pedido-logico', userContent: 'x' },
+      { LLM_PROVIDER: 'litellm', LITELLM_API_KEY: 'sk-test', LITELLM_BASE_URL: 'https://litellm.example' },
+    );
+
+    expect(result.provider).toBe('litellm');
+    expect(result.servedModel).toBe('litellm-model-observado');
+  });
+
+  it('servedModel reflete completion.model observado (Zen forçado)', async () => {
+    fetchMock.mockReset();
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      text: async () =>
+        JSON.stringify({ model: 'zen-model-observado', choices: [{ message: { content: '# Dossiê' } }] }),
+    });
+
+    const result = await callLLM(
+      { model: 'pedido-logico', userContent: 'x' },
+      {
+        LLM_PROVIDER: 'zen',
+        OPENCODE_ZEN_BASE_URL: 'https://opencode.ai/zen/v1',
+        OPENCODE_ZEN_API_KEY: 'sk-zen-test',
+        OPENCODE_ZEN_MODEL: 'deepseek-v4-flash',
+      },
+    );
+
+    expect(result.provider).toBe('zen');
+    expect(result.servedModel).toBe('zen-model-observado');
+  });
+
+  it('servedModel reflete completion.model observado (fallback real)', async () => {
+    fetchMock.mockReset();
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 429,
+        text: async () => JSON.stringify({ error: { type: 'budget_exceeded' } }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        text: async () =>
+          JSON.stringify({ model: 'zen-model-observado', choices: [{ message: { content: '# Dossiê' } }] }),
+      });
+
+    const result = await callLLM({ model: 'model', userContent: 'x' }, ZEN_ENV);
+
+    expect(result.provider).toBe('zen');
+    expect(result.servedModel).toBe('zen-model-observado');
+  });
+
+  it('telemetria de fallback não vaza prompt/body/gatewayBody (allowlist de log)', async () => {
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
     try {
       fetchMock.mockReset();
+      const markerBody = '{"error":{"type":"budget_exceeded","secret_marker":"abc123XYZ"}}';
       fetchMock
-        .mockResolvedValueOnce({
-          ok: false,
-          status: 429,
-          text: async () => JSON.stringify({ error: { type: 'budget_exceeded' } }),
-        })
+        .mockResolvedValueOnce({ ok: false, status: 429, text: async () => markerBody })
         .mockResolvedValueOnce({
           ok: true,
           status: 200,
@@ -841,7 +900,9 @@ describe('callLLM — Fallback V1 (política de provider)', () => {
       const logged = warnSpy.mock.calls
         .map(call => JSON.stringify(call[1] ?? call[0] ?? ''))
         .join(' ');
+      expect(logged).not.toContain('abc123XYZ');
       expect(logged).not.toContain(markerPrompt);
+      expect(logged).not.toContain('gatewayBody');
       expect(logged).toContain('GATEWAY_BUDGET_EXCEEDED');
     } finally {
       warnSpy.mockRestore();
