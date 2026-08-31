@@ -452,14 +452,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(400).json({ error: 'Invalid request', details: parsed.error.flatten() });
   }
 
-  // Gate do Fallback V1: LiteLLM é o primário; OpenCode Zen é o secundário
-  // automático (LLM_FALLBACK_ENABLED=true + configurado) ou o modo forçado
-  // (LLM_PROVIDER=zen). Sem gateway disponível, falha controlada e explícita —
-  // nunca fallback silencioso para um terceiro caminho.
+  // Gate do Fallback V1 (spec canônica §4/§6): o ramo LiteLLM+fallback exige
+  // LLM_PROVIDER=litellm explícito; Zen forçado exige LLM_PROVIDER=zen completo.
+  // Sem provider utilizável, falha controlada — nunca terceiro caminho.
   const gatewayAvailable =
-    isLiteLLMEnabled() ||
     isZenEnabled() ||
-    (isFallbackEnabled() && isZenConfigured());
+    isLiteLLMEnabled() ||
+    (getEnvVar('LLM_PROVIDER') === 'litellm' && isFallbackEnabled() && isZenConfigured());
   if (!gatewayAvailable) {
     return res
       .status(503)

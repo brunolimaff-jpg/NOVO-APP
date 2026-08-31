@@ -129,7 +129,8 @@ describe('api/llm handler (LiteLLM + Fallback V1)', () => {
     expect(callLLMMock).toHaveBeenCalledTimes(1);
   });
 
-  it('passa o gate quando fallback habilitado + Zen configurado (LiteLLM primário ainda ausente)', async () => {
+  it('passa o gate quando fallback habilitado + Zen configurado + LLM_PROVIDER=litellm', async () => {
+    vi.stubEnv('LLM_PROVIDER', 'litellm');
     isLiteLLMEnabledMock.mockReturnValue(false);
     isZenEnabledMock.mockReturnValue(false);
     isFallbackEnabledMock.mockReturnValue(true);
@@ -140,6 +141,21 @@ describe('api/llm handler (LiteLLM + Fallback V1)', () => {
     await handler(makeReq({ action: 'generateContent', contents: 'tarefa' }), res);
     expect(res.status).toHaveBeenCalledWith(200);
     expect(callLLMMock).toHaveBeenCalledTimes(1);
+    vi.unstubAllEnvs();
+  });
+
+  it('fallback habilitado + Zen configurado SEM LLM_PROVIDER=litellm → 503 fail-closed', async () => {
+    vi.stubEnv('LLM_PROVIDER', '');
+    isLiteLLMEnabledMock.mockReturnValue(false);
+    isZenEnabledMock.mockReturnValue(false);
+    isFallbackEnabledMock.mockReturnValue(true);
+    isZenConfiguredMock.mockReturnValue(true);
+    const { default: handler } = await import('../api/llm');
+    const res = makeRes();
+    await handler(makeReq({ action: 'generateContent', contents: 'tarefa' }), res);
+    expect(res.status).toHaveBeenCalledWith(503);
+    expect(callLLMMock).not.toHaveBeenCalled();
+    vi.unstubAllEnvs();
   });
 
   it('generateContent resolve modelo no servidor (cliente ignorado) e retorna text + usage', async () => {

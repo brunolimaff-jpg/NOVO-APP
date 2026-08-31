@@ -689,40 +689,40 @@ export function isEligibleForZenFallback(error: LiteLLMRequestError): boolean {
   }
 }
 
-export function callLLM(input: LiteLLMLegacyInput, env?: Environment): Promise<string>;
-// eslint-disable-next-line no-redeclare
 export function callLLM(input: LiteLLMCallInput, env?: Environment): Promise<LLMCallResult>;
 // eslint-disable-next-line no-redeclare
 export async function callLLM(
-  input: LiteLLMLegacyInput | LiteLLMCallInput,
+  input: LiteLLMCallInput,
   env: Environment = process.env,
-): Promise<string | LLMCallResult> {
-  // Modo operacional forçado: LLM_PROVIDER=zen → Zen direto, sem tocar LiteLLM.
+): Promise<LLMCallResult> {
+  // Spec canônica §4: exatamente dois branches — LLM_PROVIDER=zen e
+  // LLM_PROVIDER=litellm. Modo forçado: zen → Zen direto, sem tocar LiteLLM.
   if (env.LLM_PROVIDER === 'zen') {
-    if (isLegacyInput(input)) {
-      return (await callZen(input, env)) as string;
-    }
-    const zenResult = await callZen(input, env);
+    const zenResult = (await callZen(input, env)) as LiteLLMCallResult;
     return {
-      ...(zenResult as LiteLLMCallResult),
+      ...zenResult,
       provider: 'zen',
-      servedModel: (zenResult as LiteLLMCallResult).servedModel ?? env.OPENCODE_ZEN_MODEL ?? '',
+      servedModel: zenResult.servedModel ?? env.OPENCODE_ZEN_MODEL ?? '',
       fallbackUsed: false,
     };
   }
 
-  // Orçamento total único por request (BRU-147): o fallback não dobra o
+  // Fail-closed: provider diferente de litellm/zen é rejeitado — nunca roteia
+  // implicitamente para o primário.
+  if (env.LLM_PROVIDER !== 'litellm') {
+    throw new LiteLLMRequestError(
+      'GATEWAY_NOT_CONFIGURED',
+      `LLM_PROVIDER inválido: '${env.LLM_PROVIDER ?? ''}' — valores válidos: 'litellm' ou 'zen'`,
+      false,
+    );
+  }
+
+  // Orçamento total único por request (spec §7): o fallback não dobra o
   // timeout — se o primário já exauriu o orçamento, não há fallback.
-  const budgetMs = input.timeoutMs ??
-    (isLegacyInput(input)
-      ? resolveLiteLLMClientTimeoutMs(env.VITE_LITELLM_CLIENT_TIMEOUT_MS)
-      : resolveLiteLLMRequestBudgetMs(env.LITELLM_REQUEST_TIMEOUT_MS));
+  const budgetMs = input.timeoutMs ?? resolveLiteLLMRequestBudgetMs(env.LITELLM_REQUEST_TIMEOUT_MS);
   const deadline = Date.now() + budgetMs;
 
   try {
-    if (isLegacyInput(input)) {
-      return callLiteLLM(input, env);
-    }
     const litellmResult = await callLiteLLM(input, env);
     return {
       ...litellmResult,
@@ -757,14 +757,11 @@ export async function callLLM(
       console.warn('[LLM] fallback LiteLLM → Zen', logBase);
     }
 
-    if (isLegacyInput(input)) {
-      return (await callZen({ ...input, timeoutMs: remaining }, env)) as string;
-    }
-    const zenResult = await callZen({ ...input, timeoutMs: remaining }, env);
+    const zenResult = (await callZen({ ...input, timeoutMs: remaining }, env)) as LiteLLMCallResult;
     return {
-      ...(zenResult as LiteLLMCallResult),
+      ...zenResult,
       provider: 'zen',
-      servedModel: (zenResult as LiteLLMCallResult).servedModel ?? env.OPENCODE_ZEN_MODEL ?? '',
+      servedModel: zenResult.servedModel ?? env.OPENCODE_ZEN_MODEL ?? '',
       fallbackUsed: true,
       fallbackReason: error.code,
     };

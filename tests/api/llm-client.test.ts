@@ -818,6 +818,24 @@ describe('callLLM — Fallback V1 (política de provider)', () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
+  it('LLM_PROVIDER inválido → fail-closed sem tocar nenhum provider (spec canônica §4)', async () => {
+    for (const provider of [undefined, 'verboo', 'openai', '']) {
+      await expect(
+        callLLM(
+          { model: 'model', userContent: 'x' },
+          {
+            LLM_PROVIDER: provider as string | undefined,
+            LLM_FALLBACK_ENABLED: 'true',
+            OPENCODE_ZEN_BASE_URL: 'https://opencode.ai/zen/v1',
+            OPENCODE_ZEN_API_KEY: 'sk-zen-test',
+            OPENCODE_ZEN_MODEL: 'deepseek-v4-flash',
+          } as Record<string, string>,
+        ),
+      ).rejects.toMatchObject({ code: 'GATEWAY_NOT_CONFIGURED' });
+    }
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it('servedModel reflete completion.model observado (LiteLLM direto)', async () => {
     fetchMock.mockReset();
     fetchMock.mockResolvedValueOnce({
