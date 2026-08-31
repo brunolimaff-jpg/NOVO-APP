@@ -46,6 +46,12 @@ import {
 } from '../../utils/dossierSourcePool';
 import { finalizeDossierMarkdown } from '../../utils/dossierFinalize';
 import { applyDossierEnxuto } from '../../utils/dossierEnxuto';
+import {
+  DOSSIER_OPTIONAL_STEP_TIMEOUT_MS as MODULAR_OPTIONAL_STEP_TIMEOUT_MS,
+  DOSSIER_REQUIRED_STEP_TIMEOUT_MS as MODULAR_REQUIRED_STEP_TIMEOUT_MS,
+  PORTA_RECONCILIATION_TIMEOUT_MS,
+} from '../../services/llm/budgets';
+import { canonicalFactsFromTeiaText, composeDossierV3 } from '../../services/llm/gold/v3-dossier-composer';
 import type { MutableRefObject } from 'react';
 import type { RunMegaPromptWaterfallArgs } from '../../types';
 import { isAbortLikeError } from '../../utils/abortHelpers';
@@ -68,8 +74,6 @@ interface ResetLoadingProgressOptions {
 }
 
 const MODULAR_DOSSIER_TOTAL_STAGES = 7;
-const MODULAR_REQUIRED_STEP_TIMEOUT_MS = 90000;
-const MODULAR_OPTIONAL_STEP_TIMEOUT_MS = 60000;
 const WATERFALL_CONTEXT_WINDOW_CHARS = 12000;
 const MAX_INLINE_SOURCES_TO_VALIDATE = 8;
 const FIRST_MODULE_INDEX = 0;
@@ -1114,8 +1118,6 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
           replaceLoadingProgressStage(MODULAR_DOSSIER_STAGES[6], MODULAR_DOSSIER_TOTAL_STAGES);
         }
 
-        const PORTA_RECONCILIATION_TIMEOUT_MS = 120_000;
-
         let reconciledText: string = accumulatedText;
         let waterfallPortaResolution: PortaScoreResolution | null = null;
         let portaIntegrityHold = false;
@@ -1238,7 +1240,34 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
           groundingSourcesCount: waterfallGroundingSources.length,
           poolSize: sessionSourcePool.length,
         });
-        const finalized = finalizeDossierMarkdown(waterfallPrepared, waterfallGroundingSources, sessionSourcePool);
+        // BRU-155 — V3 governa a composição final: reconstrói a saída na
+        // estrutura canônica (8 seções), reconcilia fatos canônicos do mapa
+        // societário contra a narrativa e consolida "Não encontrado".
+        const canonicalFacts = canonicalFactsFromTeiaText(
+          [teiaResearchContext.text, waterfallPrepared].join('\n\n'),
+        );
+        const v3Composed = composeDossierV3({
+          companyName: resolvedMegaCompany || waterfallClienteSeniorData?.grupo || 'empresa analisada',
+          narrative: waterfallPrepared,
+          canonicalFacts,
+          groundingSources: waterfallGroundingSources,
+          missingModules: [...optionalStepFailures],
+          seniorContext: seniorEvidenceContext || undefined,
+        });
+        scoutDiag.info('WaterfallLifecycle', 'v3-composed', {
+          sessionId,
+          waterfallRunId,
+          canonicalTotalCnpjs: v3Composed.reconciliation.canonicalTotalCnpjs,
+          contradictoryClaimsRemoved: v3Composed.reconciliation.contradictoryClaimsRemoved,
+          consolidatedAbsences: v3Composed.reconciliation.consolidatedAbsences.length,
+          groundingPreservedCount: v3Composed.reconciliation.groundingPreservedCount,
+          resultLength: v3Composed.text.length,
+        });
+        const finalized = finalizeDossierMarkdown(
+          v3Composed.text || waterfallPrepared,
+          waterfallGroundingSources,
+          sessionSourcePool,
+        );
         scoutDiag.info('FreezeDiag', 'post-finalize-markdown', {
           sessionId,
           waterfallRunId,

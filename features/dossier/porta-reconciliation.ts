@@ -1,13 +1,13 @@
 import type { Dispatch, SetStateAction } from 'react';
 import { SHARED_FOUNDATION_BLOCK } from '../../prompts/megaPrompts';
 import { generateDossierModule } from '../../services/llmService';
+import { DOSSIER_OPTIONAL_STEP_TIMEOUT_MS as MODULAR_OPTIONAL_STEP_TIMEOUT_MS } from '../../services/llm/budgets';
 import { joinDossierExtraContext } from '../../services/llm/foundation-cache';
 import { type PortaDimension, type ScorePortaData } from '../../types';
 import { scoutDiag } from '../../utils/diagnosticLog';
 import { resolvePortaScore, type PortaScoreResolution } from '../../utils/porta';
 import { isAbortLikeError } from '../../utils/abortHelpers';
 
-const MODULAR_OPTIONAL_STEP_TIMEOUT_MS = 60000;
 const PORTA_RECONCILIATION_CONTEXT_WINDOW_CHARS = 12000;
 
 const PORTA_DIMENSION_MODULE_MAP: Record<PortaDimension, string[]> = {
