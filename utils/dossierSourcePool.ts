@@ -6,6 +6,11 @@ export interface DossierSourceRef {
   url: string;
   verification?: 'grounding' | 'fallback';
   moduleName?: string;
+  /** BRU-158 Q1 — proveniência de evidência coletada (EvidencePack do PipelineV2). */
+  evidenceTier?: string;
+  entityMatch?: string;
+  queryOrigin?: string;
+  extractedClaim?: string;
 }
 
 export function normalizeDossierSourceUrl(url: string): string {
@@ -51,16 +56,17 @@ export function coerceGroundingSources(raw: unknown): GroundingSourceLike[] {
 
 export function mergeDossierSourceRefs(
   existing: DossierSourceRef[],
-  incoming: Array<{ title: string; url: string; verification?: 'grounding' | 'fallback'; moduleName?: string }>,
+  incoming: Array<DossierSourceRef>,
 ): DossierSourceRef[] {
   const out = [...existing];
-  const seen = new Set(existing.map(s => normalizeDossierSourceUrl(s.url)));
+  const seen = new Set(existing.map(s => normalizeSourceUrl(s.url)));
 
   for (const source of incoming) {
-    const normalized = normalizeDossierSourceUrl(source.url);
+    const normalized = normalizeSourceUrl(source.url);
     if (!normalized || seen.has(normalized)) continue;
     seen.add(normalized);
     out.push({
+      ...source,
       title: source.title || normalized,
       url: normalized,
       verification: source.verification,
@@ -86,6 +92,35 @@ export function verifiedSourcesToPool(sources: VerifiedSource[], moduleName?: st
  * Bloco injetado no extraContext de cada módulo do waterfall.
  * O modelo só deve citar URLs listadas aqui.
  */
+export function connectEvidencePackToPool(
+  pack: {
+    items: Array<{
+      usableForReport: boolean;
+      sourceResult: { url: string; title: string; snippet?: string };
+      evidenceTier: string;
+      entityMatch: string;
+      queryOrigin: string;
+      module: string;
+      extractedClaim?: string;
+    }>;
+  },
+  pool: DossierSourceRef[],
+): DossierSourceRef[] {
+  const usable = pack.items
+    .filter(item => item.usableForReport)
+    .map(item => ({
+      title: item.sourceResult.title || item.sourceResult.url,
+      url: item.sourceResult.url,
+      verification: 'grounding' as const,
+      moduleName: item.module,
+      evidenceTier: item.evidenceTier,
+      entityMatch: item.entityMatch,
+      queryOrigin: item.queryOrigin,
+      extractedClaim: item.extractedClaim,
+    }));
+  return mergeDossierSourceRefs(pool, usable);
+}
+
 export function formatAvailableSourcesForPrompt(pool: DossierSourceRef[]): string {
   if (!pool.length) {
     return [
@@ -100,7 +135,9 @@ export function formatAvailableSourcesForPrompt(pool: DossierSourceRef[]): strin
   const lines = pool.map((source, index) => {
     const label = source.title?.trim() || source.url;
     const origin = source.moduleName ? ` (${source.moduleName})` : '';
-    return `${index + 1}. ${label} — ${source.url}${origin}`;
+    const tier = source.evidenceTier ? ` [tier=${source.evidenceTier}]` : '';
+    const claim = source.extractedClaim ? ` claim: ${source.extractedClaim}` : '';
+    return `${index + 1}. ${label} — ${source.url}${origin}${tier}${claim}`;
   });
 
   return ['', '[FONTES DISPONIVEIS PARA CITACAO — use SOMENTE estas URLs em [[n]](url)]', ...lines, ''].join('\n');

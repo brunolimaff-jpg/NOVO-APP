@@ -41,6 +41,7 @@ import { extractPromotableInlineSources, type VerifiedSource } from '../../utils
 import {
   formatAvailableSourcesForPrompt,
   mergeDossierSourceRefs,
+  connectEvidencePackToPool,
   verifiedSourcesToPool,
   type DossierSourceRef,
 } from '../../utils/dossierSourcePool';
@@ -1016,6 +1017,11 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
             await assertRunCanContinue('before_query_collector');
             const pack = await withAbortSignal(executeQueryPlan(plan), signal);
             await assertRunCanContinue('after_query_collector');
+
+            // BRU-158 Q1: a evidência coletada atravessa a fronteira — entra no
+            // source pool existente (contexto dos módulos + fontes auditáveis),
+            // preservando proveniência. Antes: pack era usado só em telemetria.
+            sessionSourcePool = connectEvidencePackToPool(pack, sessionSourcePool);
 
             scoutDiag.info('PipelineV2', 'planner+collector concluído', {
               sessionId,
