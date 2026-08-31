@@ -19,6 +19,7 @@ import {
   resolveLiteLLMClientTimeoutMs,
   resolveLiteLLMRequestBudgetMs,
 } from '../../api/_llm-client.js';
+import { LLM_REQUEST_BUDGET_MS } from '../../services/llm/budgets';
 
 describe('normalizeModelOutput', () => {
   it('remove <think> fechado', () => {
@@ -299,7 +300,10 @@ describe('callLiteLLM', () => {
   it('preserva timeout e defaults do caminho legado usado por api/llm', async () => {
     expect(resolveLiteLLMClientTimeoutMs()).toBe(120_000);
     expect(resolveLiteLLMClientTimeoutMs('150000')).toBe(150_000);
-    expect(resolveLiteLLMClientTimeoutMs('999999')).toBe(180_000);
+    // BRU-157: o teto deriva do budget canônico (proxy 210s + headroom = 225s),
+    // nunca mais que o maxDuration da função (300s).
+    expect(resolveLiteLLMClientTimeoutMs('999999')).toBe(LLM_REQUEST_BUDGET_MS);
+    expect(LLM_REQUEST_BUDGET_MS).toBeLessThan(300_000);
     const legacyText = 'Vou analisar sem remover este prefixo.\n<reasoning>conteúdo legado literal</reasoning>';
     fetchMock.mockResolvedValueOnce({
       ok: true,
@@ -332,7 +336,7 @@ describe('callLiteLLM', () => {
 
   it('respeita timeout explícito válido', async () => {
     expect(resolveLiteLLMRequestBudgetMs('60000')).toBe(60_000);
-    expect(resolveLiteLLMRequestBudgetMs('999999')).toBe(180_000);
+    expect(resolveLiteLLMRequestBudgetMs('999999')).toBe(LLM_REQUEST_BUDGET_MS);
     expect(resolveLiteLLMRequestBudgetMs('1000')).toBe(1000);
     await callLiteLLM(
       { model: 'huawei/deepseek-v4-flash', userContent: 'gerar dossiê' },
