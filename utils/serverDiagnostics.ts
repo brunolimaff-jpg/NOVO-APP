@@ -5,6 +5,8 @@
  * NÃO importar no frontend — este módulo usa process.env diretamente.
  */
 
+import { isGoldCriticalDiagnosticEvent } from './goldCriticalDiagnostics.js';
+
 interface DiagnosticEvent {
   at: string;
   t: number;
@@ -82,6 +84,9 @@ export function shouldPersistDiagnostic(event: DiagnosticEvent): boolean {
   }
   if (severity === 'error' || severity === 'warn') return true;
   if (area === 'DossierModule' && name === 'usage metadata') return true;
+  // LOTE GOLD P0 R2-B: mesma lista ÚNICA do cliente — eventos críticos de
+  // diagnóstico Gold não caem no sampling de 10% de info do servidor.
+  if (isGoldCriticalDiagnosticEvent(area, name)) return true;
   if (BUSINESS_AREA_PATTERN.test(area) || BUSINESS_EVENT_PATTERN.test(`${area}:${name}`)) return true;
   if (severity !== 'info') return false;
   return stableBucket(`${event.runId}:${area}:${name}`) < INFO_SAMPLE_PERCENT;

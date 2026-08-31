@@ -4,6 +4,24 @@ Padroes e anti-padroes aprendidos de sessoes anteriores. Tratados como regras do
 
 ## Padroes confirmados
 
+- **Scaffolding leak escapa por bold, não só headings** [gold, security, provenance]
+  O sanitizador de scaffolding que só casava headings markdown (`^#{1,6}`) deixou passar `**Mapa do Caos (Operações Confirmadas):**` em bold. Detector e sanitizer precisam cobrir bold patterns conhecidos (estritos). Variante desconhecida em bold não deve ser removida silenciosamente — fail-closed no gate residual. Regex de detecção de scaffold: estreita (conhecida), nunca ampla ("qualquer bold").
+
+- **Single-owner das superfícies: Builder ≠ Composer** [gold, arquitetura]
+  O Composer não deve listar em prosa o que o Builder determinístico já monta (mapas, tabela de elos). Isso gera tripla representação visual (diagrama + tabela + texto). Regra: cada fato em UMA superfície estruturada + no máximo 1 interpretação curta. Prompt instrui leitura, não lista.
+
+- **Gold PASS não cobre scaffolding exposto** [gold, security, provenance, ux]
+  O Gold pode passar verifier, Narrative Contract e Artifact Gate e ainda exibir meta-instruções do Composer quando o prompt ensina nomes internos de componentes/enums. A correção segura remove a origem no prompt, detecta/sanitiza de forma estreita antes da medição e reprova residual no texto exato entregue; não mascarar apenas no renderer. A análise visual deve permanecer com o supervisor/agente com visão.
+
+- **Evidência bruta antes de promover freeze** [ci, freeze, planejador]
+  Promover freeze exige prova observável: comandos + exit codes, shasum ao vivo dos arquivos congelados vs manifest, rollback/backups recuperáveis, matriz por identidade e classificação honesta de zero provider sends. Narrativa do executor não é prova final (auditoria Evidence Gate).
+
+- **Encurtar superfície narrativa sem checar o contrato de wordCount reprova o Gold** [gold, prompt, contrato]
+  Instrução de prompt que reduz narrativa ("SOMENTE 2-3 frases" numa seção) pode derrubar o total abaixo do piso do Narrative Contract (900 palavras) e converter gold_pass → factual_minimal no Preview e no Golden Dossier Live, sem nenhum erro de lint/teste local. Qualquer mudança de prompt que reduza texto precisa ser conferida contra MIN_WORDS/MAX_WORDS do `gold-contract-validator.ts` ANTES do push — e a validação real é a rodada Gold no Preview, não a suíte local (o teste local só cobre a frase do prompt, não o output do modelo).
+
+- **Gate de parse Mermaid verde não prova render correto** [gold, mermaid, testing]
+  O sanitizer materializava "texto solto" pós-operador de aresta como nó sintético `mermaid_bare_N["..."]` — sintaticamente válido (gate de parse REAL verde por vários SHAs) mas o render exibia o source como conteúdo (`Sim ==> E['...']` + nó E isolado no Preview). Para mapas determinísticos: asserções de ESTRUTURA (aresta rotulada `== rótulo ==>`, ausência de `mermaid_bare_`) além do parse; e ao corrigir causa raiz, caçar testes legados que codificam o bug como canônico (3 suítes esperavam `==> Sim ==>`).
+
 - **Supabase + IDB como cache offline** [react, typescript, supabase, offline] ⚠️ HISTÓRICO
   Offline-first com sync queue: IDB para leitura/escrita instantanea, Supabase como source of truth.
   Stale-while-revalidate nas leituras, fila com retry exponencial nas escritas.
@@ -14,6 +32,15 @@ Padroes e anti-padroes aprendidos de sessoes anteriores. Tratados como regras do
   Ao validar fluxos de produto, confirmar se o comportamento real representa a intencao esperada, nao apenas se o evento chegou no destino tecnico.
   Exemplo: feedback chegou no Supabase, mas cliques repetidos revelaram duplicacao e o clique negativo dependia de motivo + confirmacao.
   Validacao boa cruza banco, UX e semantica esperada antes de concluir que "funcionou".
+
+- **splitSentences destrói "?" antes do verifier** [gold, verifier, modalidade]
+  O split de sentenças por `[.;!?]+` remove "?" antes do verifier. Um bypass lexical com "existe/há/pode/seria" (`matchesDiscoveryQuestion`) fica indistinguível entre "Existe uma holding." e "Existe uma holding?" pós-split. Fix: preservar modalidade interrogativa antes/durante o split OU limitar bypass a matchesSafeKnowledgeNegation (negação epistemológica explícita). Não alterar `normalizeDiscoveryQuestion` globalmente.
+
+- **Proveniência NÃO-QSA precisa excluir QSA explicitamente** [gold, verifier, proveniência]
+  `!matchesNonExternalSource(f.source)` exclui estimativa/inferência/CRM interno, mas NÃO exclui source "QSA oficial" ou qualquer source que não caia no pattern. Um fato Confirmado com source QSA + claim "holding controladora" pode liberar exceção indevidamente. Fix: adicionar `!/qsa/i.test(f.source)` na verificação de elegibilidade de fonte.
+
+- **"controladoria" ≠ "controladora"** [gold, policy, semântica]
+  "Controladoria" é função/departamento; "controladora" é papel societário. Incluir `controladoria` no regex `roleProven` aceita departamentos como prova de papel societário — falso positivo que libera promoção indevida. Fix: remover `controladoria` de `roleProven` (regex vira `\b(holding|controladora)\b`).
 
 - Prompts Gemini com XML delimiters tem menor taxa de alucinacao
 - Score PORTA deve sempre ser gerado com temperatura 0.1 (factual)
@@ -523,3 +550,54 @@ _Atualizado automaticamente pelo Caliber apos sessoes de agente._
 
 - **ESM no runtime Vercel exige `.js` extension em imports locais** [vercel, esm, deploy, runtime]
   O runtime serverless da Vercel para funcoes TypeScript usa resolucao ESM estrita. Imports de arquivos locais sem extensao `.js` (ex: `from './utils'` em vez de `from './utils.js'`) falham em producao — `ERR_MODULE_NOT_FOUND`. O tipo do erro nao deixa claro que a extensao esta faltando. Sempre adicionar `.js` em imports de arquivos locais em `api/*.ts`.
+
+- **Fato verdadeiro nao autoriza claim B — reconciliacao por categoria + direcao + entidade** [gold, verifier, mermaid, proveniencia]
+  Evidencia de proveniencia precisa casar com a MESMA categoria, a MESMA direcao semantica e a MESMA entidade da frase. Regex global de excecao cria bypass ("sem sistema centralizado" liberado por "sistema centralizado" — o oposto; fato da empresa lateral liberando claim da conta). Vale tambem para builder deterministico: fato Confirmado nao autoriza aresta sem evidencia estruturada da relacao. Implementado em `entity-aware-gold-verifier.ts` (hasMatchingWeaknessProvenance com filter+every) e `mermaid-deterministic.ts`. Licao completa: Bruno Vault `02 - Meus Projetos/NOVO-APP/Licoes/gold/fato-verdadeiro-nao-autoriza-claim-b-arestas-e-r10.md`.
+
+- **supabase-js 2.x LockManager (navigator.locks) pode deadlockar o getSession no browser real** [supabase, auth, runtime, browser]
+  O auth-js 2.106 usa o LockManager para sincronizar refresh de sessao entre abas. No runtime real (Chrome 151 / headless 147) o `navigator.locks.request('lock:sb-<ref>-auth-token')` pode nunca entrar no callback (deadlock) → `getSession()` pendura → o fetchWithAuth nunca dispara o fetch → RPC critica (create_or_get_dossier_run) nunca chega ao Supabase → o run fica preso sem registro. O typecheck/testes locais nao pegam (LockManager so existe no browser). Correcao: `createClient(url, key, { auth: { lock: fnQueExecutaDireto } })` (lock em memoria single-tab). Evidencia: LOCKS.REQUEST como ultimo evento + watchdog parado + Debugger.pause sem resposta. Licao completa: Bruno Vault `02 - Meus Projetos/NOVO-APP/Licoes/runtime/supabase-js-lockmanager-deadlock-getsession.md`.
+
+- **Chrome 151 CDP: 1 conexao WS por reinicio; loop nativo/JIT exige sample do macOS + --log-code** [debug, browser, cdp, chrome]
+  (1) O perfil CDP do Bruno (porta 9333) aceita so a 1a conexao WebSocket; a 2a faz handshake 101 mas nunca responde comandos — unico remedio e pkill + relancar. (2) Renderer em loop nativo/JIT (CPU 100%) nao responde Debugger.pause/Profiler/evaluate; para identificar a funcao: `sample <pid>` (macOS) + relancar com `--js-flags="--log-code"` e cruzar os enderecos JIT do sample com os ranges do log (python int(hex,16)). (3) Cuidado: "renderer 100%" pode ser OUTRA aba (ChatGPT/mermaid) — o app sob investigacao pode estar idle com fetch pendurado. (4) Playwright `process.exit` NAO deixa browser orfao (driver mata o browser no exit). Licao completa: Bruno Vault `02 - Meus Projetos/NOVO-APP/Licoes/debug/chrome-151-cdp-uma-conexao-e-diagnostico-loop.md`.
+
+- **Run preso apos waterfall:start sem fetch saindo — diagnosticar o cliente, nao o servidor** [runtime, debug, supabase, workflow]
+  Sintoma recorrente (runs Scheffer): `processMessage:waterfall:start` logado e nada depois. Roteiro que funcionou: (1) confirmar no Supabase se o run foi criado (create) e se o acquire rodou (started_at) — separa servidor de cliente; (2) testar as RPCs via curl com token autenticado (create/acquire) — servidor OK elimina backend; (3) isolar o fetch do app (evaluate no browser, mesmo destino) — ambiente OK elimina rede/browser; (4) instrumentar o app (wrapper de fetch + watchdog + trace do LockManager) para achar o ponto exato; (5) `sample` + `--log-code` para loops nativos. O 1o fetch de cada tipo funciona; o 2o (30-60s depois) pode pendurar (socket/keep-alive/QUIC reusado) — cache:no-store NAO resolve (nao afeta socket). Pendencia aberta (14/08): decisao do Planejador sobre (a) netlog, (b) retry/Connection no fetch, (c) testar em outra maquina/Chrome.
+
+- **Observador CDP/Playwright nao e evidencia neutra em fluxos longos (run Scout)** [debug, browser, cdp, e2e, harness]
+  MESMO SHA/preview: com Playwright/CDP conectado o run para (requestWillBeSent -> responseReceived 200 -> loadingFinished -> Promise JS nunca resolve -> timers param); sem CDP (run manual) COMPLETA (7,5 min). O "falta AbortSignal no RPC" e FALSO (ja implementado em dossierRuns.ts). Regra: loading longo nao e freeze — ausencia de progresso PERSISTIDO e que caracteriza stall; ordem de evidencia: dossier_run -> status/started_at/heartbeat -> operator_events/scout_diagnostics -> requests Vercel -> modulos -> classificar RUNNING/STALLED/FAILED. Runs reais: sem CDP durante o run; executor acompanha por Supabase/Vercel. Licao completa: Bruno Vault `02 - Meus Projetos/NOVO-APP/Licoes/debug/observador-cdp-nao-e-evidencia-neutra-em-fluxos-longos.md`.
+
+- **Verifier quebra o texto por pontuacao — perguntas viram claims (o deterministico deve obedecer o contrato do Composer)** [gold, verifier, mermaid, deterministico]
+  O verifier separa o texto por ". ; ! ?" e avalia cada trecho contra o padrao de claim protegido. Uma pergunta legitima ("Qual e a capacidade de armazenagem?") perde o "?" e vira afirmacao de capacidade sem fonte -> UNSUPPORTED_PRODUCT_CLAIM (run 59d210b0; frase exata: "| Qual e a capacidade estatica total de armazenagem" — a linha discovery da tabela de elos injetava a pergunta crua). Correcao no deterministico (nunca no verifier): normalizar a coluna Validar — so interrogativas (guardas '?', qual, como), remover valores nao comprovados, trocar vocabulario de claim por neutro ("capacidade estatica de armazenagem" -> "volume de armazenagem"). Afirmacoes nunca mascaradas (continuam FAIL). Commit e4f9c0f2.
+
+- **Gold e FLAKY por causa do texto variavel dos modulos (LLM) — o mesmo SHA com resultados diferentes** [gold, runtime, flakyness, preview]
+  Run 59d210b0: preflight 0 fails -> Gold 1 fail (pergunta aberta). Run 03447df2 (MESMO SHA): preflight 3 fails (RELATIONSHIP_INVERTED + PROMOTED x2) -> Gold 6 fails. O texto dos modulos (gerado pelo LLM) varia entre runs — frases que o verifier reprova aparecem/desaparecem (ex: RELATIONSHIP_INVERTED no texto da estrutura societaria). Sem o reason (sanitizado por politica R1), os fails nao sao atribuiveis as fontes exatas. Para fechar: replay offline com o goldBrief real (o compose-response do HAR ~8KB) + SafePack real; ou observabilidade do reason sanitizado em evento nao-critico.
+
+- **Observabilidade em camadas para o fallback do Gold: medir antes de corrigir** [gold, contract, observabilidade, linear]
+  O run com verifier=0 que caia em factual ficava com FALLBACK_REASON NOT_PROVEN (output-selected/contract-done descartados pelo sampling). Persistência GARANTIDA (goldCriticalDiagnostics) de output-selected/contract-done/violations/wordCount permitiu PROVAR o motivo exato sem chutar: o run d3ebe647 revelou wordCount=2321 (>1500) e ACTION_COUNT_MISMATCH. Lição: quando um gate falha sem motivo verificável, o primeiro delta é observabilidade estrutural (não corrigir às cegas).
+
+- **Oracle do contract desalinhado do prompt: negrito nas ações e "Sinal N"** [gold, contract, oracle, validator]
+  O prompt orienta "negrito nos números-chave" — ações numeradas saem como **N.** e o validator (numberedActions) não contava bold → ACTION_COUNT_MISMATCH (o fix remove asteriscos antes de contar). E o regex de sinais /\bsinais?\b/ casa "SINAIS" (heading) mas NÃO "Sinal N" (com L) — under-count benigno. Lição: o oracle do contrato deve ser auditado contra o prompt (não contra intuição); cada divergência é um candidato a contract_fail.
+
+- **wordCount mede PÓS-Mermaid: margem insuficiente por design** [gold, contract, mermaid, wordcount]
+  O validator mede o goldBrief FINAL (com mapas determinísticos + tabela de elos, ~1.000 palavras adicionadas) enquanto o Composer é orientado a 900-1500 PRÉ. Resultado: 2321 palavras no run real → WORD_COUNT_OUT_OF_RANGE (GRANDE demais, não curto). Design recomendado pelo Planejador: 900-1500 = orçamento da NARRATIVA (excluir Mermaid + tabela determinística da contagem). Decisão material pendente do Bruno.
+
+- **Respostas longas do Planejador truncam no chat; anexos precisam de clique** [planejador, cdp, chat]
+  Respostas longas vieram truncadas várias vezes ("Veredito R", "deepseek_route_probe_v2" como nome de arquivo). Anexos do Planejador ("Texto colado", nomes de arquivo) não renderizam no innerText — é preciso CLICAR no file-tile via CDP e ler o <pre> aberto. Pedir "texto direto na mensagem" quando truncar.
+
+- **Fix de transformação de texto precisa validar contra a régua do verifier antes do commit** [gold, verifier, politica, brus-108]
+  O fix single-pass do normalizeDiscoveryQuestion (BRU-108) eliminou "volume de volume" mas preservou "volume DE produção" — e "produção de" é vocabulário que o verifier reprova (UNSUPPORTED_PRODUCT_CLAIM). Run b3294247: verifier_fail → factual_minimal. O loop antigo era feio mas inofensivo; o single-pass era limpo mas disparava a régua. Correto: loop + colapso ("volume de volume"→"volume"). Lição: toda transformação de texto do Gold deve ter teste que roda a SAÍDA transformada contra matchesUnsupportedOperationalClaim/verifyGold, não só contra a string bonita.
+
+- **Auditoria de arquitetura: política semântica duplicada diverge silenciosamente** [arquitetura, gold, politica, auditoria]
+  Mapa completo (2026-08-15, 35 riscos): o verifier, o sanitizer e a gold-policy mantêm cópias locais de regex (POSSESSION_NEGATION, GAP_CLAIM, EXECUTIVE_ROLE, UNSUPPORTED_CLAIM) que DIVERGEM — "não há WMS" é bloqueado no sanitizer mas não é hard fail no verifier. Também: gate I7 só reage a PROMOTED_CLAIM; contrato Gold sem mínimo estrutural de mermaid; 3 renderizadores markdown; stubs no-op de link rewriters em produção; double-write do dossiê; recovery não cancela run remoto. Docs: docs/arquitetura/auditoria-arquitetura-2026-08-15.md.
+
+- **E2E falho: baixar artefato do run (error-context + trace.zip) antes de corrigir** [ci, e2e, diagnostico, golden-live]
+  Log textual do Golden Dossier Live mostrava só a falha genérica de precondição; a causa real (o app trocando o form pelo card "Vincular este dispositivo" porque o email já existia no user_context) só apareceu no trace.zip/error-context.md baixados com `gh run download`. O fix do onboarding (loop que resolve o estado atual, incluindo o vínculo) só foi possível com essa evidência. Lição: gate E2E opaco → baixar artefato antes de chutar correção.
+
+- **Gate E2E com rodadas reais excede o teto de 20 min do job do GitHub Actions** [ci, e2e, golden-live, timeout]
+  "Golden Dossier Live falhou" por `The job has exceeded the maximum execution time of 20m0s` ≠ falha de código. 2 rodadas Gold reais (~5-6 min cada) + setup não cabem no job. Distinguir assertion (log com stack) de timeout do job (annotation X); a duração do run (>10 min) prova que a precondição passou. Decisão do Bruno: pular o gate e validar manualmente.
+
+- **Telemetria estruturada do compact: errorClass + métricas da resposta crua (nunca texto livre)** [gold, compact, telemetria, observabilidade]
+  Run 817d3bd0 caiu por compact-error e o detail não persistiu (evento não-crítico, sampling 10%). Veredito do Planejador: compact-error carrega só errorClass (JSON_NOT_FOUND|JSON_SYNTAX|PROXY_TRANSPORT|PROXY_INVALID_BODY|TIMEOUT|UNKNOWN) + responseChars + finishReason + hasObjectBoundary; compact-response mede a resposta crua no PASS; eventos compact-* viram críticos. 504/TimeoutError → TIMEOUT; AbortError distinto. Lição: fronteira de falha do LLM precisa de telemetria estruturada persistida, não de mensagem no console.
+
+- **Leak shield: detector canônico compartilhado, não cópia local de regex** [gold, leak-shield, seguranca, drif]
+  api/llm.ts tinha 6 hard patterns locais; o canônico (textCleaners) tinha 10 — o serverless deixava passar contexto_cadastral/nota_de_escopo/aviso_metodologico (Gold só tem o shield do server). Fix: utils/leakShieldPolicy.ts com os 10+4 patterns e detector único; api/llm e textCleaners usam a MESMA definição. Preservado o JSON-safe do server (BRU-33) e a allowlist PORTA. Lição: política de segurança duplicada diverge silenciosamente — extrair para módulo canônico compartilhado.

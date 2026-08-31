@@ -76,3 +76,4 @@ vercel_build_tag.json
 .superhuman/
 
 
+.env*

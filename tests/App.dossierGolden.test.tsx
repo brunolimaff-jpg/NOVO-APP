@@ -264,9 +264,11 @@ vi.mock('../lib/supabase/dossierRuns', () => ({
   releaseDossierRunLease: lifecycleMocks.release,
   getDossierRun: lifecycleMocks.getRun,
   renewDossierRunLease: lifecycleMocks.renew,
+  // BRU-81: promoção atômica — mock da RPC terminal (snapshot + COMPLETED).
+  completeDossierRunWithDossier: async () => ({ run_id: 'run-1', status: 'COMPLETED', dossier_id: 'session-1' }),
 }));
 vi.mock('../features/dossier/dossier-run-heartbeat', () => ({ startDossierRunHeartbeat: lifecycleMocks.start }));
-vi.mock('../features/dossier/active-run-registry', () => ({ setActiveDossierRun: lifecycleMocks.set, clearActiveDossierRun: lifecycleMocks.clear, peekPersistedActiveDossierRuns: () => [], removePersistedActiveDossierRuns: () => undefined }));
+vi.mock('../features/dossier/active-run-registry', () => ({ setActiveDossierRun: lifecycleMocks.set, clearActiveDossierRun: lifecycleMocks.clear, getActiveDossierRun: () => null, peekPersistedActiveDossierRuns: () => [], removePersistedActiveDossierRuns: () => undefined }));
 
 function renderApp() {
   return render(

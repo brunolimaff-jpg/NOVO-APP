@@ -1,7 +1,12 @@
 import { beforeEach, describe, expect, it, vi, afterEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import { ChatStoreProvider, useChatStore } from '../../stores/chatStore';
-import { setActiveDossierRun, clearAllActiveDossierRunsForTest, peekPersistedActiveDossierRuns } from '../../features/dossier/active-run-registry';
+import {
+  clearActiveDossierRunsMemoryForTest,
+  setActiveDossierRun,
+  clearAllActiveDossierRunsForTest,
+  peekPersistedActiveDossierRuns,
+} from '../../features/dossier/active-run-registry';
 import { useInterruptedDossierRunRecovery } from '../../hooks/useInterruptedDossierRunRecovery';
 import type { ChatSession, Message } from '../../types';
 
@@ -92,6 +97,8 @@ describe('boot integrado pós-reload (ChatStoreProvider real)', () => {
     storageGetDossiersMock.mockResolvedValue([makeSession('s1')]);
     // run ativo persistido no sessionStorage (sobreviveu ao reload)
     setActiveDossierRun({ sessionId: 's1', runId: 'run-1', leaseOwner: 'l', clientAttemptId: 'a' });
+    // Simula reload real: contexto local perdido, sessionStorage preservado.
+    clearActiveDossierRunsMemoryForTest();
 
     render(
       <ChatStoreProvider>
@@ -116,6 +123,8 @@ describe('boot integrado pós-reload (ChatStoreProvider real)', () => {
     // Supabase retorna sessões, mas NENHUMA com o id do run persistido
     storageGetDossiersMock.mockResolvedValue([makeSession('outra-sessao')]);
     setActiveDossierRun({ sessionId: 's1', runId: 'run-1', leaseOwner: 'l', clientAttemptId: 'a' });
+    // Simula reload real: contexto local perdido, sessionStorage preservado.
+    clearActiveDossierRunsMemoryForTest();
 
     render(
       <ChatStoreProvider>

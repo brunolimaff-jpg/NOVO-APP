@@ -13,7 +13,13 @@ function stripTransientMessageState(message: ChatSession['messages'][number]): C
   };
 }
 
-function stripTransientState(session: ChatSession): ChatSession {
+/**
+ * BRU-81 (P0): transformação pura que prepara o dossiê para persistência —
+ * remove estado transitório (loadingVariant/isSourcesOpen/isThinking).
+ * Usada tanto pelos caminhos de persistência clássicos (saveDossier*)
+ * quanto pela promoção atômica server-owned (completeDossierRunWithDossier).
+ */
+export function prepareDossierForPersistence(session: ChatSession): ChatSession {
   return {
     ...session,
     messages: (session.messages || []).map(stripTransientMessageState),
@@ -59,7 +65,7 @@ export const dossiers = {
     return data
       .map((row: { content: ChatSession | null }) => row.content)
       .filter((s): s is ChatSession => s != null)
-      .map(stripTransientState);
+      .map(prepareDossierForPersistence);
   },
 
   async getDossier(id: string): Promise<ChatSession | null> {
@@ -83,7 +89,7 @@ export const dossiers = {
     }
     if (!data?.content) return null;
     const session = data.content as ChatSession;
-    return stripTransientState(session);
+    return prepareDossierForPersistence(session);
   },
 
   async saveDossier(session: ChatSession): Promise<void> {
@@ -91,7 +97,7 @@ export const dossiers = {
     if (!isSupabaseAvailable() || !operatorId) return;
     if (!(await hasValidAuthSession())) return;
 
-    const cleanSession = stripTransientState(session);
+    const cleanSession = prepareDossierForPersistence(session);
 
     const { error } = await supabase!.from('dossies').upsert({
       id: cleanSession.id,
@@ -118,7 +124,7 @@ export const dossiers = {
     if (!isSupabaseAvailable()) throw new Error('Supabase indisponível para persistência estrita');
     if (!operatorId) throw new Error('operatorId obrigatório para persistência estrita');
     if (!(await hasValidAuthSession())) throw new Error('Sessão autenticada ausente para persistência estrita');
-    const cleanSession = stripTransientState(session);
+    const cleanSession = prepareDossierForPersistence(session);
     const { data, error } = await supabase!
       .from('dossies')
       .upsert({
@@ -151,24 +157,17 @@ export const dossiers = {
     if (!isSupabaseAvailable() || !operatorId || sessions.length === 0) return;
     if (!(await hasValidAuthSession())) return;
 
+    // BRU-81 (P0) — containment do autosave VINCULADO À ESCRITA (server-side).
+    // O filtro client-side (getActiveDossierRun) tem janela TOCTOU e não vê runs
+    // de outra aba; a RPC save_dossiers_autosave faz o check NA MESMA transação
+    // do upsert: thread com run RUNNING/CANCEL_REQUESTED nunca é gravada
+    // mid-flight — a única escrita do snapshot final é a promoção atômica.
     const payloads = sessions.map(session => {
-      const clean = stripTransientState(session);
-      return {
-        id: clean.id,
-        operator_id: operatorId,
-        operator_email: storageGet('operator_email') ?? null,
-        title: clean.title,
-        empresa_alvo: clean.empresaAlvo,
-        cnpj: clean.cnpj,
-        modo_principal: clean.modoPrincipal,
-        score_oportunidade: clean.scoreOportunidade,
-        resumo_dossie: clean.resumoDossie,
-        content: clean as unknown as Record<string, unknown>,
-        updated_at: clean.updatedAt || new Date().toISOString(),
-      };
+      const clean = prepareDossierForPersistence(session);
+      return clean as unknown as Record<string, unknown>;
     });
 
-    const { error } = await supabase!.from('dossies').upsert(payloads);
+    const { error } = await supabase!.rpc('save_dossiers_autosave', { p_dossiers: payloads });
     if (error) {
       console.error('[Storage] saveAllDossiers failed:', error);
     }

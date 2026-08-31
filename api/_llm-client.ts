@@ -14,6 +14,10 @@ export interface NormalizeModelOutputResult {
 }
 
 const DEFAULT_REQUEST_BUDGET_MS = 38_000;
+// Teto global por chamada. O orçamento Gold NÃO passa por aqui: o PACOTE 1
+// (SCOUT-V7-GOLD-BUDGET-LAYERED-01, Planejador 2026-08-09) usa timeoutMs
+// por chamada (LiteLLMCallInput) apenas para intents gold — este teto
+// continua servindo o caminho default/não-gold.
 const MAX_REQUEST_BUDGET_MS = 180_000;
 const DEFAULT_LEGACY_TIMEOUT_MS = 120_000;
 const DEFAULT_MAX_RETRIES = 1;

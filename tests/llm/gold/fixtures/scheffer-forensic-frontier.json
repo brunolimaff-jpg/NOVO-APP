@@ -1,0 +1,239 @@
+{
+  "module": "gold-compactor",
+  "accountIdentity": {
+    "inputCnpj": "04.733.767/0001-80",
+    "legalName": "SCHEFFER & CIA LTDA",
+    "establishmentType": "Filial",
+    "rootCnpj": "04733767",
+    "conflicts": []
+  },
+  "facts": [
+    {
+      "id": "fact_1",
+      "entity": "SCHEFFER & CIA LTDA",
+      "claim": "Operação internacional confirmada em Cumaribo, Corregimiento de El Viento, Colômbia",
+      "status": "Pista forte",
+      "source": "Site institucional Scheffer",
+      "sourceDate": null,
+      "kind": "operation",
+      "process": null
+    },
+    {
+      "id": "fact_2",
+      "entity": "SCHEFFER & CIA LTDA",
+      "claim": "Verticalização com cultivo próprio de soja, milho e algodão, beneficiamento industrial de algodão, armazenagem própria e frota própria",
+      "status": "Confirmado",
+      "source": "Site institucional Scheffer; CRM interno Senior (GATec módulos)",
+      "sourceDate": null,
+      "kind": "operation",
+      "process": null
+    },
+    {
+      "id": "fact_3",
+      "entity": "SCHEFFER & CIA LTDA",
+      "claim": "Pegada de 220–230 mil ha em duas safras em MT e MA",
+      "status": "Pista forte",
+      "source": "Site institucional Scheffer",
+      "sourceDate": null,
+      "kind": "metric",
+      "process": null
+    },
+    {
+      "id": "fact_4",
+      "entity": "SCHEFFER & CIA LTDA",
+      "claim": "Possui certificações BCI, regenagri e ABR ativas",
+      "status": "Pista forte",
+      "source": "Documentação interna (RAG)",
+      "sourceDate": null,
+      "kind": "operation",
+      "process": null
+    },
+    {
+      "id": "fact_5",
+      "entity": "SCHEFFER & CIA LTDA",
+      "claim": "Faturamento consolidado estimado em ~R$ 1,7 bilhão (método setorial)",
+      "status": "A validar",
+      "source": "Fonte setorial 2025",
+      "sourceDate": null,
+      "kind": "financial",
+      "process": null
+    },
+    {
+      "id": "fact_6",
+      "entity": "SCHEFFER & CIA LTDA",
+      "claim": "Headcount estimado em ~2.700 colaboradores",
+      "status": "Pista forte",
+      "source": "Site institucional Scheffer",
+      "sourceDate": null,
+      "kind": "metric",
+      "process": null
+    },
+    {
+      "id": "fact_7",
+      "entity": "SCHEFFER & CIA LTDA",
+      "claim": "Possui 74 módulos Senior contratados (ERP, GATec, HCM, Acesso)",
+      "status": "Confirmado",
+      "source": "CRM interno Senior",
+      "sourceDate": null,
+      "kind": "technology",
+      "process": null
+    },
+    {
+      "id": "fact_8",
+      "entity": "SCHEFFER & CIA LTDA",
+      "claim": "Frota própria gerenciada via GATec - Gestão da Frota",
+      "status": "Confirmado",
+      "source": "CRM interno Senior",
+      "sourceDate": null,
+      "kind": "operation",
+      "process": null
+    },
+    {
+      "id": "fact_9",
+      "entity": "SCHEFFER & CIA LTDA",
+      "claim": "Beneficiamento de algodão via GATec - Beneficiamento de Algodão",
+      "status": "Confirmado",
+      "source": "CRM interno Senior",
+      "sourceDate": null,
+      "kind": "operation",
+      "process": null
+    },
+    {
+      "id": "fact_10",
+      "entity": "SCHEFFER & CIA LTDA",
+      "claim": "Armazenagem própria gerenciada via GATec (Operis/balança)",
+      "status": "Confirmado",
+      "source": "CRM interno Senior",
+      "sourceDate": null,
+      "kind": "operation",
+      "process": null
+    },
+    {
+      "id": "fact_11",
+      "entity": "SCHEFFER & CIA LTDA",
+      "claim": "Menciona 'mercado internacional' em releases",
+      "status": "Pista inicial",
+      "source": "Site institucional Scheffer",
+      "sourceDate": null,
+      "kind": "operation",
+      "process": null
+    },
+    {
+      "id": "fact_12",
+      "entity": "SCHEFFER & CIA LTDA",
+      "claim": "Operação multiestado (MT e MA)",
+      "status": "Confirmado",
+      "source": "Site institucional Scheffer; QSA oficial",
+      "sourceDate": null,
+      "kind": "operation",
+      "process": null
+    }
+  ],
+  "relationships": [
+    {
+      "id": "rel_1",
+      "entity": "SCHEFFER & CIA LTDA",
+      "relatedEntity": "11.021.773/0001-70",
+      "relationType": "direct_pj_relation",
+      "status": "Confirmado",
+      "source": "QSA Oficial / CNPJ.ws",
+      "sourceDate": null,
+      "evidence": "SCHEFFER PARTICIPACOES S/A é sócia da matriz"
+    }
+  ],
+  "technologySignals": [
+    {
+      "technology": "Senior Sistemas",
+      "observedFact": "74 módulos ativos (ERP BackOffice, Controladoria, Finanças, GATec Agrícola, Beneficiamento de Algodão, Frota, Custos, BI, Commerce Trading, HCM, Acesso)",
+      "status": "Confirmado",
+      "whatIsNotKnown": "Se a operação colombiana está integrada ao ERP; se a holding SCHEFFER PARTICIPACOES S/A está no escopo do ERP",
+      "validationQuestion": "Como é feita a consolidação financeira entre a matriz, a holding e a filial colombiana?"
+    },
+    {
+      "technology": "GATec",
+      "observedFact": "Módulos de Gestão Agrícola, Beneficiamento de Algodão, Frota, Custos, BI, Commerce Trading contratados",
+      "status": "Confirmado",
+      "whatIsNotKnown": "Se o módulo GATec Rastreabilidade está contratado",
+      "validationQuestion": "Como a rastreabilidade exigida pelas certificações BCI/regenagri/ABR é gerenciada atualmente?"
+    }
+  ],
+  "people": [
+    {
+      "id": "person_1",
+      "personName": "ELIZEU ZULMAR MAGGI SCHEFFER",
+      "role": "Sócio-Administrador",
+      "roleBasis": "qsa",
+      "status": "Confirmado",
+      "source": "QSA Oficial / CNPJ.ws"
+    },
+    {
+      "id": "person_2",
+      "personName": "GUILHERME MOGNON SCHEFFER",
+      "role": "Sócio-Administrador",
+      "roleBasis": "qsa",
+      "status": "Confirmado",
+      "source": "QSA Oficial / CNPJ.ws"
+    },
+    {
+      "id": "person_3",
+      "personName": "GISLAYNE RAFAELA SCHEFFER",
+      "role": "Sócio-Administrador",
+      "roleBasis": "qsa",
+      "status": "Confirmado",
+      "source": "QSA Oficial / CNPJ.ws"
+    },
+    {
+      "id": "person_4",
+      "personName": "GILLIARD ANTONIO SCHEFFER",
+      "role": "Sócio-Administrador",
+      "roleBasis": "qsa",
+      "status": "Confirmado",
+      "source": "QSA Oficial / CNPJ.ws"
+    },
+    {
+      "id": "person_5",
+      "personName": "CAROLINA MOGNON SCHEFFER",
+      "role": "Sócio",
+      "roleBasis": "qsa",
+      "status": "Confirmado",
+      "source": "QSA Oficial / CNPJ.ws"
+    }
+  ],
+  "metrics": [
+    {
+      "id": "metric_1",
+      "entity": "SCHEFFER & CIA LTDA",
+      "metric": "Área total estimada",
+      "value": "220-230 mil ha",
+      "status": "Pista forte",
+      "source": "Site institucional Scheffer"
+    },
+    {
+      "id": "metric_2",
+      "entity": "SCHEFFER & CIA LTDA",
+      "metric": "Headcount estimado",
+      "value": "~2.700 colaboradores",
+      "status": "Pista forte",
+      "source": "Site institucional Scheffer"
+    },
+    {
+      "id": "metric_3",
+      "entity": "SCHEFFER & CIA LTDA",
+      "metric": "Módulos Senior contratados",
+      "value": "74",
+      "status": "Confirmado",
+      "source": "CRM interno Senior"
+    }
+  ],
+  "conflicts": [],
+  "openQuestions": [
+    "Qual é o CNPJ da SCHEFFER PARTICIPACOES S/A?",
+    "A operação na Colômbia está integrada ao ERP Senior da matriz?",
+    "O módulo GATec Rastreabilidade está contratado?",
+    "Como é feita a consolidação financeira entre a matriz, a holding e as filiais?",
+    "A holding SCHEFFER PARTICIPACOES S/A tem funcionários próprios ou ativos que precisam de gestão separada?",
+    "A exportação é direta ou via trading?"
+  ],
+  "sanitized": true,
+  "sanitizerEvents": []
+}

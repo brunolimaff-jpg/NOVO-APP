@@ -6,6 +6,7 @@ import { useMaybeMode } from '../../contexts/ModeContext';
 import { BACKEND_URL } from '../../services/apiConfig';
 import { sendMessageToLlm } from '../../services/llmService';
 import { withAutoRetry } from '../../utils/retry';
+import { resolveResearchIntent, type ChatIntent } from '../../utils/chatIntent';
 import { useMaybeChatStore } from '../../stores/chatStore';
 import { findReusableEmptySession } from './session-reuse';
 import { Sender, type ChatSession, type LastAction, type Message, type RunMegaPromptWaterfallArgs, type DossierWaterfallResult } from '../../types';
@@ -32,7 +33,7 @@ import { useToast } from '../../hooks/useToast';
 import { trackOperatorEvent } from '../../services/operatorTracking';
 import { getWaterfallGuardState, isAnyWaterfallActive } from '../dossier/waterfall-guard';
 import { acquireDossierRunLease, createOrGetDossierRun, DOSSIER_RUN_RPC_TIMEOUT_MS } from '../../lib/supabase/dossierRuns';
-import { clearActiveDossierRun, setActiveDossierRun } from '../dossier/active-run-registry';
+import { clearActiveDossierRun, getActiveDossierRun, setActiveDossierRun } from '../dossier/active-run-registry';
 import { startDossierRunHeartbeat } from '../dossier/dossier-run-heartbeat';
 
 interface ResetLoadingProgressOptions {
@@ -44,6 +45,12 @@ export interface HandleSendMessageOptions {
   requestKind?: RequestKind;
   fixedLoadingLine?: string;
   cnpj?: string | null;
+  /** BRU-81: thread alvo explícita — evita stale closure do currentSessionId quando a
+   * nova pesquisa do zero volta para a thread existente da conta (uma thread por conta). */
+  explicitSessionId?: string | null;
+  /** BRU-81: nova execução explícita na MESMA thread (override de duplicata) —
+   * força loading INLINE (bubble) e isFirstInteraction mesmo com histórico. */
+  isNewRunOverride?: boolean;
 }
 
 interface ProcessMessageOptions extends HandleSendMessageOptions {
@@ -152,6 +159,7 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
   );
   const setVisibleCount = requireDependency(options.setVisibleCount ?? chatStore?.setVisibleCount, 'setVisibleCount');
   const setLastQuery = requireDependency(options.setLastQuery ?? chatStore?.setLastQuery, 'setLastQuery');
+
   const toast = options.toast ?? fallbackToast;
   const investigationLogged = options.investigationLogged ?? chatStore?.investigationLogged ?? false;
   const setInvestigationLogged = requireDependency(
@@ -386,6 +394,8 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
           activeBotMessageId: activeGenerationRef.current[sessionId],
           callerStack: new Error().stack?.split('\n').slice(1, 5).join(' <- '),
         });
+        // BRU-81 F2: floodgate fail-closed preservado + feedback visível ao usuário.
+        toast.warning?.('Já existe uma pesquisa em andamento nesta conta. Aguarde a conclusão ou interrompa antes de tentar novamente.');
         return;
       }
 
@@ -396,6 +406,8 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
           activeRunId: anyGuard?.activeRunId ?? 'other-session',
           generationCount: anyGuard?.generationCount ?? 0,
         });
+        // BRU-81 F2: floodgate fail-closed preservado + feedback visível ao usuário.
+        toast.warning?.('Já existe uma pesquisa em andamento. Aguarde a conclusão ou interrompa antes de tentar novamente.');
         return;
       }
 
@@ -404,6 +416,7 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
       const resolvedLoadingVariant = resolveEffectiveLoadingVariant({
         requestKind: resolvedRequestKind,
         isFollowUp: options?.isFollowUp,
+        forceInline: options?.isNewRunOverride === true,
       });
       setRequestKind(resolvedRequestKind);
       setLoadingVariant(resolvedLoadingVariant);
@@ -465,6 +478,7 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
 
       const botMessageId = uuidv4();
       activeGenerationRef.current[sessionId] = botMessageId;
+
       const placeholderLoadingVariant: LoadingVariant = resolvePlaceholderLoadingVariant({
         requestKind: resolvedRequestKind,
         isFollowUp: options?.isFollowUp,
@@ -495,6 +509,75 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
         ),
       );
       setVisibleCount(prev => prev + 1);
+
+      // BRU-73 — roteamento de intenção: pedidos vagos ou ampliação material
+      // de escopo NÃO iniciam deep research; respondem com esclarecimento
+      // local (sem provider, sem waterfall).
+      const chatIntent = resolveResearchIntent({ text, visibleText: safeVisibleText });
+      // BRU-73 — telemetria centralizada dos intents de pesquisa (sem texto
+      // bruto): qualquer intent de pesquisa (explicit, ambiguous, followup,
+      // scope-expansion) fica observável em um único ponto, independente de
+      // entrar ou não no esclarecimento local.
+      const kIntentsDePesquisa: readonly ChatIntent[] = ['explicit', 'ambiguous', 'followup', 'scope-expansion'];
+      if (kIntentsDePesquisa.includes(chatIntent)) {
+        scoutDiag.info('MessageOrchestrator', 'processMessage:intent', {
+          sessionId,
+          intent: chatIntent,
+        });
+      }
+      if (chatIntent === 'ambiguous' || chatIntent === 'scope-expansion') {
+        try {
+        const clarification =
+          chatIntent === 'scope-expansion'
+            ? 'Isso é uma ampliação material de escopo. Confirme o plano amplo antes de pesquisar: 1) Estrutura societária; 2) Operação e cadeia de valor; 3) Tecnologia e gestão. Responda "sim" para confirmar ou delimite a frente que você quer aprofundar.'
+            : 'Pesquisar mais o quê? Frentes disponíveis no contexto:\n1. Estrutura societária — holding, CNPJs e filiais.\n2. Operação — unidades, área, armazenagem, logística e compras.\n3. Tecnologia e gestão — ERP, HCM, sistemas e integração.\n\nEscolha uma frente para eu aprofundar.';
+        setSessions(prev =>
+          prev.map(session =>
+            session.id === sessionId
+              ? {
+                  ...session,
+                  messages: session.messages.map(message =>
+                    message.id === botMessageId
+                      ? { ...message, text: clarification, isThinking: false, loadingVariant: undefined }
+                      : message,
+                  ),
+                  updatedAt: new Date().toISOString(),
+                }
+              : session,
+          ),
+        );
+        delete activeGenerationRef.current[sessionId];
+        // Finaliza o ciclo de loading como o caminho normal — sem isso o chat
+        // fica preso em "Gerando resposta..." com o input travado.
+        setIsLoading(false);
+        (setLoadingVariant as (v: string | undefined) => void)(undefined);
+        completeLoadingProgress();
+        setRequestKind('default');
+        setLoadingPinnedLabel(null);
+        abortControllerRef.current = null;
+          scoutDiag.info('MessageOrchestrator', 'processMessage:clarification', {
+            sessionId,
+            intent: chatIntent,
+          });
+          return;
+        } catch (err) {
+          // Fail-closed: se o esclarecimento falhar, finaliza o ciclo de
+          // loading para não travar o chat (mesma sequência do caminho normal).
+          setIsLoading(false);
+          (setLoadingVariant as (v: string | undefined) => void)(undefined);
+          completeLoadingProgress();
+          setRequestKind('default');
+          setLoadingPinnedLabel(null);
+          abortControllerRef.current = null;
+          delete activeGenerationRef.current[sessionId];
+          scoutDiag.error('MessageOrchestrator', 'processMessage:clarification-failed', {
+            sessionId,
+            intent: chatIntent,
+            error: err instanceof Error ? err.message : String(err),
+          });
+          return;
+        }
+      }
 
       const normalizedUpperText = text
         .normalize('NFD')
@@ -794,14 +877,40 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
         }));
       } finally {
         lifecycleHeartbeatCleanup?.();
-        if (lifecycleRunId) clearActiveDossierRun(sessionId, lifecycleRunId);
         const isAbort = !abortControllerRef.current;
 
-        scoutDiag.info('MessageOrchestrator', 'processMessage:finally', {
+        scoutDiag.info('MessageOrchestrator', 'processMessage:finally:entered', {
           sessionId,
           requestKind: resolvedRequestKind,
           isAbort,
+          runId: lifecycleRunId,
+          visibilityState: typeof document !== 'undefined' ? document.visibilityState : 'unknown',
+          performanceNow: typeof performance !== 'undefined' ? Math.round(performance.now()) : null,
+          navigationType:
+            typeof performance !== 'undefined'
+              ? (performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming | undefined)?.type ?? 'unknown'
+              : 'unknown',
         });
+        // clearActiveDossierRun acontece imediatamente depois do marker de entrada;
+        // o par start/end permite distinguir finally ausente de clear sem efeito.
+        if (lifecycleRunId) {
+          scoutDiag.info('DossierRunLifecycle', 'active-run:clear:start', {
+            sessionId,
+            runId: lifecycleRunId,
+            visibilityState: typeof document !== 'undefined' ? document.visibilityState : 'unknown',
+            performanceNow: typeof performance !== 'undefined' ? Math.round(performance.now()) : null,
+          });
+          clearActiveDossierRun(sessionId, lifecycleRunId);
+          const postClearRun = getActiveDossierRun(sessionId);
+          scoutDiag.info('DossierRunLifecycle', 'active-run:clear:end', {
+            sessionId,
+            runId: lifecycleRunId,
+            clearSucceeded: !postClearRun,
+            remainingRunId: postClearRun?.runId ?? null,
+            visibilityState: typeof document !== 'undefined' ? document.visibilityState : 'unknown',
+            performanceNow: typeof performance !== 'undefined' ? Math.round(performance.now()) : null,
+          });
+        }
 
         const t0 = performance.now();
 
@@ -901,7 +1010,7 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
       options?: HandleSendMessageOptions,
     ): Promise<DossierWaterfallResult | null | undefined> => {
       const resolvedDisplayText = displayText || text;
-      let sessionId = currentSessionId;
+      let sessionId = options?.explicitSessionId ?? currentSessionId;
       let currentHistory: Message[];
       let immediateCompany: string | null;
       let createdInitialSessionId: string | null = null;
@@ -1014,6 +1123,7 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
 
       const previousUserMessages = currentHistory.filter(message => message.sender === Sender.User).length;
       const isDeepDive = resolvedRequestKind === 'deep_dive';
+      const isNewRunOverride = options?.isNewRunOverride === true;
       try {
         const result = await processMessage(
           text,
@@ -1022,11 +1132,13 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
           resolvedDisplayText,
           hintedCompanyOverride || immediateCompany,
           {
-            isFollowUp: previousUserMessages > 0,
+            isFollowUp: isNewRunOverride ? false : previousUserMessages > 0,
             isDeepDive,
-            isFirstInteraction: previousUserMessages === 0,
+            isFirstInteraction: isNewRunOverride ? true : previousUserMessages === 0,
             requestKind: resolvedRequestKind,
             fixedLoadingLine: fixedLoadingLine ?? undefined,
+            explicitSessionId: options?.explicitSessionId ?? undefined,
+            isNewRunOverride: options?.isNewRunOverride ?? undefined,
           },
         );
         return result;

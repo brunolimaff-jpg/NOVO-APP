@@ -74,7 +74,7 @@ function renderInlineMarkdown(value: string): string {
     .replace(/\*\*\*([^*]+)\*\*\*/g, '<strong><em>$1</em></strong>')
     .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
     .replace(/\*([^*]+)\*/g, '<em>$1</em>')
-    .replace(/\[([^\]]+)\]\((https?:\/\/(?:[^\s()]+|\([^\s()]*\))+)\)/g, (_match, label, url) => {
+    .replace(/\[([^\]]+)\]\((https?:\/\/[^\s()]+(?:\([^\s()]*\)[^\s()]*)*)\)/g, (_match, label, url) => {
       const safeUrl = sanitizeUrl(decodeEscapedMarkdownUrl(url));
       return safeUrl ? `<a href="${escapeHtml(safeUrl)}" target="_blank" rel="noreferrer">${label}</a>` : label;
     });

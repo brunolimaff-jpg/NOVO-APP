@@ -53,6 +53,11 @@ interface MessageTimelineProps {
   loadingPinnedLabel?: string | null;
   canDeepDive: boolean;
   theme: ChatTheme;
+  /** BRU-81: segue a nova atividade quando há novo run na mesma thread. */
+  followOutputOverride?: boolean;
+  /** BRU-81 F1.2: navegação one-shot até a nova atividade (novo run na mesma
+   * thread). Após o scroll inicial, o usuário navega livremente. */
+  scrollToActivityKey?: string | null;
 }
 
 const MessageTimeline: React.FC<MessageTimelineProps> = ({
@@ -86,6 +91,8 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
   loadingPinnedLabel,
   canDeepDive,
   theme,
+  followOutputOverride,
+  scrollToActivityKey,
 }) => {
   const messagesViewportRef = useRef<HTMLDivElement>(null);
   const virtuosoRef = useRef<VirtuosoHandle>(null);
@@ -184,6 +191,32 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
       });
     };
   }, [isMessagesViewportReady]);
+
+  // BRU-81 F1.2 (NEW_RUN_WAYFINDING): navegação one-shot até a nova atividade.
+  // A chave é o lastUserQuery do novo run (muda a cada execução); o alvo é a
+  // ÚLTIMA mensagem (a nova atividade = user message + bubble adicionados ao
+  // fim da thread). Só dispara quando a chave muda e o viewport está pronto;
+  // depois o usuário navega livremente (sem auto-follow permanente).
+  const lastScrolledKeyRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!scrollToActivityKey || !isMessagesViewportReady) return;
+    if (lastScrolledKeyRef.current === scrollToActivityKey) return;
+    // F1.3: só consome quando o item da nova atividade EXISTE no timeline —
+    // se a chave chegou antes do placeholder, espera o próximo render.
+    const targetIndex = safeMessages.findIndex(m => m.id === scrollToActivityKey);
+    if (targetIndex === -1) return;
+    lastScrolledKeyRef.current = scrollToActivityKey;
+    // one-shot: espera o próximo frame para o Virtuoso medir o item
+    const rafId = requestAnimationFrame(() => {
+      virtuosoRef.current?.scrollToIndex({ index: targetIndex, align: 'end', behavior: 'smooth' });
+      scoutDiag.info('Virtuoso', 'wayfinding-scroll', {
+        sessionId: currentSession?.id ?? null,
+        targetKey: scrollToActivityKey,
+        targetIndex,
+      });
+    });
+    return () => cancelAnimationFrame(rafId);
+  }, [scrollToActivityKey, isMessagesViewportReady, safeMessages, currentSession?.id]);
 
   const handleRangeChanged = useCallback(
     (range: { startIndex: number; endIndex: number }) => {
@@ -528,8 +561,9 @@ const MessageTimeline: React.FC<MessageTimelineProps> = ({
               data={safeMessages}
               computeItemKey={(_, message) => message.id}
               itemContent={itemContent}
-              // UX contract: never auto-scroll the main chat timeline on new messages.
-              followOutput={false}
+              // UX contract: never auto-scroll the main chat timeline on new messages —
+              // exceto novo run na mesma thread (BRU-81), que segue suavemente.
+              followOutput={followOutputOverride ? 'smooth' : false}
               increaseViewportBy={{ top: virtuosoOverscan, bottom: virtuosoOverscan }}
               defaultItemHeight={96}
               rangeChanged={handleRangeChanged}

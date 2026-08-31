@@ -7,6 +7,7 @@ import { useInterruptedDossierRunRecovery } from './hooks/useInterruptedDossierR
 import { useEmailModal } from './hooks/useEmailModal';
 import { useFollowUpModal } from './hooks/useFollowUpModal';
 import { useSessionManager, useSessionRemoteSave } from './features/chat/session-controller';
+import { isSessionReusable } from './features/chat/session-reuse';
 import { useChatFeedbackActions } from './features/chat/feedback-actions';
 import ChatErrorBoundary from './features/chat/ChatErrorBoundary';
 import { useChatMessageOrchestrator } from './features/chat/message-orchestrator';
@@ -257,6 +258,22 @@ const App: React.FC = () => {
 
   const { handleNewSession, handleSelectSession, handleDeleteSession } = useSessionManager();
 
+  // BRU-81 (P0): remove a "Nova Investigação" vazia criada apenas para a tentativa
+  // de override — SOMENTE se provar que é vazia/reutilizável (isSessionReusable).
+  // Nunca dispara soft-delete remoto (a sessão vazia nem é persistida).
+  const handleCleanupTransientSession = useCallback(
+    (sessionId: string) => {
+      setSessions(prev => {
+        const target = prev.find(s => s.id === sessionId);
+        if (target && isSessionReusable(target)) {
+          return prev.filter(s => s.id !== sessionId);
+        }
+        return prev;
+      });
+    },
+    [setSessions],
+  );
+
   useAppInitialization({
     loadSessions,
     setSessions,
@@ -310,6 +327,7 @@ const App: React.FC = () => {
     hiddenPrompt: string,
     forcedCompanyName?: string,
     cnpj?: string | null,
+    targetSessionId?: string,
   ) => {
     const empresaContext =
       forcedCompanyName?.trim() || currentSession?.empresaAlvo || currentSession?.title || 'a empresa desta conversa';
@@ -336,6 +354,10 @@ const App: React.FC = () => {
               ? 'Deep Dive em andamento'
               : undefined,
         cnpj: cnpj ?? null,
+        explicitSessionId: targetSessionId ?? null,
+        // BRU-81: override de duplicata = nova execução na MESMA thread —
+        // representação inequívoca de novo run (hero + viewport).
+        isNewRunOverride: Boolean(targetSessionId),
       },
     );
   };
@@ -558,6 +580,7 @@ const App: React.FC = () => {
                 sessions={sessions}
                 onNewSession={handleNewSession}
                 onSelectSession={handleSelectSession}
+                onCleanupTransientSession={handleCleanupTransientSession}
                 onDeleteSession={handleDeleteSession}
                 isSidebarOpen={isSidebarOpen}
                 onToggleSidebar={() => setIsSidebarOpen(previous => !previous)}
@@ -594,6 +617,9 @@ const App: React.FC = () => {
                 canDeepDive={canDeepDive}
                 onClearOperator={clearName}
                 lastUserQuery={lastQuery}
+                wayfindingKey={
+                  currentSessionId ? (activeGenerationRef.current[currentSessionId] ?? null) : null
+                }
                 onDeleteMessage={handleDeleteMessage}
               />
             </ChatErrorBoundary>

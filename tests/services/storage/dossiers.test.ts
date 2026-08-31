@@ -3,11 +3,13 @@ import type { ChatSession } from '../../../types';
 
 const upsert = vi.hoisted(() => vi.fn());
 const select = vi.hoisted(() => vi.fn());
+const rpc = vi.hoisted(() => vi.fn());
 const warn = vi.hoisted(() => vi.fn());
 
 vi.mock('../../../lib/supabaseClient', () => ({
   supabase: {
     from: vi.fn(() => ({ upsert })),
+    rpc,
     auth: { getSession: () => Promise.resolve({ data: { session: { user: { id: 'u1' } } } }) },
   },
   isSupabaseAvailable: () => true,
@@ -28,6 +30,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   upsert.mockReturnValue({ select });
   select.mockResolvedValue({ data: [{ id: 'session-1' }], error: null });
+  rpc.mockResolvedValue({ error: null });
 });
 
 describe('saveDossierStrict', () => {
@@ -47,5 +50,22 @@ describe('saveDossierStrict', () => {
     select.mockResolvedValueOnce({ data, error: null });
     await expect(dossiers.saveDossierStrict(session)).rejects.toThrow('Persistência estrita sem confirmação do dossiê');
     expect(warn).toHaveBeenCalledWith('Storage', 'save-dossier-strict-unconfirmed', expect.objectContaining({ sessionId: 'session-1' }));
+  });
+});
+
+describe('saveAllDossiers — BRU-81 containment server-side', () => {
+  it('delega à RPC save_dossiers_autosave (check anti-run vinculado à escrita, sem upsert direto)', async () => {
+    await dossiers.saveAllDossiers([session]);
+
+    expect(rpc).toHaveBeenCalledWith('save_dossiers_autosave', {
+      p_dossiers: expect.arrayContaining([expect.objectContaining({ id: 'session-1' })]),
+    });
+    // ZERO upsert direto — o write passa pela RPC (containment server-side)
+    expect(upsert).not.toHaveBeenCalled();
+  });
+
+  it('ignora lotes vazios sem chamar a RPC', async () => {
+    await dossiers.saveAllDossiers([]);
+    expect(rpc).not.toHaveBeenCalled();
   });
 });

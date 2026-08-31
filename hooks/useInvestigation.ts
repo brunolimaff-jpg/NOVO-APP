@@ -27,9 +27,14 @@ interface UseInvestigationParams {
     hiddenPrompt: string,
     companyName: string,
     cnpj?: string,
+    targetSessionId?: string,
   ) => Promise<DossierWaterfallResult | null | undefined>;
   operatorId: string;
   onSelectSession: (sessionId: string) => void;
+  /** BRU-81 (P0): remove a "Nova Investigação" vazia criada só para a tentativa.
+   *  O implementador deve validar isSessionReusable ANTES de remover. */
+  onCleanupTransientSession?: (sessionId: string) => void;
+  currentSessionId?: string | null;
 }
 
 export function useInvestigation({
@@ -37,13 +42,15 @@ export function useInvestigation({
   onDeepDive,
   operatorId,
   onSelectSession,
+  onCleanupTransientSession,
+  currentSessionId = null,
 }: UseInvestigationParams) {
   const [duplicateDossier, setDuplicateDossier] = useState<ExistingDossier | null>(null);
   const pendingPayloadRef = useRef<StartInvestigationPayload | null>(null);
   const processingRef = useRef(false);
 
   const executeInvestigation = useCallback(
-    async (payload: StartInvestigationPayload) => {
+    async (payload: StartInvestigationPayload, targetSessionId?: string) => {
       const prompt = `🔍 Investigando ${payload.companyName}...`;
       const promptMode = resolvePromptMode(mode);
 
@@ -77,7 +84,7 @@ export function useInvestigation({
           promptVersion: PROMPT_VERSION,
         },
       );
-      return onDeepDive(prompt, hiddenPromptBase, payload.companyName, payload.cnpj ?? undefined);
+      return onDeepDive(prompt, hiddenPromptBase, payload.companyName, payload.cnpj ?? undefined, targetSessionId);
     },
     [mode, onDeepDive],
   );
@@ -179,21 +186,40 @@ export function useInvestigation({
     pendingPayloadRef.current = null;
 
     try {
-      const result = await executeInvestigation(payload);
-
-      // Só substitui o dossiê anterior quando a nova investigação terminou
-      // COMPLETED, o novo dossiê foi persistido e o run foi marcado COMPLETED
-      // (o waterfall só retorna COMPLETED depois de markDossierRunCompleted).
-      let investigationSucceeded = false;
-      if (result?.status === 'COMPLETED' && result.dossierId) {
-        investigationSucceeded = (await storage.getDossier(result.dossierId)) !== null;
+      // BRU-81 (P0): mantém uma thread por conta — quando a "nova pesquisa do zero"
+      // parte de um dossiê PRÓPRIO já existente, volta para a thread da conta (UI) e
+      // informa o sessionId alvo como EXPLÍCITO na execução. O targetSessionId flui
+      // por valor até o handleSendMessage (explicitSessionId), sem depender de
+      // "esperar React rerenderizar" — eliminando o risco de stale closure do
+      // currentSessionId apontar para a sessão anterior.
+      // Guarda fail-closed preservada: fonte estrangeira nunca é selecionada/lida.
+      const targetSessionId = oldDossierId && !isForeignSource ? oldDossierId : undefined;
+      // Sessão transitória A (ex: "Nova Investigação" vazia criada para esta
+      // tentativa) — não pode ficar órfã no sidebar. O chamador só a remove se
+      // provar que é vazia/reutilizável (isSessionReusable); nunca por delete remoto.
+      const transientSessionId =
+        oldDossierId && !isForeignSource && currentSessionId !== oldDossierId ? currentSessionId : undefined;
+      if (oldDossierId && !isForeignSource && currentSessionId !== oldDossierId) {
+        await onSelectSession(oldDossierId);
       }
+      if (transientSessionId && onCleanupTransientSession) {
+        onCleanupTransientSession(transientSessionId);
+      }
+
+      const result = await executeInvestigation(payload, targetSessionId);
+
+      // Opção B (segurança transacional, BRU-81): B antigo → transação atômica → B novo.
+      // A promoção server-owned JÁ substituiu o conteúdo de B no commit terminal —
+      // NÃO existe "dossiê antigo separado" para deletar. deleteDossier(B) eliminado.
+      const investigationSucceeded =
+        result?.status === 'COMPLETED' &&
+        Boolean(result.dossierId) &&
+        (result.dossierId ? (await storage.getDossier(result.dossierId)) !== null : false);
 
       // A fonte estrangeira permanece INTOCADA: sem delete, sem log de acesso,
       // sem evento de override — o usuário apenas gerou um dossiê novo próprio.
       if (oldDossierId && !isForeignSource && investigationSucceeded) {
         void safeLogDossierAccess(oldDossierId, operatorId, oldDossierCnpj);
-        await storage.deleteDossier(oldDossierId);
 
         trackOperatorEvent('dossier_override', {
           operatorId: operatorId || '',
@@ -220,7 +246,7 @@ export function useInvestigation({
     } finally {
       processingRef.current = false;
     }
-  }, [duplicateDossier, executeInvestigation, operatorId]);
+  }, [duplicateDossier, executeInvestigation, operatorId, currentSessionId, onSelectSession, onCleanupTransientSession]);
 
   return {
     executeInvestigation,

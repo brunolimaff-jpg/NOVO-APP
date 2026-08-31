@@ -23,7 +23,7 @@ import { formatarParaPrompt, lookupCliente } from '../../services/clientLookupSe
 import { getContextoConcorrentesRegionais } from '../../services/competitorService';
 import { generatePortaContextForDeepDive } from '../../services/portaStateService';
 import { fetchCompanyByCnpj } from '../../services/brasilApiService';
-import { storage } from '../../services/storage';
+import { storage, prepareDossierForPersistence } from '../../services/storage';
 import { useMaybeChatStore } from '../../stores/chatStore';
 import { type ChatSession, type ClienteSeniorData, Sender, type WebVerificationStatus, type DossierWaterfallResult } from '../../types';
 import { scoutDiag } from '../../utils/diagnosticLog';
@@ -50,7 +50,16 @@ import type { MutableRefObject } from 'react';
 import type { RunMegaPromptWaterfallArgs } from '../../types';
 import { isAbortLikeError } from '../../utils/abortHelpers';
 import { DossierRunCancelledError, assertDossierRunCanContinue, assertDossierRunCanContinueWithRenewal as assertDossierRunCanContinueWithRenewalFn, isDossierRunControlError } from './dossier-run-control';
-import { markDossierRunCancelled, markDossierRunCompleted, markDossierRunFailed, releaseDossierRunLease } from '../../lib/supabase/dossierRuns';
+import { completeDossierRunWithDossier, getDossierRun, markDossierRunCancelled, markDossierRunFailed, releaseDossierRunLease } from '../../lib/supabase/dossierRuns';
+// BRU-33 — seam Gold pós-processamento fail-closed (V7 Preview Wiring).
+import {
+  buildControlledUnavailableOutput,
+  tryEnhanceDossierWithGold,
+  type GoldRejectionDetail,
+  type GoldRejectionReason,
+  type GoldSeamDeps,
+} from '../../services/llm/gold/seam/gold-dossier-seam';
+import { createGoldSeamDeps } from '../../services/llm/gold/seam/gold-browser-adapter';
 import { isEvidencePipelineV2 } from '../../utils/feature-flags';
 import { ensureContinuitySuggestions, pickCompanyLabel } from '../../utils/messageHelpers';
 import { runDossierBenchmarkStage } from './benchmark-stage';
@@ -97,6 +106,8 @@ export interface UseDossierWaterfallOrchestratorOptions {
   replaceLoadingProgressStage: (stage: string, totalStages?: number) => void;
   completeLoadingProgress: () => void;
   setFailureCount: Dispatch<SetStateAction<number>>;
+  /** BRU-33 — deps do seam Gold (injetável para testes; default OFF). */
+  goldSeamDeps?: GoldSeamDeps;
 }
 
 function requireDependency<T>(value: T | null | undefined, dependencyName: string): T {
@@ -531,6 +542,20 @@ function validateTeiaCnpjsOutput(generatedText: string, knownContext: string): C
   return { text: generatedText, warnings };
 }
 
+/**
+ * BRU-81 (P0) — reconciliação de resultado incerto na promoção atômica.
+ * A RPC é idempotente; se a chamada terminal perdeu a resposta (timeout/network),
+ * o run é consultado: COMPLETED com o session esperado = commit aconteceu.
+ */
+async function reconcileCompletedPromotion(runId: string, sessionId: string): Promise<boolean> {
+  try {
+    const run = await getDossierRun(runId);
+    return Boolean(run && run.status === 'COMPLETED' && run.dossier_id === sessionId);
+  } catch {
+    return false;
+  }
+}
+
 export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWaterfallOrchestratorOptions> = {}) {
   const chatStore = useMaybeChatStore();
   const canUseLookup = options.canUseLookup ?? false;
@@ -556,6 +581,8 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
     'completeLoadingProgress',
   );
   const setFailureCount = requireDependency(options.setFailureCount ?? chatStore?.setFailureCount, 'setFailureCount');
+  // BRU-33 — Gold pós-processamento (flag OFF por padrão via adapter).
+  const goldSeamDeps = options.goldSeamDeps ?? createGoldSeamDeps();
   const setIsLoading = options.setIsLoading ?? chatStore?.setIsLoading;
   const setLoadingVariant = options.setLoadingVariant ?? chatStore?.setLoadingVariant;
   const activeGenerationRef = options.activeGenerationRef ?? chatStore?.activeGenerationRef;
@@ -637,6 +664,10 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
 
       try {
         await assertRunCanContinue('waterfall_start');
+        // BRU-62: sessão base capturada antes de qualquer updateSessionById —
+        // usada para o snapshot puro do terminal commit (que ocorre antes da
+        // publicação à UI, quando sessionToPersist ainda é null).
+        const baseSession = chatStore?.sessionsRef?.current?.find((s: ChatSession) => s.id === sessionId);
         let accumulatedText = '';
         let previousStageCompleted = false;
         const optionalStepFailures = new Set<string>();
@@ -645,6 +676,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
         const lookupTarget = canUseLookup ? resolvedMegaCompany : '';
         let waterfallLookupContext = '';
         let waterfallClienteSeniorData: ClienteSeniorData | undefined;
+        let goldSegment: import('../../services/llm/query-planner').ScoutSegment = 'industrial_geral';
         const waterfallGroundingSources: VerifiedSource[] = [];
         const waterfallVerificationStatuses = new Map<string, WebVerificationStatus>();
 
@@ -985,15 +1017,40 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
             const { buildEntityResolutionFromContext, planQueries, executeQueryPlan } =
               await import('../../services/llm/query-planner');
 
+            // 01D.1 (Planejador 2026-08-10): o segmento Gold deve refletir o
+            // CNAE real. A entidade era construída com cnaePrincipal: '' →
+            // Scheffer (SCHEFFER & CIA LTDA, CNAE 0115-6/00) caía em
+            // industrial_geral em vez de agropecuaria. Lookup reutiliza a
+            // fronteira existente fetchCompanyByCnpj (browser-safe, com cache)
+            // SOMENTE na trilha Gold habilitada, ANTES do seam; falha é
+            // fail-soft (cnae vazio → segmento default, não derruba o dossiê).
+            let goldCnaePrincipal = '';
+            if (goldSeamDeps.enabled && sessionCnpjDigits) {
+              const segmentCnpjDigits = normalizeCnpj(sessionCnpjDigits);
+              if (segmentCnpjDigits.length === 14) {
+                try {
+                  const segmentCompanyData = await fetchCompanyByCnpj(segmentCnpjDigits, signal);
+                  goldCnaePrincipal = segmentCompanyData.cnae ?? '';
+                } catch (error) {
+                  scoutDiag.warn('GoldSegment', 'lookup de CNAE falhou — segmento default mantido', {
+                    sessionId,
+                    company: resolvedMegaCompany || null,
+                    error: error instanceof Error ? error.message : String(error),
+                  });
+                }
+              }
+            }
+
             const entity = buildEntityResolutionFromContext({
               cnpj: sessionCnpjDigits,
               razaoSocial: resolvedMegaCompany || void 0,
-              cnaePrincipal: '',
+              cnaePrincipal: goldCnaePrincipal,
               clienteSeniorData: waterfallClienteSeniorData
                 ? { encontrado: true, totalModulos: waterfallClienteSeniorData.totalModulos }
                 : void 0,
               estadoOperacao: [],
             });
+            goldSegment = entity.segmentoInferido;
 
             const callLLM = async (prompt: string): Promise<string> => {
               const { sendMessageToLlm } = await import('../../services/llmService');
@@ -1257,11 +1314,166 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
             removedDuplicateLines: enxuto.removedDuplicateLines,
           });
         }
-        const waterfallFinalText =
+        let waterfallFinalText =
           enxuto.text ||
           finalized.text ||
           accumulatedText ||
           `Dossiê de ${resolvedMegaCompany || 'empresa'} não pôde ser gerado. Tente novamente.`;
+        // BRU-33 — Gold pós-processamento fail-closed: entra DEPOIS do dossiê
+        // final e ANTES do generateContinuityQuestion, para Gold/continuidade/
+        // UI/persistência usarem o mesmo texto. Apenas falhas internas do Gold
+        // caem silenciosamente no dossiê; abort do usuário e erros de
+        // run-control/lease preservam a semântica atual (CANCELLED/FAILED).
+        let goldOutputKind: 'gold_pass' | 'factual_minimal' | 'controlled_unavailable' | undefined;
+        if (goldSeamDeps.enabled && sessionCnpjDigits) {
+          const goldStartedAt = Date.now();
+          scoutDiag.info('GoldSeam', 'gold-start', {
+            sessionId,
+            waterfallRunId,
+            company: normalizedCompany || resolvedMegaCompany,
+            cnpj: sessionCnpjDigits,
+          });
+          try {
+            // Telemetria por etapa (BRU-33, veredito do Planejador 2026-08-09):
+            // cada estágio do pipeline Gold emite seu próprio evento para o
+            // runtime remoto provar onde o Gold parou (compact→compose) sem
+            // depender de console externo. Apenas métricas — nunca conteúdo.
+            let goldRejectionReason: GoldRejectionReason | undefined;
+            let goldRejectionDetail: GoldRejectionDetail | undefined;
+            const enhancedText = await tryEnhanceDossierWithGold({
+              cnpj: sessionCnpjDigits,
+              companyName: normalizedCompany || resolvedMegaCompany,
+              dossierText: waterfallFinalText,
+              segment: goldSegment,
+              deps: goldSeamDeps,
+              signal,
+              onStage: (stage, detail) => {
+                scoutDiag.info('GoldSeam', stage, {
+                  sessionId,
+                  waterfallRunId,
+                  // LOTE GOLD P0 R2-B: identidade do run de lifecycle em todos
+                  // os eventos de fronteira (localização no scout_diagnostics).
+                  dossierRunId: dossierRunId ?? null,
+                  ...(detail ?? {}),
+                });
+                if (stage === 'output-selected' && detail && 'kind' in detail) {
+                  goldOutputKind = (detail as { kind: 'gold_pass' | 'factual_minimal' | 'controlled_unavailable' }).kind;
+                }
+              },
+              onRejected: (reason, detail) => {
+                goldRejectionReason = reason;
+                goldRejectionDetail = detail;
+                if (reason === 'verifier_fail' && detail) {
+                  // BRU-47: serializa codes/codeCounts em strings para o
+                  // console não colapsar Array/Objeto — a próxima execução
+                  // precisa do payload literal (codesJson=[...]).
+                  // LOTE GOLD P0 (TAREFA 4, delta R1): dossierRunId + estágio
+                  // + contagem. SOMENTE code/stage/count são persistidos —
+                  // razões humanas do verifier carregam CNPJ/nomes/frases e
+                  // não atravessam para a telemetria. O evento é persistido
+                  // de forma GARANTIDA (exceção no shouldBufferDiagnostic).
+                  scoutDiag.info('GoldSeam', 'verifier-summary', {
+                    sessionId,
+                    waterfallRunId,
+                    dossierRunId: dossierRunId ?? null,
+                    stage: 'final-verifier',
+                    hardFails: detail.hardFails ?? 0,
+                    codes: detail.codes ?? [],
+                    codeCounts: detail.codeCounts ?? {},
+                    codesJson: JSON.stringify(detail.codes ?? []),
+                    codeCountsJson: JSON.stringify(detail.codeCounts ?? {}),
+                  });
+                }
+              },
+            });
+            const goldDurationMs = Date.now() - goldStartedAt;
+            if (goldOutputKind === 'gold_pass') {
+              scoutDiag.info('GoldSeam', 'gold-elegivel', {
+                sessionId,
+                waterfallRunId,
+                goldChars: enhancedText.length,
+                dossierChars: waterfallFinalText.length,
+                goldDurationMs,
+                company: normalizedCompany || resolvedMegaCompany,
+              });
+              waterfallFinalText = enhancedText;
+            } else if (goldOutputKind === 'factual_minimal') {
+              // BRU-69 (B+): Gold reprovado com Canonical seguro → saída
+              // factual mínima (nunca o dossiê pré-Gold).
+              scoutDiag.info('GoldSeam', 'gold-fallback-factual', {
+                sessionId,
+                waterfallRunId,
+                factualChars: enhancedText.length,
+                dossierChars: waterfallFinalText.length,
+                goldDurationMs,
+                reason: goldRejectionReason ?? 'internal_error',
+                company: normalizedCompany || resolvedMegaCompany,
+              });
+              waterfallFinalText = enhancedText;
+            } else if (goldOutputKind === 'controlled_unavailable') {
+              // BRU-69 (B+): sem Canonical seguro → saída controlada
+              // (fail-closed; nenhum byte do dossiê pré-Gold).
+              scoutDiag.info('GoldSeam', 'gold-controlled-unavailable', {
+                sessionId,
+                waterfallRunId,
+                goldDurationMs,
+                reason: goldRejectionReason ?? 'canonical_null',
+                company: normalizedCompany || resolvedMegaCompany,
+              });
+              waterfallFinalText = enhancedText;
+            } else {
+              scoutDiag.info('GoldSeam', 'gold-rejeitado-fallback', {
+                sessionId,
+                waterfallRunId,
+                goldDurationMs,
+                reason: goldRejectionReason ?? 'internal_fallback',
+                ...(goldRejectionReason === 'verifier_fail' && goldRejectionDetail
+                  ? {
+                      hardFails: goldRejectionDetail.hardFails ?? 0,
+                      codes: goldRejectionDetail.codes ?? [],
+                      codeCounts: goldRejectionDetail.codeCounts ?? {},
+                      // BRU-47: strings serializadas — o console não colapsa.
+                      codesJson: JSON.stringify(goldRejectionDetail.codes ?? []),
+                      codeCountsJson: JSON.stringify(goldRejectionDetail.codeCounts ?? {}),
+                    }
+                  : {}),
+                company: normalizedCompany || resolvedMegaCompany,
+              });
+            }
+          } catch (error) {
+            if (isAbortLikeError(error) || isDossierRunControlError(error)) {
+              scoutDiag.info('GoldSeam', 'gold-abortado', {
+                sessionId,
+                waterfallRunId,
+                goldDurationMs: Date.now() - goldStartedAt,
+                reason: isAbortLikeError(error) ? 'user_abort' : 'run_control',
+              });
+              throw error;
+            }
+            scoutDiag.warn('GoldSeam', 'gold-falha-fallback-dossier', {
+              sessionId,
+              waterfallRunId,
+              goldDurationMs: Date.now() - goldStartedAt,
+              error: error instanceof Error ? error.message : String(error),
+            });
+            // LOTE GOLD P0 (escape B+): exceção EXTERNA ao seam nunca pode
+            // deixar o dossiê pré-Gold ser publicado como saída segura. Aqui
+            // só chegam falhas do call site (sem Canonical seguro em mãos) —
+            // o seam já retorna factual/controlled para falhas internas.
+            // Saída controlada determinística + metadata comercial suprimida.
+            waterfallFinalText = buildControlledUnavailableOutput(
+              normalizedCompany || resolvedMegaCompany || 'empresa',
+              sessionCnpjDigits,
+            );
+            goldOutputKind = 'controlled_unavailable';
+          }
+        }
+        // BRU-69 (B+): política de metadata do output — boundary único.
+        // Em factual_minimal/controlled_unavailable NENHUMA análise comercial
+        // foi aprovada pelo Gold: o bot final (snapshot terminal + UI) não
+        // pode carregar PORTA/score, cliente Senior nem sugestões comerciais.
+        const suppressCommercialMetadata =
+          goldOutputKind === 'factual_minimal' || goldOutputKind === 'controlled_unavailable';
         const hasFallbackVerified =
           Array.from(waterfallVerificationStatuses.values()).some(status => status === 'fallback_verified') ||
           waterfallGroundingSources.some(source => source.verification === 'fallback');
@@ -1397,30 +1609,112 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
           };
         }
 
+        // BRU-62 (P0): terminal commit ANTES da publicação pesada à UI.
+        // Texto final (inclusive Gold/fallback), sugestões e verificação de
+        // geração ativa já estão resolvidos aqui. Se o render pesado seguinte
+        // (updateSessionById + commit React) congelar ou destruir a main thread
+        // (incidente real: Gold FAIL → fallback 44k → freeze → run RUNNING órfão),
+        // o run JÁ precisa estar terminal e o dossiê promovido. A UI abaixo é
+        // puramente publicação; nunca mais chama a RPC terminal (guard por
+        // terminalLeaseReleased).
+        scoutDiag.info('WaterfallLifecycle', 'final_text_ready', {
+          sessionId,
+          waterfallRunId,
+          finalTextLength: waterfallFinalText.length,
+          hasRunLease: Boolean(dossierRunId && dossierLeaseOwner),
+        });
+        if (dossierRunId && dossierLeaseOwner && !terminalLeaseReleased) {
+          const terminalSessionSnapshot: ChatSession = {
+            id: sessionId,
+            title: baseSession?.title ?? (resolvedMegaCompany || normalizedCompany || 'Nova Investigação'),
+            empresaAlvo: baseSession?.empresaAlvo ?? (resolvedMegaCompany || normalizedCompany) ?? null,
+            cnpj: baseSession?.cnpj ?? sessionCnpjDigits ?? null,
+            modoPrincipal: baseSession?.modoPrincipal ?? 'investigacao',
+            scoreOportunidade: suppressCommercialMetadata ? null : baseSession?.scoreOportunidade ?? waterfallScorePorta?.score ?? null,
+            resumoDossie: baseSession?.resumoDossie ?? null,
+            createdAt: baseSession?.createdAt ?? new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            messages: [
+              ...(baseSession?.messages?.filter(m => m.id !== botMessageId) ?? []),
+              {
+                id: botMessageId,
+                sender: Sender.Bot,
+                text: waterfallFinalText,
+                timestamp: new Date(),
+                isThinking: false,
+                scorePorta: suppressCommercialMetadata ? undefined : waterfallScorePorta ?? undefined,
+                clienteSeniorData: suppressCommercialMetadata ? undefined : waterfallClienteSeniorData || undefined,
+                groundingSources: waterfallGroundingSources.length ? waterfallGroundingSources : undefined,
+                webVerificationStatus,
+                groundingUsed:
+                  webVerificationStatus === 'not_applicable'
+                    ? undefined
+                    : webVerificationStatus === 'verified' || webVerificationStatus === 'fallback_verified',
+                suggestions: suppressCommercialMetadata ? undefined : waterfallSuggestions,
+                loadingVariant: undefined,
+                isError: false,
+                errorDetails: undefined,
+              },
+            ],
+          };
+          scoutDiag.info('WaterfallLifecycle', 'before_terminal_commit', { sessionId, waterfallRunId });
+          await assertRunCanContinue('before_terminal_commit');
+          try {
+            await completeDossierRunWithDossier(
+              dossierRunId,
+              dossierLeaseOwner,
+              prepareDossierForPersistence(terminalSessionSnapshot) as unknown as Record<string, unknown>,
+            );
+            terminalLeaseReleased = true;
+            scoutDiag.info('WaterfallLifecycle', 'terminal_commit_ok', { sessionId, waterfallRunId });
+          } catch (error) {
+            // Resultado incerto de rede: a RPC é idempotente. Se o run consultado
+            // está COMPLETED com a session esperada, o commit aconteceu — sucesso.
+            if (await reconcileCompletedPromotion(dossierRunId, sessionId)) {
+              terminalLeaseReleased = true;
+              scoutDiag.info('WaterfallLifecycle', 'terminal_commit_ok', { sessionId, waterfallRunId, reconciled: true });
+            } else {
+              try {
+                await markDossierRunFailed(dossierRunId, dossierLeaseOwner, 'promotion_failed', 'atomic_promotion');
+                terminalLeaseReleased = true;
+              } catch (markError) {
+                scoutDiag.warn('WaterfallLifecycle', 'mark-failed-after-promotion-error', { sessionId, dossierRunId, error: markError instanceof Error ? markError.message : String(markError) });
+              }
+              return { status: 'FAILED', dossierRunId, errorCode: 'promotion_failed', errorStage: 'atomic_promotion', error: error instanceof Error ? error : new Error(String(error)) } satisfies DossierWaterfallResult;
+            }
+          }
+        }
+
         sessionToPersist = null;
         let originalMsgCount = -1;
-        await assertRunCanContinue('before_final_session_update');
+        // BRU-62: depois do terminal commit o run JÁ está COMPLETED no servidor —
+        // os checkpoints de run-control (que exigem status RUNNING) perderam o
+        // sentido e lançariam DossierRunLeaseLostError, abortando a publicação.
+        // Pós-terminal, a publicação à UI é best-effort e não passa por eles.
+        if (!terminalLeaseReleased) {
+          await assertRunCanContinue('before_final_session_update');
+        }
         const updatedSession = updateSessionById(sessionId, session => {
           originalMsgCount = session.messages?.length ?? 0;
           const finalCompany = normalizedCompany || session.empresaAlvo || pickCompanyLabel(session.title);
           const nextSession: ChatSession = {
             ...session,
             empresaAlvo: finalCompany || session.empresaAlvo,
-            scoreOportunidade: waterfallScorePorta?.score ?? session.scoreOportunidade,
+            scoreOportunidade: suppressCommercialMetadata ? null : waterfallScorePorta?.score ?? session.scoreOportunidade,
             messages: session.messages.map(message =>
               message.id === botMessageId
                 ? {
                     ...message,
                     text: waterfallFinalText,
-                    scorePorta: waterfallScorePorta ?? undefined,
-                    clienteSeniorData: waterfallClienteSeniorData || undefined,
+                    scorePorta: suppressCommercialMetadata ? undefined : waterfallScorePorta ?? undefined,
+                    clienteSeniorData: suppressCommercialMetadata ? undefined : waterfallClienteSeniorData || undefined,
                     groundingSources: waterfallGroundingSources.length ? waterfallGroundingSources : undefined,
                     webVerificationStatus,
                     groundingUsed:
                       webVerificationStatus === 'not_applicable'
                         ? undefined
                         : webVerificationStatus === 'verified' || webVerificationStatus === 'fallback_verified',
-                    suggestions: waterfallSuggestions,
+                    suggestions: suppressCommercialMetadata ? undefined : waterfallSuggestions,
                     isThinking: false,
                     loadingVariant: undefined,
                     isError: false,
@@ -1520,21 +1814,21 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
               ...fallbackSession,
               updatedAt: new Date().toISOString(),
               empresaAlvo: finalCompany || fallbackSession.empresaAlvo,
-              scoreOportunidade: waterfallScorePorta?.score ?? fallbackSession.scoreOportunidade,
+              scoreOportunidade: suppressCommercialMetadata ? null : waterfallScorePorta?.score ?? fallbackSession.scoreOportunidade,
               messages: fallbackSession.messages.map(message =>
                 message.id === botMessageId
                   ? {
                       ...message,
                       text: waterfallFinalText,
-                      scorePorta: waterfallScorePorta ?? undefined,
-                      clienteSeniorData: waterfallClienteSeniorData || undefined,
+                      scorePorta: suppressCommercialMetadata ? undefined : waterfallScorePorta ?? undefined,
+                      clienteSeniorData: suppressCommercialMetadata ? undefined : waterfallClienteSeniorData || undefined,
                       groundingSources: waterfallGroundingSources.length ? waterfallGroundingSources : undefined,
                       webVerificationStatus,
                       groundingUsed:
                         webVerificationStatus === 'not_applicable'
                           ? undefined
                           : webVerificationStatus === 'verified' || webVerificationStatus === 'fallback_verified',
-                      suggestions: waterfallSuggestions,
+                      suggestions: suppressCommercialMetadata ? undefined : waterfallSuggestions,
                       isThinking: false,
                       loadingVariant: undefined,
                       isError: false,
@@ -1575,6 +1869,20 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
         }
 
         if (!sessionToPersist) {
+          // BRU-62: se o run já foi terminalizado em final_text_ready (COMPLETED),
+          // a falha de publicação à UI não pode rebaixar o resultado — o dossiê
+          // está persistido e o run terminal. Publicação é best-effort.
+          if (dossierRunId && dossierLeaseOwner && terminalLeaseReleased) {
+            scoutDiag.warn('WaterfallLifecycle', 'ui_publish_failed_run_terminal', {
+              sessionId,
+              waterfallRunId,
+            });
+            return {
+              status: 'COMPLETED',
+              dossierRunId,
+              dossierId: sessionId,
+            } satisfies DossierWaterfallResult;
+          }
           if (dossierRunId && dossierLeaseOwner) {
             try {
               await markDossierRunFailed(dossierRunId, dossierLeaseOwner, 'final_session_unavailable', 'before_save');
@@ -1594,34 +1902,28 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
 
         {
           const dossier = sessionToPersist;
-          await assertRunCanContinueWithRenewal('save_dossier');
-          try { await storage.saveDossierStrict(dossier); }
-          catch (error) {
-            if (dossierRunId && dossierLeaseOwner) {
-              try {
-                await markDossierRunFailed(dossierRunId, dossierLeaseOwner, 'persist_failed', 'save_dossier');
-                terminalLeaseReleased = true;
-              } catch (markError) {
-                scoutDiag.warn('WaterfallLifecycle', 'mark-failed-after-save-error', { sessionId, dossierRunId, error: markError instanceof Error ? markError.message : String(markError) });
-              }
-            }
-            return { status: 'FAILED', dossierRunId, errorCode: 'persist_failed', errorStage: 'save_dossier', error: error instanceof Error ? error : new Error(String(error)) } satisfies DossierWaterfallResult;
-          }
-          await assertRunCanContinueWithRenewal('after_save_dossier_before_complete');
+          // BRU-62 (P0): a promoção atômica já ocorreu em final_text_ready (antes
+          // da publicação à UI). Aqui o run já está terminal quando havia lease —
+          // este bloco é APENAS publicação de UI (persistência clássica apenas no
+          // ambiente sem run/lease). Nunca re-chama a RPC terminal.
           if (dossierRunId && dossierLeaseOwner) {
-            try {
-              await markDossierRunCompleted(dossierRunId, dossierLeaseOwner, dossier.id);
-              terminalLeaseReleased = true;
-            }
+            // Run já terminal (COMPLETED) em final_text_ready; nada mais a persistir.
+            // O snapshot final da UI (sessionToPersist) segue para publicação local.
+            scoutDiag.info('WaterfallLifecycle', 'ui_publish_start', {
+              sessionId,
+              waterfallRunId,
+              terminalLeaseReleased,
+            });
+          } else {
+            // Sem run/lease (ambiente sem lifecycle de run): caminho persistente clássico.
+            await assertRunCanContinueWithRenewal('save_dossier');
+            try { await storage.saveDossierStrict(dossier); }
             catch (error) {
-              try {
-                await markDossierRunFailed(dossierRunId, dossierLeaseOwner, 'lifecycle_completion_failed', 'mark_completed');
-                terminalLeaseReleased = true;
-              } catch (markError) {
-                scoutDiag.warn('WaterfallLifecycle', 'mark-failed-after-completion-error', { sessionId, dossierRunId, error: markError instanceof Error ? markError.message : String(markError) });
-              }
-              return { status: 'FAILED', dossierRunId, errorCode: 'lifecycle_completion_failed', errorStage: 'mark_completed', error: error instanceof Error ? error : new Error(String(error)) } satisfies DossierWaterfallResult;
+              return { status: 'FAILED', dossierRunId, errorCode: 'persist_failed', errorStage: 'save_dossier', error: error instanceof Error ? error : new Error(String(error)) } satisfies DossierWaterfallResult;
             }
+          }
+          if (dossierRunId && dossierLeaseOwner) {
+            scoutDiag.info('WaterfallLifecycle', 'ui_publish_done', { sessionId, waterfallRunId });
           }
           completedDossierId = dossier.id;
           window.dispatchEvent(new CustomEvent('dossier:completed', { detail: { dossierId: dossier.id, companyName: resolvedMegaCompany || normalizedCompany || '', cnpj: dossier.cnpj } }));
@@ -1645,6 +1947,21 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
           return { status: 'CANCELLED', dossierRunId, terminalPersisted: false, reason: 'local_abort' };
         }
         const normalized = error instanceof Error ? error : new Error(String(error));
+        // BRU-62: se o terminal commit já ocorreu (run COMPLETED), um erro
+        // posterior na fase de publicação/render não pode rebaixar o resultado —
+        // o dossiê está persistido e o run terminal. Publicação é best-effort.
+        if (terminalLeaseReleased) {
+          scoutDiag.warn('WaterfallLifecycle', 'ui_publish_failed_run_terminal', {
+            sessionId,
+            waterfallRunId,
+            error: normalized.message,
+          });
+          return {
+            status: 'COMPLETED',
+            dossierRunId,
+            dossierId: sessionId,
+          } satisfies DossierWaterfallResult;
+        }
         if (dossierRunId && dossierLeaseOwner) {
           try {
             await markDossierRunFailed(dossierRunId, dossierLeaseOwner, 'waterfall_failed', currentLifecycleStage);

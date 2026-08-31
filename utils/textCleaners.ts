@@ -3,6 +3,13 @@
  * VERSÃO CONSOLIDADA: Remove duplicações com linkFixer.ts
  */
 
+// BRU-109 DECISÃO 3 (C): os PATTERNS de leak vêm do módulo canônico
+// compartilhado (utils/leakShieldPolicy.ts) — api/llm.ts (serverless) e este
+// cliente usam a mesma definição. As AÇÕES continuam específicas da boundary:
+// este módulo mantém o fingerprint, o strip com SENSITIVE_INTERNAL_PATTERNS e
+// o allowlist da PORTA; o serverless preserva o comportamento JSON-safe.
+import { detectPromptLeakIndicators as detectCanonicalPromptLeakIndicators } from './leakShieldPolicy';
+
 /**
  * Remove formatação Markdown básica de uma string para exibição em texto puro.
  */
@@ -13,7 +20,7 @@ export function stripMarkdown(text: string): string {
     .replace(/^#+\s+/gm, '')
     .replace(/(\*\*|__)(.*?)\1/g, '$2')
     .replace(/(\*|_)(.*?)\1/g, '$2')
-    .replace(/\[([^\]]+)\]\((?:https?:\/\/(?:[^\s()]+|\([^\s()]*\))+|[^)]+)\)/g, '$1')
+    .replace(/\[([^\]]+)\]\((?:https?:\/\/[^\s()]+(?:\([^\s()]*\)[^\s()]*)*|[^)]+)\)/g, '$1')
     .replace(/`([^`]+)`/g, '$1')
     .replace(/^>\s+/gm, '')
     .trim();
@@ -28,7 +35,7 @@ export function cleanTitle(title: string | null | undefined): string {
     .replace(/\*\*/g, '')
     .replace(/\*/g, '')
     .replace(/^#+\s*/g, '')
-    .replace(/\[([^\]]+)\]\((?:https?:\/\/(?:[^\s()]+|\([^\s()]*\))+|[^)]+)\)/g, '$1')
+    .replace(/\[([^\]]+)\]\((?:https?:\/\/[^\s()]+(?:\([^\s()]*\)[^\s()]*)*|[^)]+)\)/g, '$1')
     .replace(/`/g, '')
     .replace(/\s+/g, ' ')
     .trim();
@@ -98,26 +105,6 @@ const SENSITIVE_INTERNAL_PATTERNS: RegExp[] = [
   /\[\[\s*competitor/i,
 ];
 
-const HARD_PROMPT_LEAK_PATTERNS: Array<{ id: string; regex: RegExp }> = [
-  { id: 'internal_markers', regex: INTERNAL_MARKER_TEST_REGEX },
-  { id: 'internal_marker_tail', regex: INTERNAL_MARKER_OPEN_TAIL_REGEX },
-  { id: 'investigacao_integrada', regex: /investigacao_completa_integrada/i },
-  { id: 'forense_protocol', regex: /protocolo de investiga[çc][aã]o forense/i },
-  { id: 'system_urgente', regex: /urgente:\s*ignore\s+metadiscuss[õo]es/i },
-  { id: 'absolute_mission', regex: /sua miss[aã]o absoluta/i },
-  { id: 'dont_discuss_internal', regex: /n[aã]o discuta o funcionamento interno do modelo/i },
-  { id: 'contexto_cadastral', regex: /contexto cadastral obrigat[oó]rio/i },
-  { id: 'nota_de_escopo', regex: /nota de escopo:\s*este m[óo]dulo/i },
-  { id: 'aviso_metodologico', regex: /aviso metodol[óo]gico:\s*(este m[óo]dulo|este dossi[eê]|esta an[áa]lise)/i },
-];
-
-const SOFT_PROMPT_LEAK_PATTERNS: Array<{ id: string; regex: RegExp }> = [
-  { id: 'urgente_dossie', regex: /urgente:.*dossi[eê]\s+de\s+agroneg[oó]cio/i },
-  { id: 'score_porta_cnpj', regex: /score porta.*preciso.*cnpj/i },
-  { id: 'protocolos_combinados', regex: /execute um dossi[eê] completo combinando os protocolos/i },
-  { id: 'priorize_objetividade_fontes', regex: /priorize objetividade.*fontes audit[aá]veis/i },
-];
-
 export interface PromptLeakDetection {
   detected: boolean;
   indicators: string[];
@@ -155,14 +142,14 @@ export function detectPromptLeakIndicators(text: string): PromptLeakDetection {
     return { detected: false, indicators: [], fingerprint: null };
   }
 
-  const hardHits = HARD_PROMPT_LEAK_PATTERNS.filter(pattern => pattern.regex.test(sample)).map(pattern => pattern.id);
-  const softHits = SOFT_PROMPT_LEAK_PATTERNS.filter(pattern => pattern.regex.test(sample)).map(pattern => pattern.id);
-  const detected = hardHits.length > 0 || softHits.length >= 2;
+  // BRU-109 (C): detecção via módulo canônico compartilhado; o fingerprint é
+  // ação específica desta boundary (auditoria de duplicatas no cliente).
+  const { detected, indicators } = detectCanonicalPromptLeakIndicators(sample);
   const fingerprint = detected ? hashTextFNV1a(normalizeForFingerprint(sample)) : null;
 
   return {
     detected,
-    indicators: [...hardHits, ...softHits],
+    indicators,
     fingerprint,
   };
 }
@@ -191,13 +178,73 @@ export function stripInternalMarkers(text: string): string {
     .trim();
 }
 
+/**
+ * BRU-99 — allowlist estrita de markers internos legítimos (Reconciliação PORTA).
+ *
+ * O shield genérico bloqueia o caminho marker-only legítimo: `stripInternalMarkers`
+ * esvazia a resposta composta somente por markers, o sample volta ao texto bruto
+ * e o detector classifica o próprio marker esperado como leak (falso positivo
+ * determinístico). Este contrato permite SOMENTE markers `[[<prefix>_<DIM>:...]]`
+ * com prefixo e dimensão autorizados, sem relaxar o shield global — qualquer
+ * outro conteúdo (marker de outro tipo, texto de prompt, marker malformado ou
+ * conteúdo misto) continua sujeito à detecção normal.
+ */
+export interface InternalMarkerAllowlist {
+  prefix: string;
+  dimensions: string[];
+}
+
+export function isOnlyAllowedInternalMarkers(raw: string, allowlist: InternalMarkerAllowlist): boolean {
+  const lines = raw
+    .split(/\r?\n/)
+    .map(line => line.trim())
+    .filter(Boolean);
+  if (lines.length === 0) return false;
+
+  const dimensions = new Set(allowlist.dimensions);
+  const prefix = allowlist.prefix;
+
+  for (const line of lines) {
+    const match = /^\[\[([A-Z_]+):(.+)\]\]$/.exec(line);
+    if (!match) return false;
+    const name = match[1];
+    const body = match[2];
+    if (!name.startsWith(`${prefix}_`)) return false;
+    const dimension = name.slice(prefix.length + 1);
+    if (!dimensions.has(dimension)) return false;
+    if (!body || body.trim() === '') return false;
+  }
+  return true;
+}
+
 export function applyPromptLeakShield(
   text: string,
-  options: { companyHint?: string; fallbackText?: string; preserveInternalMarkersWhenSafe?: boolean } = {},
+  options: {
+    companyHint?: string;
+    fallbackText?: string;
+    preserveInternalMarkersWhenSafe?: boolean;
+    internalMarkerAllowlist?: InternalMarkerAllowlist;
+  } = {},
 ): PromptLeakShieldResult {
   const raw = (text || '').trim();
   const cleaned = stripInternalMarkers(raw);
   const sample = cleaned || raw;
+
+  // BRU-99: contrato explícito para caminhos marker-only legítimos (ex:
+  // Reconciliação PORTA). Se o texto após strip está vazio E o raw é composto
+  // SOMENTE por markers da allowlist (prefixo + dimensão autorizados), NÃO é
+  // leak — preserva o raw. Qualquer outro conteúdo segue a detecção normal.
+  const allowlist = options.internalMarkerAllowlist;
+  if (allowlist && cleaned === '' && isOnlyAllowedInternalMarkers(raw, allowlist)) {
+    return {
+      text: raw,
+      blocked: false,
+      detected: false,
+      indicators: [],
+      fingerprint: null,
+    };
+  }
+
   const detection = detectPromptLeakIndicators(sample);
 
   if (!detection.detected) {
@@ -275,7 +322,7 @@ export function extractSources(text: string): SourceRef[] {
     /\[\^(\d+)\]:\s*(https?:\/\/\S+)\s*[-–—]?\s*(.*)?$/,
     /^[¹²³⁴⁵⁶⁷⁸⁹⁰]+\s*(https?:\/\/\S+)\s*[-–—]?\s*(.*)?$/,
     /^(\d+)\.\s+(.*?)(?:\s*[-–—]\s*)?(https?:\/\/\S+)?$/,
-    /\[([^\]]+)\]\((https?:\/\/(?:[^\s()]+|\([^\s()]*\))+)\)/,
+    /\[([^\]]+)\]\((https?:\/\/[^\s()]+(?:\([^\s()]*\)[^\s()]*)*)\)/,
   ];
 
   let inSourcesBlock = false;
@@ -345,7 +392,7 @@ export function extractAllLinksFromMarkdown(text: string): SourceRef[] {
   const links: SourceRef[] = [];
   if (!text) return links;
 
-  const linkRegex = /\[([^\]]+)\]\((https?:\/\/(?:[^\s()]+|\([^\s()]*\))+)\)/g;
+  const linkRegex = /\[([^\]]+)\]\((https?:\/\/[^\s()]+(?:\([^\s()]*\)[^\s()]*)*)\)/g;
   let match;
   let id = 1;
 
@@ -361,7 +408,7 @@ export function extractAllLinksFromMarkdown(text: string): SourceRef[] {
   return links;
 }
 
-const MARKDOWN_LINK_REGEX = /\[([^\]]+)\]\((https?:\/\/(?:[^\s()]+|\([^\s()]*\))+)\)/gi;
+const MARKDOWN_LINK_REGEX = /\[([^\]]+)\]\((https?:\/\/[^\s()]+(?:\([^\s()]*\)[^\s()]*)*)\)/gi;
 
 export function normalizeSourceUrl(url: string): string {
   const raw = (url || '').trim();

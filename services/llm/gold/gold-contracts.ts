@@ -154,6 +154,8 @@ export const SANITIZER_EVENT_CODES = [
   'CANONICAL_DUPLICATE',
   'ENTITY_CONFLICT',
   'CPF_LEAK',
+  'STATUS_PROMOTION',
+  'CLAIM_LEXICAL_PROMOTION',
 ] as const;
 export const sanitizerEventCodeSchema = z.enum(SANITIZER_EVENT_CODES);
 export type SanitizerEventCode = z.infer<typeof sanitizerEventCodeSchema>;

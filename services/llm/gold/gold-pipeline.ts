@@ -20,6 +20,12 @@ import {
 import { normalizeCnpj, resolveCanonicalRelations } from './canonical-relation-resolver';
 import { sanitizeFindingPack } from './finding-sanitizer';
 import { verifyGold, type GoldVerificationResult } from './entity-aware-gold-verifier';
+import { compactErrorStageDetail } from './compact-error';
+import { buildGoldArtifact, type GoldArtifactManifest } from './mermaid/mermaid-deterministic';
+import { validateGoldNarrative } from './gold-contract-validator';
+import { matchesSensitiveTheme, matchesSafeKnowledgeNegation, neutralizeConfirmedVocabularyInText, normalizeDiscoveryQuestion } from './gold-policy';
+import { sanitizeGoldScaffolding } from './gold-scaffolding-sanitizer';
+import type { ScoutSegment } from '../query-planner';
 
 export interface CompactInput {
   canonical: CanonicalAccount;
@@ -28,13 +34,44 @@ export interface CompactInput {
 
 export interface ComposeInput {
   canonical: CanonicalAccount;
+  /** Segmento operacional compartilhado pelo planner, quando disponível. */
+  segment?: ScoutSegment;
   /** Somente conteúdo seguro — nunca contém originalPack nem discardedClaims. */
   safePack: FrontierPack;
 }
 
 export interface GoldPipelineDeps {
-  compact: (input: CompactInput) => Promise<RawFindingPack>;
-  compose: (input: ComposeInput) => Promise<string>;
+  /** Retorna o pack parseado OU o outcome com metadados da resposta crua
+   * (adapter real); mocks podem devolver só o pack (normalizado no pipeline). */
+  compact: (input: CompactInput, signal?: AbortSignal) => Promise<RawFindingPack | CompactOutcome>;
+  compose: (input: ComposeInput, signal?: AbortSignal) => Promise<string>;
+}
+
+/**
+ * BRU-109 DECISÃO 1 (A) — resultado do compact com metadados da resposta CRUA
+ * (não do pack parseado). O pipeline emite compact-response com estes campos
+ * para a série PASS/FAIL ser comparável (responseChars/finishReason/
+ * hasObjectBoundary) — discriminando vazio × prosa × truncado × JSON inválido.
+ */
+export interface CompactOutcome {
+  pack: RawFindingPack;
+  /** Comprimento da resposta crua (text) do LLM. */
+  responseChars: number;
+  /** finishReason devolvido pelo /api/llm (truncamento vs desobediência). */
+  finishReason: string | null;
+  /** Presença de `{` e `}` na resposta crua. */
+  hasObjectBoundary: boolean;
+}
+
+/** Helper de contrato para mocks: compact válido com metadados neutros. */
+export function compactOk(pack: RawFindingPack, overrides: Partial<Omit<CompactOutcome, 'pack'>> = {}): CompactOutcome {
+  return { pack, responseChars: 0, finishReason: null, hasObjectBoundary: false, ...overrides };
+}
+
+/** Normaliza RawFindingPack | CompactOutcome → CompactOutcome (mocks antigos). */
+export function toCompactOutcome(result: RawFindingPack | CompactOutcome): CompactOutcome {
+  if (result && typeof result === 'object' && 'pack' in result) return result as CompactOutcome;
+  return compactOk(result as RawFindingPack);
 }
 
 export interface GuardedGoldPipelineResult {
@@ -42,22 +79,295 @@ export interface GuardedGoldPipelineResult {
   safePack: SafeFindingPack;
   sanitizerEvents: SanitizerEvent[];
   verification: GoldVerificationResult;
+  /** ARCH-C (BRU-112): manifest do artifact determinístico (metadados, sem conteúdo). */
+  artifactManifest?: GoldArtifactManifest;
+  /** ARCH-C (BRU-112): resultado do Narrative Contract (pré-builder). */
+  narrativeContract?: {
+    passed: boolean;
+    violations: string[];
+    wordCount: number;
+    actionFormats: { named: number; tableRows: number; numbered: number };
+  };
+}
+
+/**
+ * BRU-48 — Guard estreito de vocabulário de certeza no Gold (correção na
+ * fonte, verifier INTACTO). O Composer escapa do contrato e escreve
+ * "confirmada/confirmado" para temas sensíveis (Colômbia/Cumaribo/
+ * internacional/holding/controle). Decisão do Planejador 2026-08-11
+ * (conservadora): NÃO autorizar "confirmada/o" por similaridade temática —
+ * um fato Confirmado sobre exportação para a Colômbia NÃO autoriza
+ * "Operação industrial confirmada em Cumaribo". Nos temas sensíveis, o
+ * guard SEMPRE rebaixa o vocabulário para "mencionada/mencionado",
+ * preservando a informação e removendo apenas a palavra de certeza.
+ * Se o produto precisar preservar "confirmada/o", o caminho será matcher
+ * estruturado (mesma entidade + categoria + direção) — não palavra
+ * compartilhada.
+ */
+/**
+ * LOTE GOLD P0 (RED C) + BRU-103: a negação que protege a certeza é a MESMA
+ * que o verifier reconhece como segura (matchesSafeKnowledgeNegation —
+ * gold-policy). O padrão antigo (qualquer "não") pulava a neutralização em
+ * "confirmada, mas não há registro em Cumaribo", que o verifier acusa →
+ * PROMOTED residual → fail-closed (BRU-102). Alinhado à fonte canônica.
+ */
+
+/**
+ * BRU44-GOLD-COMPOSER-PREFLIGHT-PRUNE-01 — preflight determinístico da saída
+ * do Composer. Reusa o verifyGold como fonte ÚNICA da política semântica
+ * (não duplica regex nem regras). Remove linhas cujos únicos hard fails
+ * pertencem às três famílias-alvo do Patch B; linhas com qualquer outro hard
+ * fail não são tocadas (anti-mascaramento). PROMOTED_CLAIM é tratado pelo
+ * guard BRU-48 final e não causa remoção aqui.
+ */
+const PREFLIGHT_TARGET_CODES = new Set([
+  'NEGATIVE_EVIDENCE_AS_ABSENCE',
+  'NEGATIVE_EVIDENCE_AS_GAP',
+  'ABSENCE_DERIVED_WEAKNESS',
+  'UNSUPPORTED_PRODUCT_CLAIM',
+]);
+
+export function composerSemanticPreflight(
+  gold: string,
+  canonical: CanonicalAccount,
+  safePack: SafeFindingPack,
+): string {
+  return gold
+    .split('\n')
+    .map((line) => {
+      if (!line.trim()) return line;
+      const codes = verifyGold(line, canonical, safePack).hardFails.map((h) => h.code);
+      const hasTarget = codes.some((c) => PREFLIGHT_TARGET_CODES.has(c));
+      if (!hasTarget) return line;
+      const hasNonTarget = codes.some((c) => !PREFLIGHT_TARGET_CODES.has(c) && c !== 'PROMOTED_CLAIM');
+      return hasNonTarget ? line : '';
+    })
+    .join('\n');
+}
+
+/** CNPJ formatado (mesma regex usada pelo verifier para proteger antes do split). */
+const CNPJ_PATTERN = /\b\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}\b/g;
+
+/**
+ * RCA-02 — representação TEXTUAL do Frontier para o probe pré-Composer.
+ * O Composer consome o FrontierPack serializado; o probe reúne apenas os
+ * VALORES textuais semanticamente avaliáveis (frases de claims, sinais,
+ * perguntas abertas, evidências de relação, métricas, conflitos e claims
+ * reescritas pelo sanitizer) — uma linha por item. Nomes de campos e
+ * estrutura JSON ficam FORA (não fabricam semântica); people fica fora
+ * (papel sem frase não carrega material das famílias-alvo e nomes de
+ * pessoas não atravessam nem o probe).
+ *
+ * RCA-03 (QUESTION MODALITY): cada linha passa por normalizeDiscoveryQuestion
+ * (guard de interrogativa) — perguntas de discovery NÃO podem virar claims
+ * declarativas quando o verifier perde o "?" na segmentação; afirmações não
+ * são tocadas e continuam sujeitas ao verifier.
+ */
+export function buildFrontierProbeText(frontier: FrontierPack): string {
+  const lines: string[] = [];
+  for (const fact of frontier.facts ?? []) {
+    if (fact.claim?.trim()) lines.push(normalizeDiscoveryQuestion(fact.claim));
+  }
+  for (const signal of frontier.technologySignals ?? []) {
+    if (signal.observedFact?.trim()) lines.push(normalizeDiscoveryQuestion(signal.observedFact));
+    if (signal.validationQuestion?.trim()) lines.push(normalizeDiscoveryQuestion(signal.validationQuestion));
+    if (signal.whatIsNotKnown?.trim()) lines.push(normalizeDiscoveryQuestion(signal.whatIsNotKnown));
+  }
+  for (const question of frontier.openQuestions ?? []) {
+    if (question.trim()) lines.push(normalizeDiscoveryQuestion(question));
+  }
+  for (const relationship of frontier.relationships ?? []) {
+    if (relationship.evidence?.trim()) lines.push(normalizeDiscoveryQuestion(relationship.evidence));
+  }
+  for (const metric of frontier.metrics ?? []) {
+    const value = [metric.metric, metric.value].filter((part) => part?.trim()).join(': ');
+    if (value.trim()) lines.push(normalizeDiscoveryQuestion(value));
+  }
+  for (const conflict of frontier.conflicts ?? []) {
+    if (conflict.trim()) lines.push(normalizeDiscoveryQuestion(conflict));
+  }
+  for (const event of frontier.sanitizerEvents ?? []) {
+    if (event.after?.trim()) lines.push(normalizeDiscoveryQuestion(event.after));
+  }
+  return lines.join('\n');
+}
+
+export function downgradeUnsupportedCertainty(gold: string): string {
+  // PATCH-C — protege CNPJs formatados (contêm pontos) ANTES de segmentar:
+  // o ponto dentro de 04.733.767/0001-80 não pode separar tema sensível de
+  // vocabulário de certeza (mesma semântica de sentença do verifier).
+  const placeholders: string[] = [];
+  const protectedGold = gold.replace(CNPJ_PATTERN, (m) => {
+    placeholders.push(m);
+    return `__CNPJ${placeholders.length - 1}__`;
+  });
+  const downgraded = protectedGold
+    .split(/([.;!?\n]+)/)
+    .map((part, index) => {
+      // Partes ímpares são os separadores — preservados intactos.
+      if (index % 2 === 1) return part;
+      if (!matchesSensitiveTheme(part)) return part;
+      if (matchesSafeKnowledgeNegation(part)) return part;
+      // I7: transformação canônica completa (gold-policy) — equivalente ao
+      // detector (confirmado/confirmada/confirmados/confirmadas/
+      // confirmadamente). O replacement parcial antigo deixava
+      // "confirmadamente" atravessar (gap apontado pelo Planejador).
+      //
+      // BRU-108 (5): neutralizeConfirmedVocabularyInText termina em .trim(),
+      // o que removia o espaço inicial do fragmento pós-ponto transformado
+      // ("verticalizado. A operação confirmada" → "verticalizado.A operação
+      // mencionada"). Preserva o whitespace de borda do fragmento original.
+      const leading = part.match(/^\s+/)?.[0] ?? '';
+      const trailing = part.match(/\s+$/)?.[0] ?? '';
+      return leading + neutralizeConfirmedVocabularyInText(part) + trailing;
+    })
+    .join('');
+  return downgraded.replace(/__CNPJ(\d+)__/g, (_, i) => placeholders[Number(i)]);
+}
+
+/**
+ * BRU-33 — Telemetria por etapa do pipeline (sem conteúdo sensível).
+ * Permite ao runtime remoto provar QUAL etapa falhou entre compact e compose
+ * (veredito do Planejador 2026-08-09: o reason único "verifier_ou_contract_fail"
+ * é enganoso). Cada evento carrega apenas métricas (chars/counts/path de issue)
+ * e mensagens curtas — nunca o conteúdo do dossiê/Gold nem nomes de pessoas.
+ */
+export type GoldStage =
+  | 'compact-start'
+  | 'compact-response'
+  | 'compact-error'
+  | 'raw-schema-ok'
+  | 'raw-schema-fail'
+  | 'sanitize-done'
+  | 'frontier-schema-ok'
+  | 'frontier-schema-fail'
+  | 'compose-start'
+  | 'compose-done'
+  | 'scaffold-done'
+  | 'mermaid-inject'
+  | 'verifier-done'
+  // LOTE GOLD P0 R2-B — fronteiras estruturais de diagnóstico (telemetria
+  // pura: hardFails/codes/codeCounts; nunca reason/claim/conteúdo).
+  | 'diagnostics-pre-compose'
+  | 'diagnostics-post-preflight'
+  | 'i7-fail-closed'
+  | 'diagnostics-post-mermaid'
+  | 'diagnostics-post-certainty'
+  // Emitidos pelo seam (fora do pipeline): cadastro canônico e contrato.
+  | 'canonical-done'
+  | 'contract-done'
+  // ARCH-C (BRU-112): Narrative Gate (pré-builder) e Artifact Gate (pós-builder).
+  | 'narrative-contract-done'
+  | 'artifact-done'
+  // BRU-118 (P1 scaffolding leak): stage do gate residual de scaffolding no seam.
+  | 'scaffold-gate'
+  // BRU-69 (B+): tipo de saída final selecionada pelo seam.
+  | 'output-selected';
+
+export interface GoldStageDetail {
+  chars?: number;
+  issues?: number;
+  firstIssuePath?: string;
+  events?: number;
+  hardFails?: number;
+  /** Códigos dos hard fails do verifier (diagnóstico runtime, PACK_FORENSIC_REPLAY). */
+  codes?: string[];
+  /** Contagem por código, sem frases ou claims do Gold. */
+  codeCounts?: Record<string, number>;
+  resolved?: boolean;
+  passed?: boolean;
+  detail?: string;
+  /** BRU-69 (B+): kind da saída final (gold_pass | factual_minimal | controlled_unavailable). */
+  kind?: 'gold_pass' | 'factual_minimal' | 'controlled_unavailable';
+  /** BRU-69 (B+): razão da rejeição quando a saída não é gold_pass. */
+  reason?: string;
+  /** BRU-103 (RCA-07): result estrutural do contract (sem detail de texto). */
+  violations?: string[];
+  wordCount?: number;
+  /** BRU-103: assinatura estrutural das ações da seção 9 (somente contagens). */
+  actionFormats?: { named: number; tableRows: number; numbered: number };
+  /** ARCH-C (BRU-112): componentes esperados ausentes no artifact (fail-closed). */
+  missingComponents?: string[];
+  /** ARCH-C (BRU-112): componentes efetivamente emitidos pelo builder. */
+  componentsEmitted?: string[];
+  /** ARCH-C (BRU-112): contagem de blocos Mermaid por tipo no artifact. */
+  mermaidByType?: Record<string, number>;
+  /** ARCH-C (BRU-112): tabela de elos emitida no artifact. */
+  valueChainTableEmitted?: boolean;
+  /** BRU-109 (A): classe do erro do compact (estrutural, sem texto livre). */
+  errorClass?: string;
+  /** BRU-109 (A): comprimento da resposta crua do LLM (compact). */
+  responseChars?: number;
+  /** BRU-109 (A): finishReason devolvido pelo /api/llm. */
+  finishReason?: string | null;
+  /** BRU-109 (A): presença de `{` e `}` na resposta crua do compact. */
+  hasObjectBoundary?: boolean;
+  /** BRU-118: contagens do sanitizador de scaffolding (headings removidos / enums humanizados). */
+  scaffoldRemoved?: number;
+  scaffoldHumanized?: number;
+  /** BRU-118: quantidade de residuais de scaffolding detectados no artefato final. */
+  residual?: number;
+}
+
+export type GoldStageHandler = (stage: GoldStage, detail?: GoldStageDetail) => void;
+
+/**
+ * LOTE GOLD P0 R2-B — resumo estrutural de uma fronteira do verifier para
+ * TELEMETRIA: somente contagem e códigos, sem reason/claim/conteúdo.
+ */
+function frontierSummary(verification: GoldVerificationResult): GoldStageDetail {
+  const codes = verification.hardFails.map((hardFail) => hardFail.code);
+  const codeCounts = codes.reduce<Record<string, number>>((counts, code) => {
+    counts[code] = (counts[code] ?? 0) + 1;
+    return counts;
+  }, {});
+  return { hardFails: verification.hardFails.length, codes, codeCounts };
 }
 
 export async function runGuardedGoldPipeline(
-  input: { canonical: CanonicalAccount; dossier: string },
+  input: { canonical: CanonicalAccount; dossier: string; segment?: ScoutSegment },
   deps: GoldPipelineDeps,
+  signal?: AbortSignal,
+  onStage?: GoldStageHandler,
 ): Promise<GuardedGoldPipelineResult> {
   // 1) Compact → parse (fail-closed antes do sanitizer).
-  const compactOutput = await deps.compact({
-    canonical: input.canonical,
-    dossier: input.dossier,
+  onStage?.('compact-start', { chars: input.dossier.length });
+  let compactOutcome: CompactOutcome;
+  try {
+    compactOutcome = toCompactOutcome(
+      await deps.compact(
+        {
+          canonical: input.canonical,
+          dossier: input.dossier,
+        },
+        signal,
+      ),
+    );
+  } catch (error) {
+    // BRU-109 DECISÃO 1 (A): compact-error estruturado — somente errorClass +
+    // métricas da resposta crua (nunca texto livre / error.message arbitrário).
+    onStage?.('compact-error', compactErrorStageDetail(error));
+    throw error;
+  }
+  // compact-response mede a resposta CRUA que passou (não o pack parseado) —
+  // mesma série de métricas do compact-error, para PASS/FAIL serem comparáveis.
+  onStage?.('compact-response', {
+    responseChars: compactOutcome.responseChars,
+    finishReason: compactOutcome.finishReason ?? null,
+    hasObjectBoundary: compactOutcome.hasObjectBoundary,
   });
-  const parsed = rawFindingPackSchema.safeParse(compactOutput);
+
+  const parsed = rawFindingPackSchema.safeParse(compactOutcome.pack);
   if (!parsed.success) {
+    onStage?.('raw-schema-fail', {
+      issues: parsed.error.issues.length,
+      firstIssuePath: parsed.error.issues[0]?.path.join('.') ?? '?',
+      detail: parsed.error.issues[0]?.message ?? 'JSON inválido',
+    });
     const detail = parsed.error.issues[0]?.message ?? 'JSON inválido';
     throw new Error(`RawFindingPack fora do schema (fail-closed): ${detail}`);
   }
+  onStage?.('raw-schema-ok');
   const raw: RawFindingPack = parsed.data;
 
   // 2) Resolve relations — precedência canônica reclassifica as relações do pack.
@@ -79,22 +389,152 @@ export async function runGuardedGoldPipeline(
 
   // 3) Sanitize — Raw → Safe (marca sanitized: true).
   const safePack = sanitizeFindingPack({ ...raw, relationships }, input.canonical);
+  onStage?.('sanitize-done', { events: safePack.sanitizerEvents.length });
 
   // 4) Compose — o frontier recebe SOMENTE conteúdo seguro: SafeFindingPack
   //    SEM originalPack, SEM discardedClaims e SEM o texto bruto dos eventos
   //    (sanitizerEvents sem `before` — a claim removida não atravessa).
   const { originalPack: _originalPack, discardedClaims: _discardedClaims, sanitizerEvents, ...frontierRest } = safePack;
   const frontierEvents = sanitizerEvents.map(({ before: _before, ...event }) => event);
-  const frontierInput = frontierPackSchema.parse({ ...frontierRest, sanitizerEvents: frontierEvents });
-  const goldBrief = await deps.compose({ canonical: input.canonical, safePack: frontierInput });
+  let frontierInput: FrontierPack;
+  try {
+    frontierInput = frontierPackSchema.parse({ ...frontierRest, sanitizerEvents: frontierEvents });
+  } catch (error) {
+    const issues = (error as { issues?: Array<{ path?: PropertyKey[]; message?: string }> }).issues;
+    onStage?.('frontier-schema-fail', {
+      issues: issues?.length,
+      firstIssuePath: issues?.[0]?.path?.join('.') ?? '?',
+      detail: issues?.[0]?.message ?? 'FrontierPack fora do schema',
+    });
+    throw error;
+  }
+  onStage?.('frontier-schema-ok');
+  // RCA-02 — fronteira discriminante PRÉ-COMPOSER (observabilidade pura):
+  // mede o conteúdo TEXTUAL do Frontier (o mesmo material consumido pelo
+  // Composer) com o verifyGold — fonte única da política semântica. Permite
+  // atribuir PROMOTED_CLAIM/RELATIONSHIP_INVERTED a H1 (a entrada segura já
+  // carrega o material) ou H2 (nasce no texto do Composer). Telemetria
+  // estrutural apenas (frontierSummary); o probe não altera goldBrief,
+  // safePack, verifier nem a decisão final.
+  const preComposeVerification = verifyGold(buildFrontierProbeText(frontierInput), input.canonical, safePack);
+  onStage?.('diagnostics-pre-compose', frontierSummary(preComposeVerification));
+  onStage?.('compose-start', { chars: JSON.stringify(frontierInput).length });
+  const goldBrief = await deps.compose({ canonical: input.canonical, safePack: frontierInput, segment: input.segment }, signal);
+  onStage?.('compose-done', { chars: goldBrief.length });
 
-  // 5) Verify — barreira final sobre o Gold.
-  const verification = verifyGold(goldBrief, input.canonical, safePack);
+  // 4b) Composer semantic preflight (BRU44-GOLD-COMPOSER-PREFLIGHT-PRUNE-01):
+  // remove linhas do Composer cujos únicos hard fails são as três famílias
+  // do Patch B (negação de posse, fraqueza sem proveniência, claim sem
+  // suporte). Reusa o verifyGold — não replica política semântica.
+  const goldPruned = composerSemanticPreflight(goldBrief, input.canonical, safePack);
+  // I7 (POST-COMPOSER CLEAN BOUNDARY — despacho do Planejador 2026-08-14):
+  // a saída do Composer é uma trust boundary explícita — NENHUM
+  // PROMOTED_CLAIM fabricado pelo Composer pode atravessar. O guard de
+  // certeza roda ANTES do Mermaid (e antes da fronteira post-preflight);
+  // o downgrade final pós-Mermaid permanece como defesa em profundidade.
+  const goldClean = downgradeUnsupportedCertainty(goldPruned);
+  // BRU-118 (P1 scaffolding leak — fail-closed): a saída do Composer pode
+  // ecoar meta-rótulos/enums técnicos ensinados no prompt ("(Conteúdo para o
+  // Builder)", "(Operações Confirmadas)", same_root/direct_pj_relation/
+  // partner_other_cnpj). O sanitizador DETERMINÍSTICO estreito remove apenas
+  // headings internos conhecidos e humaniza enums conhecidos, preservando
+  // fatos/tabelas abaixo. Roda ANTES do post-preflight/narrative/builder para
+  // que o texto verificado e o texto entregue sejam o mesmo (equivalência
+  // texto-verificado × texto-entregue). O residual ambíguo/desconhecido NÃO é
+  // apagado aqui: o seam decide fail-closed por scaffold_fail.
+  const scaffolded = sanitizeGoldScaffolding(goldClean);
+  const goldScaffoldClean = scaffolded.text;
+  onStage?.('scaffold-done', {
+    scaffoldRemoved: scaffolded.removed.scaffoldHeadings,
+    scaffoldHumanized: scaffolded.removed.humanizedEnums,
+  });
+  // LOTE GOLD P0 R2-B — diagnóstico estrutural de fronteira (SEM mudança
+  // semântica): o verifyGold roda aqui apenas para TELEMETRIA — codes/counts
+  // por fronteira, sem reason/claim/conteúdo. Permite localizar onde um hard
+  // fail nasce/sobrevive sem nova rodada cega.
+  const postPreflightVerification = verifyGold(goldScaffoldClean, input.canonical, safePack);
+  onStage?.('diagnostics-post-preflight', frontierSummary(postPreflightVerification));
+  // ARCH-C (BRU-112) — Narrative Gate (pré-builder): a narrativa do Composer
+  // (após normalizações permitidas) é validada ANTES do builder determinístico.
+  // Não depende de remover Mermaid/tabela do artefato final para recuperar a
+  // narrativa — aqui ainda não há componentes determinísticos. O resultado
+  // (passed + métricas, sem conteúdo) é devolvido e o SEAM decide o fail-closed
+  // (seleção de saída) — o pipeline não lança aqui para não misturar a
+  // telemetria de fronteira com exceção de contrato.
+  const narrativeContract = validateGoldNarrative(goldScaffoldClean);
+  onStage?.('narrative-contract-done', {
+    passed: narrativeContract.passed,
+    violations: narrativeContract.violations.map((v) => v.code),
+    wordCount: narrativeContract.metrics.wordCount,
+    actionFormats: narrativeContract.metrics.actionFormats,
+  });
+  // BRU-102 (I7 hardening) + BRU-111 (ARCH-B, Pre-deterministic Trust
+  // Boundary): fail-closed. QUALQUER hard fail residual pós-normalização
+  // impede o Mermaid — o residual indica que a boundary do Composer falhou
+  // (ex.: guard pula parte com negação ampla que o verifier ainda reconhece;
+  // ou família verifier-only — WRONG_ESTABLISHMENT_TYPE, RELATIONSHIP_INVERTED
+  // etc. — que o preflight preserva por anti-mascaramento) e a amplificação
+  // determinística não pode rodar sobre texto inválido. O seam captura o
+  // erro e cai em saída factual (fail-closed preservado). Telemetria registra
+  // códigos/contagens sem conteúdo sensível.
+  if (postPreflightVerification.hardFails.length > 0) {
+    const codes = postPreflightVerification.hardFails.map((hardFail) => hardFail.code);
+    onStage?.('i7-fail-closed', {
+      hardFails: postPreflightVerification.hardFails.length,
+      codes,
+      codeCounts: codes.reduce<Record<string, number>>((counts, code) => {
+        counts[code] = (counts[code] ?? 0) + 1;
+        return counts;
+      }, {}),
+    });
+    throw new Error(`GoldI7FailClosed: ${codes.join(',')} residual após normalização — Mermaid não executado`);
+  }
+
+  // 4c) EXPERIENCE-01C — Mermaid determinístico (CANONICAL MERMAID):
+  // o Composer NÃO escreve mais código Mermaid; os 3 mapas são montados
+  // aqui com a gramática/paleta literal do Scout (graph LR + classDef
+  // core/satellite/danger/warning/neutral). O Verifier roda sobre o Gold
+  // JÁ com os mapas finais (contrato do Planejador 2026-08-10).
+  // ARCH-C (BRU-112): buildGoldArtifact devolve markdown + manifest
+  // (componentes esperados/emitidos, mermaid por tipo, tabela de elos).
+  const artifact = buildGoldArtifact(goldScaffoldClean, input.canonical, safePack, input.segment);
+  const goldWithMermaids = artifact.markdown;
+  onStage?.('mermaid-inject', { chars: goldWithMermaids.length });
+  const postMermaidVerification = verifyGold(goldWithMermaids, input.canonical, safePack);
+  onStage?.('diagnostics-post-mermaid', frontierSummary(postMermaidVerification));
+
+  // 4c) BRU-48 — rebaixa vocabulário de certeza não sustentado na FRONTEIRA
+  // FINAL (pós-Mermaid, pré-verifier). Uma única chamada protege o texto do
+  // Composer E o conteúdo determinístico introduzido pelo builder
+  // (POST-MERMAID-INVARIANT-01: PROMOTED_CLAIM pós-guard).
+  const goldDowngraded = downgradeUnsupportedCertainty(goldWithMermaids);
+
+  // 5) Verify — barreira final sobre o Gold (com os Mermaid determinísticos).
+  const verification = verifyGold(goldDowngraded, input.canonical, safePack);
+  const codeCounts = verification.hardFails.reduce<Record<string, number>>((counts, hardFail) => {
+    counts[hardFail.code] = (counts[hardFail.code] ?? 0) + 1;
+    return counts;
+  }, {});
+  // R2-B: post-certainty É a mesma fronteira do verifier final (mesmo input
+  // goldDowngraded) — emitido do MESMO resultado, sem chamada extra.
+  onStage?.('diagnostics-post-certainty', { hardFails: verification.hardFails.length, codes: verification.hardFails.map((hardFail) => hardFail.code), codeCounts });
+  onStage?.('verifier-done', {
+    hardFails: verification.hardFails.length,
+    codes: verification.hardFails.map((hardFail) => hardFail.code),
+    codeCounts,
+  });
 
   return {
-    goldBrief,
+    goldBrief: goldDowngraded,
     safePack,
     sanitizerEvents: safePack.sanitizerEvents,
     verification,
+    artifactManifest: artifact.manifest,
+    narrativeContract: {
+      passed: narrativeContract.passed,
+      violations: narrativeContract.violations.map((v) => v.code),
+      wordCount: narrativeContract.metrics.wordCount,
+      actionFormats: narrativeContract.metrics.actionFormats,
+    },
   };
 }

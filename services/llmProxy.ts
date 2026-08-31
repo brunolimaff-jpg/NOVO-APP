@@ -50,6 +50,10 @@ interface LlmGenerateResponse {
 export interface LlmChatResponse {
   text: string;
   webVerificationStatus?: 'verified' | 'fallback_verified' | 'unverified' | 'not_applicable';
+  /** BRU-109 (A): finishReason devolvido pelo /api/llm — o cliente não o
+   * expunha; agora permite discriminar truncamento (length) de desobediência
+   * ao formato JSON na telemetria estruturada do compact. */
+  finishReason?: string;
 }
 
 const CUSTOM_LLM_PROXY_BASE_URL = (import.meta.env.VITE_LLM_PROXY_URL || '')
@@ -57,6 +61,9 @@ const CUSTOM_LLM_PROXY_BASE_URL = (import.meta.env.VITE_LLM_PROXY_URL || '')
   .replace(/\/$/, '');
 // O serverless usa 55s para chat normal e ate 180s para investigacoes pesadas.
 // Frontend da margem de 210s para cobrir o cenario mais longo + overhead de rede.
+// PACOTE 1 (SCOUT-V7-GOLD-BUDGET-LAYERED-01, Planejador 2026-08-09): o Gold
+// usa override por chamada (270s) via opção timeoutMs — este default de 210s
+// permanece para TODOS os consumidores não-Gold.
 const LLM_PROXY_TIMEOUT_MS = Number(import.meta.env.VITE_LLM_PROXY_TIMEOUT_MS || 210000);
 
 // FIX: resolveEndpoint permanece como função pura — nunca como const de módulo.
@@ -87,12 +94,32 @@ function buildAbortError(): Error {
   return error;
 }
 
+/**
+ * BRU-33 — Razão real do abort do signal (semântica abort vs timeout).
+ * PRESERVA signal.reason LITERALMENTE (inclusive DOMException TimeoutError/
+ * AbortError): no browser, DOMException NÃO é instanceof Error — filtrar por
+ * isso recriaria um AbortError genérico e o TimeoutError do deadline Gold
+ * (120s) viraria CANCELLED em vez de fallback (gap apontado pelo Planejador
+ * 2026-08-09).
+ */
+function abortReasonOf(signal: AbortSignal): Error {
+  return signal.reason != null ? (signal.reason as Error) : buildAbortError();
+}
+
+/**
+ * BRU-33 — Semântica abort vs timeout (último bloqueador, Planejador
+ * 2026-08-09): quando o signal externo aborta com uma RAZÃO (ex.: TimeoutError
+ * do deadline Gold de 120s via AbortSignal.timeout), o erro propagado deve
+ * PRESERVAR essa razão — TimeoutError deve cair em fallback, e apenas
+ * AbortError (user abort) deve virar CANCELLED. Antes, readResponseText
+ * recriava tudo como AbortError → o deadline Gold virava CANCELLED.
+ */
 async function readResponseText(response: Response, signal: AbortSignal): Promise<string> {
-  if (signal.aborted) throw buildAbortError();
+  if (signal.aborted) throw abortReasonOf(signal);
 
   let cleanupAbortListener: (() => void) | undefined;
   const abortPromise = new Promise<never>((_, reject) => {
-    const rejectOnAbort = () => reject(buildAbortError());
+    const rejectOnAbort = () => reject(abortReasonOf(signal));
     signal.addEventListener('abort', rejectOnAbort, { once: true });
     cleanupAbortListener = () => signal.removeEventListener('abort', rejectOnAbort);
   });
@@ -111,9 +138,17 @@ async function callLlmApi<TResponse>(
     | LlmChatRequest
     | Record<string, unknown>,
   signal?: AbortSignal,
+  timeoutOverrideMs?: number,
 ): Promise<TResponse> {
   const controller = new AbortController();
-  const timeoutMs = Number.isFinite(LLM_PROXY_TIMEOUT_MS) && LLM_PROXY_TIMEOUT_MS > 0 ? LLM_PROXY_TIMEOUT_MS : 90000;
+  // PACOTE 1 (SCOUT-V7-GOLD-BUDGET-LAYERED-01): timeoutOverrideMs permite o
+  // Gold usar 270s por chamada sem alterar o default de 210s dos demais.
+  const timeoutMs =
+    Number.isFinite(timeoutOverrideMs) && (timeoutOverrideMs as number) > 0
+      ? (timeoutOverrideMs as number)
+      : Number.isFinite(LLM_PROXY_TIMEOUT_MS) && LLM_PROXY_TIMEOUT_MS > 0
+        ? LLM_PROXY_TIMEOUT_MS
+        : 90000;
   let timedOut = false;
   const action = typeof payload.action === 'string' ? payload.action : 'unknown';
   const requestClass =
@@ -128,12 +163,22 @@ async function callLlmApi<TResponse>(
     controller.abort();
   }, timeoutMs);
 
-  const forwardAbort = () => controller.abort();
+  // BRU-33: preserva a RAZÃO do abort externo — se o signal do chamador
+  // abortou com TimeoutError (deadline Gold 120s), o fetch rejeita com
+  // TimeoutError (→ fallback); se abortou com AbortError (user), idem (→
+  // CANCELLED). Sem isso, tudo virava AbortError genérico e o deadline do
+  // Gold era interpretado como cancelamento do usuário.
+  const forwardAbort = () => controller.abort(signal?.reason);
   signal?.addEventListener('abort', forwardAbort, { once: true });
 
   let response: Response | null = null;
   let responseText: string;
   try {
+    // BRU-33: signal JÁ abortado antes da chamada → propaga imediatamente a
+    // razão (fetch NÃO inicia). Sem isso, um cancelamento entre etapas do
+    // Gold ficaria pendente até o timeout interno do proxy (gap apontado pelo
+    // Planejador 2026-08-09).
+    if (signal?.aborted) throw abortReasonOf(signal);
     try {
       scoutDiag.info('LlmProxy', 'request:start', {
         endpoint,
@@ -257,15 +302,22 @@ export async function proxyGenerateContent(
   return response;
 }
 
+export interface LlmProxyChatOptions {
+  /** PACOTE 1: override do timeout do proxy para esta chamada (ms). Gold usa 270_000. */
+  timeoutMs?: number;
+}
+
 export async function proxyChatSendMessage(
   params: Omit<LlmChatRequest, 'action'>,
   signal?: AbortSignal,
+  options?: LlmProxyChatOptions,
 ): Promise<LlmChatResponse> {
   // endpoint resolvido lazy — sem const de módulo
   return callLlmApi<LlmChatResponse>(
     resolveLlmApiEndpoint(),
     { action: 'chatSendMessage', ...params },
     signal,
+    options?.timeoutMs,
   );
 }
 

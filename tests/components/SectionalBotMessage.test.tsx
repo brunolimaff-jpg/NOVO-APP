@@ -116,6 +116,40 @@ describe('SectionalBotMessage', () => {
     expect(container.querySelector('[data-section-kind="cards"]')).toBeInTheDocument();
   });
 
+  it('não injeta SocietaryMap no Gold: Teia/Tabela do Composer permanecem responsáveis pelo visual', () => {
+    const message: Message = {
+      id: 'gold-no-legacy-map',
+      sender: Sender.Bot,
+      timestamp: new Date(),
+      text: [
+        '### 1. SÍNTESE EXECUTIVA 🎯',
+        'Resumo seguro.',
+        '### 2. PERFIL 🏭',
+        'Mapa do Caos.',
+        '### 3. ESTRUTURA SOCIETÁRIA 🏛️',
+        'Teia Societária e Tabela de CNPJs.',
+        '### 4. TECNOLOGIA 💻',
+        'Tecnologia.',
+        '### 5. PESSOAS-CHAVE 👥',
+        '👥 2 pessoas no QSA — papéis cadastrais, não decisores.',
+        '### 6. INDICADORES 📊',
+        'Indicadores.',
+        '### 7. SINAIS 🚨',
+        'Sinais.',
+        '### 8. RISCOS ⚠️',
+        'Riscos.',
+        '### 9. PRÓXIMOS PASSOS 🧭',
+        'Caminho da Venda.',
+      ].join('\\n\\n'),
+    };
+
+    const { container } = render(
+      <SectionalBotMessage message={message} isDarkMode={false} empresaAlvo="Scheffer & Cia" cnpj="04733767000180" />,
+    );
+
+    expect(screen.queryByTestId('societary-map')).not.toBeInTheDocument();
+  });
+
   it('renderiza mapa societário Tipo 5 dentro da seção de teia quando há CNPJ', () => {
     const message: Message = {
       id: 'bot-teia',
@@ -366,7 +400,11 @@ describe('SectionalBotMessage', () => {
     }
   });
 
-  it('reseta isDossierExpanded quando message.id muda (evita vazamento de estado)', () => {
+  // ─── SCOUT-V7-GOLD-EXPERIENCE-01 (Planejador 2026-08-10) ───
+  // Truncamento frontend REMOVIDO: as 9 seções aparecem sem ação do usuário e
+  // o botão "Ver relatório completo" não existe mais (nem no DOM nem no código).
+
+  it('NÃO renderiza botão "Ver relatório completo" para dossiê com 4+ seções', () => {
     const dossierWith4Sections = [
       '# Introdução',
       'Conteúdo da introdução.',
@@ -385,31 +423,31 @@ describe('SectionalBotMessage', () => {
       text: dossierWith4Sections,
     };
 
-    const { rerender, getByRole, queryByRole } = render(<SectionalBotMessage message={message1} isDarkMode={false} />);
+    const { queryByRole } = render(<SectionalBotMessage message={message1} isDarkMode={false} />);
 
-    // 4 seções > threshold 3 → botão de expansão aparece
-    expect(getByRole('button', { name: /Ver relatório completo/ })).toBeInTheDocument();
-
-    // Clica para expandir
-    act(() => {
-      getByRole('button', { name: /Ver relatório completo/ }).click();
-    });
-
-    // Após expandir, botão deve desaparecer (todas as seções visíveis)
+    // Botão de expansão não existe — todas as seções renderizam direto
     expect(queryByRole('button', { name: /Ver relatório completo/ })).not.toBeInTheDocument();
+  });
 
-    // Simula troca de mensagem (nova empresa/sessão)
-    const message2: Message = {
-      id: 'bot-dossier-2',
+  it('dossiê com 9 seções mostra o conteúdo da seção 9 diretamente (sem ação do usuário)', () => {
+    const nineSections = Array.from({ length: 9 }, (_, i) => {
+      const n = i + 1;
+      return `### ${n}. SEÇÃO ${n}\nConteúdo visível da seção ${n} sem expansão.`;
+    }).join('\n\n');
+
+    const message: Message = {
+      id: 'bot-dossier-9',
       sender: Sender.Bot,
       timestamp: new Date(),
-      text: dossierWith4Sections,
+      text: nineSections,
     };
 
-    rerender(<SectionalBotMessage message={message2} isDarkMode={false} />);
+    const { getByText, queryByRole } = render(<SectionalBotMessage message={message} isDarkMode={false} />);
 
-    // Com novo message.id, deve resetar e truncar novamente
-    expect(getByRole('button', { name: /Ver relatório completo/ })).toBeInTheDocument();
+    // Seção 9 visível sem clique (era ocultada pelo truncamento de 3 seções)
+    expect(getByText(/Conteúdo visível da seção 9 sem expansão/)).toBeInTheDocument();
+    // E nenhum botão de expansão
+    expect(queryByRole('button', { name: /Ver relatório completo/ })).not.toBeInTheDocument();
   });
 
   describe('deferred rendering (threshold 15K)', () => {

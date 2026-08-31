@@ -19,6 +19,7 @@ const getSessionMock = vi.hoisted(() => vi.fn(() => Promise.resolve({ data: { se
 
 const supabaseMock = vi.hoisted(() => ({
   from: vi.fn(),
+  rpc: vi.fn(),
   upsert: vi.fn(),
   select: vi.fn(),
   update: vi.fn(),
@@ -36,7 +37,7 @@ const supabaseMock = vi.hoisted(() => ({
 const isSupabaseAvailableMock = vi.hoisted(() => vi.fn(() => true));
 
 vi.mock('../../lib/supabaseClient', () => ({
-  supabase: { from: supabaseMock.from, auth: { getSession: getSessionMock } },
+  supabase: { from: supabaseMock.from, rpc: supabaseMock.rpc, auth: { getSession: getSessionMock } },
   isSupabaseAvailable: isSupabaseAvailableMock,
 }));
 
@@ -141,14 +142,13 @@ describe('storage — cenários de falha silenciosa', () => {
   // F3: saveAllDossiers com erro → silencioso
   // ===================================================================
   describe('F3: saveAllDossiers com falha parcial ou total', () => {
-    it('deve logar erro quando Supabase retorna erro no bulk upsert', async () => {
+    it('deve logar erro quando a RPC de autosave retorna erro (BRU-81: containment server-side)', async () => {
       const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-      supabaseMock.upsert.mockResolvedValue({ error: { message: 'Bulk upsert failed' } });
-      supabaseMock.from.mockReturnValue({ upsert: supabaseMock.upsert });
+      supabaseMock.rpc.mockResolvedValue({ error: { message: 'Autosave RPC failed' } });
 
       await storage.saveAllDossiers([makeSession()]);
 
-      expect(consoleSpy).toHaveBeenCalledWith('[Storage] saveAllDossiers failed:', { message: 'Bulk upsert failed' });
+      expect(consoleSpy).toHaveBeenCalledWith('[Storage] saveAllDossiers failed:', { message: 'Autosave RPC failed' });
       consoleSpy.mockRestore();
     });
   });

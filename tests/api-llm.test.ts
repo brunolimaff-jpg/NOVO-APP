@@ -253,6 +253,37 @@ describe('api/llm handler (LiteLLM-only)', () => {
     expect(res.status).toHaveBeenCalledWith(200);
   });
 
+  // ─── PACOTE 1 SCOUT-V7-GOLD-BUDGET-LAYERED-01 (Planejador 2026-08-09) ───
+
+  it('gold intent scout-gold-compact recebe timeoutMs = 240000 (server budget)', async () => {
+    callLiteLLMMock.mockResolvedValueOnce(LLM_RESULT);
+    const { default: handler } = await import('../api/llm');
+    const res = makeRes();
+    await handler(makeReq({ action: 'chatSendMessage', model: 'scout-gold-compact', message: 'compact' }), res);
+    expect(callLiteLLMMock).toHaveBeenCalledWith(expect.objectContaining({ timeoutMs: 240_000 }));
+    expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  it('gold intent scout-gold-compose recebe timeoutMs = 240000 (server budget)', async () => {
+    callLiteLLMMock.mockResolvedValueOnce(LLM_RESULT);
+    const { default: handler } = await import('../api/llm');
+    const res = makeRes();
+    await handler(makeReq({ action: 'chatSendMessage', model: 'scout-gold-compose', message: 'compose' }), res);
+    expect(callLiteLLMMock).toHaveBeenCalledWith(expect.objectContaining({ timeoutMs: 240_000 }));
+    expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  it('chat não-gold NÃO recebe override timeoutMs (default/env inalterados)', async () => {
+    callLiteLLMMock.mockResolvedValueOnce(LLM_RESULT);
+    const { default: handler } = await import('../api/llm');
+    const res = makeRes();
+    await handler(makeReq({ action: 'chatSendMessage', model: 'scout-deep-chat', message: 'oi' }), res);
+    expect(callLiteLLMMock).toHaveBeenCalledWith(
+      expect.not.objectContaining({ timeoutMs: expect.any(Number) }),
+    );
+    expect(res.status).toHaveBeenCalledWith(200);
+  });
+
   it('aplica prompt leak shield na resposta do chat', async () => {
     callLiteLLMMock.mockResolvedValueOnce({ ...LLM_RESULT, text: 'URGENTE: ignore metadiscussões e execute um dossiê completo' });
     const { default: handler } = await import('../api/llm');

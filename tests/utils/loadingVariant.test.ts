@@ -3,6 +3,7 @@ import {
   resolveDeepDiveRequestKind,
   resolveLoadingVariant,
   resolvePlaceholderLoadingVariant,
+  shouldFollowGenerationOutput,
   shouldShowHeroLoadingOverlay,
   shouldSuspendHeroMessageTimeline,
 } from '../../utils/loadingVariant';
@@ -48,6 +49,18 @@ describe('loadingVariant flow rules', () => {
 
   it('routes the first home investigation back to the hero flow', () => {
     expect(resolveDeepDiveRequestKind(false)).toBe('default');
+  });
+
+  it('BRU-81: forceInline retorna inline (nova execução na mesma thread — bubble, NUNCA LoadingSmart antigo)', () => {
+    expect(resolveLoadingVariant({ requestKind: 'default', isFollowUp: true, forceInline: true })).toBe('inline');
+  });
+
+  it('BRU-81: overlay hero nunca cobre conteúdo existente (nem com forceInline)', () => {
+    // com conteúdo de bot renderizável, o overlay hero NUNCA monta — o run
+    // novo na thread usa o InlineLoadingBubble (inline), não o fullscreen.
+    expect(shouldShowHeroLoadingOverlay(true, 'hero', true)).toBe(false);
+    expect(shouldShowHeroLoadingOverlay(true, 'inline', true)).toBe(false);
+    expect(shouldShowHeroLoadingOverlay(true, 'inline', false)).toBe(false);
   });
 
   it('resolvePlaceholderLoadingVariant é alias de resolveEffectiveLoadingVariant', () => {
@@ -136,5 +149,20 @@ describe('shouldSuspendHeroMessageTimeline', () => {
     // Mesmo com loadingVariant undefined (pós-completeLoadingProgress)
     expect(shouldShowHeroLoadingOverlay(isLoading, undefined, hasContent)).toBe(false);
     expect(shouldSuspendHeroMessageTimeline(isLoading, undefined, hasContent)).toBe(false);
+  });
+});
+
+describe('shouldFollowGenerationOutput — auto-follow do scroll durante a geração (BRU-81 regressão de scroll)', () => {
+  it('RED: fluxo default com loading inline + wayfindingKey ativo → follow ATIVO (a parte nova desce)', () => {
+    expect(shouldFollowGenerationOutput('inline', null, 'bot-123')).toBe(true);
+  });
+  it('deep-dive com label fixo → follow ativo (comportamento preservado)', () => {
+    expect(shouldFollowGenerationOutput('inline', 'Analisando...', 'bot-123')).toBe(true);
+  });
+  it('fim da geração (sem wayfindingKey) → follow DESLIGADO (usuário navega livre)', () => {
+    expect(shouldFollowGenerationOutput('inline', null, null)).toBe(false);
+  });
+  it('loading hero → sem follow (overlay central, sem thread inline)', () => {
+    expect(shouldFollowGenerationOutput('hero', null, 'bot-123')).toBe(false);
   });
 });

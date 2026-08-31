@@ -1,30 +1,31 @@
 # Active Context
 
-Last updated: 2026-07-28 — PR #464 baseline nativo PG 17 & least privilege hardening completo
+Last updated: 2026-08-17 13:25 — checkpoint pré-compactação; barreira holding/governança delta autorizado (7 achados, 9 REDs escritos, código não implementado)
 
-## Estado atual
+## Estado
 
-- **Fase:** Correção canônica de baseline de banco de dados e hardening de permissões (least privilege).
-- **Branch:** `fix/canonical-supabase-migration-baseline`.
-- **PR:** `#464` (Draft, Base `main`, HEAD: `a8a07919a606969fc34c7daee4ec41ca72f48b57`).
-- **Vault Narrative:** [[2026-07-28T17-25-00-fix-canonical-supabase-migration-baseline|Bruno Vault Session Note]].
+- **Branch:** `feat/v6-shadow-prep` · **HEAD remoto:** `5ea3b0fd` (restauração QSA + progress) sobre `14cd5def` (barreira 1ª versão) — PR #483 OPEN/DRAFT/MERGEABLE
+- **Delta autorizado** (comentário 91ec007e, BRU-119): 7 fixes no gold-policy.ts + entity-aware-gold-verifier.ts. **Código NÃO implementado** — apenas 9 REDs escritos no entity-aware-gold-verifier.test.ts.
+- **Escopo 6→7 achados**: demandsGovernance + bypass modalidade + controladoria + QSA exclusion + controladora isolada + entity binding + proveniência por mesma categoria.
+- **Gates:** targeted → Gold 100% → full 100% → typecheck → lint → build → no-gemini → diff-check → FF push → CI exact SHA → Preview same-SHA + Smoke.
+- **Provider/Scheffer:** aguarda autorização Bruno. **Merge:** bloqueado.
 
-## Migrações & Baseline Canônico
+## Próximo passo (Bruno)
 
-- **Cadeia Ativa:** 21 arquivos `.sql` com timestamps de 14 dígitos.
-- **Baseline:** `20260501000000_production_schema_baseline.sql` gerado via `pg_dump` 17.10 nativo a partir do PostgreSQL 17.6 de Produção (`vmqfcaoirjcfucvlnpig`). Sem objetos `auth`.
-- **Hardening Grants:** `20260728173731_harden_dossier_grants.sql` (least privilege em `dossier_runs`, `dossies`, `profiles`, `handle_new_user()`).
-- **Hardening Identity:** `20260728180000_harden_legacy_operator_linking.sql` (RPC `link_legacy_operator` com ownership, e-mail estrito de perfil e `user_context`, `SECURITY DEFINER`, `search_path = ''` e ACL restrita a `authenticated`).
+1. Conferir CI + Golden Dossier Live do `198d1b04` (único FAIL anterior era o contract_fail wordCount).
+2. **Revalidação visual do Bruno no Preview do `198d1b04`** (Scheffer): wordCount ≥900, sem espelhos em prosa, sem scaffolding bold, tabela de elos sem duplicatas.
+3. Depois: revisão formal → READY FOR MERGE (merge exige `MERGE` do Bruno).
+4. Depois do merge da #483: rebase #467.
 
-## Paridade & Gates de Qualidade
+## Não fazer
 
-- **Paridade Catálogo vs Produção:** `PRODUCTION_BASELINE_CATALOG_DIFF: ZERO` (15 categorias, 37/37 constraints com `pg_get_constraintdef`).
-- **Replay Local PSQL:** Exit 0 (`-v ON_ERROR_STOP=1`).
-- **Supabase CLI `db push` Local:** Exit 0 (21 migrações registradas).
-- **Testes Runtime PG:** `test_harden_dossier_grants.sql` (OK), `test_harden_identity.sql` (11/11 asserts OK).
-- **Testes de Contrato (Vitest):** 61/61 asserções aprovadas.
-- **Linting & Diff Check:** `npm run lint` sem erros (0 errors); `git diff --check` zerado.
+- Merge #483 sem token `MERGE` do Bruno · Produção · Supabase write/migrations
+- Retry do compact (congelado) · mudança de modelo/provider/prompt
+- Mexer no lab BRU-77 (frente do executor paralelo)
+- `Goal` segue cobrindo demandas do Planejador; ZCode supervisiona execução e evidência.
 
-## Próxima ação
+## Vault / memória
 
-Aguardar autorização do orquestrador Bruno. Se autorizada com token `MERGE`, marcar a PR #464 como Ready e fazer squash merge na `main`.
+- Sessão handoff: [[2026-08-16T13-03-10-fluxo-atual-gold-handoff]] · Chat produto: `6a81fda2`
+- BRU-121: `docs/BRU-121-RELATORIO-LEITURA-INTEGRAL.md` (212 linhas, Mermaid, 3 opções)
+- CALIBER_LEARNINGS: lição scaffolding + lição bold/inline patterns

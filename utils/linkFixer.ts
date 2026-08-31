@@ -6,7 +6,7 @@
 import { findSeniorProductUrl, isFakeUrl, FAKE_DOMAINS } from '../services/apiConfig';
 import { normalizeSourceUrl } from './textCleaners';
 
-const MARKDOWN_HTTP_LINK_REGEX = /\[([^\]]+)\]\((https?:\/\/(?:[^\s()]+|\([^\s()]*\))+)\)/gi;
+const MARKDOWN_HTTP_LINK_REGEX = /\[([^\]]+)\]\((https?:\/\/[^\s()]+(?:\([^\s()]*\)[^\s()]*)*)\)/gi;
 const HTML_HREF_REGEX = /href=["'](https?:\/\/[^"']+)["']/gi;
 const STANDALONE_HTTP_URL_REGEX = /https?:\/\/[^\s<>)]+/gi;
 
@@ -174,7 +174,7 @@ export function extractValidLinks(text: string): Array<{ title: string; url: str
   const links: Array<{ title: string; url: string }> = [];
   if (!text) return links;
 
-  const linkRegex = /\[([^\]]+)\]\((https?:\/\/(?:[^\s()]+|\([^\s()]*\))+)\)/gi;
+  const linkRegex = /\[([^\]]+)\]\((https?:\/\/[^\s()]+(?:\([^\s()]*\)[^\s()]*)*)\)/gi;
   let match;
 
   while ((match = linkRegex.exec(text)) !== null) {
@@ -201,7 +201,7 @@ export function extractAllSourceMentions(text: string): Array<{ title: string; u
   if (!text) return sources;
 
   // 1. Links markdown
-  const linkRegex = /\[([^\]]+)\]\((https?:\/\/(?:[^\s()]+|\([^\s()]*\))+)\)/gi;
+  const linkRegex = /\[([^\]]+)\]\((https?:\/\/[^\s()]+(?:\([^\s()]*\)[^\s()]*)*)\)/gi;
   let match;
 
   while ((match = linkRegex.exec(text)) !== null) {

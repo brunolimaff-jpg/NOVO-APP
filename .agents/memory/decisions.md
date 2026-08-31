@@ -1,5 +1,53 @@
 # decisions.md — NOVO-APP
 
+## DI-2026-08-16-03: BRU-119 follow-up — instrução da seção 2 restaurada para leitura executiva (wordCount >=900)
+
+- **Decisão (Bruno, 2026-08-16 noite — aprovação "otimo"):** manter o single-owner do BRU-119 e trocar "SOMENTE uma leitura comercial curta (2-3 frases)" por "leitura executiva em 2-3 parágrafos curtos (6-8 frases)" na seção 2 do prompt Composer. Motivo: a instrução curta derrubou a narrativa abaixo do piso de 900 palavras → `contract_fail` → factual_minimal no Preview e no Golden Dossier Live do `54a2ddc3`.
+- **Validação:** gold 416/416 · full 2217/2218 (flake waterfall conhecido) · typecheck 0 · lint 0 · build OK · no-gemini PASS. Commit `198d1b04` push FF.
+- **Lição:** mudança de prompt que reduz narrativa exige checagem contra MIN_WORDS/MAX_WORDS do `gold-contract-validator.ts` antes do push (CALIBER_LEARNINGS).
+- **Referência:** Linear BRU-119; commit 198d1b04.
+
+## DI-2026-08-16-02: BRU-118 — P1 scaffolding do Gold corrigido por microdelta fail-closed (autorizado pelo Planejador)
+
+- **Decisão (Planejador, chat do produto 6a81fda2 + Linear BRU-118):** microdelta fail-closed para remover o leak de scaffolding interno do Gold (meta-rótulos `(Conteúdo para o Builder)`/`(Operações Confirmadas)` + enums crus `same_root/direct_pj_relation/partner_other_cnpj` na saída).
+- **Escopo:** (1) prompt Composer sem enums crus na narrativa (linguagem humana; enums permanecem no contrato JSON do Compact); (2) sanitizador/detector determinístico estreito (`gold-scaffolding-sanitizer.ts`) — headings internos conhecidos removidos, enums humanizados preservando direção, idempotente, residual reprova fechado; (3) `scaffold-done` no pipeline pré-post-preflight; (4) seam com reason `scaffold_fail` no artefato FINAL EXATO → factual_minimal.
+- **Validação:** Gold 401/401 · full 2209/2209 · CI f115a860 21/21 SUCCESS; Golden Live fora de critério (timeout de job 20 min).
+- **Referência:** Linear BRU-118; Vault sessão handoff 2026-08-16T13-03-10; commit f115a860.
+
+## DI-2026-08-16-01: ZCode na frente do fluxo atual (Gold/PR #483); lab BRU-77 é do executor paralelo
+
+- **Decisão do Bruno (2026-08-16):** o ZCode deve estar no **fluxo atual (Gold/PR #483)**, NÃO no lab BRU-77 (R1U/retry/battery). O lab é do executor paralelo via ChatGPT Web; não confundir as conversas nem mexer nos artefatos do lab.
+- **Estado herdado:** P1 scaffolding do Gold em aberto (relatório `docs/handoffs/2026-08-15-gold-scaffolding-leak-supervision.md`), aguardando despacho do Planejador (chat 6a7f2983).
+- **Referência:** Vault sessão 2026-08-16T13-03-10.
+
+## DI-2026-08-15-04: `/goal` cobre demandas do Planejador sob supervisão
+
+- **Decisão do Bruno (2026-08-15):** continuar usando `/goal` para executar todas as demandas do Planejador; o ZCode atua como supervisor da cadeia inteira.
+- **Supervisão obrigatória:** validar despacho/modelo efetivo quando possível; separar execução delegada, visão de screenshots, evidência técnica e decisão de arquitetura; não atribuir resultado ao Verboo/DeepSeek V4 Flash sem confirmação do runtime.
+- **Preferência de delegação:** tarefas delegáveis priorizam `custom:ee98b6d2-5f39-4c67-a905-5574c20fdc70:deepseek-v4-flash` no nível máximo. Isso não autoriza alterar provider/modelo do produto, chamadas Gold pagas, merge, deploy ou escrita remota.
+- **Plano de controle:** o Planejador permanece responsável por escopo e arquitetura; o executor implementa dentro do despacho; o ZCode supervisiona e valida.
+
+## DI-2026-08-15-03: Auditoria de arquitetura — parar correções pontuais até decisão estruturada (pedido do Bruno)
+
+- **Decisão (2026-08-15):** após o run b3294247 revelar regressão do fix single-pass do BRU-108 (verifier_fail por "produção de" na coluna Validar), o Bruno mandou **parar fixinhos e mapear todo o código** com leitura completa. Auditoria concluída: 35 riscos estruturais em 4 domínios (Gold 12, orquestração 14, renderização 10).
+- **Fix loop+colapso do normalizeDiscoveryQuestion aplicado local, NÃO COMMITADO** — aguarda decisão do Bruno (reverte o single-pass que preservava vocabulário protegido).
+- **Achados enviados ao Planejador** (chat 6a7f2983) — aguardando veredito.
+- **Referência:** docs/arquitetura/auditoria-arquitetura-2026-08-15.md; Vault sessão 2026-08-15T12-33-08.
+
+## DI-2026-08-15-01: Fluxo conceitual numerado do Caminho da Venda não conta como ação no contract oracle
+
+- **Decisão (BRU-103, run 20573b42):** o oracle `validateGoldContract` deve tratar linhas numeradas com seta (`→`) na seção de ações como FLUXO conceitual do Caminho da Venda, não como ação comercial. Removidas antes da contagem de ações (assinatura estrutural — sem regex cega nem leitura de conteúdo semântico, conforme decisão anterior do Bruno/Planejador). Mantida a guarda: movimentos reais numerados sem seta continuam reprovando (`EXPECTED_ACTIONS = 3`).
+- **Prompt do Composer (seção 9):** fluxo conceitual em UMA linha com setas ("Evidência segura → Hipótese comercial → Discovery → Decisão"), NUNCA como lista numerada; os 3 movimentos são os únicos itens numerados da seção 9.
+- **Evidência:** wordCount 1265 (piso 900 OK), verifier 0/0/0/0, preflight/certainty 0; único bloqueio era ACTION_COUNT_MISMATCH (numbered=7). Fix `238f543f`; CI 11/11 verde; suíte full 2106/2106.
+- **Referência:** progress.md 2026-08-15; Linear BRU-103.
+
+## DI-2026-08-15-02: Fechamento do track Gold P0 → READY FOR MERGE (merge LOCKED)
+
+- **Decisão:** trilha BRU-100/101/102/103/104 encerrada por evidência reconciliada no HEAD `238f543f` (PR #483, OPEN/DRAFT/NOT MERGED). Estado máximo autorizado `READY FOR MERGE`; merge permanece LOCKED até token `MERGE` explícito do Bruno.
+- **Evidência runtime final (run 2fe72ab3, Scheffer):** contract-done passed=true (wordCount=1177, violations=[]), output-selected gold_pass, post-certainty 0 (verifier 0 por R2-B), UI final = 21300 chars do Gold (não factual_minimal), run COMPLETED.
+- **Desvios registrados:** Golden Dossier Live falha pré-existente de pré-condição (não relacionada ao fix); BRU-105 (I8) DEFERRED; BRU-71/75 (P1) em aberto — não bloqueiam o P0.
+- **Referência:** progress.md 2026-08-15 (tarde); Linear BRU-100 (resumo canônico), BRU-104 (reconciliação).
+
 ## DI-2026-08-06-BRU7-A: Dossier Flow — arquitetura client-orchestrated / server-arbitrated (Alternativa A aprovada)
 
 - **Decisão (BRU-7, Alternativa A, aprovada pelo Bruno em 2026-08-06):** formalizar `CLIENT_ORCHESTRATED / SERVER_ARBITRATED / DATABASE_TERMINAL_STATE`. O navegador orquestra o waterfall; RPCs SECURITY DEFINER arbitram auth, ownership, lease e validade das transições; o banco é o estado terminal canônico.
@@ -490,3 +538,28 @@
 ### 2026-06-08 — Handoff final precisa apontar repo + Bruno Vault (APLICADO na PR #346)
 
 ### 2026-06-11 — Tracking de Operador: canonical operatorId, findUserByEmail, PII-safe logging
+
+- **Decisão (2026-08-10):** EXPERIENCE-01C — Mermaid determinístico no pipeline Gold (compose → mermaid-inject → verifier → contract). Composer não escreve mais Mermaid; R10 com exceção por categoria+direção+entidade+multi-claim. Aprovado pelo Planejador (GO), push cc1bfb4a. Merge #483 = HOLD até revisão da rodada paga.
+
+## 2026-08-14 — P0-RUNTIME: lock de sessão do supabase-js em memória (6c39ddf5)
+- Decisão: `createClient(..., { auth: { lock: supabaseMemoryLock } })` — lock single-tab em memória em vez do LockManager (navigator.locks) do supabase-js 2.106, que deadlockava o getSession no browser real (o create_or_get_dossier_run nunca saía).
+- Trade-off: perde a exclusão entre abas para refresh de token (aceitável — app single-tab; comportamento pré-LockManager do supabase-js).
+- Evidência: instrumentação (LOCKS.REQUEST sem callback) + run criado após a correção. Vault: Sessões/2026-08/2026-08-14T06-30-00-p0-runtime-noturno-pr483.md.
+
+## 2026-08-14 (fim) — Gold closure
+- Control plane do fechamento Gold = LINEAR (BRU-100→104), não mais o chat do Planejador. Executor (Sol Max) tem autonomia para delta técnico não-material; decisão material → voltar ao Bruno.
+- I7 = KEEP_AS_IS (veredito do Planejador). I8 (proveniência) = PREPARE (backlog BRU-105).
+- Guard de certeza e verifier usam a MESMA definição de negação segura (matchesSafeKnowledgeNegation — gold-policy), alinhados.
+- PENDENTE (do Bruno): wordCount do contract = narrativa (excluir Mermaid+tabela)? Recomendado SIM.
+
+## 2026-08-15 — BRU-109 A+C (Planejador): telemetria do compact estruturada + leak shield canônico
+- DECISÃO (Planejador, chat 6a7f2983): compact-error carrega SOMENTE errorClass + responseChars + finishReason + hasObjectBoundary (nunca texto livre); compact-response mede a resposta crua no PASS; eventos compact-*/raw-schema-fail críticos. Retry congelado até haver evidência de falha sintática separada de timeout/truncamento.
+- DECISÃO (Planejador): leak shield = P0/blocker. Extrair política/detectores para módulo canônico (utils/leakShieldPolicy.ts) — api/llm e textCleaners usam a mesma definição; NÃO copiar 3 regex; preservar JSON-safe do server (BRU-33). Implementado em 4a497126.
+- DECISÃO (Planejador): release-safety-triage.test.ts era evidência local não reproduzível (não existia no HEAD remoto) — commitado GREEN (17/17) junto com o delta A+C.
+- Por que: o run real 817d3bd0 caiu por compact-error e o detail não persistiu (sampling 10%) — sem metadados não dá para distinguir vazio × prosa × truncado × JSON inválido, nem decidir retry com segurança.
+
+## 2026-08-15 (noite) — BRU-117: precondição Golden discriminante; condição de parada
+- DECISÃO (Planejador): "Greeting ausente" NÃO é a causa do Golden Live — o preflight exige greetingCount === 0 como PASS; a mensagem genérica antiga colapsava as 6 condições. Falha deve expor só flags estruturais (PII-safe).
+- DECISÃO (executor, implementado 443433e8+b075a025): avaliador puro em utils/goldenPrecondition.ts + auth.ts discriminante; AbortError nunca vira timeout; 504/TimeoutError → TIMEOUT.
+- CAUSA RAIZ real do Golden Live: showOperatorGate = !operatorLoading && !hasOperatorName (usePanelState.ts:48) → a conta QA (teste@senior.com.br) autentica mas não tem operatorName preenchido → app fica no onboarding do operador.
+- Por que: sem o flag discriminante, o check bloqueante da PR #483 nunca passaria e a falha ficaria opaca; agora a decisão é material (mutação de conta QA ou completar onboarding no E2E) — condição de parada do BRU-117.

@@ -27,6 +27,7 @@ import {
   type LiteLLMCallInput,
 } from './_llm-client.js';
 import { resolveIntentModel, selectModelForModule } from '../utils/llm/modelRouter.js';
+import { detectPromptLeakIndicators as detectCanonicalPromptLeakIndicators } from '../utils/leakShieldPolicy.js';
 
 const HistoryItemSchema = z.object({
   role: z.enum(['user', 'model']),
@@ -59,47 +60,88 @@ export const config = {
 
 export const maxDuration = 300;
 
+/** PACOTE 1 (SCOUT-V7-GOLD-BUDGET-LAYERED-01): 240s por chamada Gold no
+ * server — entre o default/env não-Gold e o maxDuration de 300s. */
+const SERVER_GOLD_CALL_BUDGET_MS = 240_000;
+
 const CHAT_DEFAULT_MAX_OUTPUT_TOKENS = 65_536;
 const LLM_BUDGET_EXCEEDED_MESSAGE = 'O serviço de análise está temporariamente indisponível. Tente novamente mais tarde.';
 const INTERNAL_MARKER_REGEX = /\[\[\s*[A-Z_]+\s*:[\s\S]*?\]\]/gi;
 const INTERNAL_MARKER_OPEN_TAIL_REGEX = /\[\[\s*[A-Z_]+\s*:[\s\S]*$/i;
-const HARD_PROMPT_LEAK_PATTERNS: RegExp[] = [
-  /\[\[\s*[A-Z_]+\s*:[\s\S]*?\]\]/i,
-  /investigacao_completa_integrada/i,
-  /protocolo de investiga[çc][aã]o forense/i,
-  /urgente:\s*ignore\s+metadiscuss[õo]es/i,
-  /sua miss[aã]o absoluta/i,
-  /n[aã]o discuta o funcionamento interno do modelo/i,
-];
-const SOFT_PROMPT_LEAK_PATTERNS: RegExp[] = [
-  /urgente:.*dossi[eê]\s+de\s+agroneg[oó]cio/i,
-  /score porta.*preciso.*cnpj/i,
-  /execute um dossi[eê] completo combinando os protocolos/i,
-  /priorize objetividade.*fontes audit[aá]veis/i,
-];
 
+/**
+ * True quando o texto é um JSON completo e válido — direto ou com fences
+ * markdown/texto envolvente (extrai o bloco entre o primeiro "{" e o último
+ * "}", como o parseJsonPayload do contrato Gold).
+ */
+function isJsonParseable(text: string): boolean {
+  const t = (text || '').trim();
+  if (!t) return false;
+  try {
+    JSON.parse(t);
+    return true;
+  } catch {
+    const start = t.indexOf('{');
+    const end = t.lastIndexOf('}');
+    if (start === -1 || end <= start) return false;
+    try {
+      JSON.parse(t.slice(start, end + 1));
+      return true;
+    } catch {
+      return false;
+    }
+  }
+}
+
+/**
+ * Remove marcadores internos de reasoning do modelo ([[ALGO: ...]]) e, apenas
+ * para respostas NÃO-JSON, um "]" residual histórico na última linha isolada.
+ *
+ * BRU-33 (fix 2026-08-09, contrato do Planejador): o comportamento antigo
+ * `/^\s*\]\s*$/gm` removia TODAS as linhas compostas só por "]", corrompendo
+ * fechamentos legítimos de arrays no JSON pretty do Gold Compact → o leak
+ * shield quebrava o JSON → compact-error → fallback para o dossiê gigante
+ * (causa raiz provada: LiteLLM direto passa, /api/llm quebra).
+ * Contrato (microfix de ordenação 2026-08-09): 1) resposta inteira JSON
+ * válida (checada no texto ORIGINAL, ANTES de qualquer regex) → NENHUMA
+ * transformação destrutiva — o detectPromptLeakIndicatorsLocal decide se
+ * bloqueia; 2) não-JSON → limpar "]" residual só na última linha isolada
+ * (nunca global); 3) detecção de prompt leak continua depois (segurança
+ * inalterada).
+ */
 function stripInternalMarkersLocal(text: string): string {
-  return (text || '')
+  const raw = (text || '').trim();
+
+  // 1) JSON válido (direto ou com fences) atravessa INTACTO — a checagem é no
+  //    texto ORIGINAL, antes das regex, para não apagar marcadores dentro de
+  //    strings JSON antes de o leak detector enxergá-los.
+  if (isJsonParseable(raw)) return raw;
+
+  const cleaned = raw
     .replace(INTERNAL_MARKER_REGEX, '')
     .replace(INTERNAL_MARKER_OPEN_TAIL_REGEX, '')
     .replace(/\n{3,}/g, '\n\n')
-    .replace(/^\s*\]\s*$/gm, '')
     .trim();
+
+  // 2) Não-JSON: limpa apenas um "]" residual isolado na ÚLTIMA linha
+  //    (cola histórica de reasoning do DeepSeek) — nunca linhas internas.
+  const lines = cleaned.split('\n');
+  if (lines.length > 1 && /^\s*\]\s*$/.test(lines[lines.length - 1])) {
+    lines.pop();
+    return lines.join('\n').trim();
+  }
+  return cleaned;
 }
 
 function detectPromptLeakIndicatorsLocal(text: string): { detected: boolean; indicators: string[] } {
-  const sample = (text || '').trim();
-  if (!sample) return { detected: false, indicators: [] };
-
-  const hardHits = HARD_PROMPT_LEAK_PATTERNS.flatMap((pattern, i) => (pattern.test(sample) ? [`hard_${i}`] : []));
-  const softHits = SOFT_PROMPT_LEAK_PATTERNS.flatMap((pattern, i) => (pattern.test(sample) ? [`soft_${i}`] : []));
-  return {
-    detected: hardHits.length > 0 || softHits.length >= 2,
-    indicators: [...hardHits, ...softHits],
-  };
+  // BRU-109 DECISÃO 3 (C): usa o detector CANÔNICO compartilhado
+  // (utils/leakShieldPolicy.ts) — o serverless não mantém cópia local dos
+  // patterns (era o drift que deixava o Gold sem a proteção de
+  // contexto_cadastral/nota_de_escopo/aviso_metodologico).
+  return detectCanonicalPromptLeakIndicators(text);
 }
 
-function applyPromptLeakShieldLocal(text: string): {
+export function applyPromptLeakShieldLocal(text: string): {
   text: string;
   blocked: boolean;
   indicators: string[];
@@ -324,6 +366,11 @@ async function executeChatSendMessage(
   const correlationId = `chat-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
 
   try {
+    // PACOTE 1 (SCOUT-V7-GOLD-BUDGET-LAYERED-01, Planejador 2026-08-09):
+    // intents Gold recebem timeoutMs explícito de 240s por chamada (contorna
+    // o default/env de 180s sem alterar o teto global nem os não-Gold).
+    // Hierarquia: 240s server < 270s browser < 300s maxDuration Vercel.
+    const isGoldIntent = body.model === 'scout-gold-compact' || body.model === 'scout-gold-compose';
     const input: LiteLLMCallInput = {
       model: resolvedModel,
       systemInstruction: body.systemInstruction || undefined,
@@ -334,6 +381,7 @@ async function executeChatSendMessage(
       runId: correlationId,
       action: 'chatSendMessage',
       correlationId,
+      ...(isGoldIntent ? { timeoutMs: SERVER_GOLD_CALL_BUDGET_MS } : {}),
     };
     const result = await callLiteLLM(input);
 

@@ -3,6 +3,7 @@ import { useMode } from '../contexts/ModeContext';
 import { useOperator } from '../contexts/OperatorContext';
 import { storage } from '../services/storage';
 import { scoutDiag } from '../utils/diagnosticLog';
+import { shouldFollowGenerationOutput } from '../utils/loadingVariant';
 import { DuplicateDossierModal } from './DuplicateDossierModal';
 
 import ChatPanels from './chat/ChatPanels';
@@ -22,6 +23,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
   onNewSession,
   onSelectSession,
   onDeleteSession,
+  onCleanupTransientSession,
   isSidebarOpen,
   onToggleSidebar,
   messages,
@@ -47,6 +49,7 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
   processing,
   loadingVariant,
   loadingPinnedLabel,
+  wayfindingKey,
   onDeleteMessage,
   onDeepDive,
 }) => {
@@ -105,6 +108,8 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
     onDeepDive,
     operatorId,
     onSelectSession,
+    onCleanupTransientSession,
+    currentSessionId: currentSession?.id ?? null,
   });
 
   const { handleCopyMarkdown, handlePrefillComposer } = useChatActions(safeMessages);
@@ -257,6 +262,8 @@ const ChatInterface: React.FC<ExtendedChatInterfaceProps> = ({
                 loadingPinnedLabel={loadingPinnedLabel}
                 canDeepDive={canDeepDive}
                 theme={theme}
+                followOutputOverride={shouldFollowGenerationOutput(loadingVariant, loadingPinnedLabel, wayfindingKey)}
+                scrollToActivityKey={wayfindingKey ?? null}
               />
             )}
           </div>

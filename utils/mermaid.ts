@@ -49,11 +49,53 @@ export function normalizeInlineMermaidClasses(chart: string): string {
   return `${normalized}\n${classLines.join('\n')}`;
 }
 
+function collapseMultilineNodeLabels(input: string): string {
+  // Mermaid v10 não aceita newline literal dentro de labels sem aspas
+  // (ex.: A[Produção\nSoja\n10 Unidades]). O Composer pode emitir esse
+  // formato mesmo quando o prompt pede <br/>. Varremos delimitadores para
+  // lidar também com parênteses dentro de labels quadrados.
+  const opens = new Map([['[', ']'], ['{', '}'], ['(', ')']]);
+  let output = '';
+  let index = 0;
+  while (index < input.length) {
+    const open = input[index];
+    const close = opens.get(open);
+    if (!close) {
+      output += open;
+      index += 1;
+      continue;
+    }
+
+    let cursor = index + 1;
+    let quoted = false;
+    while (cursor < input.length) {
+      const char = input[cursor];
+      if (char === '"') quoted = !quoted;
+      if (!quoted && char === close) break;
+      cursor += 1;
+    }
+    if (cursor >= input.length) {
+      output += open;
+      index += 1;
+      continue;
+    }
+
+    const label = input.slice(index + 1, cursor);
+    output += `${open}${label.includes('\n') ? label.replace(/\s+/g, ' ').trim() : label}${close}`;
+    index = cursor + 1;
+  }
+  return output;
+}
+
 function normalizeMermaidText(input: string): string {
-  return input
-    .replace(/<br\s*\/?>\s*/gi, '\n')
+  return collapseMultilineNodeLabels(input)
+    .replace(/<br\s*\/?>(\s*)/gi, '\n')
     .replace(/&lt;br\s*\/?&gt;\s*/gi, '\n')
-    .replace(/<!--[\s\S]*?-->/g, '')
+    // CodeQL #75 (js/incomplete-multi-character-sanitization): cobre também
+    // abertura de comentário HTML SEM fechamento — remove até `-->` ou, na
+    // ausência dele, até o fim do input (nunca deixa `<!--` residual passar
+    // para a gramática do Mermaid).
+    .replace(/<!--[\s\S]*?(?:-->|$)/g, '')
     .replace(/[\u{1F000}-\u{1FFFF}]/gu, '')
     .replace(/[\u2600-\u27BF]/gu, '')
     .replace(/[\u2013\u2014]/g, '-')
@@ -120,12 +162,23 @@ function materializeBareEdgeTargets(input: string): string {
   );
 
   let idx = 0;
+  // BRU-119 follow-up (P0 visual — Planejador, Preview 488728d5): a aresta
+  // grossa ROTULADA canônica (`D == Sim ==> E["..."]`) estava sendo tratada
+  // como "bare text" — o materializador criava um nó sintético
+  // `mermaid_bare_N["Sim ==> E['...']"]`, que parseia mas renderiza o source
+  // como conteúdo. Bare text que contém um segundo operador de aresta
+  // seguido de nó com shape (`[`, `(`, `{`, `"` ) é aresta rotulada
+  // completa: intocável.
+  const LABELED_EDGE_TARGET_RE = new RegExp(`(?:${EDGE_OPS})\\s*[A-Za-z][\\w-]*\\s*(?:\\[|\\(|\\{|")`);
   return input.replace(EDGE_RE, (_full, prefix: string, bareText: string, suffix: string) => {
     const trimmed = bareText.trim();
     // Already a valid node ID (single alphanumeric word) — leave as-is
     if (/^[A-Za-z][\w-]*$/.test(trimmed)) return _full;
     // Already has a shape suffix: NodeId[...] or NodeId(...) etc
     if (/^[A-Za-z][\w-]*\s*(?:\[|\(|\{)/.test(trimmed)) return _full;
+    // Labeled edge (`D == Sim ==> E["..."]`): o "bare text" carrega o
+    // rótulo + o segundo operador + o target com shape.
+    if (LABELED_EDGE_TARGET_RE.test(trimmed)) return _full;
 
     idx += 1;
     const safeLabel = trimmed.replace(/"/g, "'");
@@ -204,13 +257,28 @@ function quoteRoundAndCurlyLabels(input: string): string {
 // the ( inside a |...| context can still trigger PS token depending on lex state.
 // Fix: wrap the label in double-quotes: |"label with (parens)"|
 function quotePipeEdgeLabelSpecialChars(input: string): string {
-  return input.replace(/\|([^|\n"]+)\|/g, (_full, label: string) => {
+  // BRU-108 (1a): pipes dentro de labels JÁ citados com aspas duplas
+  // (ex.: C1["... | GATec (Gestão Agrícola, ...) | ..."]) são separadores do
+  // builder determinístico, NÃO rótulos de aresta. Aplicar a regra de
+  // citação nesses pipes fecha a string no meio e expõe `(` ao parser
+  // (parse error "got 'PS'"). Preserva os labels citados, transforma apenas
+  // os pares `|...|` fora deles (rótulos de aresta reais).
+  const quoted = new Map<string, string>();
+  const withoutQuoted = input.replace(/"([^"\n]+)"/g, (_full, label: string) => {
+    const key = `\uE000Q${quoted.size}\uE000`;
+    quoted.set(key, `"${label}"`);
+    return key;
+  });
+
+  const transformed = withoutQuoted.replace(/\|([^|\n\uE000]+)\|/g, (_full, label: string) => {
     if (/[(){}]/.test(label)) {
       const safeLabel = label.trim().replace(/"/g, "'");
       return `|"${safeLabel}"|`;
     }
     return _full;
   });
+
+  return transformed.replace(/\uE000Q(\d+)\uE000/g, (_full, index: string) => quoted.get(`\uE000Q${index}\uE000`) ?? _full);
 }
 
 export function normalizeMermaidBlocks(markdown: string): string {

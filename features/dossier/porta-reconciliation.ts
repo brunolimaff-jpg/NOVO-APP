@@ -214,6 +214,14 @@ export async function reconcileWaterfallPorta({
         {
           signal,
           timeoutMs: MODULAR_OPTIONAL_STEP_TIMEOUT_MS,
+          // BRU-99: contrato estrito da Reconciliação PORTA — o shield NÃO bloqueia
+          // resposta composta SOMENTE por markers PORTA_FEED_<dimensão pendente> válidos.
+          // Qualquer outro conteúdo (marker de outro tipo, texto de prompt, marker
+          // malformado ou conteúdo misto) continua sujeito ao shield.
+          internalMarkerAllowlist: {
+            prefix: 'PORTA_FEED',
+            dimensions: waterfallPortaResolution.missingDimensions,
+          },
         },
       );
 

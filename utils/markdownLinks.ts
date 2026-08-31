@@ -4,7 +4,7 @@ export function rewriteMarkdownLinksToGoogle(text: string): string {
   if (!text) return text;
 
   // Regex para capturar links Markdown: [Label](URL)
-  const linkRegex = /\[([^\]]+)\]\((https?:\/\/(?:[^\s()]+|\([^\s()]*\))+|[^)]+)\)/g;
+  const linkRegex = /\[([^\]]+)\]\((https?:\/\/[^\s()]+(?:\([^\s()]*\)[^\s()]*)*|[^)]+)\)/g;
 
   return text.replace(linkRegex, (match, label) => {
     const cleanLabel = label.trim();

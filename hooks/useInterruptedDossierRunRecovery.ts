@@ -1,6 +1,10 @@
 import { useEffect } from 'react';
 import { Sender, type ChatSession } from '../types';
-import { peekPersistedActiveDossierRuns, removePersistedActiveDossierRuns } from '../features/dossier/active-run-registry';
+import {
+  isActiveDossierRunLocal,
+  peekPersistedActiveDossierRuns,
+  removePersistedActiveDossierRuns,
+} from '../features/dossier/active-run-registry';
 import { scoutDiag } from '../utils/diagnosticLog';
 
 /**
@@ -33,8 +37,30 @@ export function useInterruptedDossierRunRecovery(options: {
     // Só roda quando as sessões já foram carregadas (evita corrida com loadSessions).
     if (!isInitialized) return;
 
-    const interruptedRuns = peekPersistedActiveDossierRuns();
+    scoutDiag.info('DossierRunLifecycle', 'recovery:mount', {
+      visibilityState: typeof document !== 'undefined' ? document.visibilityState : 'unknown',
+      performanceNow: typeof performance !== 'undefined' ? Math.round(performance.now()) : null,
+      navigationType:
+        typeof performance !== 'undefined'
+          ? (performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming | undefined)?.type ?? 'unknown'
+          : 'unknown',
+    });
+
+    // Lifecycle D (BRU-45): um run registrado NESTE documento (contexto local
+    // PRESENTE) está vivo — não é interrupção. Só são interrompidos os runs
+    // persistidos SEM contexto local (RUN_PERSISTED_AS_ACTIVE +
+    // LOCAL_ACTIVE_RUN_CONTEXT_MISSING), ou seja, órfãos de outro ciclo de
+    // página. Sem esse filtro, um remount do effect durante a execução viva
+    // fabricaria a mensagem de reload e consumiria o registro do run ativo.
+    const interruptedRuns = peekPersistedActiveDossierRuns().filter(run => !isActiveDossierRunLocal(run.runId));
     if (interruptedRuns.length === 0) return;
+
+    scoutDiag.warn('DossierRunLifecycle', 'recovery:found-persisted-run', {
+      count: interruptedRuns.length,
+      runIds: interruptedRuns.map(run => run.runId),
+      visibilityState: typeof document !== 'undefined' ? document.visibilityState : 'unknown',
+      performanceNow: typeof performance !== 'undefined' ? Math.round(performance.now()) : null,
+    });
 
     const appliedRunIds: string[] = [];
     const pendingRunIds: string[] = [];

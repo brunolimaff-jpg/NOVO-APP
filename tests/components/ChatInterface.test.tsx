@@ -347,6 +347,7 @@ describe('ChatInterface shell regression', () => {
         expect.stringContaining('Empresa=Acme Agro'),
         'Acme Agro',
         expect.any(String),
+        undefined, // targetSessionId — BRU-81: undefined quando não há dossiê próprio
       );
     });
   });

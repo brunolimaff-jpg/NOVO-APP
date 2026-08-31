@@ -1,6 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
+import { useCallback, useRef, useState } from 'react';
 import { useInvestigation } from '../../hooks/useInvestigation';
+import type { DossierWaterfallResult } from '../../types';
 import { scoutDiag } from '../../utils/diagnosticLog';
 
 const getDossierMock = vi.fn();
@@ -169,7 +171,7 @@ describe('useInvestigation — handleNewResearchOverride preserva o dossiê ante
     expect(deleteDossierMock).not.toHaveBeenCalled();
   });
 
-  it('COMPLETED com dossierId persistido e confirmado deleta o anterior (override legítimo)', async () => {
+  it('COMPLETED confirmado NÃO deleta o dossiê anterior (opção B: a promoção atômica substitui B na transação)', async () => {
     onDeepDive.mockResolvedValue({ status: 'COMPLETED', dossierId: 'new-1' });
     getDossierMock.mockResolvedValue({ id: 'new-1', messages: [] });
     const hook = setupOverride('old-5');
@@ -179,7 +181,25 @@ describe('useInvestigation — handleNewResearchOverride preserva o dossiê ante
     });
 
     expect(getDossierMock).toHaveBeenCalledWith('new-1');
-    expect(deleteDossierMock).toHaveBeenCalledWith('old-5');
+    // BRU-81 opção B: B antigo → transação → B novo. Sem delete pós-sucesso.
+    expect(deleteDossierMock).not.toHaveBeenCalled();
+  });
+
+  it('RED (P0 BRU-81): oldDossierId === result.dossierId (mesma thread) → NÃO deleta o dossiê recém-gerado (soft-delete)', async () => {
+    // Nova pesquisa do zero na MESMA thread da conta: o waterfall persiste com
+    // id = sessionId = oldDossierId (UPSERT) e retorna esse id como dossierId.
+    // O handleNewResearchOverride não pode deletar oldDossierId — seria o
+    // soft-delete do dossiê que acabamos de gerar.
+    onDeepDive.mockResolvedValue({ status: 'COMPLETED', dossierId: 'old-5' });
+    getDossierMock.mockResolvedValue({ id: 'old-5', messages: [] });
+    const hook = setupOverride('old-5');
+
+    await act(async () => {
+      await hook.result.current.handleNewResearchOverride();
+    });
+
+    expect(getDossierMock).toHaveBeenCalledWith('old-5');
+    expect(deleteDossierMock).not.toHaveBeenCalledWith('old-5');
   });
 
   it('COMPLETED mas novo dossiê não confirmado no storage não deleta o anterior', async () => {
@@ -192,5 +212,338 @@ describe('useInvestigation — handleNewResearchOverride preserva o dossiê ante
     });
 
     expect(deleteDossierMock).not.toHaveBeenCalled();
+  });
+});
+
+describe('useInvestigation — BRU-81: nova pesquisa do zero reutiliza a thread da conta', () => {
+  const onSelectSession = vi.fn();
+  const onDeepDive = vi.fn();
+
+  const payload = { companyName: 'Empresa Teste', cnpj: null, city: 'SP', state: 'SP' };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    getDossierMock.mockResolvedValue(null);
+    saveDossierMock.mockResolvedValue(undefined);
+    deleteDossierMock.mockResolvedValue(undefined);
+    maybeSingleMock.mockResolvedValue({ data: null, error: null });
+    vi.spyOn(scoutDiag, 'warn').mockImplementation(() => {});
+    onDeepDive.mockResolvedValue({ status: 'COMPLETED', dossierId: 'new-81', terminalPersisted: true });
+  });
+
+  function setupOverride(params: { oldDossierId: string; currentSessionId?: string | null }) {
+    const { currentSessionId = null } = params;
+    const hook = renderHook(() =>
+      useInvestigation({
+        mode: 'default',
+        onDeepDive,
+        operatorId: 'op-1',
+        onSelectSession,
+        currentSessionId,
+      } as never),
+    );
+    act(() => {
+      hook.result.current.setDuplicateDossier({
+        id: params.oldDossierId,
+        empresaAlvo: 'Antiga',
+        cnpj: null,
+        title: 'Antiga',
+        updatedAt: '',
+        operatorId: 'op-1',
+      } as never);
+      hook.result.current.pendingPayloadRef.current = payload as never;
+    });
+    return hook;
+  }
+
+  it('duplicata própria + currentSessionId nulo → seleciona a thread existente ANTES de executar', async () => {
+    const hook = setupOverride({ oldDossierId: 'old-thread-81' });
+
+    await act(async () => {
+      await hook.result.current.handleNewResearchOverride();
+    });
+
+    // BRU-81: volta para a thread da conta para o handleSendMessage reutilizar a sessão
+    expect(onSelectSession).toHaveBeenCalledWith('old-thread-81');
+    // execução segue normalmente após selecionar a thread
+    expect(onDeepDive).toHaveBeenCalled();
+  });
+
+  it('duplicata própria + currentSessionId já na mesma thread → não seleciona de novo', async () => {
+    const hook = setupOverride({ oldDossierId: 'old-thread-81', currentSessionId: 'old-thread-81' });
+
+    await act(async () => {
+      await hook.result.current.handleNewResearchOverride();
+    });
+
+    // Já estamos na thread da conta — não há o que reutilizar (idempotente)
+    expect(onSelectSession).not.toHaveBeenCalled();
+    expect(onDeepDive).toHaveBeenCalled();
+  });
+
+  it('duplicata própria + currentSessionId de OUTRA conta → seleciona a thread do dossiê', async () => {
+    const hook = setupOverride({ oldDossierId: 'old-thread-81', currentSessionId: 'outra-conta' });
+
+    await act(async () => {
+      await hook.result.current.handleNewResearchOverride();
+    });
+
+    expect(onSelectSession).toHaveBeenCalledWith('old-thread-81');
+    expect(onDeepDive).toHaveBeenCalled();
+  });
+
+  it('BRU-81: duplicata própria + sessão transitória A → limpa A via onCleanupTransientSession', async () => {
+    const onCleanupTransientSession = vi.fn();
+    const hook = renderHook(() =>
+      useInvestigation({
+        mode: 'default',
+        onDeepDive,
+        operatorId: 'op-1',
+        onSelectSession,
+        onCleanupTransientSession,
+        currentSessionId: 'A',
+      } as never),
+    );
+    act(() => {
+      hook.result.current.setDuplicateDossier({
+        id: 'B',
+        empresaAlvo: 'Antiga',
+        cnpj: null,
+        title: 'Antiga',
+        updatedAt: '',
+        operatorId: 'op-1',
+      } as never);
+      hook.result.current.pendingPayloadRef.current = payload as never;
+    });
+
+    await act(async () => {
+      await hook.result.current.handleNewResearchOverride();
+    });
+
+    // A (transitória) é entregue ao chamador para limpeza segura (isSessionReusable)
+    expect(onCleanupTransientSession).toHaveBeenCalledWith('A');
+    expect(onSelectSession).toHaveBeenCalledWith('B');
+  });
+
+  it('BRU-81: já na thread B → NÃO limpa sessão transitória (não há A)', async () => {
+    const onCleanupTransientSession = vi.fn();
+    const hook = renderHook(() =>
+      useInvestigation({
+        mode: 'default',
+        onDeepDive,
+        operatorId: 'op-1',
+        onSelectSession,
+        onCleanupTransientSession,
+        currentSessionId: 'B',
+      } as never),
+    );
+    act(() => {
+      hook.result.current.setDuplicateDossier({
+        id: 'B',
+        empresaAlvo: 'Antiga',
+        cnpj: null,
+        title: 'Antiga',
+        updatedAt: '',
+        operatorId: 'op-1',
+      } as never);
+      hook.result.current.pendingPayloadRef.current = payload as never;
+    });
+
+    await act(async () => {
+      await hook.result.current.handleNewResearchOverride();
+    });
+
+    expect(onCleanupTransientSession).not.toHaveBeenCalled();
+  });
+
+  it('BRU-81: fonte ESTRANGEIRA → NÃO limpa sessão nenhuma (fail-closed)', async () => {
+    const onCleanupTransientSession = vi.fn();
+    const hook = renderHook(() =>
+      useInvestigation({
+        mode: 'default',
+        onDeepDive,
+        operatorId: 'op-1',
+        onSelectSession,
+        onCleanupTransientSession,
+        currentSessionId: 'A',
+      } as never),
+    );
+    act(() => {
+      hook.result.current.setDuplicateDossier({
+        id: 'dossier-estrangeiro-2',
+        empresaAlvo: 'Estrangeira',
+        cnpj: null,
+        title: 'Estrangeira',
+        updatedAt: '',
+        operatorId: 'op-outro',
+      } as never);
+      hook.result.current.pendingPayloadRef.current = payload as never;
+    });
+
+    await act(async () => {
+      await hook.result.current.handleNewResearchOverride();
+    });
+
+    expect(onCleanupTransientSession).not.toHaveBeenCalled();
+  });
+
+  it('fonte ESTRANGEIRA + currentSessionId nulo → NÃO seleciona a thread do dossiê estrangeiro (fail-closed)', async () => {
+    const hook = renderHook(() =>
+      useInvestigation({
+        mode: 'default',
+        onDeepDive,
+        operatorId: 'op-1',
+        onSelectSession,
+        currentSessionId: null,
+      } as never),
+    );
+    act(() => {
+      hook.result.current.setDuplicateDossier({
+        id: 'dossier-estrangeiro',
+        empresaAlvo: 'Estrangeira',
+        cnpj: null,
+        title: 'Estrangeira',
+        updatedAt: '',
+        operatorId: 'op-outro', // != 'op-1' → fail-closed BRU-11
+      } as never);
+      hook.result.current.pendingPayloadRef.current = payload as never;
+    });
+
+    await act(async () => {
+      await hook.result.current.handleNewResearchOverride();
+    });
+
+    expect(onSelectSession).not.toHaveBeenCalled();
+    expect(onDeepDive).toHaveBeenCalled();
+  });
+});
+
+describe('useInvestigation — BRU-81 propriedade central: o waterfall roda com sessionId da thread da conta (B)', () => {
+  const payload = { companyName: 'Empresa Teste', cnpj: null, city: 'SP', state: 'SP' };
+
+  // Harness que reproduz o padrão real do App:
+  // - currentSessionId vive em estado React;
+  // - handleSendMessage (papel do onDeepDive/App.handleSendMessage) captura currentSessionId
+  //   da CLOSURE do render atual — exatamente como message-orchestrator.ts:1003;
+  // - handleSelectSession faz setCurrentSessionId sem await material de re-render —
+  //   exatamente como features/chat/session-controller.ts:222.
+  function useHarness(initialSessionId: string | null) {
+    const [currentSessionId, setCurrentSessionId] = useState<string | null>(initialSessionId);
+    const waterfallSessionIdsRef = useRef<string[]>([]);
+    const selectSessionCallsRef = useRef<string[]>([]);
+
+    // Espelha o App real: handleSendMessage aceita o targetSessionId explícito
+    // (5º arg do onDeepDive) e o usa como sessionId do waterfall — em vez da
+    // closure do currentSessionId, que pode estar stale (BRU-81).
+    const handleSendMessage = useCallback(async (_p: string, _h: string, _c: string, _cnpj?: string, targetSessionId?: string): Promise<DossierWaterfallResult> => {
+      const sessionId = targetSessionId ?? currentSessionId ?? '(null)';
+      waterfallSessionIdsRef.current.push(sessionId);
+      return { status: 'COMPLETED', dossierId: sessionId };
+    }, [currentSessionId]);
+
+    const handleSelectSession = useCallback(async (id: string) => {
+      selectSessionCallsRef.current.push(id);
+      setCurrentSessionId(id);
+    }, []);
+
+    const investigation = useInvestigation({
+      mode: 'default',
+      onDeepDive: handleSendMessage,
+      operatorId: 'op-1',
+      onSelectSession: handleSelectSession,
+      currentSessionId,
+    });
+
+    return { investigation, waterfallSessionIdsRef, selectSessionCallsRef };
+  }
+
+  function setupDuplicate(hook: { current: { investigation: ReturnType<typeof useInvestigation> } }, oldDossierId: string, operatorId = 'op-1') {
+    act(() => {
+      hook.current.investigation.setDuplicateDossier({
+        id: oldDossierId,
+        empresaAlvo: 'Antiga',
+        cnpj: null,
+        title: 'Antiga',
+        updatedAt: '',
+        operatorId,
+      } as never);
+      hook.current.investigation.pendingPayloadRef.current = payload as never;
+    });
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    getDossierMock.mockImplementation((id: string) => Promise.resolve({ id, messages: [] }));
+    saveDossierMock.mockResolvedValue(undefined);
+    deleteDossierMock.mockResolvedValue(undefined);
+    maybeSingleMock.mockResolvedValue({ data: null, error: null });
+    vi.spyOn(scoutDiag, 'warn').mockImplementation(() => {});
+  });
+
+  it('RED (propriedade central): sessão A (Nova Investigação) ativa + duplicata própria B → waterfall roda com sessionId B', async () => {
+    const { result } = renderHook(() => useHarness('A'));
+    setupDuplicate(result, 'B');
+
+    await act(async () => {
+      await result.current.investigation.handleNewResearchOverride();
+    });
+
+    // A seleção da thread da conta aconteceu
+    expect(result.current.selectSessionCallsRef.current).toEqual(['B']);
+    // PROPRIEDADE CENTRAL: o waterfall/processMessage efetivamente rodou com sessionId B
+    expect(result.current.waterfallSessionIdsRef.current).toEqual(['B']);
+    // Nenhuma execução paralela / terceira sessão
+    expect(result.current.waterfallSessionIdsRef.current).toHaveLength(1);
+  });
+
+  it('currentSessionId null + duplicata própria B → waterfall roda com sessionId B', async () => {
+    const { result } = renderHook(() => useHarness(null));
+    setupDuplicate(result, 'B');
+
+    await act(async () => {
+      await result.current.investigation.handleNewResearchOverride();
+    });
+
+    expect(result.current.selectSessionCallsRef.current).toEqual(['B']);
+    expect(result.current.waterfallSessionIdsRef.current).toEqual(['B']);
+  });
+
+  it('currentSessionId de OUTRA conta (C) + duplicata própria B → waterfall roda com sessionId B', async () => {
+    const { result } = renderHook(() => useHarness('C'));
+    setupDuplicate(result, 'B');
+
+    await act(async () => {
+      await result.current.investigation.handleNewResearchOverride();
+    });
+
+    expect(result.current.selectSessionCallsRef.current).toEqual(['B']);
+    expect(result.current.waterfallSessionIdsRef.current).toEqual(['B']);
+  });
+
+  it('já na thread correta (currentSessionId = B) → idempotente, waterfall roda com sessionId B sem selecionar de novo', async () => {
+    const { result } = renderHook(() => useHarness('B'));
+    setupDuplicate(result, 'B');
+
+    await act(async () => {
+      await result.current.investigation.handleNewResearchOverride();
+    });
+
+    expect(result.current.selectSessionCallsRef.current).toEqual([]);
+    expect(result.current.waterfallSessionIdsRef.current).toEqual(['B']);
+  });
+
+  it('fonte ESTRANGEIRA → NUNCA seleciona a thread estrangeira e o waterfall NÃO roda com ela (fail-closed)', async () => {
+    const { result } = renderHook(() => useHarness('A'));
+    setupDuplicate(result, 'dossier-estrangeiro', 'op-outro');
+
+    await act(async () => {
+      await result.current.investigation.handleNewResearchOverride();
+    });
+
+    expect(result.current.selectSessionCallsRef.current).toEqual([]);
+    // fail-closed: a sessão estrangeira nunca entra no waterfall
+    expect(result.current.waterfallSessionIdsRef.current).not.toContain('dossier-estrangeiro');
+    // a execução segue na sessão atual (A)
+    expect(result.current.waterfallSessionIdsRef.current).toEqual(['A']);
   });
 });

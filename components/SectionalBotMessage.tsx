@@ -274,8 +274,6 @@ function stripUnsafeSocietarySections(markdown: string): string {
     .trim();
 }
 
-const TRUNCATION_SECTION_THRESHOLD = 3;
-
 const SectionalBotMessage: React.FC<SectionalBotMessageProps> = ({
   message,
   sessionId,
@@ -295,18 +293,26 @@ const SectionalBotMessage: React.FC<SectionalBotMessageProps> = ({
   const { cleanText, options: parsedOptions } = useMemo(() => {
     return parseSmartOptions(content);
   }, [content]);
-  const displayText = useMemo(() => {
-    return stripUnsafeSocietarySections(cleanText);
-  }, [cleanText]);
 
-  // Errata 5: useDeferredValue evita que parseMarkdownSections + MarkdownRenderer
-  // bloqueiem a main thread em dossiês grandes (>15KB). React 18 processa o valor
-  // deferred em render de baixa prioridade, mantendo a UI responsiva.
+  // RUN_ORPHAN fix (Planejador 2026-08-10, BUG-7 render-blocking): três parsers
+  // síncronos (stripUnsafeSocietarySections, parseTeiaText, parseMarkdownSections)
+  // rodavam sobre cleanText direto — em dossiês grandes (>15KB) bloqueavam a main
+  // thread, o heartbeat do waterfall não conseguia tickar e o lease expirava
+  // (run órfão). useDeferredValue já protegia parseMarkdownSections via
+  // displayText; agora estende a proteção aos outros dois parsers, deferindo
+  // cleanText antes de qualquer consumidor downstream pesado.
   const LARGE_DOSSIER_DEFERRED_CHARS = 15_000;
-  const deferredText = useDeferredValue(displayText);
-  const isDeferredPending = deferredText !== displayText && displayText.length > LARGE_DOSSIER_DEFERRED_CHARS;
+  const deferredCleanText = useDeferredValue(cleanText);
+  const isDeferredPending =
+    deferredCleanText !== cleanText && cleanText.length > LARGE_DOSSIER_DEFERRED_CHARS;
+  const effectiveCleanText = isDeferredPending ? deferredCleanText : cleanText;
 
-  const effectiveText = isDeferredPending ? deferredText : displayText;
+  const displayText = useMemo(() => {
+    return stripUnsafeSocietarySections(effectiveCleanText);
+  }, [effectiveCleanText]);
+
+  const deferredText = useDeferredValue(displayText);
+  const effectiveText = deferredText;
 
   const sections = useMemo(() => {
     return parseMarkdownSections(effectiveText);
@@ -322,15 +328,24 @@ const SectionalBotMessage: React.FC<SectionalBotMessageProps> = ({
   );
 
   const parsedTeiaData = useMemo(() => {
-    return parseTeiaText(cleanText);
-  }, [cleanText]);
+    return parseTeiaText(effectiveCleanText);
+  }, [effectiveCleanText]);
   const llmCnpjsForMap = useMemo(() => {
     if (parsedTeiaData.companies.length === 0) return undefined;
     return parsedTeiaData.companies;
-  }, [cleanText, parsedTeiaData.companies.length]);
+  }, [effectiveCleanText, parsedTeiaData.companies.length]);
   const societaryMapSectionIndex = useMemo(
     () => sections.findIndex(section => shouldShowSocietaryMap(section.title, section.content, cnpj)),
     [sections, cnpj],
+  );
+  // Gold já contém sua própria Teia/Tabela de CNPJs segura. O SocietaryMap
+  // legado continua para dossiês antigos, mas não pode ser injetado no Gold:
+  // ele reintroduz lista nominal de QSA e CNPJs laterais fora do Frontier.
+  const isGoldBrief = useMemo(
+    () =>
+      /^#{2,3}\s*1\.\s*s[ií]ntese executiva/im.test(content) &&
+      /^#{2,3}\s*9\.\s*pr[oó]ximos passos/im.test(content),
+    [content],
   );
   const teiaTraceIdRef = useRef(createScoutTraceId('teia'));
   const teiaTraceEnabled = isScoutTraceEnabled('teia');
@@ -379,21 +394,11 @@ const SectionalBotMessage: React.FC<SectionalBotMessageProps> = ({
     }
   };
 
-  // ── Truncamento frontend (Opção 5) ──
-  // Para dossiês grandes (>3 seções), exibe preview das 3 primeiras seções
-  // e botão "Ver relatório completo" com expansão sob demanda.
-  // Evita que react-markdown bloqueie a main thread renderizando 28k+ chars
-  // de markdown de uma só vez.
-  const [isDossierExpanded, setIsDossierExpanded] = useState(false);
-
-  // Reseta expansão quando a mensagem muda (evita vazamento de estado entre sessões)
-  useEffect(() => {
-    setIsDossierExpanded(false);
-  }, [message.id]);
-
-  const shouldTruncateDossier = sections.length > TRUNCATION_SECTION_THRESHOLD && !isDossierExpanded;
-  const visibleSections = shouldTruncateDossier ? sections.slice(0, TRUNCATION_SECTION_THRESHOLD) : sections;
-  const hiddenSectionCount = sections.length - TRUNCATION_SECTION_THRESHOLD;
+  // SCOUT-V7-GOLD-EXPERIENCE-01 (Planejador 2026-08-10): truncamento frontend
+  // REMOVIDO — todas as seções (9) renderizam diretamente, sem botão
+  // "Ver relatório completo". O useDeferredValue acima já protege a main
+  // thread para dossiês >15k (RUN_ORPHAN fix), então o truncamento não é
+  // mais necessário para performance.
 
   // Só mostra o botão copiar se houver conteúdo substancial (dossiê real)
   const showCopyButton = displayText.length > 300;
@@ -447,7 +452,7 @@ const SectionalBotMessage: React.FC<SectionalBotMessageProps> = ({
         </div>
       )}
 
-      {visibleSections.map((section, idx) => {
+      {sections.map((section, idx) => {
         const sellerSectionKind = getSellerSectionKind(section.title);
         const sellerSectionClass = getSellerSectionClass(sellerSectionKind, isDarkMode);
         const isPrimaryModule = section.level === 1 && section.kind === 'module';
@@ -511,7 +516,7 @@ const SectionalBotMessage: React.FC<SectionalBotMessageProps> = ({
                   </span>
                 </div>
               )}
-              {idx === societaryMapSectionIndex && !isLoading ? (
+              {idx === societaryMapSectionIndex && !isGoldBrief && !isLoading ? (
                 <SocietaryMap
                   cnpj={cnpj}
                   empresaAlvo={empresaAlvo}
@@ -527,13 +532,17 @@ const SectionalBotMessage: React.FC<SectionalBotMessageProps> = ({
                     section.key === 'intro'
                       ? section.content
                       : `${'#'.repeat(section.level)} ${section.title}\n\n${section.content}`;
-                  if (idx === societaryMapSectionIndex) {
+                  if (idx === societaryMapSectionIndex && !isGoldBrief) {
                     return stripSocietaryMapDuplicates(stripTabelaMestreCnpjs(raw));
                   }
                   // Strip mermaid/duplicate-heading from sub-sections that also match
-                  // the societary map pattern (e.g. ### MAPA DE PODER SOCIETÁRIO split
-                  // by parseMarkdownSections as a separate section entry)
-                  if (societaryMapSectionIndex >= 0 && shouldShowSocietaryMap(section.title, section.content, cnpj)) {
+                  // the societary map pattern in legacy dossiers only. Gold owns its
+                  // Teia/Tabela content and must not be rewritten here.
+                  if (
+                    !isGoldBrief &&
+                    societaryMapSectionIndex >= 0 &&
+                    shouldShowSocietaryMap(section.title, section.content, cnpj)
+                  ) {
                     return stripSocietaryMapDuplicates(raw);
                   }
                   return raw;
@@ -558,30 +567,6 @@ const SectionalBotMessage: React.FC<SectionalBotMessageProps> = ({
           </div>
         );
       })}
-
-      {shouldTruncateDossier && (
-        <button
-          onClick={() => setIsDossierExpanded(true)}
-          className={`w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl border-2 border-dashed
-            font-medium text-sm transition-all duration-200
-            ${
-              isDarkMode
-                ? 'border-slate-600 hover:border-emerald-500/50 text-slate-400 hover:text-emerald-300 bg-slate-800/50 hover:bg-slate-800'
-                : 'border-slate-300 hover:border-emerald-400 text-slate-500 hover:text-emerald-600 bg-slate-50 hover:bg-white'
-            }`}
-          aria-label={`Ver relatório completo (mais ${hiddenSectionCount} seções)`}
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-          </svg>
-          <span>
-            Ver relatório completo
-            <span className={`ml-1 text-xs ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>
-              (+{hiddenSectionCount} seç{hiddenSectionCount > 1 ? 'ões' : 'ão'})
-            </span>
-          </span>
-        </button>
-      )}
 
       {processedOptions.length > 0 && onPreFillInput && !hideSuggestions && (
         <div className="mt-4 min-w-0 border-t border-dashed border-gray-500/20 pt-2">

@@ -2,7 +2,7 @@ import { ClienteSeniorData, Message, ScorePortaData, Sender, WebVerificationStat
 import { normalizeAppError } from '../../utils/errorHelpers';
 import { parsePortaMarkerV2 } from '../../utils/porta';
 import { enforceSeniorEvidenceConstraints, extractClienteSeniorData } from '../../utils/seniorEvidence';
-import { applyPromptLeakShield } from '../../utils/textCleaners';
+import { applyPromptLeakShield, type InternalMarkerAllowlist } from '../../utils/textCleaners';
 import { withAutoRetry } from '../../utils/retry';
 import { proxyChatSendMessage, proxyGenerateContent } from '../llmProxy';
 import {
@@ -556,6 +556,7 @@ export async function generateDossierModule(
   const shieldedResult = applyPromptLeakShield(response.text || '', {
     companyHint: empresaAlvo,
     preserveInternalMarkersWhenSafe: true,
+    internalMarkerAllowlist: options.internalMarkerAllowlist,
   });
   if (shieldedResult.blocked) {
     scoutDiag.warn('PromptLeakShield', 'módulo do dossiê bloqueado por possível vazamento de prompt', {

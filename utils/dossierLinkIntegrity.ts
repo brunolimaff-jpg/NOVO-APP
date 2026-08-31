@@ -3,8 +3,8 @@ import type { DossierSourceRef } from './dossierSourcePool';
 import { normalizeSourceUrl } from './textCleaners';
 import { stripTeiaHypothesisLegend } from './teiaLegend';
 
-const MARKDOWN_LINK_REGEX = /\[([^\]]+)\]\((https?:\/\/(?:[^\s()]+|\([^\s()]*\))+)\)/gi;
-const DOUBLE_BRACKET_LINK_REGEX = /\[\[(\d+)\]\]\((https?:\/\/(?:[^\s()]+|\([^\s()]*\))+)\)/gi;
+const MARKDOWN_LINK_REGEX = /\[([^\]]+)\]\((https?:\/\/[^\s()]+(?:\([^\s()]*\)[^\s()]*)*)\)/gi;
+const DOUBLE_BRACKET_LINK_REGEX = /\[\[(\d+)\]\]\((https?:\/\/[^\s()]+(?:\([^\s()]*\)[^\s()]*)*)\)/gi;
 const URGENCY_HEADING_REGEX = /^##\s*⏰\s*Sinais de Urgência\s*$/im;
 const GENERATED_SOURCES_FOOTER_REGEX = /\n##\s*📚\s*Fontes\s*\n[\s\S]*$/i;
 

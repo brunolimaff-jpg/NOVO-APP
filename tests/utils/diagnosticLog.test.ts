@@ -275,3 +275,90 @@ describe('scoutDiag', () => {
     vi.useRealTimers();
   });
 });
+
+describe('LOTE GOLD P0 R2 — verifier-summary chega ao buffer mesmo com verbose DESLIGADO (produção)', () => {
+  it('info crítico do verifier entra no buffer sem NODE_ENV=development nem VITE_VERBOSE_LOGS', async () => {
+    vi.resetModules();
+    const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0.777);
+    const nowSpy = vi.spyOn(Date, 'now').mockReturnValue(1_700_000_000_000);
+    window.localStorage.setItem('SCOUT_DIAG_ENABLED', '1');
+    const prevDiagEnv = process.env.VITE_SCOUT_DIAGNOSTICS_ENABLED;
+    const prevNodeEnv = process.env.NODE_ENV;
+    const prevVerbose = process.env.VITE_VERBOSE_LOGS;
+    process.env.VITE_SCOUT_DIAGNOSTICS_ENABLED = 'true';
+    process.env.NODE_ENV = 'production'; // verbose OFF — como em produção
+    delete process.env.VITE_VERBOSE_LOGS;
+    const fresh = await import('../../utils/diagnosticLog');
+
+    // LOTE GOLD P0 R2-B: os 4 eventos críticos chegam ao buffer mesmo com
+    // verbose DESLIGADO (produção).
+    for (const event of [
+      'diagnostics-post-preflight',
+      'diagnostics-post-mermaid',
+      'diagnostics-post-certainty',
+      'verifier-summary',
+    ]) {
+      fresh.scoutDiag.info('GoldSeam', event, { hardFails: 1, codes: ['X'] });
+    }
+
+    const history = (window as typeof window & { __SCOUT_DIAG_HISTORY__?: Array<{ area: string; event: string }> })
+      .__SCOUT_DIAG_HISTORY__ ?? [];
+    for (const event of [
+      'diagnostics-post-preflight',
+      'diagnostics-post-mermaid',
+      'diagnostics-post-certainty',
+      'verifier-summary',
+    ]) {
+      expect(history.some(e => e.area === 'GoldSeam' && e.event === event)).toBe(true);
+    }
+
+    randomSpy.mockRestore();
+    nowSpy.mockRestore();
+    if (prevDiagEnv === undefined) delete process.env.VITE_SCOUT_DIAGNOSTICS_ENABLED;
+    else process.env.VITE_SCOUT_DIAGNOSTICS_ENABLED = prevDiagEnv;
+    if (prevNodeEnv === undefined) delete process.env.NODE_ENV;
+    else process.env.NODE_ENV = prevNodeEnv;
+    if (prevVerbose === undefined) delete process.env.VITE_VERBOSE_LOGS;
+    else process.env.VITE_VERBOSE_LOGS = prevVerbose;
+  });
+});
+
+describe('LOTE GOLD P0 — persistência garantida do verifier-summary', () => {
+  it('verifier-summary SEMPRE entra no buffer (bucket 93 cairia no sampling) e infos comuns continuam amostradas', async () => {
+    // Determinístico: com Date.now fixo e Math.random=0.777, o runId do
+    // módulo é estável e o bucket estável do evento é 93 (>=10 — sem a
+    // exceção explícita, o info cairia no sampling de 10%). O controle
+    // gold-start (bucket 57) continua amostrado e NÃO entra no buffer.
+    vi.resetModules();
+    const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0.777);
+    const nowSpy = vi.spyOn(Date, 'now').mockReturnValue(1_700_000_000_000);
+    window.localStorage.setItem('SCOUT_DIAG_ENABLED', '1');
+    // env var tem precedência sobre o localStorage no isDiagnosticsEnabled
+    const prevEnv = process.env.VITE_SCOUT_DIAGNOSTICS_ENABLED;
+    process.env.VITE_SCOUT_DIAGNOSTICS_ENABLED = 'true';
+    // scoutDiag.info só emite quando isVerboseEnabled (NODE_ENV=development)
+    const prevNodeEnv = process.env.NODE_ENV;
+    process.env.NODE_ENV = 'development';
+    const fresh = await import('../../utils/diagnosticLog');
+
+    fresh.scoutDiag.info('GoldSeam', 'verifier-summary', {
+      hardFails: 1,
+      codesJson: '["UNSUPPORTED_PRODUCT_CLAIM"]',
+      dossierRunId: 'run-1',
+      stage: 'final-verifier',
+    });
+    fresh.scoutDiag.info('GoldSeam', 'gold-start', { company: 'Controle' });
+
+    const history = (window as typeof window & { __SCOUT_DIAG_HISTORY__?: Array<{ area: string; event: string }> })
+      .__SCOUT_DIAG_HISTORY__ ?? [];
+    expect(history.some(e => e.area === 'GoldSeam' && e.event === 'verifier-summary')).toBe(true);
+    expect(history.some(e => e.area === 'GoldSeam' && e.event === 'gold-start')).toBe(false);
+
+    randomSpy.mockRestore();
+    nowSpy.mockRestore();
+    if (prevEnv === undefined) delete process.env.VITE_SCOUT_DIAGNOSTICS_ENABLED;
+    else process.env.VITE_SCOUT_DIAGNOSTICS_ENABLED = prevEnv;
+    if (prevNodeEnv === undefined) delete process.env.NODE_ENV;
+    else process.env.NODE_ENV = prevNodeEnv;
+  });
+});

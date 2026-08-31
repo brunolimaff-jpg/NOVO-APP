@@ -1,7 +1,10 @@
 import React from 'react';
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import MessageTimeline from '../../../components/chat/MessageTimeline';
+
+const scoutDiagMock = vi.hoisted(() => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn() }));
+vi.mock('../../../utils/diagnosticLog', () => ({ scoutDiag: scoutDiagMock }));
 import type { ChatTheme } from '../../../components/chat/contracts';
 import { Sender, type ChatSession, type Message } from '../../../types';
 
@@ -24,10 +27,19 @@ vi.mock('react-virtuoso', async () => {
             Header?: React.ComponentType;
           };
         },
-        ref: React.ForwardedRef<HTMLDivElement>,
-      ) => (
+        ref: React.ForwardedRef<{ scrollToIndex: (opts: { index: number; align?: string; behavior?: string }) => void } | HTMLDivElement>,
+      ) => {
+        const scrollToIndex = (opts: { index: number; align?: string; behavior?: string }) => {
+          const el = document.querySelector('[data-testid="messages-scroller"]');
+          if (el) el.setAttribute('data-scrolled-to', String(opts.index));
+        };
+        if (typeof ref === 'function') {
+          ref({ scrollToIndex });
+        } else if (ref) {
+          (ref as { current?: unknown }).current = { scrollToIndex };
+        }
+        return (
         <div
-          ref={ref}
           data-testid="messages-scroller"
           data-virtuoso-scroller="true"
           data-follow-output={String(followOutput)}
@@ -39,7 +51,8 @@ vi.mock('react-virtuoso', async () => {
             </div>
           ))}
         </div>
-      ),
+        );
+      },
     ),
   };
 });
@@ -105,6 +118,7 @@ vi.mock('../../../components/EmptyStateHome', () => ({
 vi.mock('../../../components/HelpCenterFloating', () => ({
   default: () => <div data-testid="help-center-floating" />,
 }));
+
 
 const theme: ChatTheme = {
   bg: 'bg-slate-950',
@@ -195,6 +209,7 @@ describe('MessageTimeline', () => {
   });
 
   afterEach(() => {
+    cleanup();
     global.ResizeObserver = originalResizeObserver;
     window.requestAnimationFrame = originalRequestAnimationFrame;
     window.cancelAnimationFrame = originalCancelAnimationFrame;
@@ -511,6 +526,80 @@ describe('MessageTimeline', () => {
       // Nenhum elemento deve ter style com !important injetado
       const elementsWithImportant = document.querySelectorAll('[style*="important"]');
       expect(elementsWithImportant.length).toBe(0);
+    });
+  });
+
+  describe('BRU-81 F1.2 — NEW_RUN_WAYFINDING', () => {
+    it('chave nova + viewport pronto → scroll one-shot até a última mensagem (nova atividade)', async () => {
+      const messages = [
+        buildMessage('m1', Sender.User, 'Investigação anterior'),
+        buildMessage('m2', Sender.Bot, 'Dossiê grande anterior...'),
+        buildMessage('m3', Sender.User, '🔍 Investigando Grupo Scheffer...'),
+        { ...buildMessage('m4', Sender.Bot, ''), isThinking: true, loadingVariant: 'inline' as const },
+      ];
+      const props = buildProps({
+        messages,
+        currentSession: buildSession(messages),
+        scrollToActivityKey: 'm4',
+        isLoading: true,
+      });
+      render(<MessageTimeline {...props} />);
+
+      await waitFor(() => {
+        expect(scoutDiagMock.info).toHaveBeenCalledWith('Virtuoso', 'wayfinding-scroll', expect.objectContaining({ targetIndex: 3 }));
+      });
+    });
+
+    it('chave repetida → NÃO re-dispara o scroll (one-shot, usuário navega livre depois)', async () => {
+      const messages = [
+        buildMessage('m1', Sender.User, 'Ola'),
+        buildMessage('m2', Sender.Bot, 'Resposta'),
+      ];
+      const { rerender } = render(
+        <MessageTimeline
+          {...buildProps({ messages, currentSession: buildSession(messages), scrollToActivityKey: 'm2', isLoading: true })}
+        />,
+      );
+      rerender(
+        <MessageTimeline
+          {...buildProps({ messages, currentSession: buildSession(messages), scrollToActivityKey: 'm2', isLoading: true })}
+        />,
+      );
+
+      await new Promise(r => setTimeout(r, 50));
+      const calls = scoutDiagMock.info.mock.calls.filter(c => c[1] === 'wayfinding-scroll');
+      expect(calls.length).toBeLessThanOrEqual(1);
+    });
+
+    it('F1.3: chave chega ANTES do item existir → zero consumo prematuro; consome quando o placeholder aparece', async () => {
+      const messages1 = [buildMessage('m1', Sender.User, 'Ola')];
+      const { rerender } = render(
+        <MessageTimeline
+          {...buildProps({ messages: messages1, currentSession: buildSession(messages1), scrollToActivityKey: 'm2', isLoading: true })}
+        />,
+      );
+      await new Promise(r => setTimeout(r, 50));
+      // item m2 ainda não existe → zero scroll consumido
+      expect(scoutDiagMock.info.mock.calls.filter(c => c[1] === 'wayfinding-scroll').length).toBe(0);
+
+      // placeholder do novo run aparece → consome e scrola exatamente 1x
+      const messages2 = [buildMessage('m1', Sender.User, 'Ola'), { ...buildMessage('m2', Sender.Bot, ''), isThinking: true, loadingVariant: 'inline' as const }];
+      rerender(
+        <MessageTimeline
+          {...buildProps({ messages: messages2, currentSession: buildSession(messages2), scrollToActivityKey: 'm2', isLoading: true })}
+        />,
+      );
+      await waitFor(() => {
+        expect(scoutDiagMock.info).toHaveBeenCalledWith('Virtuoso', 'wayfinding-scroll', expect.objectContaining({ targetIndex: 1 }));
+      });
+      // rerender adicional do mesmo run → zero novo scroll
+      rerender(
+        <MessageTimeline
+          {...buildProps({ messages: messages2, currentSession: buildSession(messages2), scrollToActivityKey: 'm2', isLoading: true })}
+        />,
+      );
+      await new Promise(r => setTimeout(r, 50));
+      expect(scoutDiagMock.info.mock.calls.filter(c => c[1] === 'wayfinding-scroll').length).toBe(1);
     });
   });
 });

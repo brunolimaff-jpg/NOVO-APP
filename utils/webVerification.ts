@@ -12,7 +12,7 @@ export interface ModuleVerificationUpdate {
   sources: VerifiedSource[];
 }
 
-const MARKDOWN_LINK_REGEX = /\[([^\]]+)\]\((https?:\/\/(?:[^\s()]+|\([^\s()]*\))+)\)/gi;
+const MARKDOWN_LINK_REGEX = /\[([^\]]+)\]\((https?:\/\/[^\s()]+(?:\([^\s()]*\)[^\s()]*)*)\)/gi;
 const RAW_URL_REGEX = /https?:\/\/[^\s<>"')\]]+/gi;
 const FAKE_SOURCE_HOSTS = [
   'ai.studio',

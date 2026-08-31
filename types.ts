@@ -248,11 +248,15 @@ export interface ChatInterfaceProps {
   onNewSession: () => void;
   onSelectSession: (sessionId: string) => void;
   onDeleteSession: (sessionId: string) => void;
+  /** BRU-81 (P0): remove a "Nova Investigação" vazia criada só para a tentativa
+   *  de override — o implementador valida isSessionReusable antes de remover. */
+  onCleanupTransientSession?: (sessionId: string) => void;
   onDeepDive: (
     displayMessage: string,
     hiddenPrompt: string,
     forcedCompanyName?: string,
     cnpj?: string | null,
+    targetSessionId?: string,
   ) => Promise<DossierWaterfallResult | null | undefined>;
   isSidebarOpen: boolean;
   onToggleSidebar: () => void;
@@ -300,6 +304,8 @@ export interface ChatInterfaceProps {
   };
   loadingVariant?: 'hero' | 'inline';
   loadingPinnedLabel?: string | null;
+  /** BRU-81 F1.3: id (botMessageId) da nova execução a levar à viewport 1x. */
+  wayfindingKey?: string | null;
   // Deletar mensagem do usuário
   onDeleteMessage?: (id: string) => void;
 }

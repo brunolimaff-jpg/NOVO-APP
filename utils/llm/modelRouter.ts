@@ -23,6 +23,12 @@ export const INTENT_MODEL_MAP: Record<string, string> = {
   'scout-tactical': 'bedrock/deepseek.v3.2',
   'scout-deep-chat': 'bedrock/deepseek.v3.2',
   'scout-deep-research': 'bedrock/us.anthropic.claude-sonnet-4-6',
+  // BRU-33 — intents neutros do Gold (V7 Preview Wiring): resolvem server-side
+  // para a política V6 vencedora (DeepSeek V3.2 → DeepSeek V3.2). Nunca usar
+  // scout-tactical/deep-chat aqui: uma troca futura do modelo de chat não pode
+  // alterar silenciosamente a política Gold.
+  'scout-gold-compact': 'bedrock/deepseek.v3.2',
+  'scout-gold-compose': 'bedrock/deepseek.v3.2',
 };
 export function resolveIntentModel(intent?: string): string {
   if (intent && intent in INTENT_MODEL_MAP) return INTENT_MODEL_MAP[intent];

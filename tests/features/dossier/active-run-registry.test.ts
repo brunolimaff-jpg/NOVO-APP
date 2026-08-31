@@ -12,6 +12,7 @@ const STORAGE_KEY = 'scout360:active_dossier_run';
 
 function mockSessionStorage(): Storage {
   const store = new Map<string, string>();
+  const listeners = new Map<string, Array<(event: unknown) => void>>();
   const storage = {
     getItem: (key: string) => store.get(key) ?? null,
     setItem: (key: string, value: string) => { store.set(key, value); },
@@ -19,6 +20,14 @@ function mockSessionStorage(): Storage {
     clear: () => { store.clear(); },
     key: (index: number) => Array.from(store.keys())[index] ?? null,
     get length() { return store.size; },
+    dispatchEvent: (event: { type: string }) => {
+      for (const listener of listeners.get(event.type) ?? []) listener(event);
+      return true;
+    },
+    addEventListener: (type: string, listener: (event: unknown) => void) => {
+      listeners.set(type, [...(listeners.get(type) ?? []), listener]);
+    },
+    removeEventListener: () => undefined,
   } as unknown as Storage;
   return storage;
 }
@@ -26,7 +35,11 @@ function mockSessionStorage(): Storage {
 let sessionStorageMock: Storage;
 beforeEach(() => {
   sessionStorageMock = mockSessionStorage();
-  vi.stubGlobal('window', { sessionStorage: sessionStorageMock });
+  vi.stubGlobal('window', {
+    sessionStorage: sessionStorageMock,
+    addEventListener: sessionStorageMock.addEventListener,
+    dispatchEvent: sessionStorageMock.dispatchEvent,
+  });
   clearAllActiveDossierRunsForTest();
 });
 afterEach(() => {
@@ -67,6 +80,22 @@ describe('active run registry', () => {
     setActiveDossierRun(run('s', 'a'));
     clearActiveDossierRun('s', 'a');
     expect(sessionStorageMock.getItem(STORAGE_KEY)).toBeNull();
+  });
+
+  it('emite marcador de set e clear com resultado observável', () => {
+    const events: CustomEvent[] = [];
+    window.addEventListener('scout:dossier-active-run', event => events.push(event as CustomEvent));
+
+    setActiveDossierRun(run('s', 'a'));
+    clearActiveDossierRun('s', 'a');
+
+    expect(events.map(event => event.detail.event)).toEqual(['active-run:set', 'active-run:clear']);
+    expect(events[1].detail).toMatchObject({
+      sessionId: 's',
+      runId: 'a',
+      clearSucceeded: true,
+      remainingRunId: null,
+    });
   });
 
   it('consumePersistedActiveDossierRuns entrega runs e limpa o registro persistido', () => {

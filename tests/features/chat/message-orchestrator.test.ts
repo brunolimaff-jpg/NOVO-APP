@@ -6,7 +6,7 @@ import type { LoadingVariant, RequestKind } from '../../../utils/loadingVariant'
 
 const uuidv4Mock = vi.hoisted(() => vi.fn());
 const sendMessageToLlmMock = vi.hoisted(() => vi.fn());
-const lifecycleMocks = vi.hoisted(() => ({ create: vi.fn(), acquire: vi.fn(), start: vi.fn(() => vi.fn()), set: vi.fn(), clear: vi.fn() }));
+const lifecycleMocks = vi.hoisted(() => ({ create: vi.fn(), acquire: vi.fn(), start: vi.fn(() => vi.fn()), set: vi.fn(), clear: vi.fn(), get: vi.fn(() => null) }));
 const trackOperatorEventMock = vi.hoisted(() => vi.fn());
 
 vi.mock('uuid', () => ({
@@ -22,7 +22,7 @@ vi.mock('../../../lib/supabase/dossierRuns', () => ({
   acquireDossierRunLease: lifecycleMocks.acquire,
 }));
 vi.mock('../../../features/dossier/dossier-run-heartbeat', () => ({ startDossierRunHeartbeat: lifecycleMocks.start }));
-vi.mock('../../../features/dossier/active-run-registry', () => ({ setActiveDossierRun: lifecycleMocks.set, clearActiveDossierRun: lifecycleMocks.clear }));
+vi.mock('../../../features/dossier/active-run-registry', () => ({ setActiveDossierRun: lifecycleMocks.set, clearActiveDossierRun: lifecycleMocks.clear, getActiveDossierRun: lifecycleMocks.get }));
 vi.mock('../../../services/operatorTracking', () => ({ trackOperatorEvent: trackOperatorEventMock }));
 
 // Outros testes mockam useToast e chatStore globalmente com vi.mock().
@@ -285,6 +285,63 @@ describe('useChatMessageOrchestrator', () => {
       true,
     );
     expect(harness.state.loadingVariant).toBeUndefined();
+  });
+
+  it('BRU-81 F1: isNewRunOverride em thread com histórico → inline (bubble), isFirstInteraction true, zero sessão paralela', async () => {
+    const deferred = createDeferred<import('../../../types').DossierWaterfallResult>();
+    uuidv4Mock.mockReturnValueOnce('message-user').mockReturnValueOnce('message-bot');
+    const harness = makeHarness({
+      sessions: [
+        makeSession({
+          messages: [
+            makeMessage({ id: 'user-1', sender: Sender.User, text: 'Mensagem inicial' }),
+            makeMessage({ id: 'bot-1', sender: Sender.Bot, text: 'Resposta inicial' }),
+          ],
+        }),
+      ],
+      currentSessionId: 'session-1',
+    });
+    harness.runMegaPromptWaterfall.mockReturnValue(deferred.promise);
+
+    let pendingSend!: Promise<DossierWaterfallResult | null | undefined>;
+    await act(async () => {
+      pendingSend = harness.result.current.handleSendMessage(
+        'DOSSIÊ COMPLETO de Acme Agro',
+        'Nova Pesquisa do Zero',
+        'Acme Agro',
+        { requestKind: 'default', explicitSessionId: 'session-1', isNewRunOverride: true },
+      );
+    });
+    // loading INLINE (bubble) visível DURANTE o run — nunca o LoadingSmart antigo
+    expect(harness.state.loadingVariant).toBe('inline');
+    // nova execução: isFirstInteraction true mesmo com histórico
+    expect(harness.runMegaPromptWaterfall).toHaveBeenCalledWith(
+      expect.objectContaining({ sessionId: 'session-1', isFirstInteraction: true }),
+    );
+    // zero sessão paralela
+    expect(harness.state.sessions.map(s => s.id)).toEqual(['session-1']);
+
+    await act(async () => {
+      deferred.resolve({ status: 'COMPLETED' });
+      await pendingSend;
+    });
+  });
+
+  it('BRU-81 F2: floodgate (geração ativa) → feedback visível e zero segundo run', async () => {
+    const harness = makeHarness({ currentSessionId: 'session-1' });
+    // geração já ativa para a sessão (floodgate 1 do processMessage)
+    harness.activeGenerationRef.current['session-1'] = 'bot-ativo';
+
+    await act(async () => {
+      await harness.result.current.handleSendMessage('Nova pesquisa do zero');
+    });
+
+    // zero segundo run
+    expect(harness.runMegaPromptWaterfall).not.toHaveBeenCalled();
+    // feedback visível (F2)
+    expect(harness.toast.warning).toHaveBeenCalledWith(
+      expect.stringContaining('Já existe uma pesquisa em andamento'),
+    );
   });
 
   it('insere placeholder thinking antes da resposta padrão', async () => {
@@ -640,3 +697,243 @@ describe('useChatMessageOrchestrator', () => {
     expect(global.fetch).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('BRU-73 — roteamento de intenção de pesquisa no chat', () => {
+  function botMessages(harness: ReturnType<typeof makeHarness>): string[] {
+    return harness.state.sessions[0]?.messages
+      ?.filter((m: { sender: string }) => m.sender === Sender.Bot)
+      .map((m: { text: string }) => m.text ?? '') ?? [];
+  }
+
+  it('RED 1: email/copy não inicia deep research (CRAFT_FROM_CONTEXT)', async () => {
+    uuidv4Mock.mockReturnValueOnce('session-new').mockReturnValueOnce('message-user').mockReturnValueOnce('message-bot');
+    const harness = makeHarness();
+    await act(async () => {
+      await harness.result.current.handleSendMessage('Faça um email para o CFO sobre essa conta');
+    });
+    expect(harness.runMegaPromptWaterfall).not.toHaveBeenCalled();
+    expect(harness.state.sessions[0].messages.some((m: Message) => m.sender === Sender.User && m.text === 'Faça um email para o CFO sobre essa conta')).toBe(true);
+  });
+
+  it('RED 2: script não inicia deep research (CRAFT_FROM_CONTEXT)', async () => {
+    uuidv4Mock.mockReturnValueOnce('session-new').mockReturnValueOnce('message-user').mockReturnValueOnce('message-bot');
+    const harness = makeHarness();
+    await act(async () => {
+      await harness.result.current.handleSendMessage('Me dê um script de ligação para essa conta');
+    });
+    expect(harness.runMegaPromptWaterfall).not.toHaveBeenCalled();
+  });
+
+  it('RED 3: "pesquise mais" é ambíguo — sem chamada de pesquisa e com esclarecimento', async () => {
+    uuidv4Mock.mockReturnValueOnce('session-new').mockReturnValueOnce('message-user').mockReturnValueOnce('message-bot');
+    const harness = makeHarness();
+    await act(async () => {
+      await harness.result.current.handleSendMessage('Pesquise mais');
+    });
+    expect(harness.runMegaPromptWaterfall).not.toHaveBeenCalled();
+    const botTexts = botMessages(harness);
+    expect(botTexts.some((t) => /pesquisar mais o quê/i.test(t))).toBe(true);
+    expect(harness.state.isLoading).toBe(false);
+    expect(sendMessageToLlmMock).not.toHaveBeenCalled();
+  });
+
+  it('RED 4: "aprofunde" é ambíguo — sem chamada de pesquisa', async () => {
+    uuidv4Mock.mockReturnValueOnce('session-new').mockReturnValueOnce('message-user').mockReturnValueOnce('message-bot');
+    const harness = makeHarness();
+    await act(async () => {
+      await harness.result.current.handleSendMessage('Aprofunde');
+    });
+    expect(harness.runMegaPromptWaterfall).not.toHaveBeenCalled();
+    expect(botMessages(harness).some((t) => /pesquisar mais o quê/i.test(t))).toBe(true);
+    expect(harness.state.isLoading).toBe(false);
+    expect(sendMessageToLlmMock).not.toHaveBeenCalled();
+  });
+
+  it('RED 5: "pesquise mais sobre a holding" é explícito (RESEARCH_GAP_EXPLICIT)', async () => {
+    uuidv4Mock.mockReturnValueOnce('session-new').mockReturnValueOnce('message-user').mockReturnValueOnce('message-bot');
+    const harness = makeHarness();
+    await act(async () => {
+      await harness.result.current.handleSendMessage('Pesquise mais sobre a holding');
+    });
+    expect(harness.runMegaPromptWaterfall).not.toHaveBeenCalled();
+  });
+
+  it('RED 6: "pesquise tudo" exige confirmação/delimitação — não pesquisa automaticamente', async () => {
+    uuidv4Mock.mockReturnValueOnce('session-new').mockReturnValueOnce('message-user').mockReturnValueOnce('message-bot');
+    const harness = makeHarness();
+    await act(async () => {
+      await harness.result.current.handleSendMessage('Pesquise tudo');
+    });
+    expect(harness.runMegaPromptWaterfall).not.toHaveBeenCalled();
+    expect(botMessages(harness).some((t) => /confirmar|delimita|plano amplo/i.test(t))).toBe(true);
+    expect(harness.state.isLoading).toBe(false);
+    expect(sendMessageToLlmMock).not.toHaveBeenCalled();
+  });
+
+  it('RED 7: "Aprofundar holding agora" é FOLLOWUP_NEXT_STEP — sem disparar dossiê completo', async () => {
+    uuidv4Mock.mockReturnValueOnce('session-new').mockReturnValueOnce('message-user').mockReturnValueOnce('message-bot');
+    const harness = makeHarness();
+    await act(async () => {
+      await harness.result.current.handleSendMessage('Aprofundar holding agora');
+    });
+    expect(harness.runMegaPromptWaterfall).not.toHaveBeenCalled();
+  });
+
+  it('RED 8: nenhum caso negativo chama runMegaPromptWaterfall indevidamente', async () => {
+    const negativeCases = [
+      'Faça um email para o CFO',
+      'Me dê um script de ligação',
+      'Resuma esse dossiê',
+      'Pesquise mais',
+      'Aprofunde',
+      'Pesquise tudo',
+    ];
+    for (const text of negativeCases) {
+      uuidv4Mock.mockReturnValueOnce('session-new').mockReturnValueOnce('message-user').mockReturnValueOnce('message-bot');
+      const harness = makeHarness();
+      await act(async () => {
+        await harness.result.current.handleSendMessage(text);
+      });
+      expect(harness.runMegaPromptWaterfall, text).not.toHaveBeenCalled();
+    }
+  });
+
+  it('RED 9: negação explícita de pesquisa não dispara pesquisa nem esclarecimento (craft)', async () => {
+    for (const text of ['não pesquise mais sobre a holding', 'não pesquise tudo', 'pare de pesquisar a holding', 'não aprofunde a análise']) {
+      uuidv4Mock.mockReturnValueOnce('session-new').mockReturnValueOnce('message-user').mockReturnValueOnce('message-bot');
+      const harness = makeHarness();
+      await act(async () => {
+        await harness.result.current.handleSendMessage(text);
+      });
+      expect(harness.runMegaPromptWaterfall, text).not.toHaveBeenCalled();
+      expect(sendMessageToLlmMock, text).toHaveBeenCalled();
+    }
+  });
+});
+
+
+describe('BRU-80 — regressão: payload de sistema não inicia esclarecimento (deep dive / nova pesquisa)', () => {
+  it('RED: handleSendMessage com hiddenPrompt grande + visibleText não pode cair em "Pesquisar mais o quê?"', async () => {
+    uuidv4Mock.mockReturnValueOnce('session-new').mockReturnValueOnce('message-user').mockReturnValueOnce('message-bot');
+    const harness = makeHarness();
+    const hiddenPrompt =
+      'Dossiê completo de [Grupo Scheffer]. Protocolo de investigação forense especializada:\n\n' +
+      'Pesquise mais. Aprofunde a análise da operação e da cadeia de valor. Investigue mais a estrutura societária. Descubra mais sobre os sócios.';
+    await act(async () => {
+      await harness.result.current.handleSendMessage(hiddenPrompt, '🔍 Investigando Grupo Scheffer...', 'Grupo Scheffer');
+    });
+    expect(harness.runMegaPromptWaterfall).toHaveBeenCalledTimes(1);
+    const botTexts = harness.state.sessions[0]?.messages
+      ?.filter((m: Message) => m.sender === Sender.Bot)
+      .map((m: Message) => m.text ?? '') ?? [];
+    expect(botTexts.some((t) => /pesquisar mais o quê/i.test(t))).toBe(false);
+  });
+});
+
+
+describe('BRU-81 RED — propriedade central: waterfall roda com a thread da conta (sessionId B), não com a closure stale', () => {
+  it('RED 11: nova pesquisa do zero — explicitSessionId(B) faz o waterfall rodar na thread da conta', async () => {
+    // Reproduz o gap apontado pelo Planejador (BRU81_PARTIAL): a closure do
+    // handleSendMessage captura currentSessionId do render em que foi criado; se a
+    // seleção da thread B depende só de "esperar React rerenderizar", o waterfall
+    // pode rodar na thread errada (A) — ou nunca iniciar (cai como follow-up de A).
+    //
+    // A correção BRU-81 passa o sessionId alvo EXPLICITAMENTE (explicitSessionId),
+    // fluindo por valor: handleNewResearchOverride → executeInvestigation(targetSessionId)
+    // → onDeepDive → handleDeepDive → handleSendMessage({ explicitSessionId }).
+    // Este teste prova a propriedade central diretamente no orchestrator: com
+    // explicitSessionId = 'session-B', o waterfall roda com sessionId B e NENHUMA
+    // terceira sessão é criada.
+    uuidv4Mock
+      .mockReturnValueOnce('message-user')
+      .mockReturnValueOnce('message-bot');
+    const harness = makeHarness({
+      sessions: [
+        makeSession({ id: 'session-A', title: 'Nova Investigação', empresaAlvo: null, cnpj: null, messages: [] }),
+        makeSession({ id: 'session-B', title: 'Grupo Scheffer', empresaAlvo: 'Grupo Scheffer', cnpj: null, messages: [] }),
+      ],
+      currentSessionId: 'session-A',
+    });
+
+    await act(async () => {
+      // Fluxo do handleNewResearchOverride corrigido: alvo B explícito na execução
+      await harness.result.current.handleSendMessage(
+        'Dossiê completo de [Grupo Scheffer]. Protocolo de investigação forense especializada:\n\n<prompt>',
+        '🔍 Investigando Grupo Scheffer...',
+        'Grupo Scheffer',
+        { requestKind: 'default', explicitSessionId: 'session-B' },
+      );
+    });
+
+        // PROPRIEDADE CENTRAL: o waterfall roda com sessionId = 'session-B' (thread da conta).
+    expect(harness.runMegaPromptWaterfall).toHaveBeenCalledWith(
+      expect.objectContaining({ sessionId: 'session-B' }),
+    );
+    // e NENHUMA terceira sessão é criada (A e B permanecem, nada novo).
+    expect(harness.state.sessions.map((s) => s.id).sort()).toEqual(['session-A', 'session-B']);
+  });
+
+  it('RED 12: currentSessionId null + explicitSessionId(B) — waterfall roda em B e não cria terceira sessão', async () => {
+    // Cenário: usuário veio da home/EmptyState (currentSessionId null) e a conta
+    // tem dossiê próprio na thread B. A nova pesquisa deve rodar na thread B
+    // (mesmo sem sessão ativa) — e não criar uma nova conversa paralela.
+    uuidv4Mock
+      .mockReturnValueOnce('message-user')
+      .mockReturnValueOnce('message-bot');
+    const harness = makeHarness({
+      sessions: [
+        makeSession({ id: 'session-B', title: 'Grupo Scheffer', empresaAlvo: 'Grupo Scheffer', cnpj: null, messages: [] }),
+      ],
+      currentSessionId: null,
+    });
+
+    await act(async () => {
+      await harness.result.current.handleSendMessage(
+        'Dossiê completo de [Grupo Scheffer]. Protocolo de investigação forense especializada:\n\n<prompt>',
+        '🔍 Investigando Grupo Scheffer...',
+        'Grupo Scheffer',
+        { requestKind: 'default', explicitSessionId: 'session-B' },
+      );
+    });
+
+    expect(harness.runMegaPromptWaterfall).toHaveBeenCalledWith(
+      expect.objectContaining({ sessionId: 'session-B' }),
+    );
+    // Nenhuma sessão nova: só a thread B da conta.
+    expect(harness.state.sessions.map((s) => s.id).sort()).toEqual(['session-B']);
+  });
+
+  it('RED 13: sem explicitSessionId — o waterfall roda na thread ERRADA (A), não na conta B (gap documentado)', async () => {
+    // Prova o gap do BRU81_PARTIAL no caminho ANTIGO (sem explicitSessionId):
+    // a closure do handleSendMessage aponta para a sessão A ativa ("Nova
+    // Investigação") e o texto de pesquisa dispara o waterfall na thread A —
+    // nunca na thread B da conta. É o RED que motivou a correção: a fronteira
+    // agora exige explicitSessionId B no fluxo de nova pesquisa do zero.
+    uuidv4Mock
+      .mockReturnValueOnce('message-user')
+      .mockReturnValueOnce('message-bot');
+    const harness = makeHarness({
+      sessions: [
+        makeSession({ id: 'session-A', title: 'Nova Investigação', empresaAlvo: null, cnpj: null, messages: [] }),
+        makeSession({ id: 'session-B', title: 'Grupo Scheffer', empresaAlvo: 'Grupo Scheffer', cnpj: null, messages: [] }),
+      ],
+      currentSessionId: 'session-A',
+    });
+
+    await act(async () => {
+      // Comportamento pré-correção: handleSendMessage usa currentSessionId (A) da closure.
+      await harness.result.current.handleSendMessage(
+        'Dossiê completo de [Grupo Scheffer]. Protocolo de investigação forense especializada:\n\n<prompt>',
+        '🔍 Investigando Grupo Scheffer...',
+        'Grupo Scheffer',
+        { requestKind: 'default' },
+      );
+    });
+
+    // O waterfall roda (na thread A — a errada para a conta), nunca em B.
+    expect(harness.runMegaPromptWaterfall).toHaveBeenCalled();
+    const calls: string[] = (harness.runMegaPromptWaterfall.mock.calls as any[]).map((c) => c[0].sessionId);
+    expect(calls).not.toContain('session-B');
+  });
+});
+

@@ -16,6 +16,8 @@
  *   Se a API falhar, eventos são salvos em localStorage para retry.
  */
 
+import { isGoldCriticalDiagnosticEvent } from './goldCriticalDiagnostics.js';
+
 const PREFIX = '\u{1F985} [Scout360]';
 const TRACE_STORAGE_KEY = 'scoutTrace';
 const DIAG_BUFFER_KEY = '__SCOUT_DIAG_HISTORY__';
@@ -93,6 +95,9 @@ function shouldBufferDiagnostic(area: string, event: string, severity: string, r
   }
   if (severity === 'error' || severity === 'warn') return true;
   if (area === 'DossierModule' && event === 'usage metadata') return true;
+  // LOTE GOLD P0 R2-B: eventos críticos de diagnóstico Gold (lista única
+  // compartilhada cliente/servidor) não dependem do sampling de 10% de info.
+  if (isGoldCriticalDiagnosticEvent(area, event)) return true;
   if (BUSINESS_DIAGNOSTIC_AREA.test(area) || BUSINESS_DIAGNOSTIC_EVENT.test(`${area}:${event}`)) return true;
   if (severity !== 'info') return false;
   return stableDiagnosticBucket(`${runId}:${area}:${event}`) < INFO_SAMPLE_PERCENT;
@@ -541,8 +546,15 @@ export const scoutDiag = {
   },
 
   info(scope: string, message: string, details?: Record<string, unknown>): void {
-    if (!isVerboseEnabled()) return;
-    console.info(`${PREFIX}[${scope}] ${message}`, safeDetails(details));
+    // LOTE GOLD P0 R2-B: eventos críticos de diagnóstico Gold NÃO dependem
+    // do verbose (em produção isVerboseEnabled é falso e o evento morreria
+    // antes do buffer). Console continua condicionado ao verbose; o buffer
+    // garante os eventos críticos (shouldBufferDiagnostic decide).
+    const isGuaranteedCriticalEvent = isGoldCriticalDiagnosticEvent(scope, message);
+    if (!isVerboseEnabled() && !isGuaranteedCriticalEvent) return;
+    if (isVerboseEnabled()) {
+      console.info(`${PREFIX}[${scope}] ${message}`, safeDetails(details));
+    }
     diagEntry(scope, message, 'info', details);
   },
 

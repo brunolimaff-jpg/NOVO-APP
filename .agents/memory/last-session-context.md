@@ -1,24 +1,8 @@
-# Last Session Context
+# Última sessão — 2026-08-15 (BRU-109 A+C + BRU-117 — PR #483 closure candidate)
 
-Saved: 2026-07-13
-
-> Snapshot de conveniência. Fontes canônicas: `activeContext.md`, `progress.md`, `decisions.md` e `HANDOFF_AI.md`.
-
-## Branch e PRs relevantes
-
-- **origin/main:** `46765ab8` — squash merge PR #425 (Fase 3B.1.5)
-- **PR #425:** MERGED — hardening e benchmark do harness Codex
-- **PR #424:** MERGED — Fase 3B.1 (`9c8b3228`)
-- **Próxima fase:** 3B.2 (não iniciada)
-
-## Estado atual
-
-- Trilha de agentes em main até 3B.1.5
-- Auditor harness: 37 testes; parser TOML fail-closed
-- Multi-Agent V2 não confiável até prova CLI
-- Probe A `BLOCKED_BY_HARNESS`; Probe B não executado
-
-## Próxima ação
-
-- Iniciar Fase 3B.2 só sob pedido explícito
-- Não misturar WIP/stashes Scout nesta trilha
+- Worktree: /Users/brunolima/Documents/NOVO-APP-bru62 · branch feat/v6-shadow-prep · HEAD remoto b23c98e2 (código Gold: cc93e876)
+- PR #483 DRAFT · CI 11/11 SUCCESS · Preview Smoke SUCCESS (mesmo SHA) · CodeQL/GitGuardian/Analyze PASS
+- Entregue: BRU-109 DECISÕES A (telemetria estruturada do compact) + C (leak shield canônico) e BRU-117 (BRU-76 504/TimeoutError=TIMEOUT + precondição Golden discriminante + opção B onboarding E2E)
+- Golden Dossier Live: fail = timeout de job (20 min), precondição PASSou — Bruno decidiu pular o gate e validar manualmente no preview do SHA b23c98e2
+- Retry do compact congelado (Planejador) · Merge LOCKED · Produção NÃO
+- Vault: [[2026-08-15T18-25-34-bru109-bru117-gold-stabilization-closure-candidate]]

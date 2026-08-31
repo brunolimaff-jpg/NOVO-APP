@@ -25,6 +25,13 @@ export interface DossierModuleOptions {
   temperature?: number;
   onGroundingSources?: (sources: VerifiedSource[], moduleName: string) => void;
   onVerificationStatus?: (status: WebVerificationStatus, moduleName: string) => void;
+  /**
+   * BRU-99 — allowlist estrita de markers internos legítimos (Reconciliação PORTA).
+   * Quando definida, o PromptLeakShield NÃO bloqueia um texto composto SOMENTE
+   * por markers `[[<prefix>_<DIM>:...]]` com prefixo e dimensão autorizados.
+   * Qualquer outro conteúdo continua sujeito ao shield.
+   */
+  internalMarkerAllowlist?: { prefix: string; dimensions: string[] };
 }
 
 export interface SpotterExtractedData {
