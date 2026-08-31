@@ -54,6 +54,18 @@ export interface LiteLLMCallResult {
   reasoningCharsRemoved: number;
 }
 
+/**
+ * Resultado de callLLM (Fallback V1): carrega a proveniência do provider que
+ * atendeu. `fallbackUsed=true` significa que o primário foi tentado, falhou de
+ * forma elegível e o secundário concluiu — usar Zen ≠ usar fallback.
+ */
+export interface LlmCallResult extends LiteLLMCallResult {
+  provider: 'litellm' | 'zen';
+  servedModel: string;
+  fallbackUsed: boolean;
+  fallbackReason?: string;
+}
+
 export type LiteLLMErrorCode =
   | 'GATEWAY_NOT_CONFIGURED'
   | 'GATEWAY_TIMEOUT'
@@ -355,13 +367,16 @@ export function isLiteLLMEnabled(env: Environment = process.env): boolean {
   return env.LLM_PROVIDER === 'litellm' && Boolean(env.LITELLM_API_KEY) && Boolean(env.LITELLM_BASE_URL);
 }
 
-export function isZenEnabled(env: Environment = process.env): boolean {
+export function isZenConfigured(env: Environment = process.env): boolean {
   return (
-    env.LLM_PROVIDER === 'zen' &&
     Boolean(env.OPENCODE_ZEN_API_KEY) &&
     Boolean(env.OPENCODE_ZEN_BASE_URL) &&
     Boolean(env.OPENCODE_ZEN_MODEL)
   );
+}
+
+export function isZenEnabled(env: Environment = process.env): boolean {
+  return env.LLM_PROVIDER === 'zen' && isZenConfigured(env);
 }
 
 export function isFallbackEnabled(env: Environment = process.env): boolean {
@@ -507,10 +522,6 @@ export async function callLiteLLM(
   input: LiteLLMLegacyInput | LiteLLMCallInput,
   env: Environment = process.env,
 ): Promise<string | LiteLLMCallResult> {
-  if (env.LLM_PROVIDER === 'zen') {
-    return callZen(input, env);
-  }
-
   const startedAt = Date.now();
   const baseUrl = env.LITELLM_BASE_URL?.replace(/\/+$/, '');
   const apiKey = env.LITELLM_API_KEY;
@@ -645,4 +656,94 @@ export async function callLiteLLM(
     gatewayBody: lastError?.gatewayBody?.slice(0, 1000),
   });
   throw lastError ?? new LiteLLMRequestError('GATEWAY_HTTP_ERROR', 'LiteLLM request failed', true);
+}
+
+/**
+ * Allowlist de fallback (Fallback V1): apenas falhas elegíveis disparam o Zen.
+ * Fallback de provider não é fallback de qualidade — erro 400/422 causado pelo
+ * request, cancelamento externo e falha semântica pós-output NUNCA caem no Zen.
+ */
+export function isEligibleForZenFallback(error: LiteLLMRequestError): boolean {
+  switch (error.code) {
+    case 'GATEWAY_BUDGET_EXCEEDED':
+    case 'GATEWAY_TIMEOUT':
+    case 'GATEWAY_INVALID_RESPONSE':
+    case 'GATEWAY_NOT_CONFIGURED':
+      return true;
+    case 'GATEWAY_HTTP_ERROR':
+      return isRetryableStatus(error.status ?? 0);
+    default:
+      return false;
+  }
+}
+
+export function callLLM(input: LiteLLMLegacyInput, env?: Environment): Promise<string>;
+// eslint-disable-next-line no-redeclare
+export function callLLM(input: LiteLLMCallInput, env?: Environment): Promise<LlmCallResult>;
+// eslint-disable-next-line no-redeclare
+export async function callLLM(
+  input: LiteLLMLegacyInput | LiteLLMCallInput,
+  env: Environment = process.env,
+): Promise<string | LlmCallResult> {
+  // Modo operacional forçado: LLM_PROVIDER=zen → Zen direto, sem tocar LiteLLM.
+  if (env.LLM_PROVIDER === 'zen') {
+    if (isLegacyInput(input)) {
+      return (await callZen(input, env)) as string;
+    }
+    const zenResult = await callZen(input, env);
+    return {
+      ...(zenResult as LiteLLMCallResult),
+      provider: 'zen',
+      servedModel: env.OPENCODE_ZEN_MODEL ?? '',
+      fallbackUsed: false,
+    };
+  }
+
+  try {
+    if (isLegacyInput(input)) {
+      return callLiteLLM(input, env);
+    }
+    const litellmResult = await callLiteLLM(input, env);
+    return {
+      ...litellmResult,
+      provider: 'litellm',
+      servedModel: input.model,
+      fallbackUsed: false,
+    };
+  } catch (error) {
+    if (
+      !(error instanceof LiteLLMRequestError) ||
+      !isEligibleForZenFallback(error) ||
+      !isFallbackEnabled(env) ||
+      !isZenConfigured(env)
+    ) {
+      throw error;
+    }
+
+    const logBase = {
+      correlationId: input.correlationId ?? 'unassigned',
+      runId: input.runId ?? 'unassigned',
+      action: input.action ?? 'unknown',
+      errorCode: error.code,
+      status: error.status,
+      fallbackReason: error.code,
+    };
+    if (error.code === 'GATEWAY_NOT_CONFIGURED') {
+      console.error('[LLM] fallback LiteLLM → Zen (alerta alto: primário não configurado)', logBase);
+    } else {
+      console.warn('[LLM] fallback LiteLLM → Zen', logBase);
+    }
+
+    if (isLegacyInput(input)) {
+      return (await callZen(input, env)) as string;
+    }
+    const zenResult = await callZen(input, env);
+    return {
+      ...(zenResult as LiteLLMCallResult),
+      provider: 'zen',
+      servedModel: env.OPENCODE_ZEN_MODEL ?? '',
+      fallbackUsed: true,
+      fallbackReason: error.code,
+    };
+  }
 }

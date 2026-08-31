@@ -6,9 +6,12 @@ const fetchMock = vi.hoisted(() => vi.fn());
 
 import {
   callLiteLLM,
+  callLLM,
   ensureMarkdownStart,
+  isEligibleForZenFallback,
   isFallbackEnabled,
   isLiteLLMEnabled,
+  isZenConfigured,
   isZenEnabled,
   LiteLLMRequestError,
   normalizeModelOutput,
@@ -142,7 +145,7 @@ describe('feature flags', () => {
   });
 });
 
-describe('isZenEnabled', () => {
+describe('isZenEnabled / isZenConfigured', () => {
   it('exige provider zen + base url + key + model', () => {
     expect(
       isZenEnabled({
@@ -169,6 +172,46 @@ describe('isZenEnabled', () => {
         OPENCODE_ZEN_API_KEY: 'sk-test',
       }),
     ).toBe(false);
+  });
+
+  it('isZenConfigured não exige provider zen (base do fallback automático)', () => {
+    expect(
+      isZenConfigured({
+        LLM_PROVIDER: 'litellm',
+        OPENCODE_ZEN_BASE_URL: 'https://opencode.ai/zen/v1',
+        OPENCODE_ZEN_API_KEY: 'sk-test',
+        OPENCODE_ZEN_MODEL: 'deepseek-v4-flash',
+      }),
+    ).toBe(true);
+    expect(isZenConfigured({ OPENCODE_ZEN_API_KEY: 'sk-test' })).toBe(false);
+  });
+});
+
+describe('isEligibleForZenFallback (allowlist)', () => {
+  it('orçamento estourado é elegível', () => {
+    expect(isEligibleForZenFallback(new LiteLLMRequestError('GATEWAY_BUDGET_EXCEEDED', 'x', false))).toBe(true);
+  });
+  it('timeout é elegível', () => {
+    expect(isEligibleForZenFallback(new LiteLLMRequestError('GATEWAY_TIMEOUT', 'x', true))).toBe(true);
+  });
+  it('resposta inválida/vazia é elegível', () => {
+    expect(isEligibleForZenFallback(new LiteLLMRequestError('GATEWAY_INVALID_RESPONSE', 'x', false))).toBe(true);
+  });
+  it('configuração primária ausente é elegível (com alerta alto)', () => {
+    expect(isEligibleForZenFallback(new LiteLLMRequestError('GATEWAY_NOT_CONFIGURED', 'x', false))).toBe(true);
+  });
+  it('429/5xx (HTTP elegível) é elegível', () => {
+    expect(isEligibleForZenFallback(new LiteLLMRequestError('GATEWAY_HTTP_ERROR', 'x', true, 429))).toBe(true);
+    expect(isEligibleForZenFallback(new LiteLLMRequestError('GATEWAY_HTTP_ERROR', 'x', true, 503))).toBe(true);
+    expect(isEligibleForZenFallback(new LiteLLMRequestError('GATEWAY_HTTP_ERROR', 'x', true, 408))).toBe(true);
+  });
+  it('4xx causado pelo request NÃO é elegível', () => {
+    expect(isEligibleForZenFallback(new LiteLLMRequestError('GATEWAY_HTTP_ERROR', 'x', false, 400))).toBe(false);
+    expect(isEligibleForZenFallback(new LiteLLMRequestError('GATEWAY_HTTP_ERROR', 'x', false, 422))).toBe(false);
+    expect(isEligibleForZenFallback(new LiteLLMRequestError('GATEWAY_HTTP_ERROR', 'x', false, 401))).toBe(false);
+  });
+  it('cancelamento externo NÃO é elegível', () => {
+    expect(isEligibleForZenFallback(new LiteLLMRequestError('GATEWAY_ABORTED', 'x', false))).toBe(false);
   });
 });
 
@@ -226,49 +269,12 @@ describe('callLiteLLM', () => {
     });
   });
 
-  it('roteia para OpenCode Zen quando LLM_PROVIDER=zen (uma única chamada, sem retry)', async () => {
-    const result = await callLiteLLM(
-      {
-        model: 'ignored-by-zen',
-        userContent: 'gerar dossiê',
-      },
-      {
-        LLM_PROVIDER: 'zen',
-        OPENCODE_ZEN_BASE_URL: 'https://opencode.ai/zen/v1',
-        OPENCODE_ZEN_API_KEY: 'sk-zen-test',
-        OPENCODE_ZEN_MODEL: 'deepseek-v4-flash',
-      },
-    );
-
-    expect(result.text).toBe('# Dossiê');
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-    expect(fetchMock).toHaveBeenCalledWith(
-      'https://opencode.ai/zen/v1/chat/completions',
-      expect.objectContaining({
-        method: 'POST',
-        headers: expect.objectContaining({ Authorization: 'Bearer sk-zen-test' }),
-      }),
-    );
-    const body = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body));
-    expect(body).toMatchObject({
-      model: 'deepseek-v4-flash',
-      max_tokens: 8192,
-    });
-  });
-
-  it('zen: não repete erro 429 transitório (zero retry automático)', async () => {
-    fetchMock.mockReset();
-    fetchMock.mockResolvedValueOnce({
-      ok: false,
-      status: 429,
-      text: async () => JSON.stringify({ error: { type: 'rate_limit', message: 'too many' } }),
-    });
-
+  it('callLiteLLM é provider puro: não roteia por LLM_PROVIDER (Fallback V1 move a política para callLLM)', async () => {
     await expect(
       callLiteLLM(
         {
-          model: 'deepseek-v4-flash',
-          userContent: 'x',
+          model: 'ignored-by-zen',
+          userContent: 'gerar dossiê',
         },
         {
           LLM_PROVIDER: 'zen',
@@ -276,17 +282,6 @@ describe('callLiteLLM', () => {
           OPENCODE_ZEN_API_KEY: 'sk-zen-test',
           OPENCODE_ZEN_MODEL: 'deepseek-v4-flash',
         },
-      ),
-    ).rejects.toBeInstanceOf(LiteLLMRequestError);
-
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-  });
-
-  it('zen: sem config completa lança GATEWAY_NOT_CONFIGURED', async () => {
-    await expect(
-      callLiteLLM(
-        { model: 'deepseek-v4-flash', userContent: 'x' },
-        { LLM_PROVIDER: 'zen', OPENCODE_ZEN_API_KEY: 'sk-zen-test' },
       ),
     ).rejects.toMatchObject({ code: 'GATEWAY_NOT_CONFIGURED' });
     expect(fetchMock).not.toHaveBeenCalled();
@@ -585,5 +580,232 @@ describe('callLiteLLM', () => {
     controller.abort();
     await assertion;
     expect(removeListenerSpy).toHaveBeenCalled();
+  });
+});
+
+describe('callLLM — Fallback V1 (política de provider)', () => {
+  const ZEN_ENV = {
+    LLM_PROVIDER: 'litellm',
+    LLM_FALLBACK_ENABLED: 'true',
+    LITELLM_API_KEY: 'sk-test',
+    LITELLM_BASE_URL: 'https://litellm.example',
+    LITELLM_MAX_RETRIES: '0',
+    OPENCODE_ZEN_BASE_URL: 'https://opencode.ai/zen/v1',
+    OPENCODE_ZEN_API_KEY: 'sk-zen-test',
+    OPENCODE_ZEN_MODEL: 'deepseek-v4-flash',
+  };
+
+  beforeEach(() => {
+    vi.stubGlobal('fetch', fetchMock);
+    fetchMock.mockReset();
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      text: async () =>
+        JSON.stringify({
+          choices: [{ message: { content: '# Dossiê' }, finish_reason: 'stop' }],
+          usage: { prompt_tokens: 10, completion_tokens: 20, total_tokens: 30 },
+        }),
+    });
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('LLM_PROVIDER=zen forçado: chama Zen direto, proveniência provider=zen fallbackUsed=false', async () => {
+    const result = await callLLM(
+      { model: 'ignored-by-zen', userContent: 'gerar dossiê' },
+      {
+        LLM_PROVIDER: 'zen',
+        OPENCODE_ZEN_BASE_URL: 'https://opencode.ai/zen/v1',
+        OPENCODE_ZEN_API_KEY: 'sk-zen-test',
+        OPENCODE_ZEN_MODEL: 'deepseek-v4-flash',
+      },
+    );
+
+    expect(result.text).toBe('# Dossiê');
+    expect(result.provider).toBe('zen');
+    expect(result.servedModel).toBe('deepseek-v4-flash');
+    expect(result.fallbackUsed).toBe(false);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://opencode.ai/zen/v1/chat/completions',
+      expect.objectContaining({
+        method: 'POST',
+        headers: expect.objectContaining({ Authorization: 'Bearer sk-zen-test' }),
+      }),
+    );
+    const body = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body));
+    expect(body).toMatchObject({ model: 'deepseek-v4-flash', max_tokens: 8192 });
+  });
+
+  it('LLM_PROVIDER=zen forçado: zero retry em 429', async () => {
+    fetchMock.mockReset();
+    fetchMock.mockResolvedValueOnce({
+      ok: false,
+      status: 429,
+      text: async () => JSON.stringify({ error: { type: 'rate_limit', message: 'too many' } }),
+    });
+
+    await expect(
+      callLLM(
+        { model: 'deepseek-v4-flash', userContent: 'x' },
+        {
+          LLM_PROVIDER: 'zen',
+          OPENCODE_ZEN_BASE_URL: 'https://opencode.ai/zen/v1',
+          OPENCODE_ZEN_API_KEY: 'sk-zen-test',
+          OPENCODE_ZEN_MODEL: 'deepseek-v4-flash',
+        },
+      ),
+    ).rejects.toBeInstanceOf(LiteLLMRequestError);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('LLM_PROVIDER=zen forçado: sem config completa lança GATEWAY_NOT_CONFIGURED', async () => {
+    await expect(
+      callLLM(
+        { model: 'deepseek-v4-flash', userContent: 'x' },
+        { LLM_PROVIDER: 'zen', OPENCODE_ZEN_API_KEY: 'sk-zen-test' },
+      ),
+    ).rejects.toMatchObject({ code: 'GATEWAY_NOT_CONFIGURED' });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('LiteLLM OK → provider=litellm, fallbackUsed=false, servedModel=modelo pedido', async () => {
+    const result = await callLLM(
+      { model: 'bedrock/deepseek.v3.2', userContent: 'gerar dossiê' },
+      { LLM_PROVIDER: 'litellm', LITELLM_API_KEY: 'sk-test', LITELLM_BASE_URL: 'https://litellm.example' },
+    );
+
+    expect(result.text).toBe('# Dossiê');
+    expect(result.provider).toBe('litellm');
+    expect(result.servedModel).toBe('bedrock/deepseek.v3.2');
+    expect(result.fallbackUsed).toBe(false);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('fallback automático: budget_exceeded → Zen com fallbackUsed=true e fallbackReason', async () => {
+    fetchMock.mockReset();
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 429,
+        text: async () => JSON.stringify({ error: { type: 'budget_exceeded' } }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        text: async () => JSON.stringify({ choices: [{ message: { content: '# Dossiê' } }] }),
+      });
+
+    const result = await callLLM({ model: 'bedrock/deepseek.v3.2', userContent: 'x' }, ZEN_ENV);
+
+    expect(result.text).toBe('# Dossiê');
+    expect(result.provider).toBe('zen');
+    expect(result.servedModel).toBe('deepseek-v4-flash');
+    expect(result.fallbackUsed).toBe(true);
+    expect(result.fallbackReason).toBe('GATEWAY_BUDGET_EXCEEDED');
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('fallback automático: 503 → Zen (allowlist 5xx)', async () => {
+    fetchMock.mockReset();
+    fetchMock
+      .mockResolvedValueOnce({ ok: false, status: 503, text: async () => 'busy' })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        text: async () => JSON.stringify({ choices: [{ message: { content: '# Dossiê' } }] }),
+      });
+
+    const result = await callLLM({ model: 'bedrock/deepseek.v3.2', userContent: 'x' }, ZEN_ENV);
+
+    expect(result.provider).toBe('zen');
+    expect(result.fallbackUsed).toBe(true);
+    expect(result.fallbackReason).toBe('GATEWAY_HTTP_ERROR');
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('configuração primária ausente + fallback ligado → Zen (alerta alto)', async () => {
+    fetchMock.mockReset();
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      text: async () => JSON.stringify({ choices: [{ message: { content: '# Dossiê' } }] }),
+    });
+
+    const result = await callLLM(
+      { model: 'bedrock/deepseek.v3.2', userContent: 'x' },
+      {
+        LLM_PROVIDER: 'litellm',
+        LLM_FALLBACK_ENABLED: 'true',
+        OPENCODE_ZEN_BASE_URL: 'https://opencode.ai/zen/v1',
+        OPENCODE_ZEN_API_KEY: 'sk-zen-test',
+        OPENCODE_ZEN_MODEL: 'deepseek-v4-flash',
+      },
+    );
+
+    expect(result.provider).toBe('zen');
+    expect(result.fallbackUsed).toBe(true);
+    expect(result.fallbackReason).toBe('GATEWAY_NOT_CONFIGURED');
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('fallback desligado: mantém o erro sem chamar Zen', async () => {
+    fetchMock.mockReset();
+    fetchMock.mockResolvedValueOnce({
+      ok: false,
+      status: 429,
+      text: async () => JSON.stringify({ error: { type: 'budget_exceeded' } }),
+    });
+
+    await expect(
+      callLLM(
+        { model: 'model', userContent: 'x' },
+        { LLM_PROVIDER: 'litellm', LITELLM_API_KEY: 'sk-test', LITELLM_BASE_URL: 'https://litellm.example', LITELLM_MAX_RETRIES: '0' },
+      ),
+    ).rejects.toMatchObject({ code: 'GATEWAY_BUDGET_EXCEEDED' });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('falha NÃO elegível (401) mantém o erro sem chamar Zen', async () => {
+    fetchMock.mockReset();
+    fetchMock.mockResolvedValueOnce({ ok: false, status: 401, text: async () => 'unauthorized' });
+
+    await expect(
+      callLLM({ model: 'model', userContent: 'x' }, ZEN_ENV),
+    ).rejects.toMatchObject({ code: 'GATEWAY_HTTP_ERROR' });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('cancelamento externo NÃO cai no Zen', async () => {
+    const controller = new AbortController();
+    controller.abort();
+
+    await expect(
+      callLLM(
+        { model: 'model', userContent: 'x', signal: controller.signal },
+        ZEN_ENV,
+      ),
+    ).rejects.toMatchObject({ code: 'GATEWAY_ABORTED' });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('fallback ligado mas Zen sem config: mantém o erro (nunca inventa terceiro caminho)', async () => {
+    fetchMock.mockReset();
+    fetchMock.mockResolvedValueOnce({
+      ok: false,
+      status: 429,
+      text: async () => JSON.stringify({ error: { type: 'budget_exceeded' } }),
+    });
+
+    await expect(
+      callLLM(
+        { model: 'model', userContent: 'x' },
+        { LLM_PROVIDER: 'litellm', LLM_FALLBACK_ENABLED: 'true', LITELLM_API_KEY: 'sk-test', LITELLM_BASE_URL: 'https://litellm.example', LITELLM_MAX_RETRIES: '0' },
+      ),
+    ).rejects.toMatchObject({ code: 'GATEWAY_BUDGET_EXCEEDED' });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 });
