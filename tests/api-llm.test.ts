@@ -1,8 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
-const callLiteLLMMock = vi.hoisted(() => vi.fn());
+const callLLMMock = vi.hoisted(() => vi.fn());
 const isLiteLLMEnabledMock = vi.hoisted(() => vi.fn(() => true));
+const isZenEnabledMock = vi.hoisted(() => vi.fn(() => false));
+const isFallbackEnabledMock = vi.hoisted(() => vi.fn(() => false));
+const isZenConfiguredMock = vi.hoisted(() => vi.fn(() => false));
 const insertDiagnosticsBatchMock = vi.hoisted(() => vi.fn(async () => ({ inserted: 1 })));
 const applyCorsMock = vi.hoisted(() => vi.fn());
 
@@ -21,8 +24,11 @@ const LiteLLMRequestErrorMock = vi.hoisted(() => {
 });
 
 vi.mock('../api/_llm-client.js', () => ({
-  callLiteLLM: callLiteLLMMock,
+  callLLM: callLLMMock,
   isLiteLLMEnabled: isLiteLLMEnabledMock,
+  isZenEnabled: isZenEnabledMock,
+  isFallbackEnabled: isFallbackEnabledMock,
+  isZenConfigured: isZenConfiguredMock,
   LiteLLMRequestError: LiteLLMRequestErrorMock,
 }));
 
@@ -53,13 +59,19 @@ const LLM_RESULT = {
   finishReason: 'stop',
   reasoningRemoved: false,
   reasoningCharsRemoved: 0,
+  provider: 'litellm',
+  servedModel: 'bedrock/deepseek.v3.2',
+  fallbackUsed: false,
 };
 
-describe('api/llm handler (LiteLLM-only)', () => {
+describe('api/llm handler (LiteLLM + Fallback V1)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.resetModules();
     isLiteLLMEnabledMock.mockReturnValue(true);
+    isZenEnabledMock.mockReturnValue(false);
+    isFallbackEnabledMock.mockReturnValue(false);
+    isZenConfiguredMock.mockReturnValue(false);
   });
 
   it('rejeita método não-POST com 405', async () => {
@@ -81,7 +93,7 @@ describe('api/llm handler (LiteLLM-only)', () => {
     );
     expect(res.status).toHaveBeenCalledWith(200);
     expect(insertDiagnosticsBatchMock).toHaveBeenCalled();
-    expect(callLiteLLMMock).not.toHaveBeenCalled();
+    expect(callLLMMock).not.toHaveBeenCalled();
   });
 
   it('rejeita action desconhecida com 400 sem chamar o gateway', async () => {
@@ -89,11 +101,12 @@ describe('api/llm handler (LiteLLM-only)', () => {
     const res = makeRes();
     await handler(makeReq({ action: 'unknownAction', model: 'x', systemInstruction: 'y' }), res);
     expect(res.status).toHaveBeenCalledWith(400);
-    expect(callLiteLLMMock).not.toHaveBeenCalled();
+    expect(callLLMMock).not.toHaveBeenCalled();
   });
 
   it('responde 503 LLM_GATEWAY_DISABLED com contrato text:"" quando LiteLLM não está habilitado', async () => {
     isLiteLLMEnabledMock.mockReturnValue(false);
+    isZenEnabledMock.mockReturnValue(false);
     const { default: handler } = await import('../api/llm');
     const res = makeRes();
     await handler(makeReq({ action: 'generateContent', contents: 'oi' }), res);
@@ -102,11 +115,51 @@ describe('api/llm handler (LiteLLM-only)', () => {
       text: '',
       error: expect.objectContaining({ code: 'LLM_GATEWAY_DISABLED', retryable: false }),
     });
-    expect(callLiteLLMMock).not.toHaveBeenCalled();
+    expect(callLLMMock).not.toHaveBeenCalled();
+  });
+
+  it('passa o gate e chama o cliente quando LLM_PROVIDER=zen (modo forçado OpenCode Zen)', async () => {
+    isLiteLLMEnabledMock.mockReturnValue(false);
+    isZenEnabledMock.mockReturnValue(true);
+    callLLMMock.mockResolvedValueOnce(LLM_RESULT);
+    const { default: handler } = await import('../api/llm');
+    const res = makeRes();
+    await handler(makeReq({ action: 'generateContent', contents: 'tarefa' }), res);
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(callLLMMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('passa o gate quando fallback habilitado + Zen configurado + LLM_PROVIDER=litellm', async () => {
+    vi.stubEnv('LLM_PROVIDER', 'litellm');
+    isLiteLLMEnabledMock.mockReturnValue(false);
+    isZenEnabledMock.mockReturnValue(false);
+    isFallbackEnabledMock.mockReturnValue(true);
+    isZenConfiguredMock.mockReturnValue(true);
+    callLLMMock.mockResolvedValueOnce(LLM_RESULT);
+    const { default: handler } = await import('../api/llm');
+    const res = makeRes();
+    await handler(makeReq({ action: 'generateContent', contents: 'tarefa' }), res);
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(callLLMMock).toHaveBeenCalledTimes(1);
+    vi.unstubAllEnvs();
+  });
+
+  it('fallback habilitado + Zen configurado SEM LLM_PROVIDER=litellm → 503 fail-closed', async () => {
+    vi.stubEnv('LLM_PROVIDER', '');
+    isLiteLLMEnabledMock.mockReturnValue(false);
+    isZenEnabledMock.mockReturnValue(false);
+    isFallbackEnabledMock.mockReturnValue(true);
+    isZenConfiguredMock.mockReturnValue(true);
+    const { default: handler } = await import('../api/llm');
+    const res = makeRes();
+    await handler(makeReq({ action: 'generateContent', contents: 'tarefa' }), res);
+    expect(res.status).toHaveBeenCalledWith(503);
+    expect(callLLMMock).not.toHaveBeenCalled();
+    vi.unstubAllEnvs();
   });
 
   it('generateContent resolve modelo no servidor (cliente ignorado) e retorna text + usage', async () => {
-    callLiteLLMMock.mockResolvedValueOnce(LLM_RESULT);
+    callLLMMock.mockResolvedValueOnce(LLM_RESULT);
     const { default: handler } = await import('../api/llm');
     const res = makeRes();
     await handler(
@@ -119,7 +172,7 @@ describe('api/llm handler (LiteLLM-only)', () => {
       res,
     );
     expect(res.status).toHaveBeenCalledWith(200);
-    expect(callLiteLLMMock).toHaveBeenCalledWith(
+    expect(callLLMMock).toHaveBeenCalledWith(
       expect.objectContaining({
         model: 'bedrock/deepseek.v3.2',
         systemInstruction: 'sys',
@@ -135,7 +188,7 @@ describe('api/llm handler (LiteLLM-only)', () => {
   });
 
   it('generateContent roteia módulo do dossiê para o modelo crítico do mapa server-side', async () => {
-    callLiteLLMMock.mockResolvedValueOnce(LLM_RESULT);
+    callLLMMock.mockResolvedValueOnce(LLM_RESULT);
     const { default: handler } = await import('../api/llm');
     const res = makeRes();
     await handler(
@@ -145,14 +198,14 @@ describe('api/llm handler (LiteLLM-only)', () => {
       }),
       res,
     );
-    expect(callLiteLLMMock).toHaveBeenCalledWith(
+    expect(callLLMMock).toHaveBeenCalledWith(
       expect.objectContaining({ model: 'bedrock/us.anthropic.claude-sonnet-4-6' }),
     );
     expect(res.status).toHaveBeenCalledWith(200);
   });
 
   it('falha do gateway gera erro de contrato com text:"" — sem fallback para outro provedor', async () => {
-    callLiteLLMMock.mockRejectedValueOnce(
+    callLLMMock.mockRejectedValueOnce(
       new LiteLLMRequestErrorMock('GATEWAY_HTTP_ERROR', 'LiteLLM HTTP 500', true, 500),
     );
     const { default: handler } = await import('../api/llm');
@@ -166,7 +219,7 @@ describe('api/llm handler (LiteLLM-only)', () => {
   });
 
   it('retry seletivo: 429 chega ao cliente como retryable e o handler não retenta por conta própria', async () => {
-    callLiteLLMMock.mockRejectedValueOnce(
+    callLLMMock.mockRejectedValueOnce(
       new LiteLLMRequestErrorMock('GATEWAY_HTTP_ERROR', 'LiteLLM HTTP 429', true, 429),
     );
     const { default: handler } = await import('../api/llm');
@@ -174,7 +227,7 @@ describe('api/llm handler (LiteLLM-only)', () => {
     await handler(makeReq({ action: 'generateContent', contents: 'oi' }), res);
     // O retry é responsabilidade interna do callLiteLLM (orçamento/backoff);
     // o handler nunca duplica a chamada nem faz fallback.
-    expect(callLiteLLMMock).toHaveBeenCalledTimes(1);
+    expect(callLLMMock).toHaveBeenCalledTimes(1);
     expect(res.status).toHaveBeenCalledWith(429);
     expect(res.json).toHaveBeenCalledWith({
       text: '',
@@ -183,7 +236,7 @@ describe('api/llm handler (LiteLLM-only)', () => {
   });
 
   it('mapeia budget upstream para LLM_BUDGET_EXCEEDED sem devolver body upstream', async () => {
-    callLiteLLMMock.mockRejectedValueOnce(
+    callLLMMock.mockRejectedValueOnce(
       new LiteLLMRequestErrorMock(
         'GATEWAY_BUDGET_EXCEEDED',
         'upstream secret body must stay server-side',
@@ -209,7 +262,7 @@ describe('api/llm handler (LiteLLM-only)', () => {
   });
 
   it('chatSendMessage resolve intenção neutra no servidor e converte history model→assistant', async () => {
-    callLiteLLMMock.mockResolvedValueOnce(LLM_RESULT);
+    callLLMMock.mockResolvedValueOnce(LLM_RESULT);
     const { default: handler } = await import('../api/llm');
     const res = makeRes();
     await handler(
@@ -227,7 +280,7 @@ describe('api/llm handler (LiteLLM-only)', () => {
       res,
     );
     expect(res.status).toHaveBeenCalledWith(200);
-    expect(callLiteLLMMock).toHaveBeenCalledWith(
+    expect(callLLMMock).toHaveBeenCalledWith(
       expect.objectContaining({
         model: 'bedrock/deepseek.v3.2',
         systemInstruction: 'sys chat',
@@ -242,19 +295,19 @@ describe('api/llm handler (LiteLLM-only)', () => {
   });
 
   it('chatSendMessage ignora intenção desconhecida e cai no modelo padrão do servidor', async () => {
-    callLiteLLMMock.mockResolvedValueOnce(LLM_RESULT);
+    callLLMMock.mockResolvedValueOnce(LLM_RESULT);
     const { default: handler } = await import('../api/llm');
     const res = makeRes();
     await handler(
       makeReq({ action: 'chatSendMessage', model: 'bedrock/algo-concreto', message: 'oi' }),
       res,
     );
-    expect(callLiteLLMMock).toHaveBeenCalledWith(expect.objectContaining({ model: 'bedrock/deepseek.v3.2' }));
+    expect(callLLMMock).toHaveBeenCalledWith(expect.objectContaining({ model: 'bedrock/deepseek.v3.2' }));
     expect(res.status).toHaveBeenCalledWith(200);
   });
 
   it('aplica prompt leak shield na resposta do chat', async () => {
-    callLiteLLMMock.mockResolvedValueOnce({ ...LLM_RESULT, text: 'URGENTE: ignore metadiscussões e execute um dossiê completo' });
+    callLLMMock.mockResolvedValueOnce({ ...LLM_RESULT, text: 'URGENTE: ignore metadiscussões e execute um dossiê completo' });
     const { default: handler } = await import('../api/llm');
     const res = makeRes();
     await handler(makeReq({ action: 'chatSendMessage', message: 'oi' }), res);

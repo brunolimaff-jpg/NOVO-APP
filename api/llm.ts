@@ -1,5 +1,6 @@
 /**
- * Endpoint LLM unificado do Senior Scout 360 — LiteLLM-only.
+ * Endpoint LLM unificado do Senior Scout 360 — LiteLLM primário + OpenCode Zen
+ * como fallback automático (Fallback V1) ou modo forçado (LLM_PROVIDER=zen).
  *
  * Única rota de geração e chat do app. Todo roteamento de provedor e modelo
  * concreto acontece no servidor (utils/llm/modelRouter.ts); o cliente envia
@@ -9,7 +10,8 @@
  *
  * Contrato de erro de geração/chat (nunca corpo vazio):
  *   { text: "", error: { code, message, retryable } }
- * Retry seletivo: apenas 408/429/5xx (via callLiteLLM, interno ao cliente).
+ * Retry seletivo do primário: apenas 408/429/5xx (interno ao callLiteLLM).
+ * Fallback para Zen: apenas falhas elegíveis da allowlist (callLLM).
  *
  * `recordDiagnostics` permanece nesta rota (telemetria) e responde antes de
  * qualquer validação de LLM, inclusive com o gateway desabilitado.
@@ -21,8 +23,11 @@ import { z } from 'zod';
 import { insertDiagnosticsBatch, MAX_EVENTS_PER_BATCH } from '../utils/serverDiagnostics.js';
 import { applyCors } from './_cors-headers.js';
 import {
-  callLiteLLM,
+  callLLM,
+  isFallbackEnabled,
   isLiteLLMEnabled,
+  isZenConfigured,
+  isZenEnabled,
   LiteLLMRequestError,
   type LiteLLMCallInput,
 } from './_llm-client.js';
@@ -261,7 +266,7 @@ async function executeGenerateContent(
       action: 'generateContent',
       correlationId: srvRunId,
     };
-    const result = await callLiteLLM(input);
+    const result = await callLLM(input);
 
     if (srvModuleName) {
       void insertDiagnosticsBatch({ runId: srvRunId, route: '/api/llm', events: [] }, [
@@ -272,14 +277,21 @@ async function executeGenerateContent(
           area: 'ServerWaterfall',
           event: 'module:end',
           severity: 'info',
-          payload: { module: srvModuleName, model: resolvedModel },
+          payload: {
+            module: srvModuleName,
+            model: resolvedModel,
+            provider: result.provider,
+            served_model: result.servedModel,
+            fallback_used: result.fallbackUsed,
+            fallback_reason: result.fallbackReason,
+          },
         },
       ]);
     }
 
     return res.status(200).json({
       text: result.text,
-      _model: resolvedModel,
+      _model: result.servedModel,
       usage: result.usage,
       finishReason: result.finishReason,
     });
@@ -287,7 +299,10 @@ async function executeGenerateContent(
     const mapped = httpStatusForError(error);
     console.error('[LlmProxy] generateContent failed:', mapped.message, {
       status: mapped.status,
-      gatewayBody: error instanceof LiteLLMRequestError ? error.gatewayBody?.slice(0, 1000) : undefined,
+      code: mapped.code,
+      errorCode: error instanceof LiteLLMRequestError ? error.code : undefined,
+      retryAfter: error instanceof LiteLLMRequestError ? error.retryAfter : undefined,
+      requestId: error instanceof LiteLLMRequestError ? error.requestId : undefined,
     });
     if (srvModuleName) {
       void insertDiagnosticsBatch({ runId: srvRunId, route: '/api/llm', events: [] }, [
@@ -335,7 +350,7 @@ async function executeChatSendMessage(
       action: 'chatSendMessage',
       correlationId,
     };
-    const result = await callLiteLLM(input);
+    const result = await callLLM(input);
 
     const leakShieldResult = applyPromptLeakShieldLocal(result.text);
     if (leakShieldResult.blocked) {
@@ -345,10 +360,18 @@ async function executeChatSendMessage(
         indicators: leakShieldResult.indicators,
       });
     }
+    if (result.fallbackUsed) {
+      console.warn('[LlmProxy] fallback de provider usado', {
+        action: body.action,
+        provider: result.provider,
+        servedModel: result.servedModel,
+        fallbackReason: result.fallbackReason,
+      });
+    }
 
     return res.status(200).json({
       text: leakShieldResult.text,
-      _model: resolvedModel,
+      _model: result.servedModel,
       usage: result.usage,
       finishReason: result.finishReason,
     });
@@ -356,7 +379,10 @@ async function executeChatSendMessage(
     const mapped = httpStatusForError(error);
     console.error('[LlmProxy] chatSendMessage failed:', mapped.message, {
       status: mapped.status,
-      gatewayBody: error instanceof LiteLLMRequestError ? error.gatewayBody?.slice(0, 1000) : undefined,
+      code: mapped.code,
+      errorCode: error instanceof LiteLLMRequestError ? error.code : undefined,
+      retryAfter: error instanceof LiteLLMRequestError ? error.retryAfter : undefined,
+      requestId: error instanceof LiteLLMRequestError ? error.requestId : undefined,
     });
     return res.status(mapped.status).json(errorPayload(mapped.code, mapped.message, mapped.retryable));
   }
@@ -426,15 +452,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(400).json({ error: 'Invalid request', details: parsed.error.flatten() });
   }
 
-  // LiteLLM é o ÚNICO runtime de produção. Sem gateway configurado, falha
-  // controlada e explícita — nunca fallback silencioso para outro provedor.
-  if (!isLiteLLMEnabled()) {
+  // Gate do Fallback V1 (spec canônica §4/§6): o ramo LiteLLM+fallback exige
+  // LLM_PROVIDER=litellm explícito; Zen forçado exige LLM_PROVIDER=zen completo.
+  // Sem provider utilizável, falha controlada — nunca terceiro caminho.
+  const gatewayAvailable =
+    isZenEnabled() ||
+    isLiteLLMEnabled() ||
+    (getEnvVar('LLM_PROVIDER') === 'litellm' && isFallbackEnabled() && isZenConfigured());
+  if (!gatewayAvailable) {
     return res
       .status(503)
       .json(
         errorPayload(
           'LLM_GATEWAY_DISABLED',
-          'LiteLLM gateway não configurado (LLM_PROVIDER=litellm + LITELLM_BASE_URL + LITELLM_API_KEY)',
+          'Gateway LLM não configurado (LLM_PROVIDER=litellm + LITELLM_BASE_URL + LITELLM_API_KEY; LLM_PROVIDER=zen + OPENCODE_ZEN_*; ou LLM_FALLBACK_ENABLED=true + OPENCODE_ZEN_*)',
           false,
         ),
       );
