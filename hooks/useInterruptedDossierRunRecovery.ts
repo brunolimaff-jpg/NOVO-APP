@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { Sender, type ChatSession } from '../types';
 import { peekPersistedActiveDossierRuns, removePersistedActiveDossierRuns } from '../features/dossier/active-run-registry';
+import { getDossierRun } from '../lib/supabase/dossierRuns';
 import { scoutDiag } from '../utils/diagnosticLog';
 
 /**
@@ -33,53 +34,94 @@ export function useInterruptedDossierRunRecovery(options: {
     // Só roda quando as sessões já foram carregadas (evita corrida com loadSessions).
     if (!isInitialized) return;
 
-    const interruptedRuns = peekPersistedActiveDossierRuns();
-    if (interruptedRuns.length === 0) return;
+    let cancelled = false;
 
-    const appliedRunIds: string[] = [];
-    const pendingRunIds: string[] = [];
-    for (const run of interruptedRuns) {
-      const updated = updateSessionById(run.sessionId, session => ({
-        ...session,
-        messages: [
-          ...(session.messages ?? []),
-          {
-            id: `dossier-interrupted-${run.runId}`,
-            sender: Sender.Bot,
-            text: 'A execução do dossiê foi interrompida pelo recarregamento da página. ' +
-              'Nenhum dossiê foi marcado como concluído. Você pode iniciar uma nova tentativa quando quiser.',
-            timestamp: new Date(),
-            isError: true,
-          },
-        ],
-      }));
-      if (updated) {
-        appliedRunIds.push(run.runId);
-        scoutDiag.warn('DossierRunLifecycle', 'reload_interrupted_run', {
-          sessionId: run.sessionId,
-          runId: run.runId,
-          // Sem conteúdo de mensagem, empresa ou qualquer dado sensível.
-        });
-      } else {
-        // Sessão ainda não carregada: preserva o registro para a próxima
-        // execução do effect (isInitialized=true já garante que loadSessions
-        // terminou; se ainda assim não existir, o registro permanece até a
-        // sessão ser criada — nunca é descartado sem aplicação).
-        pendingRunIds.push(run.runId);
-        scoutDiag.warn('DossierRunLifecycle', 'reload_interrupted_run_session_missing', {
-          sessionId: run.sessionId,
-          runId: run.runId,
-        });
+    const reconcile = async () => {
+      const interruptedRuns = peekPersistedActiveDossierRuns();
+      if (interruptedRuns.length === 0) return;
+
+      // BRU-156: estado remoto terminal vence o marcador local de reload.
+      // Um run que já terminou (COMPLETED/FAILED/CANCELLED no Supabase) não
+      // pode ser anunciado como "interrompido" — o dossiê persistido é a
+      // verdade canônica, mesmo quando o registro local sobreviveu ao reload
+      // por milissegundos (corrida boot × finally do orchestrator).
+      const appliedRunIds: string[] = [];
+      const pendingRunIds: string[] = [];
+      const staleRunIds: string[] = [];
+      for (const run of interruptedRuns) {
+        let remoteStatus: string | null;
+        try {
+          const remote = await getDossierRun(run.runId);
+          remoteStatus = remote?.status ?? null;
+        } catch {
+          // Falha de consulta: trata como interrupt legítimo (fail-closed
+          // mantém o comportamento anterior — nunca silencia um run ativo real).
+          remoteStatus = null;
+        }
+        if (cancelled) return;
+
+        if (remoteStatus === 'COMPLETED' || remoteStatus === 'FAILED' || remoteStatus === 'CANCELLED') {
+          // Run já terminal remotamente: descarta o marcador local sem
+          // injetar mensagem de interrupção (o dossiê/estado real já está na UI).
+          staleRunIds.push(run.runId);
+          scoutDiag.info('DossierRunLifecycle', 'reload_run_already_terminal', {
+            sessionId: run.sessionId,
+            runId: run.runId,
+            remoteStatus,
+          });
+          continue;
+        }
+
+        const updated = updateSessionById(run.sessionId, session => ({
+          ...session,
+          messages: [
+            ...(session.messages ?? []),
+            {
+              id: `dossier-interrupted-${run.runId}`,
+              sender: Sender.Bot,
+              text: 'A execução do dossiê foi interrompida pelo recarregamento da página. ' +
+                'Nenhum dossiê foi marcado como concluído. Você pode iniciar uma nova tentativa quando quiser.',
+              timestamp: new Date(),
+              isError: true,
+            },
+          ],
+        }));
+        if (updated) {
+          appliedRunIds.push(run.runId);
+          scoutDiag.warn('DossierRunLifecycle', 'reload_interrupted_run', {
+            sessionId: run.sessionId,
+            runId: run.runId,
+            // Sem conteúdo de mensagem, empresa ou qualquer dado sensível.
+          });
+        } else {
+          // Sessão ainda não carregada: preserva o registro para a próxima
+          // execução do effect (isInitialized=true já garante que loadSessions
+          // terminou; se ainda assim não existir, o registro permanece até a
+          // sessão ser criada — nunca é descartado sem aplicação).
+          pendingRunIds.push(run.runId);
+          scoutDiag.warn('DossierRunLifecycle', 'reload_interrupted_run_session_missing', {
+            sessionId: run.sessionId,
+            runId: run.runId,
+          });
+        }
       }
-    }
 
-    // Remove apenas os runs cuja mensagem foi aplicada a uma sessão existente.
-    if (appliedRunIds.length > 0) removePersistedActiveDossierRuns(appliedRunIds);
+      // Remove apenas os runs cujo tratamento foi concluído (aplicado ou
+      // reconciliado com o estado remoto terminal).
+      const resolved = [...appliedRunIds, ...staleRunIds];
+      if (resolved.length > 0) removePersistedActiveDossierRuns(resolved);
 
-    if (pendingRunIds.length === 0) {
-      // Garante que nenhum estado de loading residual sobreviva ao reload.
-      setIsLoading(false);
-      resetLoadingProgress();
-    }
+      if (pendingRunIds.length === 0) {
+        // Garante que nenhum estado de loading residual sobreviva ao reload.
+        setIsLoading(false);
+        resetLoadingProgress();
+      }
+    };
+
+    void reconcile();
+
+    return () => {
+      cancelled = true;
+    };
   }, [isInitialized, updateSessionById, setIsLoading, resetLoadingProgress]);
 }
