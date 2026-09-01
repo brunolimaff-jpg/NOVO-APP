@@ -119,6 +119,11 @@ vi.mock('../../../services/storage', () => ({
 
 vi.mock('../../../utils/diagnosticLog', () => ({
   scoutDiag: scoutDiagMock,
+  flushDiagnosticsNow: vi.fn(),
+}));
+
+vi.mock('../../../utils/longTaskObserver', () => ({
+  startLongTaskObserver: vi.fn(() => null),
 }));
 
 vi.mock('../../../services/llm/foundation-cache', async () => {
@@ -763,6 +768,32 @@ describe('useDossierWaterfallOrchestrator', () => {
     expect(firstExtraContext).toContain('https://agrolink.com.br/scheffer-ampliacao');
     expect(firstExtraContext).toContain('Scheffer amplia capacidade em Sapezal');
     expect(firstExtraContext).toContain('claim: Grupo Scheffer ampliou capacidade em 2025');
+  });
+
+  // BRU-162: marcadores de fase do fechamento — start/completed de benchmark,
+  // finalize, save e mark-completed, com flush imediato de telemetria.
+  it('emite marcadores de fase do fechamento (benchmark/finalize/save/mark_completed)', async () => {
+    const harness = makeHarness();
+
+    const result = await act(async () => {
+      const r = await harness.result.current.runMegaPromptWaterfall(makeRunArgs({ dossierRunId: 'run-1', dossierLeaseOwner: 'lease-1' }));
+      return r;
+    });
+    expect(result).toMatchObject({ status: 'COMPLETED' });
+
+    const phases = scoutDiagMock.info.mock.calls
+      .filter(call => call[0] === 'WaterfallPhase')
+      .map(call => call[1]);
+    expect(phases).toContain('entering_benchmark');
+    expect(phases).toContain('benchmark_done');
+    expect(phases).toContain('entering_finalize');
+    expect(phases).toContain('finalize_done');
+    expect(phases).toContain('entering_save');
+    expect(phases).toContain('save_done');
+    expect(phases).toContain('entering_mark_completed');
+    expect(phases).toContain('mark_completed_done');
+    const order = phases.map(p => ['entering_benchmark', 'benchmark_done', 'entering_finalize', 'finalize_done', 'entering_save', 'save_done', 'entering_mark_completed', 'mark_completed_done'].indexOf(p));
+    expect(order).toEqual([...order].sort((a, b) => a - b));
   });
 
   it('falha fechada antes do benchmark sem PORTA, save ou completed', async () => {

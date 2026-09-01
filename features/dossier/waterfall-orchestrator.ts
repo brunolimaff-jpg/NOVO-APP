@@ -26,7 +26,8 @@ import { fetchCompanyByCnpj } from '../../services/brasilApiService';
 import { storage } from '../../services/storage';
 import { useMaybeChatStore } from '../../stores/chatStore';
 import { type ChatSession, type ClienteSeniorData, Sender, type WebVerificationStatus, type DossierWaterfallResult } from '../../types';
-import { scoutDiag } from '../../utils/diagnosticLog';
+import { flushDiagnosticsNow, scoutDiag } from '../../utils/diagnosticLog';
+import { startLongTaskObserver, type LongTaskObserverHandle } from '../../utils/longTaskObserver';
 import { finalizeWaterfallUI } from '../../utils/finalizeWaterfallUI';
 import { stripPortaMarkers } from '../../utils/porta';
 import { normalizeCnpj } from '../../utils/cnpj';
@@ -626,6 +627,15 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
       const waterfallRunId = guardCheck.runId;
       let waterfallEndStatus: 'completed' | 'failed' | 'aborted' = 'failed';
       let currentLifecycleStage = 'waterfall_start';
+      // BRU-162 — observador de long tasks (>100ms) na main thread, para pino
+      // determinístico de freeze no fechamento. Sem texto/prompt/PII; só
+      // timestamp + duration + fase (flush imediato via scoutDiag).
+      const longTaskObserver: LongTaskObserverHandle | null = startLongTaskObserver('waterfall');
+      const markPhase = (phase: string): void => {
+        longTaskObserver?.setPhase(phase);
+        scoutDiag.info('WaterfallPhase', phase, { sessionId, waterfallRunId });
+        void flushDiagnosticsNow(`bru162:${phase}`);
+      };
       const assertRunCanContinue = async (stage: string) => {
         currentLifecycleStage = stage;
         await assertDossierRunCanContinue({ runId: dossierRunId, leaseOwner: dossierLeaseOwner, signal, stage });
@@ -1105,6 +1115,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
           replaceLoadingProgressStage(MODULAR_DOSSIER_STAGES[5], MODULAR_DOSSIER_TOTAL_STAGES);
         }
 
+        markPhase('entering_benchmark');
         scoutDiag.info('WaterfallLifecycle', 'pre-benchmark', { sessionId, waterfallRunId });
         const benchmarkCompleted = await runDossierBenchmarkStage({
           sessionId,
@@ -1114,6 +1125,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
           optionalStepFailures,
           setFailureCount,
         });
+        markPhase('benchmark_done');
         await assertRunCanContinueWithRenewal('after_benchmark');
         scoutDiag.info('WaterfallLifecycle', 'pos-benchmark', { sessionId, waterfallRunId, benchmarkCompleted });
 
@@ -1238,6 +1250,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
           });
         }
 
+        markPhase('entering_finalize');
         scoutDiag.info('FreezeDiag', 'pre-finalize-markdown', {
           sessionId,
           waterfallRunId,
@@ -1246,6 +1259,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
           poolSize: sessionSourcePool.length,
         });
         const finalized = finalizeDossierMarkdown(waterfallPrepared, waterfallGroundingSources, sessionSourcePool);
+        markPhase('finalize_done');
         scoutDiag.info('FreezeDiag', 'post-finalize-markdown', {
           sessionId,
           waterfallRunId,
@@ -1602,6 +1616,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
         {
           const dossier = sessionToPersist;
           await assertRunCanContinueWithRenewal('save_dossier');
+          markPhase('entering_save');
           try { await storage.saveDossierStrict(dossier); }
           catch (error) {
             if (dossierRunId && dossierLeaseOwner) {
@@ -1614,8 +1629,10 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
             }
             return { status: 'FAILED', dossierRunId, errorCode: 'persist_failed', errorStage: 'save_dossier', error: error instanceof Error ? error : new Error(String(error)) } satisfies DossierWaterfallResult;
           }
+          markPhase('save_done');
           await assertRunCanContinueWithRenewal('after_save_dossier_before_complete');
           if (dossierRunId && dossierLeaseOwner) {
+            markPhase('entering_mark_completed');
             try {
               await markDossierRunCompleted(dossierRunId, dossierLeaseOwner, dossier.id);
               terminalLeaseReleased = true;
@@ -1629,6 +1646,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
               }
               return { status: 'FAILED', dossierRunId, errorCode: 'lifecycle_completion_failed', errorStage: 'mark_completed', error: error instanceof Error ? error : new Error(String(error)) } satisfies DossierWaterfallResult;
             }
+            markPhase('mark_completed_done');
           }
           completedDossierId = dossier.id;
           window.dispatchEvent(new CustomEvent('dossier:completed', { detail: { dossierId: dossier.id, companyName: resolvedMegaCompany || normalizedCompany || '', cnpj: dossier.cnpj } }));
@@ -1662,6 +1680,7 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
         }
         return { status: 'FAILED', dossierRunId, errorCode: 'waterfall_failed', errorStage: currentLifecycleStage, error: normalized };
       } finally {
+        longTaskObserver?.stop();
         if (dossierRunId && dossierLeaseOwner && !terminalLeaseReleased) await releaseDossierRunLease(dossierRunId, dossierLeaseOwner).catch(() => scoutDiag.warn('WaterfallLifecycle', 'lease-release-failed', { sessionId, dossierRunId }));
 
         scoutDiag.info('WaterfallLifecycle', 'pre-register-end', {
