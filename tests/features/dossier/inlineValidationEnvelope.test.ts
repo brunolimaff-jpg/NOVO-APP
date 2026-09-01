@@ -64,9 +64,17 @@ describe('BRU-162 — envelope determinístico da validação inline (subrota do
     const body = linkStatusBody();
     expect(body.length).toBeGreaterThan(45_000);
 
-    const fetchMock = vi.fn<typeof fetch>().mockImplementation(async () =>
-      makeResponse(body, 1700), // latência observada no run (inline-validation:body:start totalElapsedMs=1685)
-    );
+    // Mocks separados por rota (despacho ff7f28af): /api/link-status responde
+    // o payload; /api/llm (flush de diagnostics) responde ok lento.
+    const fetchMock = vi.fn<typeof fetch>().mockImplementation(async (_url, init) => {
+      const target = String(_url ?? '');
+      if (target.includes('/api/llm')) {
+        await new Promise(r => setTimeout(r, 120)); // flush de diagnostics com latência própria
+        return { ok: true, status: 200 } as unknown as Response;
+      }
+      void init;
+      return makeResponse(body, 1700); // latência observada no run (totalElapsedMs=1685)
+    });
     vi.stubGlobal('fetch', fetchMock);
 
     const texto = textoComLinksInline(50_000);
@@ -74,12 +82,82 @@ describe('BRU-162 — envelope determinístico da validação inline (subrota do
     const promoted = await validateInlineSourcesForPromotion(texto, [] as VerifiedSource[]);
     const elapsed = performance.now() - t0;
 
-    // determinístico: extraiu 8 candidatos, fetch 1x, parse OK, 8 válidos
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-    expect(fetchMock.mock.calls[0][0]).toBe('/api/link-status');
+    // determinístico: extraiu 8 candidatos, fetch do link-status 1x, parse OK, 8 válidos
+    const linkStatusCalls = fetchMock.mock.calls.filter(c => String(c[0]).includes('/api/link-status'));
+    expect(linkStatusCalls).toHaveLength(1);
     expect(promoted).toHaveLength(8);
     // prova de não-travamento: subrota inteira < 4s (timeout total é 5s)
     expect(elapsed).toBeLessThan(4_000);
+  });
+
+  // Despacho ff7f28af: flushDiagnosticsNow(..., true) EXPLÍCITO enquanto o
+  // body-read dos 8 links ainda está pendente — diagnostics saudável.
+  it('flush forçado durante body-read pendente (diagnostics saudável): subrota termina < 4s', async () => {
+    const { flushDiagnosticsNow, scoutDiag } = await import('../../../utils/diagnosticLog');
+    const body = linkStatusBody();
+    const fetchMock = vi.fn<typeof fetch>().mockImplementation(async url => {
+      if (String(url ?? '').includes('/api/llm')) {
+        await new Promise(r => setTimeout(r, 80));
+        return { ok: true, status: 200 } as unknown as Response;
+      }
+      return makeResponse(body, 1700);
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    // eventos de telemetria no buffer + flush forçado DURANTE o body-read
+    const noiseTimer = setInterval(() => {
+      for (let i = 0; i < 10; i += 1) scoutDiag.info('FreezeDiag', 'force-flush-noise', { i });
+    }, 100);
+
+    try {
+      const texto = textoComLinksInline(50_000);
+      const forceFlushTimer = setTimeout(() => flushDiagnosticsNow('bru162:mid-body-read', true), 600);
+
+      const t0 = performance.now();
+      const promoted = await validateInlineSourcesForPromotion(texto, [] as VerifiedSource[]);
+      const elapsed = performance.now() - t0;
+
+      clearTimeout(forceFlushTimer);
+      expect(promoted).toHaveLength(8);
+      expect(elapsed).toBeLessThan(4_000);
+    } finally {
+      clearInterval(noiseTimer);
+    }
+  });
+
+  // Despacho ff7f28af: flush forçado com diagnostics LENTO/ABORTADO —
+  // re-enfileiramento (c344d236) não pode travar nem perder a subrota.
+  it('flush forçado durante body-read com /api/llm abortando: subrota ainda termina < 4s', async () => {
+    const { flushDiagnosticsNow, scoutDiag } = await import('../../../utils/diagnosticLog');
+    const body = linkStatusBody();
+    const fetchMock = vi.fn<typeof fetch>().mockImplementation(async url => {
+      if (String(url ?? '').includes('/api/llm')) {
+        // diagnostics que aborta (simula sob carga: fetch estoura timeout próprio)
+        await new Promise(r => setTimeout(r, 50));
+        throw new DOMException('The operation was aborted', 'AbortError');
+      }
+      return makeResponse(body, 1700);
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const noiseTimer = setInterval(() => {
+      for (let i = 0; i < 10; i += 1) scoutDiag.info('FreezeDiag', 'abort-flush-noise', { i });
+    }, 100);
+
+    try {
+      const texto = textoComLinksInline(50_000);
+      const forceFlushTimer = setTimeout(() => flushDiagnosticsNow('bru162:mid-body-read-abort', true), 600);
+
+      const t0 = performance.now();
+      const promoted = await validateInlineSourcesForPromotion(texto, [] as VerifiedSource[]);
+      const elapsed = performance.now() - t0;
+
+      clearTimeout(forceFlushTimer);
+      expect(promoted).toHaveLength(8);
+      expect(elapsed).toBeLessThan(4_000);
+    } finally {
+      clearInterval(noiseTimer);
+    }
   });
 
   it('subrota sob flush concorrente de telemetria (batch de 5s disparando durante body-read) termina < 4s', async () => {
