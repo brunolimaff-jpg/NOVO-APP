@@ -398,6 +398,17 @@ export function setupVisibilityTracking(): void {
     document.addEventListener('freeze', handleFreeze);
     document.addEventListener('resume', handleResume);
   }
+
+  // BRU-162 Slot A: tipo de navegação no boot — discrimina reload (bfcache/
+  // manual) de first load nos runs. Um único evento, sem PII.
+  try {
+    const navEntry = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming | undefined;
+    scoutDiag.info('DossierRunLifecycle', 'navigation:type', {
+      type: navEntry?.type ?? 'unknown',
+    });
+  } catch {
+    /* performance API indisponível: segue sem o evento */
+  }
 }
 
 // ── Heartbeat ────────────────────────────────────────────────────────

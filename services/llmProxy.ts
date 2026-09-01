@@ -151,6 +151,14 @@ async function callLlmApi<TResponse>(
         signal: controller.signal,
       });
 
+      // BRU-162 Slot A: sequência NÃO amostrada — headers chegaram do proxy.
+      scoutDiag.info('LlmProxy', 'request:headers', {
+        endpoint,
+        action,
+        requestClass,
+        status: response.status,
+      });
+
       responseText = await readResponseText(response, controller.signal);
     } catch (error: unknown) {
       if (timedOut) {
@@ -224,7 +232,10 @@ async function callLlmApi<TResponse>(
     if (!trimmedBody) return {} as TResponse;
 
     try {
-      return JSON.parse(trimmedBody) as TResponse;
+      const parsed = JSON.parse(trimmedBody) as TResponse;
+      // BRU-162 Slot A: parse OK — a resposta voltou completa ao client.
+      scoutDiag.info('LlmProxy', 'parse:end', { endpoint, action, requestClass });
+      return parsed;
     } catch (error: unknown) {
       scoutDiag.error('LlmProxy', 'JSON invalido na resposta do proxy', {
         endpoint,
