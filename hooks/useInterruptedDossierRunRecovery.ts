@@ -53,10 +53,26 @@ export function useInterruptedDossierRunRecovery(options: {
         try {
           const remote = await getDossierRun(run.runId);
           remoteStatus = remote?.status ?? null;
-        } catch {
-          // Falha de consulta: trata como interrupt legítimo (fail-closed
-          // mantém o comportamento anterior — nunca silencia um run ativo real).
+          // BRU-162/P3: run consultado com sucesso mas SEM status terminal
+          // (null/undefined/PENDING) na corrida boot×finally — não é terminal,
+          // não é falha de consulta: registra para diagnosticar a janela.
+          if (!remoteStatus) {
+            scoutDiag.info('DossierRunLifecycle', 'reload_run_remote_status_unavailable', {
+              sessionId: run.sessionId,
+              runId: run.runId,
+              remoteFound: Boolean(remote),
+            });
+          }
+        } catch (error) {
+          // BRU-162/P3: falha de consulta AGORA é visível (antes era um catch
+          // silencioso que mascarava o falso "interrompido" no run 3f0e7569 —
+          // o RPC pode ter falhado por RLS/owner e virou mensagem de erro na UI).
           remoteStatus = null;
+          scoutDiag.warn('DossierRunLifecycle', 'reload_run_remote_lookup_failed', {
+            sessionId: run.sessionId,
+            runId: run.runId,
+            error: error instanceof Error ? error.message : String(error),
+          });
         }
         if (cancelled) return;
 
