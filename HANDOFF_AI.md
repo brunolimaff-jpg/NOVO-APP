@@ -1,51 +1,40 @@
-# HANDOFF AI — Baseline Canônico de Migrações Supabase & Hardening (PR #464)
+# HANDOFF AI — NOVO-APP (Scout 360)
 
-> Atualizado: 2026-07-28  
-> Projeto: **NOVO-APP**  
-> Branch Ativa: `fix/canonical-supabase-migration-baseline`  
-> PR Ativa: **#464** (Draft, Mergeável, Base `main`)  
-> HEAD Commit SHA: `a8a07919a606969fc34c7daee4ec41ca72f48b57`  
-> Vault Narrative: [[2026-07-28T17-25-00-fix-canonical-supabase-migration-baseline|Nota de Handoff no Bruno Vault]]
+> Atualizado: 2026-09-01 (madrugada, pós-BRU-158 microdelta + BRU-162 instrumentação)
+> Branch ativa: `feat/bru-157-zen-only-stabilization` @ `0d336442` (PR #492, Draft, Merge Lock)
+> Produção: `main` @ `b6fa24c5` (#489)
 
----
+## Estado atual
 
-## 1. Estado da PR #464 & Migrações
+- **BRU-158 MICRODELTA: FECHADO** @ `287358ff` — Gate 1: caracterização do wiring EvidencePack→extraContext + negative control provado (sem `connectEvidencePackToPool`, teste FALHA). Gate 2: formatter expõe `[match=…]`+`[origin=…]` (RED→GREEN). Teste órfão `identityWindowRaceCondition` removido (importava funções inexistentes) → full suite 1789/1789. CI verde no SHA.
+- **BRU-162 (Terminalização órfã, P0): In Progress** — criado pelo Planejador após 2 runs órfãos RUNNING com freeze determinístico:
+  - Run `e8c1ad56` (deploy 287358ff): 6/6 módulos zen OK, morte pós-`module:end` do último módulo (heartbeat morto 00:18:06Z).
+  - Run `c2b3cb56` (deploy 287358ff, sem instrumentação): 6/6 módulos + benchmark + PORTA + inline-validation OK, morte entre `inline-validation:json:parsed` e `post-validate-inline` (02:20:50Z).
+  - B1 repro local: NÃO reproduziu (pipeline linear; regex de link patológica satura ~17ms). STOP conforme despacho.
+- **Instrumentação implementada** @ `0a396975` (desenho do Planejador): `utils/longTaskObserver.ts` (long tasks >100ms, timestamp+duração+fase, sem PII) + `markPhase()` com 8 marcadores (benchmark/finalize/save/mark_completed, start/done) + `flushDiagnosticsNow` imediato. Testes: observer 7/7, orchestrator 42/42, full 1789/1789, CI verde.
+- **DuplicateDossierModal → banner inline** @ `0d336442` (pedido do Bruno): overlay z-50 não bloqueia mais o fluxo; botões com data-testid (`btn-new-research`, `btn-access-existing`, `btn-dismiss-duplicate`).
+- **Deploys**: `scoutagro-1tgi2jrsi` (0a396975) · `scoutagro-pcgupdbon` (0d336442, Ready 22:34) — **run #3 deve ser disparado aqui**.
+- **CI**: todos os gates verdes no head; Golden Dossier Live = FAILURE pré-existente de credencial (BRU-160).
+- **BRU-156 (recovery)** e **BRU-161 (epistemic guard)**: bloqueados por BRU-162.
 
-- **Objetivo:** Substituir a cadeia de migrações corrompida por um baseline canônico nativo do schema de Produção e aplicar o hardening de privilégios e identidade (least privilege).
-- **Status:** **CONCLUÍDO / AGUARDANDO AUTORIZAÇÃO DO ORQUESTRADOR**
-- **Cadeia de Migrações (21 arquivos ativos com timestamps de 14 dígitos):**
-  - `20260501000000_production_schema_baseline.sql`: Dump nativo PG 17 do schema `public` de Produção (`vmqfcaoirjcfucvlnpig`). Sem objetos do schema `auth`, sem `auth.users`, sem `auth.uid()`, e com extensões canônicas (`pg_trgm`, `pgcrypto`, `uuid-ossp`).
-  - **18 Marcadores no-op de Produção:** Preservam os timestamps canônicos de Produção sem executar DDL redundante.
-  - `20260728173731_harden_dossier_grants.sql`: Restringe privilégios em `dossier_runs`, `dossies`, `profiles` e `handle_new_user()` para o princípio do menor privilégio.
-  - `20260728180000_harden_legacy_operator_linking.sql`: Hardening da RPC `link_legacy_operator` (exige `auth.uid()` igual a `p_auth_user_id`, e-mail obrigatório e correspondente ao perfil autenticado e ao `user_context`, `SECURITY DEFINER`, `search_path = ''` e ACL restrita a `authenticated`).
+## Não fazer
 
----
+- Nunca mergear sem a palavra MERGE do Bruno. Merge Lock ativo na #492.
+- Nada de senha/Golden/Brave/troca de modelo/Produção/schema sem despacho.
+- Decisões de credencial/secret/segurança: NUNCA sozinhas.
+- Cleanup de runs órfãos: agora são 2 candidatos (`e8c1ad56`, `c2b3cb56`) — a condição "único candidato" do Planejador não vale mais; pedir autorização.
+- Não criar `VITE_OPENCODE_ZEN_*`; nunca imprimir chave/senha.
 
-## 2. Validação & Garantias de Qualidade
+## Próximo passo
 
-- **Paridade de Catálogo:** 15 categorias de catálogo comparadas individualmente contra Produção (incluindo `pg_get_constraintdef` para 37/37 constraints, `pg_get_functiondef`, RLS, views, triggers e grants).  
-  `PRODUCTION_BASELINE_CATALOG_DIFF: ZERO`.
-- **Replay Local & `db push`:**
-  - `BASELINE_PSQL_EXIT_CODE: 0` (Replay estrito com `-v ON_ERROR_STOP=1` em PostgreSQL 17 local).
-  - `FULL_CHAIN_PUSH_EXIT_CODE: 0` (`npx supabase db push` registrou 21 migrações limpas).
-- **Testes PostgreSQL Runtime:**
-  - `scripts/test_harden_dossier_grants.sql`: Todos os asserts passaram.
-  - `scripts/test_harden_identity.sql`: 11/11 asserts de segurança e negação de UPDATE direto de `operator_id` passaram.
-- **Suíte Vitest Contratos:** 61/61 asserções de contrato de migração aprovadas em `tests/contracts/`.
-- **Gates Estáticos:** `git diff --check` zerado; `npm run lint` zerado (0 erros).
+1. **Bruno dispara run #3 em `scoutagro-pcgupdbon`** (recarregar a aba p/ build novo); executor acompanha pelo banco xlvs (`WaterfallPhase`, `LongTask`, `module:*`, `dossier_runs`) — zero polling de DOM (protocolo BRU-98).
+2. Com o pino do freeze: retorno ao Planejador → despacho da correção.
+3. Cleanup dos 2 órfãos (autorização condicional expirada — são 2 candidatos).
+4. Depois: BRU-156 → BRU-161 → V3 (#491).
 
----
+## Referências
 
-## 3. Restrições Estritas
-
-- NÃO aplicar migrações remotamente em Preview ou Produção.
-- NÃO executar `migration repair` nem `db push` remoto.
-- NÃO alterar a PR #456.
-- NÃO fazer force push.
-- NÃO marcar Ready e NÃO fazer merge sem palavra-chave `MERGE` e autorização do orquestrador.
-
----
-
-## 4. Próxima Ação
-
-Aguardar a validação final do orquestrador Bruno. Se autorizada com a instrução contendo a palavra `MERGE`, marcar a PR #464 como Ready e realizar o squash merge na `main`.
+- PR #492: https://github.com/brunolimaff-jpg/NOVO-APP/pull/492
+- Vault: [[2026-09-01T22-45-00-bru162-instrumentacao-freeze]] · [[2026-08-31T19-30-30-bru158-q1-evidence-pool-fechamento]]
+- Lições: [[2026-09-01-build-info-prova-sha-em-execucao]] · [[2026-09-01-modal-bloqueante-vs-banner-inline]]
+- Evidência B1: `.tmp/bru162-b1/` (repro + RESULTADO.md)
