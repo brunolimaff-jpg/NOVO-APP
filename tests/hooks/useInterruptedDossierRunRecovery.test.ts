@@ -112,6 +112,32 @@ describe('useInterruptedDossierRunRecovery', () => {
     expect(peekPersistedActiveDossierRuns()).toHaveLength(0);
   });
 
+  // Microgate de evidência BRU-156 (despacho Planejador): a telemetria prova
+  // o reconciliamento — reload_run_already_terminal emitido; reload_interrupted_run NÃO.
+  it('telemetria: COMPLETED remoto emite reload_run_already_terminal e NÃO emite reload_interrupted_run', async () => {
+    const diagModule = await import('../../utils/diagnosticLog');
+    const infoSpy = vi.spyOn(diagModule.scoutDiag, 'info');
+    const warnSpy = vi.spyOn(diagModule.scoutDiag, 'warn');
+
+    setRemoteRun('run-1', 'COMPLETED');
+    setActiveDossierRun({ sessionId: 's1', runId: 'run-1', leaseOwner: 'l', clientAttemptId: 'a' });
+    const { updateSessionById } = makeSessionStore({ s1: makeSession('s1') });
+
+    renderHook(() => useInterruptedDossierRunRecovery({
+      isInitialized: true,
+      updateSessionById,
+      setIsLoading: vi.fn(),
+      resetLoadingProgress: vi.fn(),
+    }));
+
+    await vi.waitFor(() => {
+      expect(infoSpy).toHaveBeenCalledWith('DossierRunLifecycle', 'reload_run_already_terminal', expect.objectContaining({ runId: 'run-1' }));
+    });
+    expect(warnSpy).not.toHaveBeenCalledWith('DossierRunLifecycle', 'reload_interrupted_run', expect.anything());
+    infoSpy.mockRestore();
+    warnSpy.mockRestore();
+  });
+
   it('injeta mensagem de interrupção quando o run remoto NÃO está terminal (interrupt legítimo)', async () => {
     setRemoteRun('run-2', 'RUNNING');
     setActiveDossierRun({ sessionId: 's1', runId: 'run-2', leaseOwner: 'l', clientAttemptId: 'a' });
