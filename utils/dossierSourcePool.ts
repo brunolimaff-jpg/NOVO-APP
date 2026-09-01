@@ -136,8 +136,10 @@ export function formatAvailableSourcesForPrompt(pool: DossierSourceRef[]): strin
     const label = source.title?.trim() || source.url;
     const origin = source.moduleName ? ` (${source.moduleName})` : '';
     const tier = source.evidenceTier ? ` [tier=${source.evidenceTier}]` : '';
+    const match = source.entityMatch ? ` [match=${source.entityMatch}]` : '';
+    const queryOrigin = source.queryOrigin ? ` [origin=${source.queryOrigin}]` : '';
     const claim = source.extractedClaim ? ` claim: ${source.extractedClaim}` : '';
-    return `${index + 1}. ${label} — ${source.url}${origin}${tier}${claim}`;
+    return `${index + 1}. ${label} — ${source.url}${origin}${tier}${match}${queryOrigin}${claim}`;
   });
 
   return ['', '[FONTES DISPONIVEIS PARA CITACAO — use SOMENTE estas URLs em [[n]](url)]', ...lines, ''].join('\n');

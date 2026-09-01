@@ -710,6 +710,61 @@ describe('useDossierWaterfallOrchestrator', () => {
     expect(scoutDiagMock.warn).not.toHaveBeenCalledWith('PipelineV2', 'Fallback v1 (planner/collector falhou)', expect.anything());
   });
 
+  // BRU-158 Q1 (caracterização): pina o wiring existente — o EvidencePack do
+  // collector V2 entra no source pool da sessão e o bloco de fontes chega ao
+  // extraContext dos módulos. Negative control executado localmente: sem a
+  // linha `sessionSourcePool = connectEvidencePackToPool(...)` este teste FALL.
+  it('caracterização: evidência usableForReport do collector V2 chega ao extraContext dos módulos', async () => {
+    evidencePipelineMock.mockReturnValue(true);
+    queryPlannerMocks.plan.mockResolvedValue({
+      queries: [{ id: 'q1', query: 'Grupo Scheffer ampliação capacidade', module: 'teia_identity' }],
+    });
+    queryPlannerMocks.collect.mockResolvedValue({
+      items: [
+        {
+          id: 'item-1',
+          sourceResult: {
+            url: 'https://agrolink.com.br/scheffer-ampliacao',
+            title: 'Scheffer amplia capacidade em Sapezal',
+            snippet: 'Grupo Scheffer anunciou ampliação da capacidade em 2025.',
+            provider: 'web',
+            retrievedAt: '2026-08-31T00:00:00Z',
+          },
+          evidenceTier: 'A',
+          entityMatch: 'exact',
+          usableForReport: true,
+          queryOrigin: 'planner.teia',
+          module: 'teia_identity',
+          extractedClaim: 'Grupo Scheffer ampliou capacidade em 2025',
+        },
+      ],
+      confidenceProfile: {
+        totalUrls: 1,
+        uniqueUrls: 1,
+        tierACount: 1,
+        tierBCount: 0,
+        tierCCount: 0,
+        tierDCount: 0,
+        modulesCovered: ['teia_identity'],
+      },
+      collectedAt: '2026-08-31T00:00:00Z',
+    });
+
+    const harness = makeHarness();
+
+    await act(async () => {
+      await harness.result.current.runMegaPromptWaterfall(makeRunArgs());
+    });
+
+    expect(queryPlannerMocks.collect).toHaveBeenCalledOnce();
+    expect(generateDossierModuleMock).toHaveBeenCalled();
+    const firstExtraContext = generateDossierModuleMock.mock.calls[0][4] as string;
+    expect(firstExtraContext).toContain('[FONTES DISPONIVEIS PARA CITACAO');
+    expect(firstExtraContext).toContain('https://agrolink.com.br/scheffer-ampliacao');
+    expect(firstExtraContext).toContain('Scheffer amplia capacidade em Sapezal');
+    expect(firstExtraContext).toContain('claim: Grupo Scheffer ampliou capacidade em 2025');
+  });
+
   it('falha fechada antes do benchmark sem PORTA, save ou completed', async () => {
     failLifecycleAt('before_benchmark');
     const dispatchSpy = vi.spyOn(window, 'dispatchEvent');

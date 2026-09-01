@@ -110,5 +110,9 @@ describe('connectEvidencePackToPool (BRU-158 Q1)', () => {
     expect(block).toContain('[tier=A]');
     expect(block).toContain('claim: Grupo Scheffer ampliou capacidade em 2025');
     expect(block).toContain('(teia_identity)');
+    // BRU-158 microdelta (Gate 2): proveniência completa no prompt —
+    // entityMatch e queryOrigin também devem aparecer no bloco formatado.
+    expect(block).toContain('[match=exact]');
+    expect(block).toContain('[origin=planner.teia]');
   });
 });
