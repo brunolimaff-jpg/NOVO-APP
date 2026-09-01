@@ -1,7 +1,5 @@
 export { SENIOR_PRODUCT_URLS, findSeniorProductUrl } from '../utils/seniorLinks';
 
-const FALLBACK_BACKEND_URL =
-  'https://script.google.com/macros/s/AKfycbxvhFIWm6wOW0qDSrSB0lKA7UGkvxGltvZY9hghDpxv9r3diYcPoiPUq_n4WzJpkEY/exec';
 const FALLBACK_LOOKUP_URL =
   'https://script.google.com/macros/s/AKfycbxscB2gSotAxrCdpRpyaqrPKlsPbRfe6fgjicbd69fG6sMM3vrbuGjDaRctWCTcE8d-/exec';
 const FALLBACK_OPEN_WEB_SEARCH_ENDPOINT = '/api/open-web-search';
@@ -18,7 +16,7 @@ function getEnvValue(key: ScoutApiEnvKey): string | undefined {
   return typeof value === 'string' && value.trim().length > 0 ? value : undefined;
 }
 
-export const BACKEND_URL = getEnvValue('VITE_BACKEND_URL') ?? FALLBACK_BACKEND_URL;
+export const BACKEND_URL = getEnvValue('VITE_BACKEND_URL');
 export const LOOKUP_URL = getEnvValue('VITE_LOOKUP_URL') ?? FALLBACK_LOOKUP_URL;
 export const OPEN_WEB_SEARCH_ENDPOINT = getEnvValue('VITE_OPEN_WEB_SEARCH_URL') ?? FALLBACK_OPEN_WEB_SEARCH_ENDPOINT;
 
