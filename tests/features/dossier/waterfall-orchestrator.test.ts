@@ -715,6 +715,33 @@ describe('useDossierWaterfallOrchestrator', () => {
     expect(scoutDiagMock.warn).not.toHaveBeenCalledWith('PipelineV2', 'Fallback v1 (planner/collector falhou)', expect.anything());
   });
 
+  // BRU-157 P1 (contrato do fallback): quando o planner/collector falha — e a
+  // recuperação do planQueries (re-chamada do LLM com os issues anexados) já
+  // esgotou — o orchestrator cai no fallback V1 emitindo warn EXPLÍCITO com o
+  // motivo e o pipeline segue: módulos rodam normalmente (nunca silencioso).
+  it('planner rejeitado após recuperação esgotada cai no fallback V1 com warn explícito e módulos seguem', async () => {
+    evidencePipelineMock.mockReturnValue(true);
+    queryPlannerMocks.plan.mockRejectedValue(
+      new Error('Planner rejeitado após tentativa de correção: queries.0.homonimRisk: invalid_value'),
+    );
+
+    const harness = makeHarness();
+    const result = await harness.result.current.runMegaPromptWaterfall(makeRunArgs());
+
+    expect(queryPlannerMocks.plan).toHaveBeenCalledOnce();
+    expect(queryPlannerMocks.collect).not.toHaveBeenCalled();
+    expect(scoutDiagMock.warn).toHaveBeenCalledWith(
+      'PipelineV2',
+      'Fallback v1 (planner/collector falhou)',
+      expect.objectContaining({
+        error: expect.stringContaining('Planner rejeitado após tentativa de correção'),
+      }),
+    );
+    expect(result.status).not.toBe('FAILED');
+    expect(generateDossierModuleMock).toHaveBeenCalled();
+    expect(saveDossierMock).toHaveBeenCalled();
+  });
+
   // BRU-158 Q1 (caracterização): pina o wiring existente — o EvidencePack do
   // collector V2 entra no source pool da sessão e o bloco de fontes chega ao
   // extraContext dos módulos. Negative control executado localmente: sem a
@@ -1025,6 +1052,35 @@ describe('useDossierWaterfallOrchestrator', () => {
       expect.stringMatching(/marcador de complexidade ausente/i),
       expect.any(Object),
     );
+  });
+
+  // BRU-158 Q0 / P2: o CNPJ fornecido pelo próprio usuário no input é contexto
+  // canônico — NÃO pode virar "não confirmado" no validator (falso positivo do
+  // run real 3f0e7569: "1 de 1 CNPJs citados nao foram confirmados").
+  it('não emite CNPJ validation warning quando o CNPJ citado veio do input do usuário', async () => {
+    generateDossierModuleMock.mockImplementation(async (moduleName: string) => {
+      if (moduleName === 'Teia Societaria — Identidade') {
+        // o módulo cita o CNPJ do input (12.345.678/0001-90 do makeRunArgs)
+        return 'Grupo Acme Agro, CNPJ 12.345.678/0001-90, controla as operações.\n[[TEIA_COMPLEXIDADE:BAIXA]]';
+      }
+      return `${moduleName} consolidado`;
+    });
+    reconcileWaterfallPortaMock.mockImplementation(async ({ accumulatedText }) => ({
+      accumulatedText,
+      resolution: makeResolution(makeScorePorta(72)),
+      portaIntegrityHold: false,
+    }));
+
+    const harness = makeHarness({ canUseLookup: false });
+
+    await act(async () => {
+      await harness.result.current.runMegaPromptWaterfall(makeRunArgs());
+    });
+
+    const cnpjWarnings = scoutDiagMock.warn.mock.calls.filter(
+      call => call[0] === 'TeiaSocietaria' && call[1] === 'CNPJ validation warning' && String(call[2]?.warning || '').includes('nao foram confirmados'),
+    );
+    expect(cnpjWarnings).toHaveLength(0);
   });
 
   it('registra alertas de validação societária sem anexar seção fake ao markdown final', async () => {

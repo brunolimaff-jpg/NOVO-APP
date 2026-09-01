@@ -977,9 +977,20 @@ export function useDossierWaterfallOrchestrator(options: Partial<UseDossierWater
             }
           }
 
+          // BRU-158 Q0 (fix P2): o texto original do usuário é contexto canônico —
+          // o CNPJ digitado no input NÃO pode ser reportado como "não confirmado"
+          // pelo validator (falso positivo visto no run real 3f0e7569).
+          // sessionCnpjDigits cobre CNPJ sem máscara no input: o regex do
+          // validator exige máscara, então os dígitos crus entram mascarados.
+          const sessionCnpjMasked =
+            sessionCnpjDigits && sessionCnpjDigits.length === 14
+              ? `${sessionCnpjDigits.slice(0, 2)}.${sessionCnpjDigits.slice(2, 5)}.${sessionCnpjDigits.slice(5, 8)}/${sessionCnpjDigits.slice(8, 12)}-${sessionCnpjDigits.slice(12)}`
+              : null;
           const { text: validatedText, warnings } = validateTeiaCnpjsOutput(
             combinedTeiaText,
-            [waterfallLookupContext, dossierSeedContext, teiaResearchContext.text].join('\n'),
+            [text, sessionCnpjMasked, waterfallLookupContext, dossierSeedContext, teiaResearchContext.text]
+              .filter(Boolean)
+              .join('\n'),
           );
 
           for (const warning of warnings) {
