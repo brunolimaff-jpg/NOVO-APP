@@ -1,6 +1,45 @@
 type Environment = Record<string, string | undefined>;
 type LiteLLMRole = 'system' | 'user' | 'assistant';
 
+import { LLM_REQUEST_BUDGET_MS } from '../services/llm/budgets.js';
+
+/**
+ * BRU-162 Slot A — telemetria do boundary Zen (despacho Planejador ea6fdc4b).
+ * Import dinâmico do canal server-side para não trazer o Supabase para o
+ * caminho estático do client. Falha de telemetria NUNCA afeta a chamada LLM.
+ * Zero prompt/texto/body real — só métricas.
+ */
+function emitZenBoundary(
+  runId: string | undefined,
+  event: 'zen_fetch:start' | 'zen_body:end' | 'zen_parse:end' | 'zen_timeout' | 'zen_abort' | 'zen_fail',
+  payload: Record<string, unknown>,
+): void {
+  try {
+    void import('../utils/serverDiagnostics.js')
+      .then(({ insertDiagnosticsBatch }) =>
+        insertDiagnosticsBatch(
+          { runId: runId || `zen-${Date.now().toString(36)}`, route: '/api/llm', events: [] },
+          [
+            {
+              at: new Date().toISOString(),
+              t: Date.now(),
+              runId: runId || 'unassigned',
+              area: 'ZenProvider',
+              event,
+              severity: event === 'zen_fail' || event === 'zen_timeout' ? 'error' : 'info',
+              payload,
+            },
+          ],
+        ),
+      )
+      .catch(() => {
+        /* telemetria nunca quebra a chamada LLM */
+      });
+  } catch {
+    /* idem */
+  }
+}
+
 export interface LiteLLMUsageMetadata {
   promptTokenCount?: number;
   candidatesTokenCount?: number;
@@ -14,7 +53,7 @@ export interface NormalizeModelOutputResult {
 }
 
 const DEFAULT_REQUEST_BUDGET_MS = 38_000;
-const MAX_REQUEST_BUDGET_MS = 180_000;
+const MAX_REQUEST_BUDGET_MS = LLM_REQUEST_BUDGET_MS;
 const DEFAULT_LEGACY_TIMEOUT_MS = 120_000;
 const DEFAULT_MAX_RETRIES = 1;
 const DEFAULT_RETRY_BASE_DELAY_MS = 500;
@@ -445,6 +484,16 @@ async function callZen(
   const deadline = Date.now() + budgetMs;
   const abortContext = createAttemptAbortContext(input.signal, Math.max(0, remainingBudget(deadline)));
   const messages = buildMessages(input);
+  const zenStartedAt = Date.now();
+
+  emitZenBoundary(input.runId, 'zen_fetch:start', {
+    action: input.action ?? 'unknown',
+    model,
+    inputChars: messages.reduce((sum, m) => sum + (m.content?.length ?? 0), 0),
+    messageCount: messages.length,
+    budgetMs,
+    correlationId: input.correlationId,
+  });
 
   try {
     const response = await withSignal(
@@ -472,6 +521,12 @@ async function callZen(
     }
 
     const responseBody = await withSignal(response.text(), abortContext.signal);
+    emitZenBoundary(input.runId, 'zen_body:end', {
+      action: input.action ?? 'unknown',
+      elapsedMs: Date.now() - zenStartedAt,
+      bodyChars: responseBody.length,
+      status: response.status,
+    });
     let completion: {
       choices?: Array<{ message?: { content?: string }; finish_reason?: string }>;
       usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number };
@@ -488,6 +543,13 @@ async function callZen(
     }
     const choice = completion.choices?.[0];
     const rawText = choice?.message?.content ?? '';
+    emitZenBoundary(input.runId, 'zen_parse:end', {
+      action: input.action ?? 'unknown',
+      elapsedMs: Date.now() - zenStartedAt,
+      outputChars: rawText.length,
+      servedModel: completion.model,
+      finishReason: choice?.finish_reason,
+    });
     if (!rawText.trim()) {
       throw new LiteLLMRequestError('GATEWAY_INVALID_RESPONSE', 'OpenCode Zen retornou resposta vazia', false);
     }
@@ -507,6 +569,30 @@ async function callZen(
     };
   } catch (error) {
     const normalized = normalizeLiteLLMError(error, abortContext.reason());
+    const elapsedMs = Date.now() - zenStartedAt;
+    if (normalized.code === 'GATEWAY_TIMEOUT') {
+      emitZenBoundary(input.runId, 'zen_timeout', {
+        action: input.action ?? 'unknown',
+        elapsedMs,
+        budgetMs,
+        code: normalized.code,
+      });
+    } else if (/abort/i.test(normalized.name) || /abort/i.test(normalized.code)) {
+      emitZenBoundary(input.runId, 'zen_abort', {
+        action: input.action ?? 'unknown',
+        elapsedMs,
+        reason: abortContext.reason(),
+        code: normalized.code,
+      });
+    } else {
+      emitZenBoundary(input.runId, 'zen_fail', {
+        action: input.action ?? 'unknown',
+        elapsedMs,
+        status: normalized instanceof LiteLLMHttpError ? normalized.status : undefined,
+        code: normalized.code,
+        errorName: normalized.name,
+      });
+    }
     console.error('[Zen] request failed', {
       correlationId: input.correlationId ?? 'unassigned',
       runId: input.runId ?? 'unassigned',

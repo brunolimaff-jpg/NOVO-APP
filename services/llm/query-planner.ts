@@ -210,12 +210,33 @@ const QueryPlanSchema = z.object({
 
 // === PLANNER ===
 
-export async function planQueries(
-  entity: EntityResolution,
-  callLLM: (prompt: string) => Promise<string>,
-): Promise<QueryPlan> {
-  const raw = await callLLM(renderPlannerPrompt(entity));
+// BRU-157 P1 — recuperação de plano inválido: quando o LLM devolve JSON de
+// plano que não passa no schema (ex: valor fora do enum, run 3f0e7569), o
+// planQueries re-chama o LLM UMA vez anexando o motivo da rejeição ao prompt.
+// Só depois de esgotada a recuperação o erro propaga para o orchestrator cair
+// no fallback V1 — que emite warn explícito com o motivo (nunca silencioso).
+function summarizePlanError(err: unknown): string {
+  if (err instanceof z.ZodError) {
+    return err.issues
+      .slice(0, 5)
+      .map(issue => `${issue.path.join('.') || '(plano)'}: ${issue.message}`)
+      .join('\n');
+  }
+  return err instanceof Error ? err.message : String(err);
+}
 
+function renderRepairPrompt(basePrompt: string, reason: string): string {
+  return `${basePrompt}
+
+ATENÇÃO: sua resposta anterior foi rejeitada pela validação do plano.
+
+Motivo da rejeição:
+${reason}
+
+Responda NOVAMENTE apenas com o objeto JSON corrigido dentro do bloco \`\`\`json. NADA de texto fora do bloco.`;
+}
+
+function parsePlanJson(raw: string): unknown {
   const cleaned = raw
     .replace(/^```json\s*/i, '')
     .replace(/\s*```$/i, '')
@@ -286,6 +307,10 @@ export async function planQueries(
     }
   }
 
+  return parsed;
+}
+
+function normalizeAndValidate(parsed: unknown, entity: EntityResolution): QueryPlan {
   // Normaliza campos que o modelo pode gerar com acento/maiúscula/string
   if (parsed && typeof parsed === 'object' && 'queries' in parsed) {
     const obj = parsed as { queries: Array<Record<string, unknown>> };
@@ -307,6 +332,43 @@ export async function planQueries(
     queries: validated.queries.slice(0, 18),
     generatedAt: new Date().toISOString(),
   };
+}
+
+// === PLANNER ===
+
+export async function planQueries(
+  entity: EntityResolution,
+  callLLM: (prompt: string) => Promise<string>,
+): Promise<QueryPlan> {
+  const basePrompt = renderPlannerPrompt(entity);
+
+  const attempt = async (prompt: string): Promise<QueryPlan> => {
+    const raw = await callLLM(prompt);
+    return normalizeAndValidate(parsePlanJson(raw), entity);
+  };
+
+  try {
+    return await attempt(basePrompt);
+  } catch (firstError) {
+    const reason = summarizePlanError(firstError);
+    // BRU-157 P1: exatamente 1 recuperação — re-chama o LLM com o motivo da
+    // rejeição anexado ao prompt. Se validar, o PipelineV2 segue sem fallback.
+    try {
+      const plan = await attempt(renderRepairPrompt(basePrompt, reason));
+      scoutDiag.warn('QueryPlanner', 'plano recuperado após correção', { error: reason });
+      return plan;
+    } catch (secondError) {
+      const reasonSecond = summarizePlanError(secondError);
+      scoutDiag.warn('QueryPlanner', 'recuperação do plano falhou — fallback V1', {
+        error: reasonSecond,
+        firstError: reason,
+      });
+      // Mensagem explícita para o orchestrator logar no warn do fallback V1.
+      throw new Error(`Planner rejeitado após tentativa de correção: ${reasonSecond}`, {
+        cause: secondError,
+      });
+    }
+  }
 }
 
 // === COLLECTOR ===

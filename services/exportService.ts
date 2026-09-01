@@ -141,6 +141,11 @@ export async function sendDossierEmail({
     return false;
   }
 
+  if (!endpoint) {
+    scoutDiag.warn('Export', 'sendDossierEmail: backend de sessão não configurado');
+    return false;
+  }
+
   const { text: fullText, sections } = collectFullReport(messages);
   if (!fullText || fullText.length < 100) return false;
 

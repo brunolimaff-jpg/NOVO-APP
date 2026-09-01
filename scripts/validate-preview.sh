@@ -26,8 +26,8 @@ CNPJ_DIGITS=$(echo "$CNPJ" | tr -d './-')
 PASS=0
 FAIL=0
 
-log_pass() { echo -e "${GREEN}✅ PASS${NC} — $1"; ((PASS++)); }
-log_fail() { echo -e "${RED}❌ FAIL${NC} — $1"; ((FAIL++)); }
+log_pass() { echo -e "${GREEN}✅ PASS${NC} — $1"; ((++PASS)); }
+log_fail() { echo -e "${RED}❌ FAIL${NC} — $1"; ((++FAIL)); }
 log_info() { echo -e "${CYAN}ℹ${NC}  $1"; }
 log_section() { echo -e "\n${YELLOW}── $1 ──${NC}"; }
 

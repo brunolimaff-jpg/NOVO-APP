@@ -8,6 +8,7 @@ const uuidv4Mock = vi.hoisted(() => vi.fn());
 const sendMessageToLlmMock = vi.hoisted(() => vi.fn());
 const lifecycleMocks = vi.hoisted(() => ({ create: vi.fn(), acquire: vi.fn(), start: vi.fn(() => vi.fn()), set: vi.fn(), clear: vi.fn() }));
 const trackOperatorEventMock = vi.hoisted(() => vi.fn());
+const apiConfigMock = vi.hoisted(() => ({ backendUrl: 'https://mock-backend.test' as string | undefined }));
 
 vi.mock('uuid', () => ({
   v4: uuidv4Mock,
@@ -15,6 +16,11 @@ vi.mock('uuid', () => ({
 
 vi.mock('../../../services/llmService', () => ({
   sendMessageToLlm: sendMessageToLlmMock,
+}));
+vi.mock('../../../services/apiConfig', () => ({
+  get BACKEND_URL() {
+    return apiConfigMock.backendUrl;
+  },
 }));
 vi.mock('../../../lib/supabase/dossierRuns', () => ({
   DOSSIER_RUN_RPC_TIMEOUT_MS: 15_000,
@@ -215,6 +221,7 @@ describe('useChatMessageOrchestrator', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    apiConfigMock.backendUrl = 'https://mock-backend.test';
     uuidv4Mock.mockReset();
     sendMessageToLlmMock.mockReset();
     lifecycleMocks.create.mockResolvedValue({ run_id: 'run-1' });
@@ -638,5 +645,27 @@ describe('useChatMessageOrchestrator', () => {
 
     expect(harness.state.investigationLogged).toBe(true);
     expect(global.fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('não tenta logar investigação quando o backend de sessão não está configurado', async () => {
+    apiConfigMock.backendUrl = undefined;
+    uuidv4Mock
+      .mockReturnValueOnce('session-new')
+      .mockReturnValueOnce('message-user')
+      .mockReturnValueOnce('message-bot');
+    sendMessageToLlmMock.mockResolvedValue(makeLlmResult({ text: 'A'.repeat(600) }));
+    const harness = makeHarness();
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+
+    try {
+      await act(async () => {
+        await harness.result.current.handleSendMessage('Investigar Acme Agro');
+      });
+    } finally {
+      warnSpy.mockRestore();
+    }
+
+    expect(global.fetch).not.toHaveBeenCalled();
+    expect(harness.state.investigationLogged).toBe(true);
   });
 });

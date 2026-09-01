@@ -106,6 +106,12 @@ function toErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
+function getConfiguredSessionsUrl(action: string): string | null {
+  if (SESSIONS_API_URL) return SESSIONS_API_URL;
+  scoutDiag.warn('RemoteStore', 'operação remota ignorada; backend de sessão não configurado', { action });
+  return null;
+}
+
 function parseListSessionsResponse(text: string): RemoteSessionRow[] {
   const envelope = parseRemoteEnvelope(text, 'listSessions');
 
@@ -190,12 +196,15 @@ async function fetchWithTimeout(url: string, options: FetchOptions, timeout: num
 }
 
 export async function listRemoteSessions(): Promise<ChatSession[]> {
+  const sessionsApiUrl = getConfiguredSessionsUrl('listSessions');
+  if (!sessionsApiUrl) return [];
+
   const apiCall = async () => {
     const attempts: Array<{ name: string; request: () => Promise<Response> }> = [
       {
         name: 'GET querystring',
         request: () =>
-          fetchWithTimeout(`${SESSIONS_API_URL}?action=listSessions`, {
+          fetchWithTimeout(`${sessionsApiUrl}?action=listSessions`, {
             method: 'GET',
             redirect: 'follow',
           }),
@@ -203,7 +212,7 @@ export async function listRemoteSessions(): Promise<ChatSession[]> {
       {
         name: 'POST body',
         request: () =>
-          fetchWithTimeout(SESSIONS_API_URL, {
+          fetchWithTimeout(sessionsApiUrl, {
             method: 'POST',
             redirect: 'follow',
             headers: { 'Content-Type': 'text/plain;charset=utf-8' },
@@ -265,8 +274,11 @@ export async function listRemoteSessions(): Promise<ChatSession[]> {
 }
 
 export async function getRemoteSession(id: string): Promise<ChatSession | null> {
+  const sessionsApiUrl = getConfiguredSessionsUrl('getSession');
+  if (!sessionsApiUrl) return null;
+
   const apiCall = async () => {
-    const res = await fetchWithTimeout(SESSIONS_API_URL, {
+    const res = await fetchWithTimeout(sessionsApiUrl, {
       method: 'POST',
       redirect: 'follow',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
@@ -329,6 +341,11 @@ export async function getRemoteSession(id: string): Promise<ChatSession | null> 
 }
 
 export async function saveRemoteSession(session: ChatSession, userId?: string, userName?: string) {
+  const sessionsApiUrl = getConfiguredSessionsUrl('saveSession');
+  if (!sessionsApiUrl) {
+    throw new RemoteStoreError('unavailable', 'saveSession', 'Backend de sessão não configurado');
+  }
+
   const payload = {
     action: 'saveSession',
     session: {
@@ -347,7 +364,7 @@ export async function saveRemoteSession(session: ChatSession, userId?: string, u
   };
 
   const apiCall = async () => {
-    const res = await fetchWithTimeout(SESSIONS_API_URL, {
+    const res = await fetchWithTimeout(sessionsApiUrl, {
       method: 'POST',
       redirect: 'follow',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },

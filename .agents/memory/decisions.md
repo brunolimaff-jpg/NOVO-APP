@@ -1,5 +1,25 @@
 # decisions.md — NOVO-APP
 
+## DI-2026-08-31-158: BRU-158 Q1 — EvidencePack conectado ao source pool (fronteira mínima, sem busca real)
+
+- **Decisão (BRU-158 Q1, implementação autorizada após auditoria Q0 do Planejador):** o EvidencePack produzido por `executeQueryPlan()` (15 buscas no run real) deixou de ser descartado (antes só virava telemetria): `connectEvidencePackToPool()` (utils/dossierSourcePool.ts) injeta itens `usableForReport` no pool da sessão com proveniência completa (moduleName, evidenceTier, entityMatch, queryOrigin, extractedClaim); `mergeDossierSourceRefs` preserva campos extras via spread; `formatAvailableSourcesForPrompt` expõe tier+claim ao modelo. Q1 é conexão determinística da fronteira JÁ EXISTENTE — REAL_PROVIDER_CALLS=0, sem Brave, sem mudança de prompts de módulos. Testes: `tests/utils/dossierSourcePool.test.ts` (4, RED→GREEN). PR #492 @ `f256b840`, Draft + Merge Lock. Efeito esperado no run real: `formatAvailableSourcesForPrompt` deixa de devolver pool vazio (grounding-unavailable) nos módulos posteriores ao query plan.
+- **Referência:** PR #492; `docs/auditorias/bru158-q0-fronteira-evidencia-scheffer.md`; Vault [[2026-08-31T19-30-30-bru158-q1-evidence-pool-fechamento|BRU-158 Q1 EvidencePool + fechamento]].
+
+## DI-2026-08-31-157: BRU-157 Zen-only stabilization — owner canônico de budget
+
+- **Decisão (BRU-157, despacho do Planejador 2026-08-31):** priorizar o caminho Zen ponta a ponta (decisão do Bruno: "continuar somente com o Zen primeiro"). Causa provada da falha real: step interno hardcoded 90s/60s (waterfall-orchestrator) e 60s (porta-reconciliation) e PORTA 120s local são MENORES que o budget real da chamada (proxy 210s) → o step aborta uma chamada que o proxy ainda considera válida (run `e29ab677`: `timeout after 90000ms` em Operação / Cadeia de Valor; Vercel HTTP 200 após o abort). Fix: `services/llm/budgets.ts` como fonte única (proxy 210s + headroom 15s = 225s step; função Vercel 300s), integrado nos módulos; sem aumentar timeout mágico. Testes determinísticos (REAL_PROVIDER_CALLS=0) provam: step >= proxy, chamada entre proxy e step não é abortada, cancelamento do usuário continua AbortError, timeout canônico continua fail-closed. PR #492 (branch `feat/bru-157-zen-only-stabilization`, base `feat/llm-fallback-v1`), Draft. Fase B pendente: envs `LLM_PROVIDER=zen` no preview + LiteLLM requests=0 + 1 run real. **Não**: Golden BRU-153, LiteLLM nesta rodada, modelo diferente de `deepseek-v4-flash`, Produção, merge.
+- **Referência:** PR #492; Linear BRU-157; Vault [[2026-08-31T13-38-41-bru157-zen-only-fase-a-checkpoint|BRU-157 Zen-only Fase A + preview 429]].
+
+## DI-2026-08-31-155: Gold Quality V3 — compositor canônico + fonte única de budgets
+
+- **Decisão (BRU-155, despacho do Planejador):** a saída final do dossiê passa a ser governada pelo contrato `EXECUTIVE_LEAN_DOSSIER_OUTPUT_CONTRACT_V3` (exatamente 8 seções na ordem; máximo 1 Mermaid; CNPJ em tabela macro única; Compliance como insumo; ausência degrada explicitamente). Não usar `expected-dossier.md`/`case.json` como oracle (stale). Implementado em `services/llm/gold/v3-dossier-composer.ts` (novo, puro) e `services/llm/budgets.ts` (fonte única de budgets: step interno 225s ≥ proxy 210s < função 300s). PR #491 (branch `feat/bru-155-gold-quality-v3`, base `feat/llm-fallback-v1`), Draft. Focused 199/199, contracts 144/144, full suite 1782/21 (falha pré-existente em `identityWindowRaceCondition.contract.test.ts`). **Não** alterar Sanitizer/Verifier, provider/modelo, schema, rotas; sem merge/produção/Golden real.
+- **Referência:** PR #491; `docs/superpowers/specs/2026-08-31-llm-provider-fallback-design.md`; Vault [[2026-08-31T11-58-57-fallback-v1-bru155-gold-quality|Fallback V1 + BRU-155 Gold Quality]].
+
+## DI-2026-08-31-Fallback-V1: Fallback LLM V1 — LiteLLM primário + OpenCode Zen secundário
+
+- **Decisão (aprovada pelo Bruno 2026-08-31):** tornar o fallback de provider permanente e assimétrico. `LLM_PROVIDER=litellm` (primário) + fallback automático por allowlist (budget/timeout/5xx/401/403/408/429/transporte) + `LLM_PROVIDER=zen` forçado para outage prolongado. Orçamento total único por request; Zen 1 tentativa, zero retry, zero reverso; proveniência `provider/servedModel/fallbackUsed/fallbackReason`; `_model` = modelo servido; telemetria sem prompt/body/key (P0 `gatewayBody` removido). PR #490 (`feat/llm-fallback-v1` @ `1bcf31b1`), Draft. Sem merge sem MERGE do Bruno.
+- **Referência:** PR #490; spec `cb9c25bf`; Vault [[2026-08-31T11-58-57-fallback-v1-bru155-gold-quality|Fallback V1 + BRU-155 Gold Quality]].
+
 ## DI-2026-08-06-BRU7-A: Dossier Flow — arquitetura client-orchestrated / server-arbitrated (Alternativa A aprovada)
 
 - **Decisão (BRU-7, Alternativa A, aprovada pelo Bruno em 2026-08-06):** formalizar `CLIENT_ORCHESTRATED / SERVER_ARBITRATED / DATABASE_TERMINAL_STATE`. O navegador orquestra o waterfall; RPCs SECURITY DEFINER arbitram auth, ownership, lease e validade das transições; o banco é o estado terminal canônico.

@@ -33,6 +33,50 @@ import {
 } from './_llm-client.js';
 import { resolveIntentModel, selectModelForModule } from '../utils/llm/modelRouter.js';
 
+/**
+ * BRU-162 Slot A — telemetria do boundary server/cliente.
+ *
+ * Sinais do despacho Planejador (ea6fdc4b): server_request:start,
+ * server_response:finish, server_response:close_before_finish. O
+ * close_before_finish é o marcador inequívoco de cliente/rede/aba
+ * desaparecida enquanto o serverless ainda processava (hipótese dos
+ * runs órfãos). Zero prompt/texto real, zero PII, zero secrets —
+ * apenas métricas (chars/counts/elapsed/status).
+ */
+export interface ServerBoundaryEvent {
+  event: 'server_request:start' | 'server_response:finish' | 'server_response:close_before_finish';
+  runId: string;
+  payload: Record<string, unknown>;
+}
+
+export function __testEmitServerBoundary(event: ServerBoundaryEvent): void {
+  void insertDiagnosticsBatch(
+    { runId: event.runId, route: '/api/llm', events: [] },
+    [
+      {
+        at: new Date().toISOString(),
+        t: Date.now(),
+        runId: event.runId,
+        area: 'ServerBoundary',
+        event: event.event,
+        severity: event.event === 'server_response:close_before_finish' ? 'warn' : 'info',
+        payload: event.payload,
+      },
+    ],
+  ).catch(() => {
+    /* telemetria nunca quebra o fluxo principal */
+  });
+}
+
+/** Registra boundary fire-and-forget; silencioso em falha de telemetria. */
+function emitServerBoundary(event: ServerBoundaryEvent): void {
+  try {
+    __testEmitServerBoundary(event);
+  } catch {
+    /* idem */
+  }
+}
+
 const HistoryItemSchema = z.object({
   role: z.enum(['user', 'model']),
   text: z.string(),
@@ -241,6 +285,48 @@ async function executeGenerateContent(
   }
 
   const srvRunId = `srv-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
+  const startedAt = Date.now();
+
+  // BRU-162 Slot A: boundary de entrada — métricas do pedido (sem conteúdo).
+  emitServerBoundary({
+    event: 'server_request:start',
+    runId: srvRunId,
+    payload: {
+      action: 'generateContent',
+      module: srvModuleName,
+      inputChars: contentsStr.length,
+      systemInstructionChars: typeof cfg.systemInstruction === 'string' ? cfg.systemInstruction.length : 0,
+      model: resolvedModel,
+    },
+  });
+
+  // BRU-162 Slot A: cliente/rede/aba desapareceu antes da resposta — o sinal
+  // dos runs órfãos. Registrado uma única vez; finish vence close. Defensivo
+  // contra Response sem emitter (ambientes de teste/mocks).
+  let boundarySettled = false;
+  const registerCloseBoundary = (): void => {
+    try {
+      if (typeof res.on !== 'function') return;
+      res.on('close', () => {
+        if (boundarySettled || res.writableEnded) return;
+        boundarySettled = true;
+        emitServerBoundary({
+          event: 'server_response:close_before_finish',
+          runId: srvRunId,
+          payload: {
+            action: 'generateContent',
+            module: srvModuleName,
+            elapsedMs: Date.now() - startedAt,
+            inputChars: contentsStr.length,
+          },
+        });
+      });
+    } catch {
+      /* boundary de close é best-effort */
+    }
+  };
+  registerCloseBoundary();
+
   if (srvModuleName) {
     void insertDiagnosticsBatch({ runId: srvRunId, route: '/api/llm', events: [] }, [
       {
@@ -289,12 +375,30 @@ async function executeGenerateContent(
       ]);
     }
 
-    return res.status(200).json({
+    const responseBody = {
       text: result.text,
       _model: result.servedModel,
       usage: result.usage,
       finishReason: result.finishReason,
+    };
+
+    // BRU-162 Slot A: resposta entregue — vence o close (fecha o boundary).
+    boundarySettled = true;
+    emitServerBoundary({
+      event: 'server_response:finish',
+      runId: srvRunId,
+      payload: {
+        action: 'generateContent',
+        module: srvModuleName,
+        elapsedMs: Date.now() - startedAt,
+        status: 200,
+        bodyChars: result.text?.length ?? 0,
+        inputChars: contentsStr.length,
+        servedModel: result.servedModel,
+      },
     });
+
+    return res.status(200).json(responseBody);
   } catch (error) {
     const mapped = httpStatusForError(error);
     console.error('[LlmProxy] generateContent failed:', mapped.message, {
@@ -326,6 +430,22 @@ async function executeGenerateContent(
         },
       ]);
     }
+
+    // BRU-162 Slot A: resposta de ERRO entregue — também fecha o boundary.
+    boundarySettled = true;
+    emitServerBoundary({
+      event: 'server_response:finish',
+      runId: srvRunId,
+      payload: {
+        action: 'generateContent',
+        module: srvModuleName,
+        elapsedMs: Date.now() - startedAt,
+        status: mapped.status,
+        code: mapped.code,
+        inputChars: contentsStr.length,
+      },
+    });
+
     return res.status(mapped.status).json(errorPayload(mapped.code, mapped.message, mapped.retryable));
   }
 }

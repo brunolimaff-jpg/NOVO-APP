@@ -711,23 +711,27 @@ export function useChatMessageOrchestrator(options: Partial<UseChatMessageOrches
 
         if (!investigationLogged && finalResponseText.length > 500) {
           setInvestigationLogged(true);
-          fetch(BACKEND_URL, {
-            method: 'POST',
-            redirect: 'follow',
-            signal: AbortSignal.timeout(15_000),
-            headers: { 'Content-Type': 'text/plain' },
-            body: JSON.stringify({
-              action: 'logInvestigation',
-              vendedor: resolvedOperatorName,
-              empresa: normalizedCompany || cleanTitle(extractCompanyName(safeVisibleText)),
-              modo: mode || '',
-              resumo: finalResponseText.substring(0, 200),
-            }),
-          }).catch((err: unknown) => {
-            scoutDiag.warn('RemoteLog', 'logInvestigation falhou (Apps Script)', {
-              error: err instanceof Error ? err.message : String(err),
+          if (!BACKEND_URL) {
+            scoutDiag.warn('RemoteLog', 'logInvestigation ignorado; backend de sessão não configurado');
+          } else {
+            fetch(BACKEND_URL, {
+              method: 'POST',
+              redirect: 'follow',
+              signal: AbortSignal.timeout(15_000),
+              headers: { 'Content-Type': 'text/plain' },
+              body: JSON.stringify({
+                action: 'logInvestigation',
+                vendedor: resolvedOperatorName,
+                empresa: normalizedCompany || cleanTitle(extractCompanyName(safeVisibleText)),
+                modo: mode || '',
+                resumo: finalResponseText.substring(0, 200),
+              }),
+            }).catch((err: unknown) => {
+              scoutDiag.warn('RemoteLog', 'logInvestigation falhou (backend de sessão)', {
+                error: err instanceof Error ? err.message : String(err),
+              });
             });
-          });
+          }
         }
       } catch (error: unknown) {
         scoutDiag.warn('MessageOrchestrator', 'processMessage:catch', {

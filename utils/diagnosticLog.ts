@@ -24,7 +24,9 @@ const DIAG_VISIBILITY_KEY = 'scout_diag_visibility';
 const DIAG_LOCALSTORAGE_MAX_KEYS = 5;
 const DIAG_FLUSH_INTERVAL_MS = 5_000;
 const DIAG_FLUSH_BATCH_SIZE = 10;
-const DIAG_FLUSH_TIMEOUT_MS = 3_000;
+// BRU-162: flush forçado sob carga (fim de módulo pesado) estourava 3s e
+// jogava o batch pro fallback localStorage sem reenvio — eventos perdidos.
+const DIAG_FLUSH_TIMEOUT_MS = 10_000;
 const INFO_SAMPLE_PERCENT = 10;
 const NOISY_DIAGNOSTIC_AREAS = new Set(['BlankPanelDebug', 'LayoutTrace', 'Visibility']);
 const NOISY_DIAGNOSTIC_EVENTS = new Set([
@@ -222,9 +224,13 @@ async function flushToServer(_reason: string, force = false): Promise<void> {
     clearTimeout(timeout);
 
     if (!response.ok) {
+      // BRU-162: re-enfileira no buffer (além do fallback localStorage) para o
+      // próximo drain reenviar — flush forçado não pode perder eventos.
+      getBuffer().unshift(...events);
       saveToLocalStorageFallback(events);
     }
   } catch {
+    getBuffer().unshift(...events);
     saveToLocalStorageFallback(events);
   } finally {
     diagFlushing = false;
@@ -391,6 +397,17 @@ export function setupVisibilityTracking(): void {
   if ('onfreeze' in document) {
     document.addEventListener('freeze', handleFreeze);
     document.addEventListener('resume', handleResume);
+  }
+
+  // BRU-162 Slot A: tipo de navegação no boot — discrimina reload (bfcache/
+  // manual) de first load nos runs. Um único evento, sem PII.
+  try {
+    const navEntry = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming | undefined;
+    scoutDiag.info('DossierRunLifecycle', 'navigation:type', {
+      type: navEntry?.type ?? 'unknown',
+    });
+  } catch {
+    /* performance API indisponível: segue sem o evento */
   }
 }
 

@@ -119,6 +119,11 @@ vi.mock('../../../services/storage', () => ({
 
 vi.mock('../../../utils/diagnosticLog', () => ({
   scoutDiag: scoutDiagMock,
+  flushDiagnosticsNow: vi.fn(),
+}));
+
+vi.mock('../../../utils/longTaskObserver', () => ({
+  startLongTaskObserver: vi.fn(() => null),
 }));
 
 vi.mock('../../../services/llm/foundation-cache', async () => {
@@ -710,6 +715,114 @@ describe('useDossierWaterfallOrchestrator', () => {
     expect(scoutDiagMock.warn).not.toHaveBeenCalledWith('PipelineV2', 'Fallback v1 (planner/collector falhou)', expect.anything());
   });
 
+  // BRU-157 P1 (contrato do fallback): quando o planner/collector falha — e a
+  // recuperação do planQueries (re-chamada do LLM com os issues anexados) já
+  // esgotou — o orchestrator cai no fallback V1 emitindo warn EXPLÍCITO com o
+  // motivo e o pipeline segue: módulos rodam normalmente (nunca silencioso).
+  it('planner rejeitado após recuperação esgotada cai no fallback V1 com warn explícito e módulos seguem', async () => {
+    evidencePipelineMock.mockReturnValue(true);
+    queryPlannerMocks.plan.mockRejectedValue(
+      new Error('Planner rejeitado após tentativa de correção: queries.0.homonimRisk: invalid_value'),
+    );
+
+    const harness = makeHarness();
+    const result = await harness.result.current.runMegaPromptWaterfall(makeRunArgs());
+
+    expect(queryPlannerMocks.plan).toHaveBeenCalledOnce();
+    expect(queryPlannerMocks.collect).not.toHaveBeenCalled();
+    expect(scoutDiagMock.warn).toHaveBeenCalledWith(
+      'PipelineV2',
+      'Fallback v1 (planner/collector falhou)',
+      expect.objectContaining({
+        error: expect.stringContaining('Planner rejeitado após tentativa de correção'),
+      }),
+    );
+    expect(result.status).not.toBe('FAILED');
+    expect(generateDossierModuleMock).toHaveBeenCalled();
+    expect(saveDossierMock).toHaveBeenCalled();
+  });
+
+  // BRU-158 Q1 (caracterização): pina o wiring existente — o EvidencePack do
+  // collector V2 entra no source pool da sessão e o bloco de fontes chega ao
+  // extraContext dos módulos. Negative control executado localmente: sem a
+  // linha `sessionSourcePool = connectEvidencePackToPool(...)` este teste FALL.
+  it('caracterização: evidência usableForReport do collector V2 chega ao extraContext dos módulos', async () => {
+    evidencePipelineMock.mockReturnValue(true);
+    queryPlannerMocks.plan.mockResolvedValue({
+      queries: [{ id: 'q1', query: 'Grupo Scheffer ampliação capacidade', module: 'teia_identity' }],
+    });
+    queryPlannerMocks.collect.mockResolvedValue({
+      items: [
+        {
+          id: 'item-1',
+          sourceResult: {
+            url: 'https://agrolink.com.br/scheffer-ampliacao',
+            title: 'Scheffer amplia capacidade em Sapezal',
+            snippet: 'Grupo Scheffer anunciou ampliação da capacidade em 2025.',
+            provider: 'web',
+            retrievedAt: '2026-08-31T00:00:00Z',
+          },
+          evidenceTier: 'A',
+          entityMatch: 'exact',
+          usableForReport: true,
+          queryOrigin: 'planner.teia',
+          module: 'teia_identity',
+          extractedClaim: 'Grupo Scheffer ampliou capacidade em 2025',
+        },
+      ],
+      confidenceProfile: {
+        totalUrls: 1,
+        uniqueUrls: 1,
+        tierACount: 1,
+        tierBCount: 0,
+        tierCCount: 0,
+        tierDCount: 0,
+        modulesCovered: ['teia_identity'],
+      },
+      collectedAt: '2026-08-31T00:00:00Z',
+    });
+
+    const harness = makeHarness();
+
+    await act(async () => {
+      await harness.result.current.runMegaPromptWaterfall(makeRunArgs());
+    });
+
+    expect(queryPlannerMocks.collect).toHaveBeenCalledOnce();
+    expect(generateDossierModuleMock).toHaveBeenCalled();
+    const firstExtraContext = generateDossierModuleMock.mock.calls[0][4] as string;
+    expect(firstExtraContext).toContain('[FONTES DISPONIVEIS PARA CITACAO');
+    expect(firstExtraContext).toContain('https://agrolink.com.br/scheffer-ampliacao');
+    expect(firstExtraContext).toContain('Scheffer amplia capacidade em Sapezal');
+    expect(firstExtraContext).toContain('claim: Grupo Scheffer ampliou capacidade em 2025');
+  });
+
+  // BRU-162: marcadores de fase do fechamento — start/completed de benchmark,
+  // finalize, save e mark-completed, com flush imediato de telemetria.
+  it('emite marcadores de fase do fechamento (benchmark/finalize/save/mark_completed)', async () => {
+    const harness = makeHarness();
+
+    const result = await act(async () => {
+      const r = await harness.result.current.runMegaPromptWaterfall(makeRunArgs({ dossierRunId: 'run-1', dossierLeaseOwner: 'lease-1' }));
+      return r;
+    });
+    expect(result).toMatchObject({ status: 'COMPLETED' });
+
+    const phases = scoutDiagMock.info.mock.calls
+      .filter(call => call[0] === 'WaterfallPhase')
+      .map(call => call[1]);
+    expect(phases).toContain('entering_benchmark');
+    expect(phases).toContain('benchmark_done');
+    expect(phases).toContain('entering_finalize');
+    expect(phases).toContain('finalize_done');
+    expect(phases).toContain('entering_save');
+    expect(phases).toContain('save_done');
+    expect(phases).toContain('entering_mark_completed');
+    expect(phases).toContain('mark_completed_done');
+    const order = phases.map(p => ['entering_benchmark', 'benchmark_done', 'entering_finalize', 'finalize_done', 'entering_save', 'save_done', 'entering_mark_completed', 'mark_completed_done'].indexOf(p));
+    expect(order).toEqual([...order].sort((a, b) => a - b));
+  });
+
   it('falha fechada antes do benchmark sem PORTA, save ou completed', async () => {
     failLifecycleAt('before_benchmark');
     const dispatchSpy = vi.spyOn(window, 'dispatchEvent');
@@ -939,6 +1052,35 @@ describe('useDossierWaterfallOrchestrator', () => {
       expect.stringMatching(/marcador de complexidade ausente/i),
       expect.any(Object),
     );
+  });
+
+  // BRU-158 Q0 / P2: o CNPJ fornecido pelo próprio usuário no input é contexto
+  // canônico — NÃO pode virar "não confirmado" no validator (falso positivo do
+  // run real 3f0e7569: "1 de 1 CNPJs citados nao foram confirmados").
+  it('não emite CNPJ validation warning quando o CNPJ citado veio do input do usuário', async () => {
+    generateDossierModuleMock.mockImplementation(async (moduleName: string) => {
+      if (moduleName === 'Teia Societaria — Identidade') {
+        // o módulo cita o CNPJ do input (12.345.678/0001-90 do makeRunArgs)
+        return 'Grupo Acme Agro, CNPJ 12.345.678/0001-90, controla as operações.\n[[TEIA_COMPLEXIDADE:BAIXA]]';
+      }
+      return `${moduleName} consolidado`;
+    });
+    reconcileWaterfallPortaMock.mockImplementation(async ({ accumulatedText }) => ({
+      accumulatedText,
+      resolution: makeResolution(makeScorePorta(72)),
+      portaIntegrityHold: false,
+    }));
+
+    const harness = makeHarness({ canUseLookup: false });
+
+    await act(async () => {
+      await harness.result.current.runMegaPromptWaterfall(makeRunArgs());
+    });
+
+    const cnpjWarnings = scoutDiagMock.warn.mock.calls.filter(
+      call => call[0] === 'TeiaSocietaria' && call[1] === 'CNPJ validation warning' && String(call[2]?.warning || '').includes('nao foram confirmados'),
+    );
+    expect(cnpjWarnings).toHaveLength(0);
   });
 
   it('registra alertas de validação societária sem anexar seção fake ao markdown final', async () => {

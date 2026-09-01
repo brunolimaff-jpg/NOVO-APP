@@ -4,6 +4,13 @@ Padroes e anti-padroes aprendidos de sessoes anteriores. Tratados como regras do
 
 ## Padroes confirmados
 
+- **build-info prova SHA em execução em run real** [debug, telemetria, deploy]
+  Antes de concluir causa em RCA de run real no preview, cruzar o evento `build-info` (scout_diagnostics) com o SHA da PR: ele grava buildSha+hostname no boot. Run pode rodar em deploy antigo (aba cached / múltiplos deploys) — o run c2b3cb56 travou no 287358ff enquanto a instrumentação já estava no 0a396975.
+  Aplicar em todo RCA de freeze/falha de run real.
+
+- **Modal bloqueante (overlay z-50) impede automação browser-use/IAB** [ui, automação]
+  Overlay fixed inset-0 z-50 com re-render imediato bloqueia cliques de locator (actionability check) e não sobrevive a .remove() via evaluate. Preferir banner inline não-bloqueante com data-testid nos botões (padrão aplicado no DuplicateDossierModal, commit 0d336442).
+
 - **Supabase + IDB como cache offline** [react, typescript, supabase, offline] ⚠️ HISTÓRICO
   Offline-first com sync queue: IDB para leitura/escrita instantanea, Supabase como source of truth.
   Stale-while-revalidate nas leituras, fila com retry exponencial nas escritas.
@@ -523,3 +530,20 @@ _Atualizado automaticamente pelo Caliber apos sessoes de agente._
 
 - **ESM no runtime Vercel exige `.js` extension em imports locais** [vercel, esm, deploy, runtime]
   O runtime serverless da Vercel para funcoes TypeScript usa resolucao ESM estrita. Imports de arquivos locais sem extensao `.js` (ex: `from './utils'` em vez de `from './utils.js'`) falham em producao — `ERR_MODULE_NOT_FOUND`. O tipo do erro nao deixa claro que a extensao esta faltando. Sempre adicionar `.js` em imports de arquivos locais em `api/*.ts`.
+
+- **Contingencia de provider: 200 OK nao e equivalencia funcional** [llm, contingencia, qualidade, golden]
+  Sonda sintetica de novo provider (ex: OpenCode Zen) prova protocolo (HTTP 200, JSON, estrutura), nao qualidade do conteudo. Dossie real via contingencia rodou com qualidade pessima mesmo com tudo verde tecnicamente. Gate material = Golden com contrato de conteudo antes de expor a usuarios. Enquanto isso: banner informando canais oficiais (problema atribuido ao fornecedor externo). Implementado em `components/ContingencyBanner.tsx` + branch `fix/llm-zen-temporary`.
+
+- **Preview sem env do provider configurada cai no provider errado e retorna 429** [preview, env, vercel, llm, debug]
+  Ao validar preview de branch com forced Zen, todas as chamadas `/api/llm` retornaram 429 (`LLM_BUDGET_EXCEEDED`). Causa: as envs branch-specific do deployment ainda apontavam para `LLM_PROVIDER=litellm` (LiteLLM sem orçamento) — o código do fix estava correto (CI success). Antes de assumir bug do código, conferir as envs do deployment/brunch (`LLM_PROVIDER`, `OPENCODE_ZEN_*`) via API Vercel `/v9/projects/{project}/env?...gitBranch=...`. Distinguir: "preview aponta para provider errado" (env) vs "fix falhou" (código). Lição: `docs` Vault llm/2026-08-31-preview-env-zen-429.
+
+## Sessao 2026-08-31 (noite) - BRU-157/158 Q1: budget fonte unica, key-URL mismatch, merge com spread
+
+- **Teto de budget/timeout hardcode em mais de um lugar diverge da fonte canonica** [llm, budget, timeout, vercel]
+  `api/_llm-client.ts` tinha `MAX_REQUEST_BUDGET_MS = 180_000` hardcoded enquanto `services/llm/budgets.ts` definia o budget canonico (proxy 210s + headroom 15s). O teto menor abortava modulos pesados (Teia Identidade >180s, run `94ae20c4`) mesmo com proxy e step sãos — e os testes assertavam o literal `180_000`, escondendo o drift. Fix BRU-157 (`563f6f52` + `d8b7027f`): `LLM_REQUEST_BUDGET_MS` derivado em budgets.ts; todos os tetos e assertions importam a constante. Abort em segundos "redondos" (90s/180s) = procurar hardcode antes de culpar o provider. Lição completa: Vault `Lições/llm/2026-08-31-budget-unica-fonte-budgets-ts.md`.
+
+- **Service key de um projeto com URL de outro = 401 silencioso nas escritas server-side** [supabase, vercel, env, telemetria]
+  No preview Zen-only, `SUPABASE_URL`/`ANON_KEY` apontavam para `xlvs` (preview) mas `SUPABASE_SERVICE_ROLE_KEY` era project-level e apontava para `vmqf` (produção). Escritas server-side falhavam com 401 sem erro visível — app respondia 200 e a linha não chegava no banco esperado; parece "falha intermitente" mas é par URL×key inconsistente. Checklist: cada segredo de Supabase em um ambiente branch-scoped deve vir do MESMO projeto. Ausência de linha ≠ bug de código. Lição completa: Vault `Lições/supabase/2026-08-31-service-role-key-banco-errado.md`.
+
+- **Merge/dedup que copia so campos conhecidos descarta proveniencia nova** [typescript, dados, proveniencia]
+  `mergeDossierSourceRefs` empurrava só `{title,url,verification,moduleName}` — os campos novos adicionados ao contrato (`evidenceTier`, `entityMatch`, `queryOrigin`, `extractedClaim` do BRU-158 Q1) sumiam no primeiro merge com pool existente. Fix (`f256b840`): spread `...source` antes dos campos explicitos. Anti-padrão: enriquecer um contrato e esquecer o merge point downstream. Sempre que um tipo ganha campos, revisar todos os construtores/merges desse tipo.

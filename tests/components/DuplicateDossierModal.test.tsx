@@ -50,7 +50,7 @@ describe('DuplicateDossierModal', () => {
         onDismiss={vi.fn()}
       />,
     );
-    fireEvent.click(screen.getByText('Acessar Dossiê Existente'));
+    fireEvent.click(screen.getByTestId('btn-access-existing'));
     expect(onAccess).toHaveBeenCalledOnce();
   });
 
@@ -65,11 +65,11 @@ describe('DuplicateDossierModal', () => {
         onDismiss={vi.fn()}
       />,
     );
-    fireEvent.click(screen.getByText('Nova Pesquisa do Zero'));
+    fireEvent.click(screen.getByTestId('btn-new-research'));
     expect(onNew).toHaveBeenCalledOnce();
   });
 
-  it('chama onDismiss ao clicar em Cancelar', () => {
+  it('chama onDismiss ao clicar em Fechar', () => {
     const onDismiss = vi.fn();
     render(
       <DuplicateDossierModal
@@ -80,7 +80,7 @@ describe('DuplicateDossierModal', () => {
         onDismiss={onDismiss}
       />,
     );
-    fireEvent.click(screen.getByText('Cancelar'));
+    fireEvent.click(screen.getByTestId('btn-dismiss-duplicate'));
     expect(onDismiss).toHaveBeenCalledOnce();
   });
 
@@ -130,10 +130,10 @@ describe('DuplicateDossierModal', () => {
         onDismiss={vi.fn()}
       />,
     );
-    expect(screen.queryByText('Acessar Dossiê Existente')).toBeNull();
+    expect(screen.queryByTestId('btn-access-existing')).toBeNull();
   });
 
-  it('isForeign: preserva nova pesquisa do zero (ação explícita) e cancelar', () => {
+  it('isForeign: preserva nova pesquisa do zero (ação explícita) e fechar', () => {
     const onNew = vi.fn();
     const onDismiss = vi.fn();
     render(
@@ -146,9 +146,9 @@ describe('DuplicateDossierModal', () => {
         onDismiss={onDismiss}
       />,
     );
-    fireEvent.click(screen.getByText('Nova Pesquisa do Zero'));
+    fireEvent.click(screen.getByTestId('btn-new-research'));
     expect(onNew).toHaveBeenCalledOnce();
-    fireEvent.click(screen.getByText('Cancelar'));
+    fireEvent.click(screen.getByTestId('btn-dismiss-duplicate'));
     expect(onDismiss).toHaveBeenCalledOnce();
   });
 });
