@@ -39,7 +39,8 @@ export function DuplicateDossierModal({
         <div className="flex-1 min-w-0">
           <p className="text-sm font-semibold text-amber-900 dark:text-amber-100">Dossiê existente para {companyName}</p>
           <p className="text-xs text-amber-700 dark:text-amber-300/80 mt-0.5">
-            Gerado em {createdAt}{existing.scoreOportunidade != null ? ` · Score PORTA: ${existing.scoreOportunidade}/100` : ''}
+            Gerado em {createdAt}
+            {!isForeign && existing.scoreOportunidade != null ? ` · Score PORTA: ${existing.scoreOportunidade}/100` : ''}
           </p>
         </div>
       </div>
