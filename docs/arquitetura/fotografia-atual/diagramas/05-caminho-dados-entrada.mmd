@@ -1,0 +1,24 @@
+flowchart LR
+    A[Dados da tela inicial] --> N[Nome da empresa]
+    A --> C[CNPJ opcional]
+    A --> L[Cidade + UF]
+
+    N --> N1[Busca dossie existente]
+    N --> N2[Titulo e empresa alvo da sessao]
+    N --> N3[Lookup de cliente Senior]
+    N --> N4[Nome usado pelos modulos]
+
+    C --> C1[Consulta cadastral inicial]
+    C --> C2[Busca dossie existente]
+    C --> C3[Persistido como CNPJ da sessao]
+    C --> C4[Consulta CNAE / segmento]
+    C --> C5[Teia: QSA + CNAE + estrutura]
+    C --> C6[Define complexidade societaria]
+
+    L --> L1[Validacao de Cidade + UF]
+    L --> L2[Entra no contexto cadastral dos prompts]
+
+    N4 --> W[Fluxo principal do dossie]
+    C5 --> W
+    C6 --> W
+    L2 --> W
