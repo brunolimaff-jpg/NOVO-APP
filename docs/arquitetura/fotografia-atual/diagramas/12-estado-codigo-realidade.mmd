@@ -1,0 +1,24 @@
+flowchart TB
+    PROD["PRODUCAO\nmain @ b6fa24c5"] --> PDEP["Vercel production\nREADY"]
+    PROD --> PRUN["Supabase dossier_runs\nexecucoes com environment=production"]
+
+    CAND["CANDIDATO #492\nc5a7ab8b"] --> CODE["Leitura de wiring no codigo"]
+    CAND --> PREV["Vercel preview\nREADY"]
+    PREV -.-> NORUN["Nenhum dossier_run com app_version c5a7ab8b\nna fotografia de 02/09/2026"]
+
+    CODE --> LIVE["LIVE / conectado\nApp, chat, waterfall, lifecycle, persistencia"]
+    CODE --> COND["CONDICIONAL\nfeature flags / configuracao / ambiente"]
+    CODE --> SHADOW["SHADOW\nimplementado/testado sem governar o fluxo"]
+    CODE --> AVAIL["DISPONIVEL, USO NAO COMPROVADO\nrota ou helper sem caller material provado"]
+    CODE --> LEG["TRANSICIONAL / RESIDUAL\ncompatibilidade ou caminhos historicos"]
+
+    SHADOW --> GOLD["Gold V4/V5\nsem caller do waterfall"]
+    SHADOW --> V3["V3 Composer\nsomente PR #491"]
+    COND --> EVID["Evidence Pipeline V2"]
+    COND --> SENTRY["Sentry"]
+    AVAIL --> EXTRACT["extract-content"]
+    LEG --> APPS["Apps Script / segunda espinha de sessao"]
+    LEG --> PWA["cleanup de Service Worker / PWA"]
+
+    RULE["Regra do CP-05:\nexiste no repo != roda em producao\nteste passa != esta conectado\npreview READY != fluxo funcional validado"]
+    CODE -.-> RULE
