@@ -1,0 +1,17 @@
+flowchart LR
+    A["Capacidade"] --> B{"Se falhar hoje"}
+    B --> C["Bloqueia a investigação"]
+    B --> D["Continua com degradação"]
+    B --> E["Continua sem uma dimensão"]
+    B --> F["Produto roda, mas ficamos cegos"]
+    B --> G["Nenhum impacto material atual"]
+
+    C --> C1["Obrigatória"]
+    D --> D1["Degradável"]
+    E --> E1["Complementar"]
+    F --> F1["Observabilidade"]
+    G --> G1["Residual / fora do fluxo"]
+
+    D --> H["Retry / fallback / timeout"]
+    C --> I["Estado terminal comprovável"]
+    F --> J["Diagnóstico e correlação"]
