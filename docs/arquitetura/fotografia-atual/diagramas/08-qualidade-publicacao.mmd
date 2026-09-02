@@ -1,0 +1,21 @@
+flowchart TB
+    M["Modulos da investigacao"] --> P["PORTA: revisar coerencia e lacunas"]
+    P -->|"sucesso"| Q["Score / reconciliacao"]
+    P -->|"falha ou timeout"| H["Integrity hold + continua com texto acumulado"]
+    Q --> S["Sanitizar dados pessoais e regras Senior"]
+    H --> S
+    S --> V["Validar fontes inline"]
+    V --> F["Finalizar markdown: integridade de links + fontes"]
+    F --> E["Dossie enxuto: 1 Mermaid, headers, duplicidades"]
+    E --> R["Mensagem final"]
+    R --> DB["Salvar dossie"]
+    DB --> C["Marcar execucao COMPLETED"]
+
+    O["Modulos opcionais"] -.->|"podem falhar e continuar"| P
+    N["Sem grounding disponivel"] -.->|"gera aviso, nao bloqueio"| F
+
+    G["Gold V4/V5\ncompleto e testado"] -.->|"sem caller de producao"| R
+    V3["V3 Composer\nsomente PR #491"] -.-> R
+
+    NOTE["No caminho vivo do #492 nao existe um gate unico\nque reprove o dossie por qualidade antes do save."]
+    R -.-> NOTE
