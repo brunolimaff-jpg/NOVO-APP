@@ -1,0 +1,12 @@
+flowchart TB
+    E["Dados da conta: nome, CNPJ, cidade e UF"] --> S["ChatSession em memoria"]
+    S --> R0["dossier_runs: PENDING ou RUNNING + lease"]
+    R0 --> W["Waterfall: pesquisa, modulos e PORTA"]
+    X["Fontes externas e respostas de IA"] --> W
+    W --> M["Mensagem final: texto, fontes, score e metadados"]
+    M --> D["dossies.content: ChatSession inteira em JSONB"]
+    D --> R1["dossier_runs: estado terminal + dossier_id"]
+    R1 --> O["Reabrir, exibir e exportar"]
+
+    S -.-> L["Backend legado: sessao completa via BACKEND_URL"]
+    L -.-> O
