@@ -1,0 +1,21 @@
+flowchart LR
+    APP[Aplicação do Scout] --> CNPJAPI[Consulta cadastral /api/cnpj]
+    APP --> LLMAPI[Geração com IA /api/llm]
+    APP --> WEBAPI[Pesquisa pública /api/open-web-search]
+    APP --> EXTRACT[Extrair conteúdo /api/extract-content]
+    APP --> LINKS[Validar fontes /api/link-status]
+    APP --> SOCIOAPI[Pesquisa societária /api/socio-search]
+    APP -.-> RAGAPI[Busca vetorial /api/rag]
+
+    CNPJAPI --> CNPJS[BrasilAPI, CNPJ.ws, MinhaReceita]
+    LLMAPI --> PROVIDERS[LiteLLM e OpenCode Zen]
+    WEBAPI --> SEARCH[Brave, DuckDuckGo e páginas públicas]
+    EXTRACT --> PAGES[Páginas públicas ou conteúdo enviado]
+    LINKS --> PAGES
+    SOCIOAPI --> SOCIOS[CNPJ Aberto, ConsultaSocio, web e consulta cadastral]
+    RAGAPI -.-> PINE[Pinecone e embeddings]
+
+    CRON[Vercel Scheduler] --> EMAIL[Limpeza de contas /api/cron-email-confirmation]
+    EMAIL --> SUPA[Supabase administrativo]
+    MANUAL[Chamada autorizada] -.-> CLEAN[Limpeza de execuções /api/cron-dossier-run-cleanup]
+    CLEAN -.-> SUPA
