@@ -1,0 +1,64 @@
+flowchart TD
+    A[Tela inicial - nova investigacao] --> B[Informar empresa: Nome + Cidade + UF; CNPJ opcional]
+    B --> C{CNPJ informado?}
+    C -->|Sim| D[Consultar cadastro e completar dados]
+    C -->|Nao| E[Usar dados digitados]
+    D --> F[Validar Cidade + UF]
+    E --> F
+    F --> G{Dados validos?}
+    G -->|Nao| H[Pedir correcao; nao inicia investigacao]
+    G -->|Sim| I[Montar pacote inicial da conta]
+    I --> J[Procurar dossie existente]
+    J --> K{Ja existe?}
+    K -->|Sim| L[Escolher abrir existente ou nova pesquisa]
+    K -->|Nao| M[Preparar nova investigacao]
+    L -->|Abrir| N[Reabrir dossie salvo]
+    L -->|Nova pesquisa| M
+    M --> O{Tem CNPJ?}
+    O -->|Sim| P[Consultar CNAE / segmento]
+    O -->|Nao| Q[Seguir sem segmento cadastral]
+    P --> R[Montar contexto da investigacao]
+    Q --> R
+    R --> T[Transformar em pedido de Dossie completo]
+    T --> U[Criar ou reaproveitar sessao]
+    U --> V[Guardar Empresa alvo + CNPJ]
+    V --> W[Carregamento e progresso - LoadingSmart]
+    W --> X[Criar execucao e manter sinal de vida]
+    X --> Y{Pesquisa adicional de evidencias ativa?}
+    Y -->|Sim| Y1[Planejar e coletar evidencias adicionais]
+    Y -->|Nao| Z[Confirmar empresa e estrutura - Teia]
+    Y1 --> Z
+    Z --> AA{Conta mais complexa?}
+    AA -->|Sim| AB[Aprofundar estrutura societaria]
+    AA -->|Nao| AC[Entender operacao e cadeia de valor]
+    AB --> AC
+    AC --> AD[Investigar modulos complementares: Bordas + Riscos + Caminho de venda]
+    AD --> AE[Reunir descobertas]
+    AE --> AF[Checagem auxiliar - Benchmark]
+    AF --> AG[PORTA revisa coerencia e lacunas]
+    AG --> AH{Precisa aprofundar?}
+    AH -->|Sim| AI[Pesquisar novamente partes especificas]
+    AI --> AG
+    AH -->|Nao| AJ[Limpar e aplicar regras de evidencia]
+    AJ --> AK[Organizar e validar fontes]
+    AK --> AL[Montar documento final]
+    AL --> AM[Enxugar e reorganizar]
+    AM --> AN[Gerar proximo movimento]
+    AN --> AO[Salvar o dossie]
+    AO --> AP[Registrar fim da execucao]
+    AP --> AQ{Resultado}
+    AQ -->|OK| AR[Concluido]
+    AQ -->|Lacunas| AS[Concluido com lacunas]
+    AQ -->|Falha| AT[Falhou]
+    AQ -->|Cancelamento| AU[Cancelado]
+    AR --> AV{Como exibir?}
+    AS --> AV
+    AV -->|Normal| AW[Exibicao normal]
+    AV -->|Grande| AX[Modo simples para relatorio grande - static fallback]
+    AX --> AY[Estrutura temporaria de carregamento - skeleton, se muito grande]
+    AW --> AZ{Mais de 3 secoes?}
+    AY --> AZ
+    AZ -->|Sim| BA[Mostrar parte primeiro e permitir expandir]
+    AZ -->|Nao| BB[Mostrar tudo]
+    BA --> BC[Dossie visivel ao usuario]
+    BB --> BC
