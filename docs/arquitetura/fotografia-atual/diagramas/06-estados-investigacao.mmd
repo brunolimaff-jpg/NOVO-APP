@@ -1,0 +1,24 @@
+stateDiagram-v2
+    [*] --> PENDING
+    PENDING --> RUNNING
+    RUNNING --> COMPLETED
+    RUNNING --> FAILED
+    RUNNING --> CANCEL_REQUESTED
+    CANCEL_REQUESTED --> CANCELLED
+    PENDING --> FAILED
+    PENDING --> CANCELLED
+
+    note right of PENDING
+      Estado nao final.
+      Nao deveria ficar orfao.
+    end note
+
+    note right of RUNNING
+      Estado nao final.
+      Nao deveria ficar orfao.
+    end note
+
+    note right of CANCEL_REQUESTED
+      Estado nao final.
+      Nao deveria ficar orfao.
+    end note
