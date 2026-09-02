@@ -1,0 +1,24 @@
+flowchart TB
+    START["Pessoa inicia uma investigacao"] --> DUP["Evitar duplicacao\nWaterfallGuard + idempotency key"]
+    DUP --> OWN["Manter um dono vivo\nlease 45s + heartbeat 15s"]
+    OWN --> CHECK["Confirmar que pode continuar\ncheckpoints de lifecycle + renovacao preventiva"]
+    CHECK --> WORK["Executar pesquisa e IA"]
+
+    WORK --> TIME["Limitar demora\ntimeouts por step, proxy e serverless"]
+    WORK --> RETRY["Tentar de novo quando transiente\nretries em mais de uma camada"]
+    WORK --> FALLBACK["Trocar de provedor quando elegivel\nLiteLLM para OpenCode Zen"]
+
+    CHECK -->|"cancelamento remoto ou local"| CANCEL["Persistir CANCELLED quando o waterfall observa"]
+    CHECK -->|"lease perdido"| STOP["Parar fail-closed"]
+
+    OWN --> RELOAD["Reload da aba\nregistro em sessionStorage"]
+    RELOAD --> MSG["Nao retoma waterfall\nmostra interrupcao e preserva resultado anterior"]
+
+    OWN -.-> STALE["Lease expira e run fica intermediario"]
+    STALE -.-> CLEAN["Cleanup disponivel\nRUNNING expirado por mais de 1h"]
+    CLEAN -.-> FAILED["FAILED: STALE_RUN_LEASE_EXPIRED"]
+
+    WORK --> UI["Protecoes de exibicao\nstatic fallback, deferred render, preview de secoes"]
+
+    note["No vercel.json atual, o cleanup de dossier_runs nao esta agendado.\nA RPC de stale cleanup nao seleciona CANCEL_REQUESTED."]
+    CLEAN -.-> note
