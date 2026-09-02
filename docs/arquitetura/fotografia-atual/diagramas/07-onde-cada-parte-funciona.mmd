@@ -1,0 +1,61 @@
+flowchart LR
+    subgraph B["Navegador"]
+        UI["React UI + chatStore"]
+        ORCH["Message orchestrator"]
+        WF["Waterfall + PORTA + composicao"]
+        SC["Cliente Supabase"]
+        LEG["Session remote store legado"]
+        UI --> ORCH --> WF
+        UI --> SC
+    end
+
+    subgraph V["Vercel Functions"]
+        LLM["/api/llm"]
+        CNPJ["/api/cnpj"]
+        WEB["/api/open-web-search"]
+        SOC["/api/socio-search"]
+        LINK["/api/link-status"]
+        EXT["/api/extract-content"]
+        RAG["/api/rag desativada"]
+        CRON["Rotas de cron"]
+    end
+
+    subgraph S["Supabase"]
+        AUTH["Auth"]
+        D["dossies"]
+        RUNS["dossier_runs + RPCs"]
+        DIAG["diagnosticos e dados operacionais"]
+    end
+
+    subgraph X["Servicos externos"]
+        AI["LiteLLM / OpenCode Zen"]
+        SEARCH["Brave / DuckDuckGo / paginas publicas"]
+        CAD["BrasilAPI / CNPJ.ws / MinhaReceita"]
+        SOCSRC["CNPJ Aberto / ConsultaSocio"]
+        IBGE["IBGE"]
+        APPS["Apps Script"]
+        SENTRY["Sentry"]
+    end
+
+    WF --> LLM
+    WF --> CNPJ
+    WF --> WEB
+    WF --> SOC
+    WF --> LINK
+    WF -.-> EXT
+    WF -.-> RAG
+
+    SC --> AUTH
+    SC --> D
+    SC --> RUNS
+    CRON --> DIAG
+    CRON --> RUNS
+
+    LLM --> AI
+    WEB --> SEARCH
+    CNPJ --> CAD
+    SOC --> SOCSRC
+
+    UI --> IBGE
+    LEG --> APPS
+    UI --> SENTRY
