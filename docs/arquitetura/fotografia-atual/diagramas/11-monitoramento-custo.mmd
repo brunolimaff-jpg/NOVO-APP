@@ -1,0 +1,19 @@
+flowchart TB
+    EXEC["Execucao da investigacao"]
+
+    EXEC --> RUNS["dossier_runs\nlifecycle persistente\nambiente + versao do app"]
+    EXEC --> DIAG["scout_diagnostics\ndiagnostico persistente\neventos de browser e servidor"]
+    EXEC -.-> VERCEL["Vercel Runtime Logs\nvisao server-side parcial"]
+    EXEC -.-> SENTRY["Sentry\ncondicional por configuracao"]
+
+    DIAG --> TOKENS["usage metadata\ntokens por modulo quando disponivel"]
+
+    EXEC -.-> OPS["operator_events / operator_sessions\ntelemetria historica"]
+    EXEC -.-> WLOG["waterfall_logs\nestrutura historica"]
+    EXEC -.-> EXP["llm_experiment_runs\nesquema rico de experimento e custo"]
+
+    TOKENS -.-> COST["Custo canonico por run / conta / usuario\nNAO COMPROVADO no fluxo recente"]
+    EXP -.->|"dados antigos e poucos registros"| COST
+
+    WARN["Importante: scout_diagnostics.environment usa o modo do Vite.\nPreview pode aparecer como production.\nPara ambiente confiavel, usar metadado Vercel/build ou dossier_runs.environment."]
+    DIAG -.-> WARN
