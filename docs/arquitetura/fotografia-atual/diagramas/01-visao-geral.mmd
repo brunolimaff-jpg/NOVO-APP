@@ -1,0 +1,13 @@
+flowchart TD
+    U[Usuario no Scout App] --> C[Conversa e escolha da conta]
+    C --> T{Pedido normal ou gerar dossie?}
+    T -->|Conversa| CH[Resposta no chat]
+    T -->|Dossie| L[Carregamento e progresso - LoadingSmart]
+    L --> R[Abrir execucao e manter sinal de vida]
+    R --> X[Preparar contexto da empresa]
+    X --> E[Pesquisar e reunir evidencias]
+    E --> O[Entender operacao e sinais]
+    O --> P[PORTA revisa coerencia e lacunas]
+    P --> F[Montar resultado final]
+    F --> S[Salvar dossie e encerrar execucao]
+    S --> V[Exibir dossie ao usuario]
