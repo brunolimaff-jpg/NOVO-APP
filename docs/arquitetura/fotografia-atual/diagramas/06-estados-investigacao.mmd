@@ -1,31 +1,36 @@
 stateDiagram-v2
     state "Criada (PENDING)" as PENDING
     state "Em andamento (RUNNING)" as RUNNING
-    state "Concluída (COMPLETED)" as COMPLETED
-    state "Falhou (FAILED)" as FAILED
     state "Cancelamento solicitado (CANCEL_REQUESTED)" as CANCEL_REQUESTED
+    state "Concluida (COMPLETED)" as COMPLETED
+    state "Falhou (FAILED)" as FAILED
     state "Cancelada (CANCELLED)" as CANCELLED
 
-    [*] --> PENDING
-    PENDING --> RUNNING
-    RUNNING --> COMPLETED
-    RUNNING --> FAILED
-    RUNNING --> CANCEL_REQUESTED
-    CANCEL_REQUESTED --> CANCELLED
-    PENDING --> FAILED
-    PENDING --> CANCELLED
+    [*] --> PENDING: create_or_get
+    PENDING --> RUNNING: lease adquirido
+    PENDING --> CANCEL_REQUESTED: pedido de cancelamento
+    RUNNING --> RUNNING: heartbeat renova lease
+    RUNNING --> CANCEL_REQUESTED: pedido de cancelamento
+    RUNNING --> COMPLETED: dossie salvo + complete
+    RUNNING --> FAILED: falha terminal persistida
+    CANCEL_REQUESTED --> CANCELLED: waterfall observa cancelamento com lease valido
 
     note right of PENDING
-      Estado intermediário.
-      Pode ficar sem encerramento.
+      Se a criacao ocorrer mas o lease nao for adquirido,
+      o estado pode permanecer intermediario.
     end note
 
     note right of RUNNING
-      Estado intermediário.
-      Pode ficar sem encerramento.
+      Lease de 45s e heartbeat de 15s.
+      Se o navegador some, o run nao e retomado automaticamente.
     end note
 
     note right of CANCEL_REQUESTED
-      Estado intermediário.
-      Pode ficar sem encerramento.
+      O cleanup de stale runs atual seleciona apenas RUNNING.
+      CANCEL_REQUESTED sem finalizacao pode permanecer preso.
+    end note
+
+    note left of FAILED
+      Existe RPC para limpar RUNNING com lease expirado > 1h,
+      mas a rota de cleanup nao esta agendada no vercel.json atual.
     end note
