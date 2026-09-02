@@ -1,0 +1,12 @@
+flowchart LR
+    APP[Aplicação do Scout no navegador] --> SUPA[Supabase]
+    APP --> IBGE[IBGE]
+    APP --> LOOKUP[Apps Script: consulta de cliente]
+    APP --> EMAIL[Apps Script: envio de e-mail]
+    APP --> SENTRY[Sentry]
+
+    SUPA --> SD[Login, sessão, dossiês e execuções]
+    IBGE --> CITY[Validação de cidade e estado]
+    LOOKUP --> CLIENT[Cliente Senior, produtos e oportunidades de cruzamento]
+    EMAIL --> MAIL[Dossiê por e-mail]
+    SENTRY --> OBS[Erros, rastreamento e replay se configurado]
