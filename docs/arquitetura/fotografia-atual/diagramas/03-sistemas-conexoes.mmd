@@ -1,0 +1,28 @@
+flowchart LR
+    U[Pessoa usando o Scout] --> APP[Aplicação do Scout no navegador]
+
+    APP --> API[Servidor e APIs na Vercel]
+    APP --> SUPA[Supabase: autenticação e dados]
+    APP --> IBGE[IBGE: validação de cidade e estado]
+    APP --> SCRIPT[Apps Script: consulta de cliente e envio de e-mail]
+    APP --> SENTRY[Sentry: monitoramento no navegador]
+
+    API --> SUPA
+    API --> LLM[Serviços de IA]
+    API --> WEB[Pesquisa e páginas públicas]
+    API --> CNPJ[Cadastros públicos de empresas]
+    API --> SOCIO[Fontes de relações societárias]
+    API --> RAG[Pinecone: busca vetorial desativada]
+
+    LLM --> LITE[LiteLLM: principal]
+    LLM --> ZEN[OpenCode Zen: alternativa]
+
+    WEB --> BRAVE[Brave Search]
+    WEB --> DDG[DuckDuckGo e sites públicos]
+
+    CNPJ --> BAPI[BrasilAPI]
+    CNPJ --> CWS[CNPJ.ws]
+    CNPJ --> MR[MinhaReceita]
+
+    SOCIO --> CA[CNPJ Aberto]
+    SOCIO --> CS[ConsultaSocio]
