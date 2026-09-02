@@ -1,0 +1,25 @@
+flowchart LR
+    U["Pessoa"] --> B["Scout no navegador"]
+
+    B --> AUTH["Supabase Auth\nsessao do usuario"]
+    B --> DATA["Supabase dados/RPCs\nchave anon + sessao"]
+    B --> API["APIs Vercel do Scout"]
+    B --> DIRECT["Servicos diretos\nIBGE, Apps Script, Sentry"]
+
+    API --> LLM["/api/llm"]
+    API --> PUBLIC["CNPJ, web, socio, links, extracao, RAG"]
+    API --> CRON["Rotas de cron"]
+
+    LLM --> PROVIDER["LiteLLM / OpenCode Zen\nsegredos ficam no servidor"]
+    PUBLIC --> EXT["Fontes e provedores externos"]
+    CRON -->|"Bearer CRON_SECRET"| ADMIN["Supabase service_role"]
+
+    LLM -.-> NAUTH["CORS/validacao de corpo\nsem auth/authz do chamador no handler"]
+    PUBLIC -.-> PAUTH["Rotas de dados/pesquisa\nsem verificacao de sessao observada"]
+
+    DATA --> RLS["RLS / RPCs no banco"]
+    RLS -.-> CODE["Migrations P0 fail-closed existem no repo\nmas estao marcadas CODE-ONLY; aplicacao remota nao comprovada"]
+
+    PUBLIC --> URLS["Protecao de URL"]
+    URLS --> STRONG["link-status: DNS/IP pinning + redirects"]
+    URLS --> OTHER["open-web/extract/socio: validador separado + fetch"]
