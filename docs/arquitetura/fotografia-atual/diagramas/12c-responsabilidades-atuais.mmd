@@ -1,0 +1,32 @@
+flowchart LR
+    U["Pessoa usuária"] --> B["Navegador"]
+
+    B --> B1["Inicia investigação"]
+    B --> B2["Coordena Waterfall"]
+    B --> B3["Mantém loading / watchdog"]
+    B --> B4["Renova lease"]
+    B --> B5["Salva dossiê"]
+
+    B --> V["Vercel"]
+    V --> V1["Chama IA"]
+    V --> V2["Pesquisa web / CNPJ / sócios"]
+    V --> V3["Aplica fallback de provedor"]
+    V --> V4["Grava diagnóstico server-side"]
+
+    B --> S["Supabase"]
+    S --> S1["Sessão e autenticação"]
+    S --> S2["dossier_runs"]
+    S --> S3["dossies.content"]
+    S --> S4["RLS / RPCs"]
+
+    V --> X["Serviços externos"]
+    X --> X1["LiteLLM / Zen"]
+    X --> X2["Web pública / cadastros"]
+    X --> X3["Sentry condicional"]
+
+    B -.-> Q["Responsabilidade distribuída"]
+    V -.-> Q
+    S -.-> Q
+    Q --> Q1["Qualidade final"]
+    Q --> Q2["Terminalidade"]
+    Q --> Q3["Observabilidade"]
