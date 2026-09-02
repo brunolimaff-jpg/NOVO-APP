@@ -1,4 +1,11 @@
 stateDiagram-v2
+    state "Criada (PENDING)" as PENDING
+    state "Em andamento (RUNNING)" as RUNNING
+    state "Concluída (COMPLETED)" as COMPLETED
+    state "Falhou (FAILED)" as FAILED
+    state "Cancelamento solicitado (CANCEL_REQUESTED)" as CANCEL_REQUESTED
+    state "Cancelada (CANCELLED)" as CANCELLED
+
     [*] --> PENDING
     PENDING --> RUNNING
     RUNNING --> COMPLETED
@@ -9,16 +16,16 @@ stateDiagram-v2
     PENDING --> CANCELLED
 
     note right of PENDING
-      Estado nao final.
-      Nao deveria ficar orfao.
+      Estado intermediário.
+      Pode ficar sem encerramento.
     end note
 
     note right of RUNNING
-      Estado nao final.
-      Nao deveria ficar orfao.
+      Estado intermediário.
+      Pode ficar sem encerramento.
     end note
 
     note right of CANCEL_REQUESTED
-      Estado nao final.
-      Nao deveria ficar orfao.
+      Estado intermediário.
+      Pode ficar sem encerramento.
     end note
